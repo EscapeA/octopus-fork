@@ -6,8 +6,8 @@ import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 import {
-  WATERHOUSE_DIALOG_CONTENT_CLASS,
-  WATERHOUSE_DIALOG_OVERLAY_CLASS,
+  DIALOG_CONTENT_CLASS,
+  DIALOG_OVERLAY_CLASS,
 } from "@/components/ui/dialog"
 
 function AlertDialog({
@@ -40,7 +40,7 @@ function AlertDialogOverlay({
     <AlertDialogPrimitive.Overlay
       data-slot="alert-dialog-overlay"
       className={cn(
-        WATERHOUSE_DIALOG_OVERLAY_CLASS,
+        DIALOG_OVERLAY_CLASS,
         className
       )}
       {...props}
@@ -58,7 +58,7 @@ function AlertDialogContent({
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
         className={cn(
-          WATERHOUSE_DIALOG_CONTENT_CLASS,
+          DIALOG_CONTENT_CLASS,
           className
         )}
         {...props}

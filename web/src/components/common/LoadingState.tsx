@@ -19,7 +19,7 @@ export function LoadingState({ message }: LoadingStateProps) {
                 transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                 className="flex flex-col items-center gap-3"
             >
-                <div className="grid size-14 place-items-center rounded-[1.45rem] border border-border/35 bg-background/56 shadow-waterhouse-soft">
+                <div className="grid size-14 place-items-center rounded-lg border border-border bg-card">
                     <Loader2 className="size-6 animate-spin text-primary" />
                 </div>
                 <span className="text-sm text-muted-foreground">{message ?? t('message')}</span>

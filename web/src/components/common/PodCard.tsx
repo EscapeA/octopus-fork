@@ -20,10 +20,10 @@ export function PodCard({ children, className, variant = 'default' }: PodCardPro
     return (
         <div
             className={cn(
-                'relative overflow-hidden rounded-[1.8rem] shadow-waterhouse-soft',
-                variant === 'default' && 'border border-border/30 bg-background/34 backdrop-blur-md',
-                variant === 'dashed' && 'border border-dashed border-border/35 bg-background/28 backdrop-blur-md',
-                variant === 'empty' && 'border border-border/25 bg-background/20 backdrop-blur-sm',
+                'relative overflow-hidden rounded-lg',
+                variant === 'default' && 'border border-border bg-card',
+                variant === 'dashed' && 'border border-dashed border-border bg-card',
+                variant === 'empty' && 'border border-border/60 bg-card',
                 className
             )}
         >

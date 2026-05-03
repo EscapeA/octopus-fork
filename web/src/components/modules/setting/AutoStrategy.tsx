@@ -47,7 +47,7 @@ export function SettingAutoStrategy() {
     };
 
     return (
-        <div className="waterhouse-island rounded-[2.1rem] border-border/35 bg-card/58 p-6 space-y-5 text-card-foreground shadow-waterhouse-deep backdrop-blur-[var(--waterhouse-shell-blur)]">
+        <div className="rounded-xl border-border/35 bg-card p-6 space-y-5 text-card-foreground shadow-md ">
             <h2 className="text-lg font-bold text-card-foreground flex items-center gap-2">
                 <Sparkles className="h-5 w-5" />
                 {t('autoStrategy.title')}
@@ -59,7 +59,7 @@ export function SettingAutoStrategy() {
 
             <div className="space-y-4">
                 {AUTO_STRATEGY_FIELDS.map((field) => (
-                    <div key={field.key} className="waterhouse-pod flex flex-col gap-3 rounded-[1.5rem] border-border/30 bg-background/34 p-4 shadow-waterhouse-soft md:flex-row md:items-center md:justify-between">
+                    <div key={field.key} className="flex flex-col gap-3 rounded-lg border-border/30 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between">
                         <div className="flex flex-col gap-1">
                             <span className="text-sm font-medium">{t(field.labelKey)}</span>
                             {field.hintKey ? (

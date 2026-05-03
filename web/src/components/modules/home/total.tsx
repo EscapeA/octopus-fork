@@ -106,30 +106,30 @@ export function Total() {
             {cards.map((card, index) => (
                 <motion.section
                     key={index}
-                    className="rounded-3xl bg-card border-card-border border p-5 text-card-foreground flex flex-row items-center gap-4"
-                    initial={{ opacity: 0, y: 20, filter: 'blur(8px)' }}
-                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                    className="rounded-xl bg-card border border-border p-5 text-card-foreground flex flex-row items-center gap-4"
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
                     transition={{
-                        duration: 0.5,
+                        duration: 0.45,
                         ease: EASING.easeOutExpo,
                         delay: index * 0.08,
                     }}
                 >
                     <div className="flex flex-col items-center justify-center gap-3 border-r border-border/50 pr-4 py-1 self-stretch">
-                        <card.headerIcon className="w-4 h-4" />
+                        <card.headerIcon className="w-4 h-4" strokeWidth={1.5} />
                         <h3 className="font-medium text-sm [writing-mode:vertical-lr]">{card.title}</h3>
                     </div>
 
                     <div className="flex flex-col gap-4 flex-1 min-w-0">
                         {card.items.map((item, idx) => (
                             <div key={idx} className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${item.bgColor} ${item.color}`}>
-                                    <item.icon className="w-5 h-5" />
+                                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${item.bgColor} ${item.color}`}>
+                                    <item.icon className="w-4 h-4" strokeWidth={1.5} />
                                 </div>
                                 <div className="flex flex-col min-w-0">
                                     <span className="text-xs text-muted-foreground">{item.label}</span>
                                     <div className="flex items-baseline gap-1">
-                                        <span className="text-xl">
+                                        <span className="text-lg font-semibold">
                                             <AnimatedNumber value={item.value} />
                                         </span>
                                         {item.unit && (

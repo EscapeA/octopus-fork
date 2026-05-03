@@ -95,12 +95,10 @@ export function Activity() {
     }, [days, isLoading, checkScroll]);
 
     return (
-        <div className="waterhouse-island relative flex h-full flex-col overflow-hidden rounded-[2rem] border-border/35 bg-card/56 text-card-foreground shadow-waterhouse-deep backdrop-blur-[var(--waterhouse-shell-blur)]">
-            <div className="pointer-events-none absolute -left-12 -top-12 h-40 w-40 rounded-full bg-primary/8 blur-3xl" />
-            <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-primary/24 to-transparent" />
-            <div className="relative px-4 pt-4 md:px-5 md:pt-5">
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/12 bg-background/44 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-primary shadow-waterhouse-soft backdrop-blur-md">
-                    <Flame className="h-3.5 w-3.5" />
+        <div className="relative flex h-full flex-col rounded-xl border border-border bg-card text-card-foreground">
+            <div className="px-4 pt-4 md:px-5 md:pt-5">
+                <div className="mb-3 inline-flex items-center gap-2 rounded-md border border-primary/12 bg-card px-2.5 py-1 text-xs font-medium text-primary">
+                    <Flame className="h-3.5 w-3.5" strokeWidth={1.5} />
                     <span>{t('title')}</span>
                 </div>
                 <p className="text-sm leading-6 text-muted-foreground">{t('description')}</p>
@@ -111,7 +109,7 @@ export function Activity() {
                 className="relative flex-1 overflow-x-auto px-4 pb-5 pt-4 md:px-5 md:pb-5"
                 style={{ maskImage, WebkitMaskImage: maskImage }}
             >
-                <div className="waterhouse-pod ml-auto w-fit rounded-[1.55rem] border-border/30 bg-background/38 p-3.5 shadow-waterhouse-soft backdrop-blur-md">
+                <div className="ml-auto w-fit rounded-lg border border-border bg-card p-3.5">
                     <div className="grid gap-1"
                         style={{
                             gridTemplateColumns: 'repeat(54, 1rem)',
@@ -141,7 +139,7 @@ export function Activity() {
                                     key={day.dateStr}
                                     type="button"
                                     aria-label={ariaLabel}
-                                    className="cursor-pointer rounded-[0.35rem] ring-1 ring-white/20 transition-all duration-200 hover:scale-150 hover:ring-primary/35 focus-visible:scale-150 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/55"
+                                    className="cursor-pointer rounded-sm ring-1 ring-border/20 transition-all duration-150 hover:scale-150 hover:ring-primary/30 focus-visible:scale-150 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/50"
                                     onMouseEnter={(e) => {
                                         const rect = e.currentTarget.getBoundingClientRect();
                                         setTooltip({ day, x: rect.left + rect.width / 2, y: rect.top, visible: true });
@@ -181,7 +179,7 @@ export function Activity() {
 
                     return (
                         <div
-                            className={`waterhouse-pod fixed z-50 w-fit min-w-max rounded-[1.45rem] border-border/40 bg-background/86 p-3 text-sm text-foreground shadow-waterhouse-deep backdrop-blur-[var(--waterhouse-shell-blur)] transition-opacity duration-500 pointer-events-none ${tooltip.visible ? 'opacity-100' : 'opacity-0'}`}
+                            className={`fixed z-50 w-fit min-w-max rounded-lg border border-border bg-card p-3 text-sm text-foreground transition-opacity duration-300 pointer-events-none ${tooltip.visible ? 'opacity-100' : 'opacity-0'}`}
                             style={{
                                 left: tooltip.x,
                                 top: tooltip.y,

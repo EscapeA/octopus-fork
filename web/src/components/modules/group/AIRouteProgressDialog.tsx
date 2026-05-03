@@ -191,7 +191,7 @@ export function AIRouteProgressDialog({
     const renderChannelCards = (items: typeof channels, emptyText: string) => {
         if (items.length === 0) {
             return (
-                <div className="rounded-2xl border border-dashed border-border/60 bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
+                <div className="rounded-xl border border-dashed border-border/60 bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
                     {emptyText}
                 </div>
             );
@@ -207,7 +207,7 @@ export function AIRouteProgressDialog({
                     return (
                         <div
                             key={channel.channel_id}
-                            className="rounded-2xl border border-border/60 bg-background px-4 py-3"
+                            className="rounded-xl border border-border/60 bg-background px-4 py-3"
                         >
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div className="min-w-0">
@@ -242,7 +242,7 @@ export function AIRouteProgressDialog({
     };
 
     const renderBatchCard = (batch: BatchCardData, title: string) => (
-        <section className="rounded-2xl border border-border/60 bg-background px-4 py-4">
+        <section className="rounded-xl border border-border/60 bg-background px-4 py-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="text-sm font-medium text-foreground">{title}</div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -305,7 +305,7 @@ export function AIRouteProgressDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="rounded-3xl sm:max-w-3xl max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col">
+            <DialogContent className="rounded-xl sm:max-w-3xl max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col">
                 <DialogHeader className="text-left">
                     <div className="flex flex-wrap items-center gap-2">
                         <DialogTitle>{t('aiRoute.progress.title')}</DialogTitle>
@@ -317,7 +317,7 @@ export function AIRouteProgressDialog({
                 </DialogHeader>
 
                 <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-4">
-                    <section className="rounded-2xl border border-border/60 bg-muted/20 p-4">
+                    <section className="rounded-xl border border-border/60 bg-muted/20 p-4">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                             <div>
                                 <div className="text-sm font-medium text-foreground">
@@ -355,27 +355,27 @@ export function AIRouteProgressDialog({
 
                     {summary ? (
                         <section className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                            <div className="rounded-2xl border border-border/60 bg-background px-4 py-3">
+                            <div className="rounded-xl border border-border/60 bg-background px-4 py-3">
                                 <div className="text-xs text-muted-foreground">{t('aiRoute.progress.summary.totalChannels')}</div>
                                 <div className="mt-1 text-xl font-semibold">{summary.total_channels}</div>
                             </div>
-                            <div className="rounded-2xl border border-border/60 bg-background px-4 py-3">
+                            <div className="rounded-xl border border-border/60 bg-background px-4 py-3">
                                 <div className="text-xs text-muted-foreground">{t('aiRoute.progress.summary.completedChannels')}</div>
                                 <div className="mt-1 text-xl font-semibold">{summary.completed_channels}</div>
                             </div>
-                            <div className="rounded-2xl border border-border/60 bg-background px-4 py-3">
+                            <div className="rounded-xl border border-border/60 bg-background px-4 py-3">
                                 <div className="text-xs text-muted-foreground">{t('aiRoute.progress.summary.runningChannels')}</div>
                                 <div className="mt-1 text-xl font-semibold">{summary.running_channels}</div>
                             </div>
-                            <div className="rounded-2xl border border-border/60 bg-background px-4 py-3">
+                            <div className="rounded-xl border border-border/60 bg-background px-4 py-3">
                                 <div className="text-xs text-muted-foreground">{t('aiRoute.progress.summary.pendingChannels')}</div>
                                 <div className="mt-1 text-xl font-semibold">{summary.pending_channels}</div>
                             </div>
-                            <div className="rounded-2xl border border-border/60 bg-background px-4 py-3">
+                            <div className="rounded-xl border border-border/60 bg-background px-4 py-3">
                                 <div className="text-xs text-muted-foreground">{t('aiRoute.progress.summary.failedChannels')}</div>
                                 <div className="mt-1 text-xl font-semibold">{summary.failed_channels}</div>
                             </div>
-                            <div className="rounded-2xl border border-border/60 bg-background px-4 py-3">
+                            <div className="rounded-xl border border-border/60 bg-background px-4 py-3">
                                 <div className="text-xs text-muted-foreground">{t('aiRoute.progress.summary.modelsProgress')}</div>
                                 <div className="mt-1 text-xl font-semibold">
                                     {summary.completed_models}/{summary.total_models}
@@ -418,25 +418,25 @@ export function AIRouteProgressDialog({
                             <div className="text-sm font-medium text-foreground">{t('aiRoute.progress.channelList')}</div>
                             <div className="grid gap-4 xl:grid-cols-2">
                                 <section className="space-y-2">
-                                    <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    <div className="text-xs font-medium text-muted-foreground">
                                         {t('aiRoute.progress.channelSections.running')}
                                     </div>
                                     {renderChannelCards(runningChannels, t('aiRoute.progress.channelSections.empty.running'))}
                                 </section>
                                 <section className="space-y-2">
-                                    <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    <div className="text-xs font-medium text-muted-foreground">
                                         {t('aiRoute.progress.channelSections.completed')}
                                     </div>
                                     {renderChannelCards(completedChannels, t('aiRoute.progress.channelSections.empty.completed'))}
                                 </section>
                                 <section className="space-y-2">
-                                    <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    <div className="text-xs font-medium text-muted-foreground">
                                         {t('aiRoute.progress.channelSections.pending')}
                                     </div>
                                     {renderChannelCards(pendingChannels, t('aiRoute.progress.channelSections.empty.pending'))}
                                 </section>
                                 <section className="space-y-2">
-                                    <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    <div className="text-xs font-medium text-muted-foreground">
                                         {t('aiRoute.progress.channelSections.failed')}
                                     </div>
                                     {renderChannelCards(failedChannels, t('aiRoute.progress.channelSections.empty.failed'))}

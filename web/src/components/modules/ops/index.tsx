@@ -19,10 +19,10 @@ export function Ops() {
     const subtitle = t('subtitle');
 
     return (
-        <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain space-y-6 pb-24 md:pb-4 rounded-t-3xl">
-            <section className="rounded-3xl border border-card-border bg-card p-5 text-card-foreground custom-shadow">
+        <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain space-y-6 pb-24 md:pb-4 rounded-t-xl">
+            <section className="rounded-xl border border-border bg-card p-5 text-card-foreground">
                 <div className="flex items-start gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                         <Wrench className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 space-y-2">
@@ -37,7 +37,7 @@ export function Ops() {
             </section>
 
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as OpsTab)}>
-                <section className="rounded-3xl border border-card-border bg-card p-5 text-card-foreground custom-shadow">
+                <section className="rounded-xl border border-border bg-card p-5 text-card-foreground">
                     <div className="overflow-x-auto">
                         <TabsList className="w-max min-w-full xl:min-w-0">
                             <TabsTrigger value="cache">{t('tabs.cache')}</TabsTrigger>

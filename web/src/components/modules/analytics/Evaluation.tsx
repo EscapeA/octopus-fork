@@ -66,7 +66,7 @@ function SummaryStat({
     value: string;
 }) {
     return (
-        <div className="waterhouse-pod rounded-[1.25rem] border border-border/25 bg-background/48 p-3 shadow-waterhouse-soft">
+        <div className="rounded-lg border border-border/25 bg-card p-3 shadow-sm">
             <div className="text-xs text-muted-foreground">{label}</div>
             <div className="mt-2 text-sm font-semibold">{value}</div>
         </div>
@@ -89,9 +89,9 @@ function EntryCard({
     action: ReactNode;
 }) {
     return (
-        <article className="waterhouse-pod rounded-[1.8rem] border border-border/30 bg-background/40 p-4 shadow-waterhouse-soft backdrop-blur-md">
+        <article className="rounded-lg border border-border/30 bg-card p-4">
             <div className="flex items-start justify-between gap-3">
-                <div className="waterhouse-pod grid h-10 w-10 shrink-0 place-items-center rounded-[1.15rem] border border-border/25 bg-background/48 text-primary shadow-waterhouse-soft">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-border/25 bg-card text-primary">
                     <Icon className="h-4 w-4" />
                 </div>
                 {status ? <StatusBadge label={status.label} tone={status.tone} /> : null}
@@ -99,7 +99,7 @@ function EntryCard({
             <div className="mt-4 space-y-2">
                 <h4 className="text-sm font-semibold">{title}</h4>
                 <p className="text-sm leading-6 text-muted-foreground">{description}</p>
-                <div className="rounded-[1.2rem] border border-border/20 bg-background/42 px-3 py-2 text-sm text-muted-foreground shadow-waterhouse-soft">
+                <div className="rounded-lg border border-border/20 bg-card px-3 py-2 text-sm text-muted-foreground">
                     {hint}
                 </div>
             </div>
@@ -141,7 +141,7 @@ export function Evaluation() {
         semanticCache,
         !semanticCache && !!semanticCacheQuery.error,
     );
-    const statusButtonClassName = 'rounded-[1.2rem] border-border/25 bg-background/44 text-foreground shadow-waterhouse-soft hover:bg-background/64 hover:text-foreground';
+    const statusButtonClassName = 'rounded-lg border-border/25 bg-card text-foreground shadow-sm hover:bg-card hover:text-foreground';
 
     return (
         <ObservatorySection
@@ -206,8 +206,8 @@ export function Evaluation() {
             </div>
 
             <div className="mt-4 space-y-4">
-                <div className="waterhouse-pod rounded-[1.8rem] border border-dashed border-border/30 bg-background/34 p-4 shadow-waterhouse-soft backdrop-blur-md">
-                    <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/10 bg-background/42 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-primary shadow-waterhouse-soft">
+                <div className="rounded-lg border border-dashed border-border/30 bg-card p-4">
+                    <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/10 bg-card px-3 py-1 text-[0.68rem] font-semibold text-primary">
                         <Orbit className="h-3.5 w-3.5" />
                         {t('evaluation.summary.title')}
                     </div>
@@ -215,8 +215,8 @@ export function Evaluation() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                    <article className="waterhouse-pod rounded-[1.8rem] border border-border/30 bg-background/38 p-4 shadow-waterhouse-soft backdrop-blur-md">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-[1.15rem] bg-primary/10 text-primary shadow-waterhouse-soft">
+                    <article className="rounded-lg border border-border/30 bg-card p-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                             <Route className="h-4 w-4" />
                         </div>
                         <div className="mt-4 flex items-center justify-between gap-3">
@@ -246,14 +246,14 @@ export function Evaluation() {
                                 />
                             </div>
                         ) : (
-                            <div className="mt-4 rounded-[1.3rem] border border-border/20 bg-background/44 px-4 py-3 text-sm leading-6 text-muted-foreground shadow-waterhouse-soft">
+                            <div className="mt-4 rounded-lg border border-border/20 bg-card px-4 py-3 text-sm leading-6 text-muted-foreground">
                                 {t('evaluation.aiRoute.empty')}
                             </div>
                         )}
                     </article>
 
-                    <article className="waterhouse-pod rounded-[1.8rem] border border-border/30 bg-background/38 p-4 shadow-waterhouse-soft backdrop-blur-md">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-[1.15rem] bg-primary/10 text-primary shadow-waterhouse-soft">
+                    <article className="rounded-lg border border-border/30 bg-card p-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                             <Activity className="h-4 w-4" />
                         </div>
                         <div className="mt-4 flex items-center justify-between gap-3">
@@ -288,7 +288,7 @@ export function Evaluation() {
                                 ) : null}
                             </>
                         ) : (
-                            <div className="mt-4 rounded-[1.3rem] border border-border/20 bg-background/44 px-4 py-3 text-sm leading-6 text-muted-foreground shadow-waterhouse-soft">
+                            <div className="mt-4 rounded-lg border border-border/20 bg-card px-4 py-3 text-sm leading-6 text-muted-foreground">
                                 {hasGroupTestUnavailable
                                     ? t('evaluation.summary.unavailable')
                                     : t('evaluation.summary.empty')}
@@ -297,14 +297,14 @@ export function Evaluation() {
                     </article>
                 </div>
 
-                <article className="waterhouse-pod rounded-[1.9rem] border border-border/30 bg-background/36 p-4 shadow-waterhouse-soft backdrop-blur-md md:p-5">
+                <article className="rounded-lg border border-border/30 bg-card p-4 md:p-5">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div className="min-w-0">
-                            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/12 bg-background/42 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-primary shadow-waterhouse-soft">
+                            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/12 bg-card px-3 py-1 text-[0.68rem] font-semibold text-primary">
                                 <Waves className="h-3.5 w-3.5" />
                                 {t('evaluation.semanticCache.summaryTitle')}
                             </div>
-                            <div className="flex h-10 w-10 items-center justify-center rounded-[1.15rem] bg-primary/10 text-primary shadow-waterhouse-soft">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                                 <Database className="h-4 w-4" />
                             </div>
                             <h4 className="mt-4 text-sm font-semibold">{t('evaluation.semanticCache.summaryTitle')}</h4>
@@ -327,11 +327,11 @@ export function Evaluation() {
                     </div>
 
                     {semanticCacheQuery.isLoading && !semanticCache ? (
-                        <div className="mt-4 rounded-[1.3rem] border border-dashed border-border/30 bg-background/44 p-4 text-sm text-muted-foreground shadow-waterhouse-soft">
+                        <div className="mt-4 rounded-lg border border-dashed border-border/30 bg-card p-4 text-sm text-muted-foreground">
                             {t('states.loading')}
                         </div>
                     ) : !semanticCache ? (
-                        <div className="mt-4 rounded-[1.3rem] border border-dashed border-border/30 bg-background/44 p-4 text-sm text-muted-foreground shadow-waterhouse-soft">
+                        <div className="mt-4 rounded-lg border border-dashed border-border/30 bg-card p-4 text-sm text-muted-foreground">
                             {t('evaluation.semanticCache.unavailable')}
                         </div>
                     ) : (

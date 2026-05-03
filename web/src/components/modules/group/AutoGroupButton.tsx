@@ -54,7 +54,7 @@ export function AutoGroupButton({ variant = 'ghost', className }: AutoGroupButto
         <AlertDialog open={open} onOpenChange={setOpen}>
             <AlertDialogTrigger asChild>
                 {variant === 'default' ? (
-                    <Button type="button" className={cn('rounded-[1.2rem] shadow-waterhouse-soft', className)}>
+                    <Button type="button" className={cn('rounded-lg', className)}>
                         <Sparkles className="size-4" />
                         {t('actions.autoGroup')}
                     </Button>
@@ -65,7 +65,7 @@ export function AutoGroupButton({ variant = 'ghost', className }: AutoGroupButto
                             buttonVariants({
                                 variant: 'ghost',
                                 size: 'default',
-                                className: 'rounded-[1.2rem] border border-border/25 bg-background/32 px-3 text-muted-foreground shadow-waterhouse-soft transition-[transform,border-color,background-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:bg-background/50 hover:text-foreground',
+                                className: 'rounded-lg border border-border/25 bg-card px-3 text-muted-foreground transition-[transform,border-color,background-color] duration-300 hover:-translate-y-0.5 hover:bg-card hover:text-foreground',
                             }),
                             className,
                         )}
@@ -75,9 +75,9 @@ export function AutoGroupButton({ variant = 'ghost', className }: AutoGroupButto
                     </button>
                 )}
             </AlertDialogTrigger>
-            <AlertDialogContent className="rounded-2xl">
+            <AlertDialogContent className="rounded-xl">
                 <AlertDialogHeader>
-                    <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/15 bg-background/44 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-primary shadow-waterhouse-soft">
+                    <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/15 bg-card px-3 py-1 text-[0.68rem] font-semibold text-primary">
                         <Waves className="size-3.5" />
                         {t('actions.autoGroup')}
                     </div>

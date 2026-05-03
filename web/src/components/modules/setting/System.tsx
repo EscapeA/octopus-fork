@@ -124,14 +124,14 @@ export function SettingSystem() {
     };
 
     return (
-        <div className="waterhouse-island rounded-[2.1rem] border-border/35 bg-card/58 p-6 space-y-5 text-card-foreground shadow-waterhouse-deep backdrop-blur-[var(--waterhouse-shell-blur)]">
+        <div className="rounded-xl border-border/35 bg-card p-6 space-y-5 text-card-foreground shadow-md ">
             <h2 className="text-lg font-bold text-card-foreground flex items-center gap-2">
                 <Monitor className="h-5 w-5" />
                 {t('system')}
             </h2>
 
             {/* 代理地址 */}
-            <div className="waterhouse-pod flex flex-col gap-3 rounded-[1.55rem] border-border/30 bg-background/34 p-4 shadow-waterhouse-soft md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-3 rounded-lg border-border/30 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-3">
                     <Globe className="h-5 w-5 text-muted-foreground" />
                     <span className="text-sm font-medium">{t('proxyUrl.label')}</span>
@@ -146,7 +146,7 @@ export function SettingSystem() {
             </div>
 
             {/* 公开 API 基础地址 */}
-            <div className="waterhouse-pod flex flex-col gap-3 rounded-[1.55rem] border-border/30 bg-background/34 p-4 shadow-waterhouse-soft md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-3 rounded-lg border-border/30 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-3">
                     <Globe className="h-5 w-5 text-muted-foreground" />
                     <span className="text-sm font-medium">{t('publicApiBaseUrl.label')}</span>
@@ -171,7 +171,7 @@ export function SettingSystem() {
             </div>
 
             {/* 统计保存周期 */}
-            <div className="waterhouse-pod flex flex-col gap-3 rounded-[1.55rem] border-border/30 bg-background/34 p-4 shadow-waterhouse-soft md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-3 rounded-lg border-border/30 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-3">
                     <Clock className="h-5 w-5 text-muted-foreground" />
                     <span className="text-sm font-medium">{t('statsSaveInterval.label')}</span>
@@ -187,7 +187,7 @@ export function SettingSystem() {
             </div>
 
             {/* CORS 跨域白名单 */}
-            <div className="waterhouse-pod flex flex-col gap-3 rounded-[1.55rem] border-border/30 bg-background/34 p-4 shadow-waterhouse-soft md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-3 rounded-lg border-border/30 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-3">
                     <Shield className="h-5 w-5 text-muted-foreground" />
                     <span className="text-sm font-medium">{t('corsAllowOrigins.label')}</span>
@@ -208,7 +208,7 @@ export function SettingSystem() {
                     <PopoverTrigger asChild>
                         <button
                             type="button"
-                            className="border-input focus-visible:border-ring focus-visible:ring-ring/50 w-full min-w-0 min-h-9 rounded-[1.2rem] border bg-background/60 px-3 py-2 text-left text-sm shadow-nature-organic transition-[color,box-shadow] outline-none focus-visible:ring-[3px] md:w-48"
+                            className="border-input focus-visible:border-ring focus-visible:ring-ring/50 w-full min-w-0 min-h-9 rounded-lg border bg-card px-3 py-2 text-left text-sm shadow-sm transition-[color,box-shadow] outline-none focus-visible:ring-[3px] md:w-48"
                             title={corsAllowOriginsDisplay}
                         >
                             <span className={`block overflow-hidden text-ellipsis whitespace-nowrap ${corsAllowOriginsList.length === 0 ? 'text-muted-foreground' : ''}`}>
@@ -216,7 +216,7 @@ export function SettingSystem() {
                             </span>
                         </button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-72 space-y-2 rounded-[1.7rem] bg-card/88 p-3">
+                    <PopoverContent className="w-72 space-y-2 rounded-lg bg-card p-3">
                         <Input
                             value={corsInputValue}
                             onChange={(e) => setCorsInputValue(e.target.value)}
@@ -233,7 +233,7 @@ export function SettingSystem() {
                         <div className="max-h-48 space-y-1 overflow-y-auto">
                             {corsAllowOriginsList.length > 0 && (
                                 corsAllowOriginsList.map((origin) => (
-                                    <div key={origin} className="flex items-center justify-between gap-2 rounded-[1rem] border border-border/40 bg-background/44 px-2 py-1.5">
+                                    <div key={origin} className="flex items-center justify-between gap-2 rounded-md border border-border/40 bg-card px-2 py-1.5">
                                         <span className="break-all text-xs leading-5">{origin}</span>
                                         <button
                                             type="button"

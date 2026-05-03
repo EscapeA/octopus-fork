@@ -26,7 +26,7 @@ export function ErrorState({
                 transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                 className="flex flex-col items-center gap-4 text-center"
             >
-                <div className="grid size-14 place-items-center rounded-[1.45rem] border border-destructive/20 bg-destructive/10 shadow-waterhouse-soft">
+                <div className="grid size-14 place-items-center rounded-lg border border-destructive/20 bg-destructive/10">
                     <AlertTriangle className="size-6 text-destructive" />
                 </div>
                 <div className="space-y-1">

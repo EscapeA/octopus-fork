@@ -25,12 +25,12 @@ export default function ErrorBoundary({
                 initial={{ opacity: 0, y: 20, scale: 0.97 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                className="waterhouse-pod relative w-full max-w-md overflow-hidden rounded-[2rem] border border-border/35 bg-background/56 p-8 shadow-waterhouse-soft backdrop-blur-md"
+                className="relative w-full max-w-md overflow-hidden rounded-xl border border-border/35 bg-card p-8 shadow-sm "
             >
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_14%,color-mix(in_oklch,var(--waterhouse-highlight)_20%,transparent)_0%,transparent_30%),radial-gradient(circle_at_84%_18%,color-mix(in_oklch,var(--primary)_14%,transparent)_0%,transparent_26%)]" />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_14%,color-mix(in_oklch,var(--primary)_20%,transparent)_0%,transparent_30%),radial-gradient(circle_at_84%_18%,color-mix(in_oklch,var(--primary)_14%,transparent)_0%,transparent_26%)]" />
 
                 <div className="relative flex flex-col items-center text-center">
-                    <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-[1.6rem] border border-destructive/20 bg-destructive/10 shadow-waterhouse-soft">
+                    <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 shadow-sm">
                         <AlertTriangle className="h-8 w-8 text-destructive" />
                     </div>
 

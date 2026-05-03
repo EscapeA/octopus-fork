@@ -16,7 +16,7 @@ export default function RootLayout({
   return (
     <html suppressHydrationWarning>
       <head>
-        <meta name="theme-color" content="#eae9e3" />
+        <meta name="theme-color" content="#faf8f5" />
         <meta name="application-name" content="Octopus" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black" />
@@ -38,8 +38,7 @@ export default function RootLayout({
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                overflow: hidden;
-                background: linear-gradient(180deg, rgba(234, 238, 232, 0.98) 0%, rgba(225, 230, 221, 0.98) 100%);
+                background: var(--background);
                 color: var(--primary);
                 transition: opacity 280ms ease;
               }
@@ -47,75 +46,15 @@ export default function RootLayout({
                 opacity: 0;
                 pointer-events: none;
               }
-              #initial-loader::before,
-              #initial-loader::after {
-                content: '';
-                position: absolute;
-                pointer-events: none;
-                border-radius: 999px;
-                filter: blur(48px);
-              }
-              #initial-loader::before {
-                width: 18rem;
-                height: 18rem;
-                top: 8%;
-                left: 10%;
-                background: rgba(248, 251, 247, 0.72);
-                animation: octoMist 7s ease-in-out infinite;
-              }
-              #initial-loader::after {
-                width: 22rem;
-                height: 22rem;
-                right: 6%;
-                bottom: -6%;
-                background: rgba(136, 200, 188, 0.16);
-                animation: octoDrift 10s ease-in-out infinite;
-              }
               #initial-loader .octo-shell {
-                position: relative;
                 display: grid;
                 place-items: center;
                 width: min(13rem, 40vw);
                 aspect-ratio: 1;
-                border-radius: 32%;
-                border: 1px solid rgba(177, 191, 181, 0.48);
-                background: linear-gradient(180deg, rgba(255, 255, 255, 0.84) 0%, rgba(244, 248, 243, 0.68) 100%);
-                box-shadow: var(--waterhouse-shadow-soft);
-              }
-              #initial-loader .octo-shell::before {
-                content: '';
-                position: absolute;
-                inset: 0.75rem;
-                border-radius: 28%;
-                border: 1px solid color-mix(in oklch, white 16%, transparent);
-                opacity: 0.7;
-              }
-              @supports (background: color-mix(in oklch, white 50%, transparent)) {
-                #initial-loader {
-                  background:
-                    radial-gradient(circle at 20% 18%, color-mix(in oklch, var(--waterhouse-highlight) 16%, transparent) 0%, transparent 28%),
-                    radial-gradient(circle at 80% 16%, color-mix(in oklch, var(--primary) 12%, transparent) 0%, transparent 26%),
-                    linear-gradient(180deg, var(--waterhouse-bg-top) 0%, var(--background) 46%, var(--waterhouse-bg-bottom) 100%);
-                }
-                #initial-loader::before {
-                  background: color-mix(in oklch, var(--waterhouse-fog-strong) 78%, transparent);
-                }
-                #initial-loader::after {
-                  background: color-mix(in oklch, var(--waterhouse-highlight) 14%, transparent);
-                }
-                #initial-loader .octo-shell {
-                  border-color: var(--waterhouse-line);
-                  background: linear-gradient(180deg, var(--waterhouse-fog-strong) 0%, var(--waterhouse-fog) 100%);
-                }
-              }
-              @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-                #initial-loader {
-                  backdrop-filter: blur(12px);
-                }
-                #initial-loader .octo-shell {
-                  backdrop-filter: blur(22px);
-                  -webkit-backdrop-filter: blur(22px);
-                }
+                border-radius: 1rem;
+                border: 1px solid var(--border);
+                background: var(--card);
+                box-shadow: var(--shadow-sm);
               }
               #initial-loader svg {
                 position: relative;
@@ -152,18 +91,8 @@ export default function RootLayout({
                 70%  { opacity: 1; }
                 100% { opacity: 0; }
               }
-              @keyframes octoMist {
-                0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.72; }
-                50% { transform: translate3d(3%, 4%, 0) scale(1.08); opacity: 1; }
-              }
-              @keyframes octoDrift {
-                0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-                50% { transform: translate3d(-4%, -3%, 0) scale(1.04); }
-              }
 
               @media (prefers-reduced-motion: reduce) {
-                #initial-loader::before,
-                #initial-loader::after,
                 #initial-loader .octo-group,
                 #initial-loader path {
                   animation: none !important;
@@ -175,35 +104,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="waterhouse-shell antialiased">
-        {/* ── Nature / Waterhouse: SVG 滤镜定义（全局可用） ── */}
-        <svg style={{ visibility: "hidden", position: "absolute" }} width="0" height="0" aria-hidden="true">
-          <defs>
-            {/* 液态融合滤镜——Nature 风格标志性效果 */}
-            <filter id="nature-gooey">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
-              <feColorMatrix
-                in="blur"
-                mode="matrix"
-                values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -9"
-                result="gooey"
-              />
-              <feComposite in="SourceGraphic" in2="gooey" operator="atop" />
-            </filter>
-            {/* 柔和弥散光 */}
-            <filter id="nature-soft-glow">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
-        </svg>
-        <div className="waterhouse-canopy" aria-hidden="true" />
-        <div className="waterhouse-liquid-field" aria-hidden="true" />
-        {/* ── Nature: 第三个环境 Blob（中景） ── */}
-        <div className="nature-ambient-blob" aria-hidden="true" />
+      <body className="antialiased">
         <div id="initial-loader" role="status" aria-label="Loading">
           <div className="octo-shell">
             <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">

@@ -48,7 +48,7 @@ export const ModelItem = memo(function ModelItem({ model, layout = 'grid' }: Mod
     const successRateLabel = requestCount > 0 ? `${(model.success_rate * 100).toFixed(2)}%` : '—';
     const latencyLabel = requestCount > 0 && model.average_latency_ms > 0 ? `${model.average_latency_ms}ms` : '—';
     const specimenMetricClassName = cn(
-        'waterhouse-pod inline-flex items-center gap-2 rounded-[1.2rem] border border-border/25 bg-background/44 px-3 py-2 shadow-none md:shadow-waterhouse-soft md:backdrop-blur-md',
+        'inline-flex items-center gap-2 rounded-lg border border-border/25 bg-card px-3 py-2',
         isListLayout ? 'min-w-[10rem] flex-1' : '',
     );
 
@@ -156,20 +156,20 @@ export const ModelItem = memo(function ModelItem({ model, layout = 'grid' }: Mod
         <article
             ref={cardRef}
             className={cn(
-                'waterhouse-island group relative overflow-hidden rounded-[2.05rem] border border-border/35 bg-card/60 p-4 text-card-foreground shadow-waterhouse-soft transition-[border-color,box-shadow] duration-300 hover:border-primary/18 hover:shadow-[var(--waterhouse-shadow-soft)] md:bg-card/58 md:shadow-waterhouse-deep md:backdrop-blur-[var(--waterhouse-shell-blur)] md:transition-[transform,border-color,box-shadow] md:hover:-translate-y-0.5 md:p-5',
+                'group relative overflow-hidden rounded-xl border border-border/35 bg-card p-4 text-card-foreground transition-[border-color] duration-300 hover:border-primary/18 md:hover:-translate-y-0.5 md:p-5',
                 (isEditOpen || confirmDelete) && 'z-50'
             )}
         >
             <div className="relative flex flex-col gap-4">
                 <div className="flex items-start gap-4">
-                    <div className="waterhouse-pod grid h-16 w-16 shrink-0 place-items-center rounded-[1.5rem] border border-border/25 bg-background/46 shadow-none md:shadow-waterhouse-soft md:backdrop-blur-md">
+                    <div className="grid h-16 w-16 shrink-0 place-items-center rounded-lg border border-border/25 bg-card">
                         <ModelAvatar size={48} />
                     </div>
 
                     <div className="min-w-0 flex-1 space-y-3">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0 space-y-2">
-                                <div className="inline-flex items-center gap-2 rounded-full border border-primary/12 bg-background/42 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-primary shadow-waterhouse-soft">
+                                <div className="inline-flex items-center gap-2 rounded-full border border-primary/12 bg-card px-3 py-1 text-[0.68rem] font-semibold text-primary">
                                     <Orbit className="size-3.5" />
                                     {providerLabel}
                                 </div>
@@ -180,7 +180,7 @@ export const ModelItem = memo(function ModelItem({ model, layout = 'grid' }: Mod
                                     <TooltipContent key={model.name}>{model.name}</TooltipContent>
                                 </Tooltip>
                                 <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                                    <span className="waterhouse-pod inline-flex items-center gap-2 rounded-full border border-border/25 bg-background/40 px-3 py-1 text-xs shadow-waterhouse-soft">
+                                    <span className="inline-flex items-center gap-2 rounded-full border border-border/25 bg-card px-3 py-1 text-xs">
                                         <Waves className="size-3.5 text-primary" />
                                         {t('card.requests')}: {requestCount.toLocaleString()}
                                     </span>
@@ -195,7 +195,7 @@ export const ModelItem = memo(function ModelItem({ model, layout = 'grid' }: Mod
                             >
                                 <CopyIconButton
                                     text={model.name}
-                                    className="waterhouse-pod inline-flex h-10 w-10 items-center justify-center rounded-[1.15rem] border border-border/25 bg-background/44 text-muted-foreground shadow-none transition-colors hover:bg-background/62 hover:text-foreground md:shadow-waterhouse-soft md:backdrop-blur-md"
+                                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border/25 bg-card text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
                                     copyIconClassName="size-4"
                                     checkIconClassName="size-4"
                                 />
@@ -204,7 +204,7 @@ export const ModelItem = memo(function ModelItem({ model, layout = 'grid' }: Mod
                                     onClick={() => setIsExpanded((prev) => !prev)}
                                     aria-label={isExpanded ? t('card.collapse') : t('card.expand')}
                                     aria-expanded={isExpanded}
-                                    className="waterhouse-pod inline-flex h-10 w-10 items-center justify-center rounded-[1.15rem] border border-border/25 bg-background/44 text-muted-foreground shadow-none transition-colors hover:bg-background/62 hover:text-foreground md:shadow-waterhouse-soft md:backdrop-blur-md"
+                                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border/25 bg-card text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
                                     title={isExpanded ? t('card.collapse') : t('card.expand')}
                                 >
                                     <ChevronDown className={cn('size-4 transition-transform', isExpanded && 'rotate-180')} />
@@ -216,7 +216,7 @@ export const ModelItem = memo(function ModelItem({ model, layout = 'grid' }: Mod
                                     onClick={handleEditClick}
                                     aria-label={t('card.edit')}
                                     disabled={isEditOpen || confirmDelete}
-                                    className="waterhouse-pod inline-flex h-10 w-10 items-center justify-center rounded-[1.15rem] border border-border/25 bg-background/44 text-muted-foreground shadow-none transition-colors hover:bg-background/62 hover:text-foreground disabled:opacity-50 md:shadow-waterhouse-soft md:backdrop-blur-md"
+                                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border/25 bg-card text-muted-foreground transition-colors hover:bg-card hover:text-foreground disabled:opacity-50"
                                     title={t('card.edit')}
                                 >
                                     <Pencil className="size-4" />
@@ -227,7 +227,7 @@ export const ModelItem = memo(function ModelItem({ model, layout = 'grid' }: Mod
                                     onClick={handleDeleteClick}
                                     aria-label={t('card.delete')}
                                     disabled={isEditOpen || confirmDelete}
-                                    className="waterhouse-pod inline-flex h-10 w-10 items-center justify-center rounded-[1.15rem] border border-destructive/15 bg-destructive/8 text-destructive shadow-none transition-colors hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50 md:shadow-waterhouse-soft md:backdrop-blur-md"
+                                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-destructive/15 bg-destructive/8 text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50"
                                     title={t('card.delete')}
                                 >
                                     <Trash2 className="size-4" />
@@ -259,19 +259,19 @@ export const ModelItem = memo(function ModelItem({ model, layout = 'grid' }: Mod
                         </div>
 
                         <div className="flex flex-wrap gap-2">
-                            <span className="waterhouse-pod rounded-full border border-primary/12 bg-background/44 px-2.5 py-1 text-xs font-medium text-foreground shadow-waterhouse-soft">
+                            <span className="rounded-full border border-primary/12 bg-card px-2.5 py-1 text-xs font-medium text-foreground">
                                 {providerLabel}
                             </span>
                             {visibleChannelTags.map((channel) => (
                                 <span
                                     key={`${model.name}-${channel.channel_id}`}
-                                    className="waterhouse-pod rounded-full border border-border/25 bg-background/38 px-2.5 py-1 text-xs text-muted-foreground shadow-waterhouse-soft"
+                                    className="rounded-full border border-border/25 bg-card px-2.5 py-1 text-xs text-muted-foreground"
                                 >
                                     {channel.channel_name}
                                 </span>
                             ))}
                             {hiddenChannelTagCount > 0 ? (
-                                <span className="waterhouse-pod rounded-full border border-border/25 bg-background/38 px-2.5 py-1 text-xs text-muted-foreground shadow-waterhouse-soft">
+                                <span className="rounded-full border border-border/25 bg-card px-2.5 py-1 text-xs text-muted-foreground">
                                     +{hiddenChannelTagCount}
                                 </span>
                             ) : null}
@@ -290,17 +290,17 @@ export const ModelItem = memo(function ModelItem({ model, layout = 'grid' }: Mod
                         >
                             <div className="space-y-4 border-t border-border/20 pt-4">
                                 <div className={cn('grid gap-3', isListLayout ? 'xl:grid-cols-3' : 'md:grid-cols-2')}>
-                                    <div className="waterhouse-pod rounded-[1.7rem] border border-border/25 bg-background/40 p-4 shadow-waterhouse-soft">
+                                    <div className="rounded-lg border border-border/25 bg-card p-4">
                                         <h4 className="text-sm font-medium text-foreground">{t('detail.pricing')}</h4>
                                         <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-                                            <div className="flex items-center justify-between gap-3 rounded-[1.15rem] bg-background/44 px-3 py-2 shadow-waterhouse-soft">
+                                            <div className="flex items-center justify-between gap-3 rounded-lg bg-card px-3 py-2">
                                                 <span className="inline-flex items-center gap-1.5">
                                                     <ArrowDownToLine className="size-3.5" style={{ color: brandColor }} />
                                                     {t('card.inputCache')}
                                                 </span>
                                                 <span className="tabular-nums text-foreground">{model.input.toFixed(2)}/{model.cache_read.toFixed(2)}$</span>
                                             </div>
-                                            <div className="flex items-center justify-between gap-3 rounded-[1.15rem] bg-background/44 px-3 py-2 shadow-waterhouse-soft">
+                                            <div className="flex items-center justify-between gap-3 rounded-lg bg-card px-3 py-2">
                                                 <span className="inline-flex items-center gap-1.5">
                                                     <ArrowUpFromLine className="size-3.5" style={{ color: brandColor }} />
                                                     {t('card.outputCache')}
@@ -310,22 +310,22 @@ export const ModelItem = memo(function ModelItem({ model, layout = 'grid' }: Mod
                                         </div>
                                     </div>
 
-                                    <div className="waterhouse-pod rounded-[1.7rem] border border-border/25 bg-background/40 p-4 shadow-waterhouse-soft">
+                                    <div className="rounded-lg border border-border/25 bg-card p-4">
                                         <h4 className="text-sm font-medium text-foreground">{t('detail.runtime')}</h4>
                                         <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-muted-foreground">
-                                            <div className="rounded-[1.1rem] bg-background/48 px-3 py-2 shadow-waterhouse-soft">
+                                            <div className="rounded-lg bg-card px-3 py-2">
                                                 <div>{t('detail.requestSuccess')}</div>
                                                 <div className="mt-1 tabular-nums text-base font-medium text-foreground">{model.request_success.toLocaleString()}</div>
                                             </div>
-                                            <div className="rounded-[1.1rem] bg-background/48 px-3 py-2 shadow-waterhouse-soft">
+                                            <div className="rounded-lg bg-card px-3 py-2">
                                                 <div>{t('detail.requestFailed')}</div>
                                                 <div className="mt-1 tabular-nums text-base font-medium text-foreground">{model.request_failed.toLocaleString()}</div>
                                             </div>
-                                            <div className="rounded-[1.1rem] bg-background/48 px-3 py-2 shadow-waterhouse-soft">
+                                            <div className="rounded-lg bg-card px-3 py-2">
                                                 <div>{t('card.latency')}</div>
                                                 <div className="mt-1 tabular-nums text-base font-medium text-foreground">{latencyLabel}</div>
                                             </div>
-                                            <div className="rounded-[1.1rem] bg-background/48 px-3 py-2 shadow-waterhouse-soft">
+                                            <div className="rounded-lg bg-card px-3 py-2">
                                                 <div>{t('card.successRate')}</div>
                                                 <div className="mt-1 tabular-nums text-base font-medium text-foreground">{successRateLabel}</div>
                                             </div>
@@ -333,33 +333,33 @@ export const ModelItem = memo(function ModelItem({ model, layout = 'grid' }: Mod
                                     </div>
                                 </div>
 
-                                <div className="waterhouse-pod rounded-[1.8rem] border border-border/25 bg-background/36 p-4 shadow-waterhouse-soft">
+                                <div className="rounded-lg border border-border/25 bg-card p-4">
                                     <div className="flex flex-wrap items-center justify-between gap-3">
                                         <h4 className="text-sm font-medium text-foreground">{t('detail.channels')}</h4>
                                         <span className="text-xs text-muted-foreground">{model.channels.length} {t('card.channels')}</span>
                                     </div>
                                     <div className="mt-3 grid gap-2">
                                         {model.channels.length === 0 ? (
-                                            <div className="rounded-[1.2rem] bg-background/48 px-3 py-2 text-sm text-muted-foreground shadow-waterhouse-soft">
+                                            <div className="rounded-lg bg-card px-3 py-2 text-sm text-muted-foreground">
                                                 {t('detail.noChannels')}
                                             </div>
                                         ) : (
                                             model.channels.map((channel) => (
-                                                <div key={`${model.name}-detail-${channel.channel_id}`} className="flex flex-wrap items-center justify-between gap-3 rounded-[1.2rem] bg-background/50 px-3 py-3 shadow-waterhouse-soft">
+                                                <div key={`${model.name}-detail-${channel.channel_id}`} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-card px-3 py-3">
                                                     <div className="min-w-0">
                                                         <div className="truncate text-sm font-medium text-foreground">{channel.channel_name}</div>
                                                         <div className="mt-1 text-xs text-muted-foreground">ID {channel.channel_id}</div>
                                                     </div>
                                                     <div className="flex flex-wrap items-center gap-2 text-xs">
                                                         <span className={cn(
-                                                            'rounded-full border px-2.5 py-1 shadow-waterhouse-soft',
+                                                            'rounded-full border px-2.5 py-1',
                                                             channel.enabled
                                                                 ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700'
-                                                                : 'border-border/25 bg-background/46 text-muted-foreground'
+                                                                : 'border-border/25 bg-card text-muted-foreground'
                                                         )}>
                                                             {channel.enabled ? t('detail.enabled') : t('detail.disabled')}
                                                         </span>
-                                                        <span className="rounded-full border border-border/25 bg-background/46 px-2.5 py-1 text-muted-foreground shadow-waterhouse-soft">
+                                                        <span className="rounded-full border border-border/25 bg-card px-2.5 py-1 text-muted-foreground">
                                                             {channel.enabled_key_count} {t('detail.keyCount')}
                                                         </span>
                                                     </div>

@@ -28,7 +28,7 @@ export function Quota() {
     const { data, isLoading, error } = useOpsQuotaSummary();
 
     return (
-        <section className="rounded-3xl border border-card-border bg-card p-5 text-card-foreground custom-shadow">
+        <section className="rounded-xl border border-border/35 bg-card p-5 text-card-foreground">
             <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-1">
                     <h3 className="text-base font-semibold">{t('tabs.quota')}</h3>
@@ -88,7 +88,7 @@ export function Quota() {
                             {(data?.keys ?? []).map((item) => (
                                 <article
                                     key={item.api_key_id}
-                                    className="rounded-2xl border border-border/60 bg-background/70 p-4"
+                                    className="rounded-xl border border-border/60 bg-card p-4"
                                 >
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0">
@@ -105,27 +105,27 @@ export function Quota() {
                                     </div>
 
                                     <div className="mt-4 grid grid-cols-2 gap-3">
-                                        <div className="rounded-2xl border border-border/40 bg-card p-3">
-                                            <div className="text-xs text-muted-foreground">{t('quota.fields.totalCost')}</div>
+                                    <div className="rounded-lg border border-border/40 bg-card p-3">
+                                        <div className="text-xs text-muted-foreground">{t('quota.fields.totalCost')}</div>
                                             <div className="mt-2 text-sm font-semibold">
                                                 {formatMoney(item.total_cost).formatted.value}
                                                 {formatMoney(item.total_cost).formatted.unit}
                                             </div>
                                         </div>
-                                        <div className="rounded-2xl border border-border/40 bg-card p-3">
-                                            <div className="text-xs text-muted-foreground">{t('quota.fields.maxCost')}</div>
+                                    <div className="rounded-lg border border-border/40 bg-card p-3">
+                                        <div className="text-xs text-muted-foreground">{t('quota.fields.maxCost')}</div>
                                             <div className="mt-2 text-sm font-semibold">
                                                 {item.max_cost > 0
                                                     ? `${formatMoney(item.max_cost).formatted.value}${formatMoney(item.max_cost).formatted.unit}`
                                                     : t('quota.statuses.open')}
                                             </div>
                                         </div>
-                                        <div className="rounded-2xl border border-border/40 bg-card p-3">
-                                            <div className="text-xs text-muted-foreground">{t('quota.fields.rpm')}</div>
+                                    <div className="rounded-lg border border-border/40 bg-card p-3">
+                                        <div className="text-xs text-muted-foreground">{t('quota.fields.rpm')}</div>
                                             <div className="mt-2 text-sm font-semibold">{item.rate_limit_rpm || '-'}</div>
                                         </div>
-                                        <div className="rounded-2xl border border-border/40 bg-card p-3">
-                                            <div className="text-xs text-muted-foreground">{t('quota.fields.tpm')}</div>
+                                    <div className="rounded-lg border border-border/40 bg-card p-3">
+                                        <div className="text-xs text-muted-foreground">{t('quota.fields.tpm')}</div>
                                             <div className="mt-2 text-sm font-semibold">{item.rate_limit_tpm || '-'}</div>
                                         </div>
                                     </div>

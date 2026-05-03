@@ -284,7 +284,7 @@ function MorphingDialogContent({
       ref={containerRef}
       layoutId={`dialog-${uniqueId}`}
       className={cn(
-        'waterhouse-island relative overflow-hidden rounded-[2rem] border border-border/40 bg-background/80 shadow-[var(--waterhouse-shadow-deep)] backdrop-blur-[var(--waterhouse-shell-blur)]',
+        'relative overflow-hidden rounded-xl border border-border bg-card shadow-lg',
         className
       )}
       style={style}
@@ -325,14 +325,10 @@ function MorphingDialogContainer({ children }: MorphingDialogContainerProps) {
         <>
           <motion.div
             key={`backdrop-${uniqueId}`}
-            className='fixed inset-0 z-50 h-full w-full bg-white/12 backdrop-blur-[14px] dark:bg-black/24'
-            style={{
-              background:
-                'radial-gradient(ellipse at center, rgba(255,255,255,0.08) 0%, rgba(18,28,22,0.18) 56%, rgba(5,10,8,0.32) 100%)',
-            }}
+            className='fixed inset-0 z-50 bg-black/30 '
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0, transition: { duration: 0.3 } }}
+            exit={{ opacity: 0, transition: { duration: 0.2 } }}
           />
           <div className='fixed inset-0 z-50 flex items-center justify-center'>
             {children}
@@ -487,7 +483,7 @@ function MorphingDialogClose({
       aria-label={t('close')}
       key={`dialog-close-${uniqueId}`}
       className={cn(
-        'absolute top-5 right-5 rounded-[1rem] border border-border/35 bg-background/50 p-1.5 opacity-80 shadow-nature-organic backdrop-blur-md transition-all duration-200 hover:opacity-100 hover:scale-105 hover:bg-accent/12 hover:shadow-[var(--waterhouse-shadow-soft)]',
+        'absolute top-4 right-4 rounded-md border border-border bg-card p-1.5 opacity-80 transition-all duration-150 hover:opacity-100 hover:bg-muted',
         className
       )}
       initial='initial'

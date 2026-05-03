@@ -62,7 +62,7 @@ function RetryBadgeWithTooltip({ channelName, brandColor, attempts }: RetryBadge
                     {channelName}
                 </Badge>
             </TooltipTrigger>
-            <TooltipContent className="border bg-card p-2 min-w-[280px] max-w-[calc(100vw-2rem)] shadow-sm rounded-3xl flex flex-col gap-1">
+            <TooltipContent className="border bg-card p-2 min-w-[280px] max-w-[calc(100vw-2rem)] rounded-xl flex flex-col gap-1">
                 {attempts.map((attempt, idx) => (
                     <div key={idx} className="flex flex-col w-full">
                         <div className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50 transition-colors">
@@ -205,7 +205,7 @@ export function LogCard({ log }: { log: RelayLog }) {
             <MorphingDialog onOpen={() => fetchDetail(log.id)} onClose={resetDetail}>
                 <MorphingDialogTrigger
                     className={cn(
-                        "rounded-3xl border bg-card w-full text-left",
+                        "rounded-xl border bg-card w-full text-left",
                         hasError ? "border-destructive/40" : "border-border",
                     )}
                 >
@@ -285,7 +285,7 @@ export function LogCard({ log }: { log: RelayLog }) {
                 </MorphingDialogTrigger>
 
                 <MorphingDialogContainer>
-                    <MorphingDialogContent className="relative w-[calc(100vw-2rem)] md:w-[80vw] bg-card text-card-foreground px-6 py-4 rounded-3xl max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden">
+                    <MorphingDialogContent className="relative w-[calc(100vw-2rem)] md:w-[80vw] bg-card text-card-foreground px-6 py-4 rounded-xl max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden">
                         <MorphingDialogClose className="top-4 right-5 text-muted-foreground hover:text-foreground transition-colors" />
                         <MorphingDialogTitle className="flex items-center gap-2 mb-3 text-sm">
                             <ModelAvatar size={28} />

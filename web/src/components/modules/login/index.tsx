@@ -76,24 +76,21 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
       {/* Nature: 粒子背景 */}
       {!isMobile && <ParticleBackground count={40} minOpacity={0.08} maxOpacity={0.25} />}
       
-      {/* 氛围光 */}
-      <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/10 blur-[120px] opacity-50" />
-
       <div className="relative z-10 w-full max-w-sm">
-        <div className="waterhouse-island-fx flex flex-col gap-8 p-8 md:p-10 border-border/35 bg-background/50 shadow-waterhouse-deep backdrop-blur-[var(--waterhouse-shell-blur)] rounded-[2.5rem]">
+        <div className="flex flex-col gap-8 p-8 md:p-10 border-border/35 bg-card rounded-xl">
           <header className="flex flex-col items-center gap-4">
-            <div className="waterhouse-pod grid size-16 shrink-0 place-items-center overflow-hidden rounded-[1.65rem] border-border/35 bg-background/58 shadow-waterhouse-soft">
+            <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-lg border-border/35 bg-card">
               <Logo size={48} />
             </div>
             <div className="flex flex-col items-center gap-1">
               <h1 className="text-3xl font-bold tracking-tight">Octopus</h1>
-              <p className="text-sm text-muted-foreground/80 tracking-wide uppercase font-medium">{t('welcome') || 'Welcome back'}</p>
+              <p className="text-sm text-muted-foreground/80 font-medium">{t('welcome') || 'Welcome back'}</p>
             </div>
           </header>
 
-          <Tabs value={mode} onValueChange={handleModeChange}>
+            <Tabs value={mode} onValueChange={handleModeChange}>
             <TabsList className="flex p-1 bg-muted/50 rounded-2xl border border-border/20">
-              <TabsHighlight className="rounded-xl bg-background shadow-sm">
+              <TabsHighlight className="rounded-xl bg-background">
                 <TabsHighlightItem value="user" className="flex-1">
                   <TabsTrigger
                     value="user"
@@ -127,14 +124,14 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
                   <TabsContents>
                     <TabsContent value="user" className="space-y-5">
                       <Field>
-                        <FieldLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 ml-1" htmlFor="username">{t('username')}</FieldLabel>
+                        <FieldLabel className="text-xs font-semibold text-muted-foreground/70 ml-1" htmlFor="username">{t('username')}</FieldLabel>
                         <Input
                           id="username"
                           type="text"
                           placeholder={t('usernamePlaceholder')}
                           value={username}
                           onChange={(e) => setUsername(e.target.value)}
-                          className="h-12 rounded-xl bg-background/40 border-border/30 focus-visible:ring-primary/40 focus-visible:border-primary/50"
+                          className="h-12 rounded-xl bg-card border-border/30"
                           autoComplete="username"
                           autoCapitalize="none"
                           autoCorrect="off"
@@ -144,14 +141,14 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
                         />
                       </Field>
                       <Field>
-                        <FieldLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 ml-1" htmlFor="password">{t('password')}</FieldLabel>
+                        <FieldLabel className="text-xs font-semibold text-muted-foreground/70 ml-1" htmlFor="password">{t('password')}</FieldLabel>
                         <Input
                           id="password"
                           type="password"
                           placeholder={t('passwordPlaceholder')}
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
-                          className="h-12 rounded-xl bg-background/40 border-border/30 focus-visible:ring-primary/40 focus-visible:border-primary/50"
+                          className="h-12 rounded-xl bg-card border-border/30"
                           autoComplete="current-password"
                           required={mode === 'user'}
                           disabled={isPending}
@@ -160,14 +157,14 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
                     </TabsContent>
                     <TabsContent value="apikey">
                       <Field>
-                        <FieldLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 ml-1" htmlFor="apikey">{t('apikey')}</FieldLabel>
+                        <FieldLabel className="text-xs font-semibold text-muted-foreground/70 ml-1" htmlFor="apikey">{t('apikey')}</FieldLabel>
                         <Input
                           id="apikey"
                           type="password"
                           placeholder={t('apikeyPlaceholder')}
                           value={apiKey}
                           onChange={(e) => setApiKey(e.target.value)}
-                          className="h-12 rounded-xl bg-background/40 border-border/30 focus-visible:ring-primary/40 focus-visible:border-primary/50"
+                          className="h-12 rounded-xl bg-card border-border/30"
                           autoComplete="off"
                           autoCapitalize="none"
                           autoCorrect="off"
@@ -193,10 +190,10 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
                 </motion.div>
               )}
 
-              <Button 
-                type="submit" 
-                disabled={isPending} 
-                className="w-full h-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-nature-glow transition-all active:scale-[0.98]"
+              <Button
+                type="submit"
+                disabled={isPending}
+                className="w-full h-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all active:scale-[0.98]"
               >
                 {isPending ? t('button.loading') : t('button.submit')}
               </Button>

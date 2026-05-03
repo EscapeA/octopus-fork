@@ -119,7 +119,7 @@ export function SettingAIRoute() {
     };
 
     return (
-        <div className="waterhouse-island relative overflow-hidden rounded-[2.25rem] border-border/35 bg-card/62 p-6 text-card-foreground shadow-waterhouse-deep backdrop-blur-[var(--waterhouse-shell-blur)]">
+        <div className="relative overflow-hidden rounded-xl border-border/35 bg-card p-6 text-card-foreground shadow-md ">
             <div className="space-y-5">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-1.5">
@@ -129,13 +129,13 @@ export function SettingAIRoute() {
                         </h2>
                         <p className="text-sm text-muted-foreground">{t('aiRoute.services.hint')}</p>
                     </div>
-                    <div className="waterhouse-pod w-fit rounded-full border-border/25 bg-background/36 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-waterhouse-soft">
+                    <div className="w-fit rounded-full border-border/25 bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-sm">
                         {t('aiRoute.badge')}
                     </div>
                 </div>
 
                 <div className="grid gap-4 xl:grid-cols-2">
-                    <div className="waterhouse-pod space-y-3 rounded-[1.85rem] border-border/30 bg-background/38 p-4 shadow-waterhouse-soft">
+                    <div className="space-y-3 rounded-lg border-border/30 bg-card p-4 shadow-sm">
                         <div className="flex items-center gap-3">
                             <Sparkles className="h-5 w-5 text-muted-foreground" />
                             <span className="text-sm font-medium">{t('aiRoute.group.label')}</span>
@@ -147,10 +147,10 @@ export function SettingAIRoute() {
                                 saveSetting(SettingKey.AIRouteGroupID, value, initialGroupID);
                             }}
                         >
-                            <SelectTrigger className="w-full rounded-[1.2rem]">
+                            <SelectTrigger className="w-full rounded-lg">
                                 <SelectValue placeholder={t('aiRoute.group.placeholder')} />
                             </SelectTrigger>
-                            <SelectContent className="rounded-[1.2rem]">
+                            <SelectContent className="rounded-lg">
                                 <SelectItem value="0">{t('aiRoute.group.placeholder')}</SelectItem>
                                 {groups.map((group) => (
                                     <SelectItem key={group.id} value={String(group.id)}>
@@ -162,7 +162,7 @@ export function SettingAIRoute() {
                         <p className="text-xs text-muted-foreground">{t('aiRoute.group.hint')}</p>
                     </div>
 
-                    <div className="waterhouse-pod space-y-3 rounded-[1.85rem] border-border/30 bg-background/34 p-4 shadow-waterhouse-soft">
+                    <div className="space-y-3 rounded-lg border-border/30 bg-card p-4 shadow-sm">
                         <div className="flex items-center gap-3">
                             <Bot className="h-5 w-5 text-muted-foreground" />
                             <span className="text-sm font-medium">{t('aiRoute.model.label')}</span>
@@ -172,11 +172,11 @@ export function SettingAIRoute() {
                             onChange={(event) => setModel(event.target.value)}
                             onBlur={() => saveSetting(SettingKey.AIRouteModel, model, initialModel)}
                             placeholder={t('aiRoute.model.placeholder')}
-                            className="w-full rounded-[1.2rem]"
+                            className="w-full rounded-lg"
                         />
                     </div>
 
-                    <div className="waterhouse-pod space-y-3 rounded-[1.85rem] border-border/30 bg-background/34 p-4 shadow-waterhouse-soft">
+                    <div className="space-y-3 rounded-lg border-border/30 bg-card p-4 shadow-sm">
                         <div className="flex items-center gap-3">
                             <Link2 className="h-5 w-5 text-muted-foreground" />
                             <span className="text-sm font-medium">{t('aiRoute.baseUrl.label')}</span>
@@ -186,11 +186,11 @@ export function SettingAIRoute() {
                             onChange={(event) => setBaseURL(event.target.value)}
                             onBlur={() => saveSetting(SettingKey.AIRouteBaseURL, baseURL, initialBaseURL)}
                             placeholder={t('aiRoute.baseUrl.placeholder')}
-                            className="w-full rounded-[1.2rem]"
+                            className="w-full rounded-lg"
                         />
                     </div>
 
-                    <div className="waterhouse-pod space-y-3 rounded-[1.85rem] border-border/30 bg-background/34 p-4 shadow-waterhouse-soft">
+                    <div className="space-y-3 rounded-lg border-border/30 bg-card p-4 shadow-sm">
                         <div className="flex items-center gap-3">
                             <KeyRound className="h-5 w-5 text-muted-foreground" />
                             <span className="text-sm font-medium">{t('aiRoute.apiKey.label')}</span>
@@ -201,11 +201,11 @@ export function SettingAIRoute() {
                             onChange={(event) => setAPIKey(event.target.value)}
                             onBlur={() => saveSetting(SettingKey.AIRouteAPIKey, apiKey, initialAPIKey)}
                             placeholder={t('aiRoute.apiKey.placeholder')}
-                            className="w-full rounded-[1.2rem]"
+                            className="w-full rounded-lg"
                         />
                     </div>
 
-                    <div className="waterhouse-pod space-y-3 rounded-[1.85rem] border-border/30 bg-background/38 p-4 shadow-waterhouse-soft">
+                    <div className="space-y-3 rounded-lg border-border/30 bg-card p-4 shadow-sm">
                         <div className="flex items-center gap-3">
                             <Clock3 className="h-5 w-5 text-muted-foreground" />
                             <span className="text-sm font-medium">{t('aiRoute.timeoutSeconds.label')}</span>
@@ -223,12 +223,12 @@ export function SettingAIRoute() {
                                 )
                             }
                             placeholder={t('aiRoute.timeoutSeconds.placeholder')}
-                            className="w-full rounded-[1.2rem]"
+                            className="w-full rounded-lg"
                         />
                         <p className="text-xs text-muted-foreground">{t('aiRoute.timeoutSeconds.hint')}</p>
                     </div>
 
-                    <div className="waterhouse-pod space-y-3 rounded-[1.85rem] border-border/30 bg-background/38 p-4 shadow-waterhouse-soft">
+                    <div className="space-y-3 rounded-lg border-border/30 bg-card p-4 shadow-sm">
                         <div className="flex items-center gap-3">
                             <Sparkles className="h-5 w-5 text-muted-foreground" />
                             <span className="text-sm font-medium">{t('aiRoute.parallelism.label')}</span>
@@ -240,13 +240,13 @@ export function SettingAIRoute() {
                             onChange={(event) => setParallelism(event.target.value)}
                             onBlur={() => saveSetting(SettingKey.AIRouteParallelism, parallelism, initialParallelism)}
                             placeholder={t('aiRoute.parallelism.placeholder')}
-                            className="w-full rounded-[1.2rem]"
+                            className="w-full rounded-lg"
                         />
                         <p className="text-xs text-muted-foreground">{t('aiRoute.parallelism.hint')}</p>
                     </div>
                 </div>
 
-                <div className="waterhouse-pod space-y-3 rounded-[1.95rem] border-border/30 bg-background/36 p-4 shadow-waterhouse-soft">
+                <div className="space-y-3 rounded-lg border-border/30 bg-card p-4 shadow-sm">
                     <div className="flex items-center gap-3">
                         <Link2 className="h-5 w-5 text-muted-foreground" />
                         <span className="text-sm font-medium">{t('aiRoute.services.label')}</span>
@@ -256,7 +256,7 @@ export function SettingAIRoute() {
                         onChange={(event) => setServicesJSON(event.target.value)}
                         onBlur={saveServicesSetting}
                         placeholder={t('aiRoute.services.placeholder')}
-                        className="waterhouse-liquid-field min-h-44 w-full rounded-[1.4rem] border border-border/35 bg-background/62 px-4 py-3 font-mono text-sm text-foreground shadow-inner outline-none transition-[border-color,box-shadow] duration-300 focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/20"
+                        className=" min-h-44 w-full rounded-lg border border-border/35 bg-card px-4 py-3 font-mono text-sm text-foreground shadow-inner outline-none transition-[border-color,box-shadow] duration-300 focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/20"
                     />
                     <p className="text-xs text-muted-foreground">{t('aiRoute.services.hint')}</p>
                 </div>

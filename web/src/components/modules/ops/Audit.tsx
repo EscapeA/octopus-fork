@@ -112,7 +112,7 @@ function AuditRecordCard({ item }: { item: AuditLogEntry }) {
             </MorphingDialogTrigger>
 
             <MorphingDialogContainer>
-                <MorphingDialogContent className="relative w-[calc(100vw-2rem)] max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl bg-card px-6 py-4 text-card-foreground md:w-[62rem]">
+                <MorphingDialogContent className="relative w-[calc(100vw-2rem)] max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-xl bg-card px-6 py-4 text-card-foreground md:w-[62rem]">
                     <MorphingDialogClose className="right-5 top-4 text-muted-foreground hover:text-foreground" />
                     <MorphingDialogTitle className="flex items-center gap-2 text-sm">
                         <ShieldAlert className="h-4 w-4 text-primary" />
@@ -130,7 +130,7 @@ function AuditRecordCard({ item }: { item: AuditLogEntry }) {
                         ) : (
                             <div className="space-y-4">
                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-[1.1fr_0.9fr]">
-                                    <article className="rounded-2xl border border-border/60 bg-background/70 p-4">
+                                    <article className="rounded-xl border border-border/60 bg-card p-4">
                                         <div className="mb-2 text-sm font-semibold">{t('audit.detail.summary')}</div>
                                         <InfoRow label={t('audit.fields.action')} value={detail.action} />
                                         <InfoRow label={t('audit.fields.target')} value={detail.target || t('audit.detail.emptyTarget')} />
@@ -138,7 +138,7 @@ function AuditRecordCard({ item }: { item: AuditLogEntry }) {
                                         <InfoRow label={t('audit.fields.createdAt')} value={formatAuditTime(detail.created_at)} />
                                     </article>
 
-                                    <article className="rounded-2xl border border-border/60 bg-background/70 p-4">
+                                    <article className="rounded-xl border border-border/60 bg-card p-4">
                                         <div className="mb-2 text-sm font-semibold">{t('audit.detail.context')}</div>
                                         <InfoRow label={t('audit.fields.username')} value={detail.username} />
                                         <InfoRow label={t('audit.fields.userId')} value={String(detail.user_id)} />
@@ -147,9 +147,9 @@ function AuditRecordCard({ item }: { item: AuditLogEntry }) {
                                     </article>
                                 </div>
 
-                                <article className="rounded-2xl border border-border/60 bg-background/70 p-4">
+                                <article className="rounded-xl border border-border/60 bg-card p-4">
                                     <div className="mb-3 text-sm font-semibold">{t('audit.detail.rawRecord')}</div>
-                                    <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-2xl border border-border/40 bg-card p-3 text-xs text-muted-foreground">
+                                    <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-lg border border-border/40 bg-card p-3 text-xs text-muted-foreground">
                                         {JSON.stringify(detail, null, 2)}
                                     </pre>
                                 </article>
@@ -191,7 +191,7 @@ export function Audit() {
     }, [hasMore, isLoadingMore, logs.length, t]);
 
     return (
-        <section className="rounded-3xl border border-card-border bg-card p-5 text-card-foreground custom-shadow">
+        <section className="rounded-xl border border-border/35 bg-card p-5 text-card-foreground">
             <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-1">
                     <h3 className="text-base font-semibold">{t('tabs.audit')}</h3>

@@ -13,7 +13,7 @@ export function Cache() {
     const { data, isLoading, error } = useOpsCacheStatus();
 
     return (
-        <section className="rounded-3xl border border-card-border bg-card p-5 text-card-foreground custom-shadow">
+        <section className="rounded-xl border border-border/35 bg-card p-5 text-card-foreground">
             <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-1">
                     <h3 className="text-base font-semibold">{t('tabs.cache')}</h3>
@@ -65,7 +65,7 @@ export function Cache() {
                         />
                     </div>
 
-                    <article className="rounded-2xl border border-border/60 bg-background/70 p-4">
+                    <article className="rounded-xl border border-border/60 bg-card p-4">
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                             <div className="space-y-3">
                                 <div className="flex flex-wrap items-center gap-2">
@@ -84,19 +84,19 @@ export function Cache() {
                             </div>
 
                             <div className="grid grid-cols-2 gap-3 lg:min-w-[320px]">
-                                <div className="rounded-2xl border border-border/40 bg-card p-3">
+                                <div className="rounded-lg border border-border/40 bg-card p-3">
                                     <div className="text-xs text-muted-foreground">{t('cache.detail.hits')}</div>
                                     <div className="mt-2 text-xl font-semibold">{data?.hits ?? 0}</div>
                                 </div>
-                                <div className="rounded-2xl border border-border/40 bg-card p-3">
+                                <div className="rounded-lg border border-border/40 bg-card p-3">
                                     <div className="text-xs text-muted-foreground">{t('cache.detail.misses')}</div>
                                     <div className="mt-2 text-xl font-semibold">{data?.misses ?? 0}</div>
                                 </div>
-                                <div className="rounded-2xl border border-border/40 bg-card p-3">
+                                <div className="rounded-lg border border-border/40 bg-card p-3">
                                     <div className="text-xs text-muted-foreground">{t('cache.detail.maxEntries')}</div>
                                     <div className="mt-2 text-sm font-semibold">{data?.max_entries ?? 0}</div>
                                 </div>
-                                <div className="rounded-2xl border border-border/40 bg-card p-3">
+                                <div className="rounded-lg border border-border/40 bg-card p-3">
                                     <div className="text-xs text-muted-foreground">{t('cache.detail.usageRate')}</div>
                                     <div className="mt-2 text-sm font-semibold">
                                         {formatPercent(data?.usage_rate).formatted.value}

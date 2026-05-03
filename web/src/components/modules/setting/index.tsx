@@ -18,7 +18,7 @@ import { SettingRouteGroupDanger } from './RouteGroupDanger';
 
 export function Setting() {
     return (
-        <div className="setting-shadowless h-full min-h-0 overflow-y-auto overscroll-contain rounded-t-3xl">
+        <div className="h-full min-h-0 overflow-y-auto overscroll-contain rounded-t-xl">
             <PageWrapper className="pb-24 md:pb-6">
                 <div className="grid gap-5 xl:grid-cols-[minmax(0,1.42fr)_minmax(20rem,0.78fr)] xl:items-start">
                     <div className="min-w-0 space-y-5">

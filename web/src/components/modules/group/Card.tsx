@@ -43,7 +43,7 @@ function EditDialogContent({ group, displayMembers, isSubmitting, onSubmit }: Ed
             <MorphingDialogTitle className="shrink-0">
                 <header className="relative mb-4 flex items-start justify-between gap-4">
                     <div className="space-y-3">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-background/44 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-primary shadow-waterhouse-soft backdrop-blur-md">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-card px-3 py-1 text-[0.68rem] font-semibold text-primary">
                             <Waves className="size-3.5" />
                             {t('detail.actions.edit')}
                         </div>
@@ -60,7 +60,7 @@ function EditDialogContent({ group, displayMembers, isSubmitting, onSubmit }: Ed
                                 scope="group"
                                 groupId={group.id}
                                 variant="default"
-                                className="h-10 rounded-[1.2rem] px-3"
+                                className="h-10 rounded-lg px-3"
                                 onSuccess={() => setIsOpen(false)}
                             />
                         ) : null}
@@ -379,12 +379,11 @@ export function GroupCard({ group }: { group: Group }) {
     const hiddenMembersCount = Math.max(0, members.length - 6);
 
     return (
-        <article className="waterhouse-island group relative flex flex-col overflow-hidden rounded-[2.1rem] border border-border/35 bg-card/60 p-4 text-card-foreground shadow-waterhouse-soft md:bg-card/58 md:shadow-waterhouse-deep md:backdrop-blur-[var(--waterhouse-shell-blur)]">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_14%,color-mix(in_oklch,var(--waterhouse-highlight)_16%,transparent)_0%,transparent_26%),linear-gradient(150deg,color-mix(in_oklch,white_10%,transparent),transparent_48%,color-mix(in_oklch,var(--primary)_8%,transparent))]" />
-            <header className="relative mb-4 overflow-visible rounded-[1.7rem] border border-border/25 bg-background/36 px-4 py-4 shadow-none md:shadow-waterhouse-soft">
+        <article className="group relative flex flex-col rounded-xl border border-border bg-card p-4 text-card-foreground">
+            <header className="relative mb-4 rounded-lg border border-border bg-card px-4 py-4">
                 <div className="flex items-start justify-between gap-3">
                 <div className="relative mr-2 min-w-0 flex-1 group/title">
-                    <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/10 bg-background/44 px-2.5 py-1 text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-primary shadow-waterhouse-soft">
+                    <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/10 bg-card px-2.5 py-1 text-[0.64rem] font-semibold text-primary">
                         <Orbit className="size-3.5" />
                         {t('card.endpointType', {
                             value: t(endpointTypeLabelKey(group.endpoint_type) ?? 'form.endpointType.options.all'),
@@ -400,7 +399,7 @@ export function GroupCard({ group }: { group: Group }) {
 
                 <div className="flex shrink-0 items-center gap-1">
                     <MorphingDialog>
-                        <MorphingDialogTrigger className="rounded-[1rem] p-2 text-muted-foreground transition-colors hover:bg-background/70 hover:text-foreground">
+                        <MorphingDialogTrigger className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-card hover:text-foreground">
                             <Tooltip side="top" sideOffset={10} align="center">
                                 <TooltipTrigger asChild>
                                     <Pencil className="size-4" />
@@ -410,7 +409,7 @@ export function GroupCard({ group }: { group: Group }) {
                         </MorphingDialogTrigger>
 
                         <MorphingDialogContainer>
-                            <MorphingDialogContent className="relative flex h-[calc(100dvh-2rem)] w-[min(100vw-2rem,92rem)] max-w-full flex-col overflow-hidden rounded-[2.4rem] border border-border/35 bg-background/80 px-4 py-4 text-card-foreground shadow-waterhouse-deep backdrop-blur-[var(--waterhouse-shell-blur)] md:h-[calc(100dvh-3rem)] md:px-6">
+                            <MorphingDialogContent className="relative flex h-[calc(100dvh-2rem)] w-[min(100vw-2rem,92rem)] max-w-full flex-col overflow-hidden rounded-xl border border-border/35 bg-card px-4 py-4 text-card-foreground shadow-md  md:h-[calc(100dvh-3rem)] md:px-6">
                                 <EditDialogContent
                                     group={group}
                                     displayMembers={displayMembers}
@@ -427,7 +426,7 @@ export function GroupCard({ group }: { group: Group }) {
                                 type="button"
                                 onClick={handleTestGroup}
                                 disabled={isTesting || !group.id}
-                                className="rounded-[1rem] p-2 text-muted-foreground transition-colors hover:bg-background/70 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                                className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-card hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 {isTesting ? <Loader2 className="size-4 animate-spin" /> : <Activity className="size-4" />}
                             </button>
@@ -439,7 +438,7 @@ export function GroupCard({ group }: { group: Group }) {
                         <TooltipTrigger>
                             <CopyIconButton
                                 text={group.name}
-                                className="rounded-[1rem] p-2 text-muted-foreground transition-colors hover:bg-background/70 hover:text-foreground"
+                                className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
                                 copyIconClassName="size-4"
                                 checkIconClassName="size-4 text-primary"
                             />
@@ -449,7 +448,7 @@ export function GroupCard({ group }: { group: Group }) {
                     {!confirmDelete && (
                         <Tooltip side="top" sideOffset={10} align="center">
                             <TooltipTrigger>
-                                <motion.button layoutId={`delete-btn-group-${group.id}`} type="button" onClick={() => setConfirmDelete(true)} className="rounded-[1rem] p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive">
+                                <motion.button layoutId={`delete-btn-group-${group.id}`} type="button" onClick={() => setConfirmDelete(true)} className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive">
                                     <Trash2 className="size-4" />
                                 </motion.button>
                             </TooltipTrigger>
@@ -460,7 +459,7 @@ export function GroupCard({ group }: { group: Group }) {
 
                 <AnimatePresence>
                     {confirmDelete && (
-                        <motion.div layoutId={`delete-btn-group-${group.id}`} className="absolute inset-0 flex items-center justify-center gap-2 rounded-[1.7rem] bg-destructive p-2" transition={{ type: 'spring', stiffness: 400, damping: 30 }}>
+                        <motion.div layoutId={`delete-btn-group-${group.id}`} className="absolute inset-0 flex items-center justify-center gap-2 rounded-lg bg-destructive p-2" transition={{ type: 'spring', stiffness: 400, damping: 30 }}>
                             <button type="button" onClick={() => setConfirmDelete(false)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-destructive-foreground/20 text-destructive-foreground transition-all hover:bg-destructive-foreground/30 active:scale-95">
                                 <X className="size-4" />
                             </button>
@@ -483,14 +482,14 @@ export function GroupCard({ group }: { group: Group }) {
                                 <span
                                     key={cap}
                                     className={cn(
-                                        'inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-medium shadow-waterhouse-soft',
+                                        'inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-medium',
                                         CAPABILITY_COLORS[cap]
                                     )}
                                 >
                                     {t(CAPABILITY_LABEL_KEYS[cap])}
                                 </span>
                             ))}
-                            <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-border/20 bg-background/48 px-2.5 py-1 text-[10px] text-muted-foreground shadow-waterhouse-soft">
+                            <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-border/20 bg-card px-2.5 py-1 text-[10px] text-muted-foreground">
                                 <Layers className="size-3" />
                                 {t('card.modelCount', { count: modelCount })}
                             </span>
@@ -499,8 +498,8 @@ export function GroupCard({ group }: { group: Group }) {
                 })()}
             </header>
 
-            <section className="relative mb-4 rounded-[1.7rem] border border-border/25 bg-background/34 p-3 shadow-none md:shadow-waterhouse-soft">
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-border/25 bg-background/44 px-2.5 py-1 text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground shadow-waterhouse-soft">
+            <section className="relative mb-4 rounded-lg border border-border/25 bg-card p-3">
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-border/25 bg-card px-2.5 py-1 text-[0.64rem] font-semibold text-muted-foreground">
                     <Waves className="size-3.5" />
                     {t(`mode.${MODE_LABELS[group.mode]}`)}
                 </div>
@@ -516,10 +515,10 @@ export function GroupCard({ group }: { group: Group }) {
                             updateGroup.mutate({ id: group.id!, mode: m }, { onSuccess, onError });
                         }}
                         className={cn(
-                            'rounded-[1rem] px-3 py-2 text-xs font-medium transition-[transform,border-color,background-color,box-shadow] duration-300',
+                            'rounded-md px-3 py-2 text-xs font-medium transition-[transform,border-color,background-color] duration-300',
                             group.mode === m
-                                ? 'border border-primary/20 bg-primary text-primary-foreground shadow-waterhouse-soft'
-                                : 'border border-border/25 bg-background/48 text-foreground shadow-waterhouse-soft hover:-translate-y-0.5 hover:border-primary/16 hover:bg-background/64',
+                                ? 'border border-primary/20 bg-primary text-primary-foreground'
+                                : 'border border-border/25 bg-card text-foreground hover:-translate-y-0.5 hover:border-primary/16 hover:bg-card',
                             // Keep visuals stable (no opacity/disabled flicker) while still preventing double-submit via onClick guard.
                             (!group.id) && 'cursor-not-allowed opacity-50'
                         )}
@@ -530,7 +529,7 @@ export function GroupCard({ group }: { group: Group }) {
                 </div>
             </section>
 
-            <section className="relative min-h-[25.25rem] overflow-hidden rounded-[1.8rem] border border-border/25 bg-background/32 shadow-none md:shadow-waterhouse-soft">
+            <section className="relative min-h-[25.25rem] overflow-hidden rounded-lg border border-border/25 bg-card">
                 <MemberList
                     members={members}
                     onReorder={setMembers}
@@ -546,10 +545,10 @@ export function GroupCard({ group }: { group: Group }) {
             </section>
 
             {(isTesting || resultByItemId.size > 0) && (
-                <section className="mt-4 rounded-[1.7rem] border border-border/25 bg-background/40 p-4 shadow-none md:shadow-waterhouse-soft">
+                <section className="mt-4 rounded-lg border border-border/25 bg-card p-4">
                     <div className="flex items-center justify-between gap-3">
                         <div className="space-y-1">
-                            <div className="inline-flex items-center gap-2 rounded-full border border-border/25 bg-background/44 px-2.5 py-1 text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground shadow-waterhouse-soft">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-border/25 bg-card px-2.5 py-1 text-[0.64rem] font-semibold text-muted-foreground">
                                 <TestTubeDiagonal className="size-3.5" />
                                 {t('card.testProgressTitle')}
                             </div>
@@ -566,7 +565,7 @@ export function GroupCard({ group }: { group: Group }) {
                             const status = !result ? 'pending' : result.passed ? 'passed' : 'failed';
 
                             return (
-                                <li key={`test-status-${member.id}`} className="flex items-center justify-between gap-3 rounded-[1.2rem] border border-border/25 bg-background/44 px-3 py-2.5 shadow-waterhouse-soft">
+                                <li key={`test-status-${member.id}`} className="flex items-center justify-between gap-3 rounded-lg border border-border/25 bg-card px-3 py-2.5">
                                     <div className="min-w-0">
                                         <div className="truncate text-sm font-medium text-foreground">{member.name}</div>
                                         <div className="truncate text-xs text-muted-foreground">{member.channel_name}</div>
@@ -601,7 +600,7 @@ export function GroupCard({ group }: { group: Group }) {
             )}
 
             {failedTestResults.length > 0 && (
-                <section className="mt-4 rounded-[1.7rem] border border-amber-500/28 bg-amber-500/6 p-4 shadow-waterhouse-soft">
+                <section className="mt-4 rounded-lg border border-amber-500/28 bg-amber-500/6 p-4">
                     <div className="flex items-start justify-between gap-3">
                         <div className="text-sm font-medium text-amber-700 dark:text-amber-300">
                             {t('card.testFailedTitle')}

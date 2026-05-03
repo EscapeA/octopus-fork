@@ -23,7 +23,6 @@ import { parseNavOrder, parseNavVisible } from '@/components/modules/navbar/nav-
 import { apiClient } from '@/api/client';
 import { logger } from '@/lib/logger';
 import { FirstRunSetup } from '@/components/modules/first-run-setup';
-import { ParticleBackground, RippleEffect } from '@/components/nature';
 import { useIsMobile } from '@/hooks/use-mobile';
 import type { BootstrapStatusResponse } from '@/api/endpoints/bootstrap';
 import type { NavItem } from '@/components/modules/navbar';
@@ -70,7 +69,7 @@ function HeaderActions({ activeItem }: { activeItem: NavItem }) {
             size="sm"
             onClick={() => void handleRefresh()}
             disabled={isRefreshing}
-            className="h-10 rounded-[1.35rem] border-border/35 bg-background/45 px-4 shadow-waterhouse-soft backdrop-blur-md"
+            className="h-10 rounded-lg px-4"
         >
             <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             {t('actions.refresh')}
@@ -380,25 +379,19 @@ export function AppContainer() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: lightweightMotion ? 0.2 : 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className="waterhouse-shell relative mx-auto flex h-dvh max-w-[92rem] flex-col overflow-visible px-3 pt-3 pb-3 md:grid md:grid-cols-[auto_minmax(0,1fr)] md:gap-7 md:px-6 md:py-6"
+            className="relative mx-auto flex h-dvh max-w-[92rem] flex-col overflow-visible px-3 pt-3 pb-3 md:grid md:grid-cols-[auto_minmax(0,1fr)] md:gap-7 md:px-6 md:py-6"
         >
-            {/* Nature: 粒子背景 */}
-            {!isMobile && <ParticleBackground count={35} minOpacity={0.06} maxOpacity={0.2} />}
-            {/* Nature: 光标水波纹轨迹 */}
-            {!isMobile && <RippleEffect maxRipples={16} throttleMs={100} />}
             <NavBar />
             <main className="relative z-10 flex min-h-0 w-full min-w-0 flex-1 flex-col gap-4 md:gap-5">
-                <header className="waterhouse-island-fx relative z-20 flex flex-none flex-col gap-4 overflow-visible rounded-[2.25rem] border-border/35 bg-background/50 px-4 py-4 shadow-waterhouse-deep backdrop-blur-[var(--waterhouse-shell-blur)] md:px-6 md:py-5 lg:flex-row lg:items-center lg:gap-6">
-                    <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-primary/35 to-transparent" />
-                    {!isMobile && <div className="pointer-events-none absolute -left-8 top-6 size-28 rounded-full bg-primary/10 blur-3xl" />}
+                <header className="relative z-20 flex flex-none flex-col gap-4 overflow-visible rounded-xl border border-border bg-card px-4 py-4 md:px-6 md:py-5 lg:flex-row lg:items-center lg:gap-6">
                     <div className="flex min-w-0 flex-1 items-center gap-4">
-                        <div className="waterhouse-pod grid size-14 shrink-0 place-items-center overflow-hidden rounded-[1.45rem] border-border/35 bg-background/58 shadow-waterhouse-soft">
+                        <div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-card">
                             <Logo size={42} />
                         </div>
                         <div className="min-w-0 flex-1 overflow-hidden">
                             <div className="mb-1 flex items-center gap-2">
-                                <span className="h-2 w-8 rounded-full bg-primary/45 shadow-[0_0_18px_color-mix(in_oklch,var(--primary)_45%,transparent)]" />
-                                <span className="text-[0.68rem] font-semibold uppercase tracking-[0.32em] text-muted-foreground/80">
+                                <span className="h-2 w-8 rounded-full bg-primary/60" />
+                                <span className="text-[0.68rem] font-medium text-muted-foreground/70">
                                     Octopus
                                 </span>
                             </div>

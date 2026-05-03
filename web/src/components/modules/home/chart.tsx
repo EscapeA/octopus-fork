@@ -123,13 +123,11 @@ export function StatsChart() {
         return labels[p];
     };
 
-
     const handlePeriodClick = () => {
         const currentIndex = PERIODS.indexOf(period);
         const nextIndex = (currentIndex + 1) % PERIODS.length;
         setChartPeriod(PERIODS[nextIndex]);
     };
-
 
     const getChartStroke = (type: ChartMetricType) => {
         if (type === 'cost') return 'var(--chart-1)';
@@ -173,28 +171,26 @@ export function StatsChart() {
     ];
 
     return (
-        <div className="waterhouse-island relative overflow-hidden rounded-[2.15rem] border-border/35 bg-card/58 pt-5 text-card-foreground shadow-waterhouse-deep backdrop-blur-[var(--waterhouse-shell-blur)]">
-            <div className="pointer-events-none absolute -right-16 top-8 h-48 w-48 rounded-full bg-primary/8 blur-3xl" />
-            <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-primary/28 to-transparent" />
-            <div className="relative space-y-4 px-4 pb-3 md:px-5">
+        <div className="relative rounded-xl border border-border bg-card pt-5 text-card-foreground">
+            <div className="space-y-4 px-4 pb-3 md:px-5">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="space-y-2">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-primary/12 bg-background/44 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-primary shadow-waterhouse-soft backdrop-blur-md">
-                            <BarChart3 className="h-3.5 w-3.5" />
+                        <div className="inline-flex items-center gap-2 rounded-md border border-primary/12 bg-card px-2.5 py-1 text-xs font-medium text-primary">
+                            <BarChart3 className="h-3.5 w-3.5" strokeWidth={1.5} />
                             <span>{t('title')}</span>
                         </div>
                         <button
                             type="button"
-                            className="waterhouse-pod inline-flex items-center gap-2 rounded-[1.2rem] border-border/30 bg-background/38 px-3 py-2 text-left text-sm shadow-waterhouse-soft backdrop-blur-md transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-primary/20"
+                            className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-left text-sm transition-[transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-border/80"
                             onClick={handlePeriodClick}
                         >
-                            <CalendarClock className="h-4 w-4 text-primary/70" />
+                            <CalendarClock className="h-4 w-4 text-primary/60" strokeWidth={1.5} />
                             <span className="text-xs text-muted-foreground">{t('timePeriod')}</span>
                             <span className="font-semibold">{getPeriodLabel(period)}</span>
                         </button>
                     </div>
                     <Tabs value={chartMetricType} onValueChange={(value) => setChartMetricType(value as ChartMetricType)}>
-                        <TabsList className="waterhouse-pod flex w-full flex-wrap rounded-[1.4rem] border-border/30 bg-background/38 p-1 shadow-waterhouse-soft backdrop-blur-md sm:w-max">
+                        <TabsList className="flex w-full flex-wrap rounded-lg border border-border bg-card p-1 sm:w-max">
                             <TabsTrigger value="cost">{t('metricType.cost')}</TabsTrigger>
                             <TabsTrigger value="count">{t('metricType.count')}</TabsTrigger>
                             <TabsTrigger value="tokens">{t('metricType.tokens')}</TabsTrigger>
@@ -205,7 +201,7 @@ export function StatsChart() {
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     {summaryMetrics.map((metric) => (
-                        <div key={metric.key} className="waterhouse-pod overflow-hidden rounded-[1.35rem] border-border/30 bg-background/38 px-3.5 py-3 shadow-waterhouse-soft backdrop-blur-md">
+                        <div key={metric.key} className="rounded-lg border border-border bg-card px-3.5 py-3">
                             <div className="mb-2 h-1 w-9 rounded-full bg-primary/18" />
                             <div className="text-xs text-muted-foreground">{metric.label}</div>
                             <div className="mt-1 flex items-baseline gap-1">
@@ -218,8 +214,7 @@ export function StatsChart() {
                     ))}
                 </div>
             </div>
-            <div className="relative mx-3 mb-3 overflow-hidden rounded-[1.7rem] border border-border/30 bg-background/30 pt-3 shadow-waterhouse-soft backdrop-blur-md">
-                <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-primary/24 to-transparent" />
+            <div className="relative mx-3 mb-3 overflow-hidden rounded-lg border border-border bg-card pt-3">
                 <ChartContainer config={chartConfig} className="h-[20rem] w-full md:h-[24rem]">
                 <AreaChart accessibilityLayer data={chartData}>
                     <defs>

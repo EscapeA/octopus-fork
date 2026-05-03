@@ -10,7 +10,7 @@ const Table = React.forwardRef<
 >(({ className, wrapperClassName, ...props }, ref) => (
   <div
     className={cn(
-      "waterhouse-pod relative w-full overflow-auto rounded-[1.8rem] border border-border/40 bg-card/68 shadow-[var(--waterhouse-shadow-soft)]",
+      "relative w-full overflow-auto rounded-lg border border-border bg-card shadow-sm",
       wrapperClassName
     )}
   >

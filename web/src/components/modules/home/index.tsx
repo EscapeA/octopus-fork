@@ -9,7 +9,7 @@ import { PageWrapper } from '@/components/common/PageWrapper';
 
 export function Home() {
     return (
-        <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain space-y-7 rounded-t-3xl pb-24 md:pb-4">
+        <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain space-y-7 rounded-t-xl pb-24 md:pb-4">
             <HomeHero />
             <HomeAnalyticsOverview />
             <StatsChart />

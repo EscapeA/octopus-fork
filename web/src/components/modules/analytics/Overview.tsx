@@ -66,7 +66,7 @@ export function Overview({ range }: { range: AnalyticsRange }) {
     ] : [];
 
     return (
-        <section className="rounded-3xl border border-card-border bg-card p-5 text-card-foreground custom-shadow">
+        <section className="rounded-xl border border-border/35 bg-card p-5 text-card-foreground">
             <div className="mb-4 space-y-1">
                 <h3 className="text-base font-semibold">{t('cards.overview.title')}</h3>
                 {description ? (

@@ -60,8 +60,8 @@ export function User() {
     if (isLoading) return <Loader className="size-6 animate-spin mx-auto mt-12" />;
 
     return (
-        <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain rounded-t-3xl space-y-4 pb-24 md:pb-6">
-            <div className="rounded-3xl border border-border bg-card p-6">
+        <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain rounded-t-xl space-y-4 pb-24 md:pb-6">
+            <div className="rounded-xl border border-border bg-card p-6">
                 <div className="mb-4 flex items-center justify-between gap-3">
                     <h2 className="text-lg font-bold text-card-foreground flex items-center gap-2">
                         <Users className="h-5 w-5" />
@@ -74,7 +74,7 @@ export function User() {
                             {t('create.open')}
                         </MorphingDialogTrigger>
                         <MorphingDialogContainer>
-                            <MorphingDialogContent className="w-fit max-w-full bg-card text-card-foreground px-6 py-4 rounded-3xl custom-shadow max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden">
+                            <MorphingDialogContent className="w-fit max-w-full bg-card text-card-foreground px-6 py-4 rounded-xl max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden">
                                 <CreateDialogContent />
                             </MorphingDialogContent>
                         </MorphingDialogContainer>

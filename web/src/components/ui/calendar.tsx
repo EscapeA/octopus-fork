@@ -33,7 +33,7 @@ function Calendar({
     <DayPicker
       showOutsideDays={showOutsideDays}
       className={cn(
-        "waterhouse-pod group/calendar rounded-[1.6rem] border border-border/35 bg-card/68 p-3 shadow-nature-organic [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
+        "group/calendar rounded-xl border border-border bg-card p-3 shadow-sm [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
         String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
         String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
         className
@@ -74,7 +74,7 @@ function Calendar({
           defaultClassNames.dropdowns
         ),
         dropdown_root: cn(
-          "relative rounded-[1rem] border border-border/35 bg-background/55 shadow-nature-organic backdrop-blur-md has-focus:border-ring has-focus:ring-ring/50 has-focus:ring-[3px]",
+          "relative rounded-md border border-border bg-popover shadow-sm has-focus:border-ring has-focus:ring-ring/50 has-focus:ring-[3px]",
           defaultClassNames.dropdown_root
         ),
         dropdown: cn(

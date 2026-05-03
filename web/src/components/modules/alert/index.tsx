@@ -348,7 +348,7 @@ export function Alert() {
     }
 
     return (
-        <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain rounded-t-3xl space-y-4 pb-24 md:pb-6">
+        <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain rounded-t-xl space-y-4 pb-24 md:pb-6">
             <div className="flex items-center gap-2 mb-2">
                 <TabButton active={tab === 'rules'} onClick={() => setTab('rules')}>{t('tabs.rules')}</TabButton>
                 <TabButton active={tab === 'channels'} onClick={() => setTab('channels')}>{t('tabs.channels')}</TabButton>
@@ -356,7 +356,7 @@ export function Alert() {
             </div>
 
             {tab === 'rules' && (
-                <div className="rounded-3xl border border-border bg-card p-6 space-y-4">
+                <div className="rounded-xl border border-border bg-card p-6 space-y-4">
                     <div className="flex items-center justify-between">
                         <h2 className="text-lg font-bold text-card-foreground flex items-center gap-2">
                             <Bell className="h-5 w-5" />{t('rules.title')}
@@ -370,7 +370,7 @@ export function Alert() {
                     </div>
 
                     {showNewRule && (
-                        <div className="p-4 rounded-2xl bg-muted/30 border border-border space-y-3">
+                        <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-3">
                             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                                 <Input
                                     placeholder={t('rules.form.namePlaceholder')}
@@ -522,7 +522,7 @@ export function Alert() {
                                                         setEditingRuleId(rule.id);
                                                         setEditingRule(createAlertRuleDraft(rule));
                                                     }}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium bg-background text-foreground hover:bg-background/80 transition-all active:scale-95"
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium bg-background text-foreground hover:bg-card transition-all active:scale-95"
                                                 >
                                                     <Pencil className="h-4 w-4" />{t('actions.edit')}
                                                 </button>
@@ -553,7 +553,7 @@ export function Alert() {
             )}
 
             {tab === 'channels' && (
-                <div className="rounded-3xl border border-border bg-card p-6 space-y-4">
+                <div className="rounded-xl border border-border bg-card p-6 space-y-4">
                     <div className="flex items-center justify-between">
                         <h2 className="text-lg font-bold text-card-foreground flex items-center gap-2">
                             <Bell className="h-5 w-5" />{t('channels.title')}
@@ -567,7 +567,7 @@ export function Alert() {
                     </div>
 
                     {showNewChannel && (
-                        <div className="p-4 rounded-2xl bg-muted/30 border border-border space-y-3">
+                        <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-3">
                             <Input
                                 placeholder={t('channels.form.namePlaceholder')}
                                 value={newChannel.name}
@@ -659,7 +659,7 @@ export function Alert() {
                                                         setEditingChannelId(channel.id);
                                                         setEditingChannel(createAlertChannelDraft(channel));
                                                     }}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium bg-background text-foreground hover:bg-background/80 transition-all active:scale-95"
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium bg-background text-foreground hover:bg-card transition-all active:scale-95"
                                                 >
                                                     <Pencil className="h-4 w-4" />{t('actions.edit')}
                                                 </button>
@@ -690,7 +690,7 @@ export function Alert() {
             )}
 
             {tab === 'history' && (
-                <div className="rounded-3xl border border-border bg-card p-6 space-y-4">
+                <div className="rounded-xl border border-border bg-card p-6 space-y-4">
                     <h2 className="text-lg font-bold text-card-foreground flex items-center gap-2">
                         <Clock className="h-5 w-5" />{t('history.title')}
                     </h2>

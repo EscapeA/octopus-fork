@@ -79,15 +79,14 @@ function MemberItem({
             }}
         >
             <div className={cn(
-                'group/item relative flex items-center gap-2 overflow-hidden rounded-[1.3rem] border border-border/30 bg-background/50 px-3 py-2.5 select-none transition-[opacity,transform,border-color,box-shadow,background-color] duration-200',
+                'group/item relative flex items-center gap-2 overflow-hidden rounded-lg border border-border/30 bg-card px-3 py-2.5 select-none transition-[opacity,transform,border-color,box-shadow,background-color] duration-200',
                 isRemoving && 'opacity-0',
                 isDisabled && 'opacity-60 grayscale',
-                !isRemoving && !isDragging && 'shadow-waterhouse-soft hover:-translate-y-0.5 hover:border-primary/16 hover:bg-background/68',
-                isDragging && 'border-primary/30 bg-background/78 shadow-waterhouse-deep'
+                !isRemoving && !isDragging && 'hover:-translate-y-0.5 hover:border-primary/16 hover:bg-card',
+                isDragging && 'border-primary/30 bg-card'
             )}>
-                <div className="pointer-events-none absolute inset-y-0 left-0 w-20 bg-[radial-gradient(circle_at_left,color-mix(in_oklch,var(--waterhouse-highlight)_12%,transparent)_0%,transparent_72%)] opacity-80" />
                 <span className={cn(
-                    'relative grid size-7 shrink-0 place-items-center rounded-[0.95rem] text-xs font-bold',
+                    'relative grid size-7 shrink-0 place-items-center rounded-md text-xs font-bold',
                     isDisabled ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary'
                 )}>
                     {index + 1}
@@ -95,7 +94,7 @@ function MemberItem({
 
                 <div
                     className={cn(
-                        'relative rounded-[0.8rem] p-1 touch-none transition-colors',
+                        'relative rounded-md p-1 touch-none transition-colors',
                         isDisabled
                             ? 'cursor-grab active:cursor-grabbing hover:bg-muted/60'
                             : 'cursor-grab active:cursor-grabbing hover:bg-primary/8'
@@ -133,7 +132,7 @@ function MemberItem({
                         value={member.weight ?? 1}
                         onChange={(e) => onWeightChange?.(member.id, Math.max(1, parseInt(e.target.value) || 1))}
                         className={cn(
-                            'h-7 w-14 rounded-[0.9rem] border border-border/35 bg-background/62 text-center text-xs shadow-waterhouse-soft focus:outline-none focus:ring-1 focus:ring-primary',
+                            'h-7 w-14 rounded-md border border-border/35 bg-card text-center text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary',
                             isDisabled && 'text-muted-foreground'
                         )}
                     />
@@ -144,7 +143,7 @@ function MemberItem({
                         layoutId={`delete-btn-member-${layoutScope ?? 'default'}-${member.id}`}
                         type="button"
                         onClick={() => showConfirmDelete ? setConfirmDelete(true) : onRemove(member.id)}
-                        className="relative rounded-[0.85rem] p-1.5 transition-colors hover:bg-destructive/10 hover:text-destructive"
+                        className="relative rounded-md p-1.5 transition-colors hover:bg-destructive/10 hover:text-destructive"
                         initial={false}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.15 }}
@@ -158,7 +157,7 @@ function MemberItem({
                     {showConfirmDelete && confirmDelete && (
                         <motion.div
                             layoutId={`delete-btn-member-${layoutScope ?? 'default'}-${member.id}`}
-                            className="absolute inset-0 flex items-center justify-center gap-2 rounded-[1.3rem] bg-destructive p-1.5"
+                            className="absolute inset-0 flex items-center justify-center gap-2 rounded-lg bg-destructive p-1.5"
                             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                         >
                             <button
@@ -292,7 +291,7 @@ export function MemberList({
                     isEmpty ? 'opacity-100' : 'opacity-0 pointer-events-none'
                 )}
             >
-                <div className="waterhouse-pod grid size-16 place-items-center rounded-[1.5rem] border border-border/25 bg-background/40 shadow-waterhouse-soft">
+                <div className="grid size-16 place-items-center rounded-lg border border-border/25 bg-card">
                     <Waves className="size-7 opacity-60" />
                 </div>
                 <div className="space-y-1 text-center">

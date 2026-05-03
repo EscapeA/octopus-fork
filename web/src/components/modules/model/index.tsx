@@ -47,20 +47,14 @@ export function Model() {
     };
 
     return (
-        <section className="model-shadowless relative flex h-full min-h-0 flex-col gap-4" aria-label={pageKey}>
+        <section className="relative flex h-full min-h-0 flex-col gap-4" aria-label={pageKey}>
             <ModelMarketSummary
                 summary={summary}
                 onRefresh={() => updateModelPrice.mutate()}
                 isRefreshing={updateModelPrice.isPending}
             />
 
-            <section className="waterhouse-island relative flex min-h-0 flex-1 flex-col rounded-[2.25rem] border border-border/35 bg-card/56 p-3 text-card-foreground shadow-none backdrop-blur-[var(--waterhouse-shell-blur)] md:p-4">
-                <div className="relative mb-3 flex items-center gap-2 px-1">
-                    <span className="h-2.5 w-10 rounded-full bg-primary/18 shadow-waterhouse-soft" />
-                    <span className="h-2.5 w-24 rounded-full bg-background/60 shadow-inner" />
-                    <span className="ml-auto h-2.5 w-16 rounded-full bg-background/40" />
-                </div>
-
+            <section className="relative flex min-h-0 flex-1 flex-col rounded-xl border border-border/35 bg-card p-3 text-card-foreground md:p-4">
                 <div className="relative min-h-0 flex-1">
                     {visibleModels.length > 0 ? (
                         <VirtualizedGrid
@@ -72,12 +66,11 @@ export function Model() {
                             renderItem={(model) => <ModelItem model={model} layout={layout} />}
                         />
                     ) : (
-                        <div className="waterhouse-pod relative flex h-full min-h-[18rem] items-center justify-center overflow-hidden rounded-[2rem] border border-dashed border-border/35 bg-background/28 shadow-waterhouse-soft backdrop-blur-md">
-                            <div className="pointer-events-none absolute inset-x-[16%] bottom-0 h-28 rounded-t-[999px] border border-primary/12 bg-[linear-gradient(180deg,color-mix(in_oklch,var(--primary)_14%,transparent),color-mix(in_oklch,var(--waterhouse-highlight)_22%,transparent))]" />
+                        <div className="relative flex h-full min-h-[18rem] items-center justify-center overflow-hidden rounded-xl border border-dashed border-border/35 bg-card">
                             <div className="relative flex items-end gap-3">
-                                <span className="h-24 w-16 rounded-[1.7rem] border border-border/30 bg-background/56 shadow-waterhouse-soft" />
-                                <span className="h-28 w-20 rounded-[2rem] border border-primary/18 bg-background/64 shadow-waterhouse-soft" />
-                                <span className="h-20 w-14 rounded-[1.45rem] border border-border/30 bg-background/46 shadow-waterhouse-soft" />
+                                <span className="h-24 w-16 rounded-lg border border-border/30 bg-card" />
+                                <span className="h-28 w-20 rounded-xl border border-primary/18 bg-card" />
+                                <span className="h-20 w-14 rounded-lg border border-border/30 bg-card" />
                             </div>
                         </div>
                     )}

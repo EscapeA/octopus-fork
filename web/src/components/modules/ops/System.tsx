@@ -24,7 +24,7 @@ export function System() {
     const aiRouteModeLabel = data?.ai_route_legacy_mode ? t('system.fields.legacyMode') : t('system.fields.servicePoolMode');
 
     return (
-        <section className="rounded-3xl border border-card-border bg-card p-5 text-card-foreground custom-shadow">
+        <section className="rounded-xl border border-border/35 bg-card p-5 text-card-foreground">
             <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-1">
                     <h3 className="text-base font-semibold">{t('tabs.system')}</h3>
@@ -73,7 +73,7 @@ export function System() {
                     </div>
 
                     <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-                        <article className="rounded-2xl border border-border/60 bg-background/70 p-4">
+                        <article className="rounded-xl border border-border/60 bg-card p-4">
                             <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
                                 <Server className="h-4 w-4" />
                                 {t('system.sections.runtime')}
@@ -102,7 +102,7 @@ export function System() {
                             />
                         </article>
 
-                        <article className="rounded-2xl border border-border/60 bg-background/70 p-4">
+                        <article className="rounded-xl border border-border/60 bg-card p-4">
                             <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
                                 <Settings2 className="h-4 w-4" />
                                 {t('system.sections.operations')}
@@ -122,7 +122,7 @@ export function System() {
                             />
                             <InfoRow label={t('system.fields.aiRouteMode')} value={aiRouteModeLabel} />
 
-                            <div className="mt-4 rounded-2xl border border-border/40 bg-card p-3">
+                            <div className="mt-4 rounded-lg border border-border/40 bg-card p-3">
                                 <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
                                     <Cpu className="h-4 w-4" />
                                     {t('system.sections.services')}
@@ -138,7 +138,7 @@ export function System() {
                                         {(data?.ai_route_services ?? []).map((service) => (
                                             <article
                                                 key={`${service.name}-${service.model}`}
-                                                className="rounded-2xl border border-border/40 bg-background/70 p-3"
+                                                className="rounded-lg border border-border/40 bg-card p-3"
                                             >
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div className="min-w-0">

@@ -94,10 +94,10 @@ function ModelPickerSection({
     }, [channels, normalizedSearch]);
 
     return (
-        <div className="waterhouse-pod flex min-h-[22rem] flex-col rounded-[1.85rem] border border-border/30 bg-background/38 shadow-waterhouse-soft lg:min-h-0">
+        <div className="flex min-h-[22rem] flex-col rounded-lg border border-border/30 bg-card shadow-sm lg:min-h-0">
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border/20 px-4 py-3">
-                <div className="min-w-0">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-border/25 bg-background/40 px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground shadow-waterhouse-soft">
+                    <div className="min-w-0">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-border/25 bg-card px-2.5 py-1 text-[0.68rem] font-semibold text-muted-foreground">
                         <Orbit className="size-3.5" />
                         {t('form.addItem')}
                     </div>
@@ -107,10 +107,10 @@ function ModelPickerSection({
                     type="button"
                     onClick={onAutoAdd}
                     className={cn(
-                        'justify-self-end shrink-0 flex items-center gap-1 rounded-[1rem] px-3 py-1.5 text-xs font-medium transition-colors',
+                        'justify-self-end shrink-0 flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
                         autoAddDisabled
                             ? 'cursor-not-allowed text-muted-foreground/50'
-                            : 'bg-background/44 text-muted-foreground shadow-waterhouse-soft hover:bg-background/62 hover:text-foreground'
+                            : 'bg-card text-muted-foreground hover:bg-card hover:text-foreground'
                     )}
                     disabled={autoAddDisabled}
                     title={t('form.autoAdd')}
@@ -126,7 +126,7 @@ function ModelPickerSection({
                     <Input
                         value={searchKeyword}
                         onChange={(event) => setSearchKeyword(event.target.value)}
-                        className="h-9 rounded-[1.15rem] border-border/35 bg-background/58 pl-8 pr-3 text-sm shadow-waterhouse-soft focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/20"
+                        className="h-9 rounded-lg border-border/35 bg-card pl-8 pr-3 text-sm focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20"
                         aria-label={t('form.searchAriaLabel')}
                     />
                 </div>
@@ -144,7 +144,7 @@ function ModelPickerSection({
 
                         return (
                             <AccordionItem key={channel.id} value={`channel-${channel.id}`}>
-                                <AccordionPrimitive.Header className="sticky top-0 z-10 flex overflow-hidden rounded-[1.25rem] border border-border/25 bg-background/54 px-3 shadow-waterhouse-soft backdrop-blur-md">
+                                <AccordionPrimitive.Header className="sticky top-0 z-10 flex overflow-hidden rounded-lg border border-border/25 bg-card px-3">
                                     <AccordionPrimitive.Trigger className="flex min-w-0 flex-1 items-center gap-4 py-3.5 text-left text-sm transition-all outline-none focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 [&[data-state=open]>svg]:rotate-180">
                                         <span className="truncate">{channel.name}</span>
                                         <span className="text-xs text-muted-foreground shrink-0">
@@ -165,8 +165,8 @@ function ModelPickerSection({
                                                     onClick={() => !isSelected && onAdd(m)}
                                                     disabled={isSelected}
                                                     className={cn(
-                                                        'w-full flex items-center justify-between gap-2 rounded-[1.15rem] border border-border/30 bg-background/48 px-3 py-2.5 text-left transition-[transform,border-color,background-color,box-shadow] duration-300',
-                                                        isSelected ? 'cursor-not-allowed opacity-60' : 'shadow-waterhouse-soft hover:-translate-y-0.5 hover:border-primary/18 hover:bg-background/68'
+                                                        'w-full flex items-center justify-between gap-2 rounded-lg border border-border/30 bg-card px-3 py-2.5 text-left transition-[transform,border-color,background-color,box-shadow] duration-300',
+                                                        isSelected ? 'cursor-not-allowed opacity-60' : 'hover:-translate-y-0.5 hover:border-primary/18 hover:bg-card'
                                                     )}
                                                 >
                                                     <span className="flex items-center gap-2 min-w-0">
@@ -215,7 +215,7 @@ function SortSection({
     const t = useTranslations('group');
 
     return (
-        <div className="waterhouse-pod flex min-h-[28rem] flex-col rounded-[1.85rem] border border-border/30 bg-background/34 shadow-waterhouse-soft lg:min-h-0">
+        <div className="flex min-h-[28rem] flex-col rounded-lg border border-border/30 bg-card lg:min-h-0">
             <div className="flex items-center justify-between border-b border-border/20 px-4 py-3">
                 <span className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
                     <FlaskConical className="size-4 text-primary" />
@@ -231,10 +231,10 @@ function SortSection({
                     onClick={onClear}
                     disabled={members.length === 0}
                     className={cn(
-                        'flex items-center gap-1 rounded-[1rem] px-3 py-1.5 text-xs font-medium transition-colors',
+                        'flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
                         members.length === 0
                             ? 'cursor-not-allowed text-muted-foreground/50'
-                            : 'bg-background/44 text-muted-foreground shadow-waterhouse-soft hover:bg-background/62 hover:text-foreground'
+                            : 'bg-card text-muted-foreground hover:bg-card hover:text-foreground'
                     )}
                     title={t('form.clear')}
                 >
@@ -379,16 +379,16 @@ export function GroupEditor({
             <div className="flex-1 min-h-0 overflow-y-auto pr-1">
                 <FieldGroup className="flex min-h-full flex-col gap-4 lg:h-full">
                     <div className="grid min-h-full gap-4 xl:grid-cols-[minmax(21rem,0.9fr)_minmax(0,1.55fr)] xl:items-stretch">
-                        <section className="waterhouse-pod flex flex-col gap-4 rounded-[2rem] border border-border/30 bg-background/38 p-4 shadow-waterhouse-soft md:p-5">
+                        <section className="flex flex-col gap-4 rounded-xl border border-border/30 bg-card p-4 md:p-5">
                             <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div className="space-y-2">
-                                    <div className="inline-flex items-center gap-2 rounded-full border border-primary/14 bg-background/42 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-primary shadow-waterhouse-soft">
+                                    <div className="inline-flex items-center gap-2 rounded-full border border-primary/14 bg-card px-3 py-1 text-[0.68rem] font-semibold text-primary">
                                         <Waves className="size-3.5" />
                                         {t('form.name')}
                                     </div>
                                     <p className="text-sm text-muted-foreground">{t('emptyState.description')}</p>
                                 </div>
-                                <div className="inline-flex items-center gap-2 rounded-full border border-border/25 bg-background/42 px-3 py-1 text-xs text-muted-foreground shadow-waterhouse-soft">
+                                <div className="inline-flex items-center gap-2 rounded-full border border-border/25 bg-card px-3 py-1 text-xs text-muted-foreground">
                                     <SlidersHorizontal className="size-3.5" />
                                     {t('mode.auto')}
                                 </div>
@@ -401,7 +401,7 @@ export function GroupEditor({
                                         id="group-name"
                                         value={groupName}
                                         onChange={(e) => setGroupName(e.target.value)}
-                                        className="rounded-[1.2rem]"
+                                        className="rounded-lg"
                                     />
                                 </Field>
                                 <Field>
@@ -410,7 +410,7 @@ export function GroupEditor({
                                         id="group-endpoint-type"
                                         value={endpointType}
                                         onChange={(e) => setEndpointType(normalizeEndpointType(e.target.value))}
-                                        className="h-10 w-full rounded-[1.2rem] border border-border/40 bg-background/55 px-3 text-sm shadow-nature-organic backdrop-blur-md transition-[border-color,box-shadow,background-color] duration-300 outline-none hover:border-primary/15 hover:shadow-[var(--waterhouse-shadow-soft)] focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/20"
+                                        className="h-10 w-full rounded-lg border border-border/40 bg-card px-3 text-sm shadow-sm  transition-[border-color,box-shadow,background-color] duration-300 outline-none hover:border-primary/15  focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/20"
                                     >
                                         {ENDPOINT_TYPE_OPTIONS.map((option) => (
                                             <option key={option.value} value={option.value}>
@@ -425,7 +425,7 @@ export function GroupEditor({
                                         id="group-match-regex"
                                         value={matchRegex}
                                         onChange={(e) => setMatchRegex(e.target.value)}
-                                        className="rounded-[1.2rem]"
+                                        className="rounded-lg"
                                         placeholder={t('form.matchRegexPlaceholder')}
                                     />
                                     {regexError && (
@@ -464,7 +464,7 @@ export function GroupEditor({
                                             const n = Number.parseInt(raw, 10);
                                             setFirstTokenTimeOut(Number.isFinite(n) && n > 0 ? n : 0);
                                         }}
-                                        className="rounded-[1.2rem]"
+                                        className="rounded-lg"
                                     />
                                 </Field>
                                 <Field>
@@ -497,7 +497,7 @@ export function GroupEditor({
                                             const n = Number.parseInt(raw, 10);
                                             setSessionKeepTime(Number.isFinite(n) && n > 0 ? n : 0);
                                         }}
-                                        className="rounded-[1.2rem]"
+                                        className="rounded-lg"
                                     />
                                 </Field>
                                 <Field className="md:col-span-2">
@@ -519,14 +519,14 @@ export function GroupEditor({
                                         id="group-condition"
                                         value={condition}
                                         onChange={(e) => setCondition(e.target.value)}
-                                        className="rounded-[1.2rem] font-mono text-xs"
+                                        className="rounded-lg font-mono text-xs"
                                         placeholder={conditionPlaceholder}
                                     />
                                 </Field>
                             </div>
 
                             <div className="space-y-2">
-                                <div className="inline-flex items-center gap-2 rounded-full border border-border/25 bg-background/42 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground shadow-waterhouse-soft">
+                                <div className="inline-flex items-center gap-2 rounded-full border border-border/25 bg-card px-3 py-1 text-[0.68rem] font-semibold text-muted-foreground">
                                     <Sparkles className="size-3.5" />
                                     {t('mode.auto')}
                                 </div>
@@ -537,10 +537,10 @@ export function GroupEditor({
                                             type="button"
                                             onClick={() => setMode(m)}
                                             className={cn(
-                                                'rounded-[1.1rem] px-3 py-2 text-xs font-medium transition-[transform,border-color,background-color,box-shadow] duration-300',
-                                                mode === m
-                                                    ? 'border border-primary/20 bg-primary text-primary-foreground shadow-waterhouse-soft'
-                                                    : 'border border-border/30 bg-background/46 text-foreground shadow-waterhouse-soft hover:-translate-y-0.5 hover:border-primary/16 hover:bg-background/64'
+                                                'rounded-lg px-3 py-2 text-xs font-medium transition-[transform,border-color,background-color,box-shadow] duration-300',
+                                                    mode === m
+                                                    ? 'border border-primary/20 bg-primary text-primary-foreground'
+                                                    : 'border border-border/30 bg-card text-foreground hover:-translate-y-0.5 hover:border-primary/16 hover:bg-card'
                                             )}
                                         >
                                             {t(`mode.${MODE_LABELS[m]}`)}
@@ -550,16 +550,16 @@ export function GroupEditor({
                             </div>
                         </section>
 
-                        <section className="waterhouse-pod flex min-h-[34rem] flex-col gap-4 rounded-[2rem] border border-border/30 bg-background/34 p-4 shadow-waterhouse-soft md:p-5 xl:min-h-0">
+                        <section className="flex min-h-[34rem] flex-col gap-4 rounded-xl border border-border/30 bg-card p-4 md:p-5 xl:min-h-0">
                             <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div className="space-y-2">
-                                    <div className="inline-flex items-center gap-2 rounded-full border border-primary/12 bg-background/42 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-primary shadow-waterhouse-soft">
+                                    <div className="inline-flex items-center gap-2 rounded-full border border-primary/12 bg-card px-3 py-1 text-[0.68rem] font-semibold text-primary">
                                         <FlaskConical className="size-3.5" />
                                         {t('form.items')}
                                     </div>
                                     <p className="text-sm text-muted-foreground">{t('card.empty')}</p>
                                 </div>
-                                <div className="inline-flex items-center gap-2 rounded-full border border-border/25 bg-background/42 px-3 py-1 text-xs text-muted-foreground shadow-waterhouse-soft">
+                                <div className="inline-flex items-center gap-2 rounded-full border border-border/25 bg-card px-3 py-1 text-xs text-muted-foreground">
                                     {selectedMembers.length}
                                 </div>
                             </div>
@@ -590,14 +590,14 @@ export function GroupEditor({
             <div className="mt-auto shrink-0 px-1 pt-4 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
                 <div className="flex gap-2">
                     {onCancel && (
-                        <Button type="button" variant="secondary" className="h-11 flex-1 rounded-[1.25rem]" onClick={onCancel}>
+                        <Button type="button" variant="secondary" className="h-11 flex-1 rounded-lg" onClick={onCancel}>
                             {t('detail.actions.cancel')}
                         </Button>
                     )}
                     <Button
                         type="submit"
                         disabled={!isValid || isSubmitting}
-                        className="h-11 flex-1 rounded-[1.25rem]"
+                        className="h-11 flex-1 rounded-lg"
                     >
                         {isSubmitting ? submittingText : submitText}
                     </Button>

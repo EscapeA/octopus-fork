@@ -165,7 +165,7 @@ export function SettingSemanticCache() {
     };
 
     return (
-        <div className="waterhouse-island rounded-[2.1rem] border-border/35 bg-card/58 p-6 space-y-5 text-card-foreground shadow-waterhouse-deep backdrop-blur-[var(--waterhouse-shell-blur)]">
+        <div className="rounded-xl border border-border/35 bg-card p-6 space-y-5 text-card-foreground">
             <div className="space-y-1">
                 <h2 className="text-lg font-bold text-card-foreground flex items-center gap-2">
                     <Database className="h-5 w-5" />
@@ -176,7 +176,7 @@ export function SettingSemanticCache() {
                 </p>
             </div>
 
-            <div className="waterhouse-pod flex items-center justify-between gap-4 rounded-[1.55rem] border-border/30 bg-background/34 p-4 shadow-waterhouse-soft">
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-border/30 bg-card p-4">
                 <div className="flex items-center gap-3">
                     <Sparkles className="h-5 w-5 text-muted-foreground" />
                     <span className="text-sm font-medium">{t('semanticCache.enabled.label')}</span>
@@ -184,7 +184,7 @@ export function SettingSemanticCache() {
                 <Switch checked={enabled} onCheckedChange={saveBooleanSetting} />
             </div>
 
-            <div className="waterhouse-pod space-y-2 rounded-[1.55rem] border-border/30 bg-background/34 p-4 shadow-waterhouse-soft">
+            <div className="space-y-2 rounded-lg border border-border/30 bg-card p-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div className="flex items-center gap-3">
                         <Clock3 className="h-5 w-5 text-muted-foreground" />
@@ -205,7 +205,7 @@ export function SettingSemanticCache() {
                 </p>
             </div>
 
-            <div className="waterhouse-pod space-y-2 rounded-[1.55rem] border-border/30 bg-background/34 p-4 shadow-waterhouse-soft">
+            <div className="space-y-2 rounded-lg border border-border/30 bg-card p-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div className="flex items-center gap-3">
                         <Percent className="h-5 w-5 text-muted-foreground" />
@@ -227,7 +227,7 @@ export function SettingSemanticCache() {
                 </p>
             </div>
 
-            <div className="waterhouse-pod space-y-2 rounded-[1.55rem] border-border/30 bg-background/34 p-4 shadow-waterhouse-soft">
+            <div className="space-y-2 rounded-lg border border-border/30 bg-card p-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div className="flex items-center gap-3">
                         <HardDrive className="h-5 w-5 text-muted-foreground" />
@@ -248,9 +248,9 @@ export function SettingSemanticCache() {
                 </p>
             </div>
 
-            <div className="waterhouse-pod space-y-5 rounded-[1.8rem] border-border/30 bg-background/30 p-5 shadow-waterhouse-soft">
+            <div className="space-y-5 rounded-lg border border-border/30 bg-card p-5">
                 <div className="space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                    <p className="text-xs font-semibold text-muted-foreground">
                         {t('semanticCache.embedding.title')}
                     </p>
                     <p className="text-xs text-muted-foreground">

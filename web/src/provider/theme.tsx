@@ -11,7 +11,7 @@ function ThemeColorUpdater() {
         if (metaThemeColor) {
             metaThemeColor.setAttribute(
                 'content',
-                resolvedTheme === 'dark' ? '#413a2c' : '#eae9e3'
+                resolvedTheme === 'dark' ? '#2d2920' : '#faf8f5'
             )
         }
     }, [resolvedTheme])

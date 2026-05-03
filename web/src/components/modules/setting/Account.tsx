@@ -75,10 +75,10 @@ export function SettingAccount() {
         );
     };
 
-    const sectionClassName = 'waterhouse-pod relative overflow-hidden rounded-[2rem] border border-border/30 bg-background/36 p-5 shadow-waterhouse-soft';
+    const sectionClassName = 'relative overflow-hidden rounded-xl border border-border/30 bg-card p-5 shadow-sm';
 
     return (
-        <div className="waterhouse-island relative overflow-hidden rounded-[2.25rem] border-border/35 bg-card/62 p-6 text-card-foreground shadow-waterhouse-deep backdrop-blur-[var(--waterhouse-shell-blur)]">
+        <div className="relative overflow-hidden rounded-xl border-border/35 bg-card p-6 text-card-foreground shadow-md ">
             <div className="space-y-5">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-1.5">
@@ -93,7 +93,7 @@ export function SettingAccount() {
                 <div className={sectionClassName}>
                     <div className="mb-4 flex items-start justify-between gap-4">
                         <div className="flex items-start gap-3">
-                            <span className="grid size-9 shrink-0 place-items-center rounded-[1.1rem] bg-primary/12 text-xs font-semibold text-primary shadow-waterhouse-soft">
+                            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/12 text-xs font-semibold text-primary shadow-sm">
                                 01
                             </span>
                             <div className="space-y-1">
@@ -107,7 +107,7 @@ export function SettingAccount() {
                         <Button
                             onClick={handleChangeUsername}
                             disabled={changeUsername.isPending || !newUsername.trim()}
-                            className="hidden rounded-[1.2rem] lg:inline-flex"
+                            className="hidden rounded-lg lg:inline-flex"
                         >
                             {changeUsername.isPending ? t('account.saving') : t('account.save')}
                         </Button>
@@ -118,12 +118,12 @@ export function SettingAccount() {
                             value={newUsername}
                             onChange={(e) => setNewUsername(e.target.value)}
                             placeholder={t('account.username.placeholder')}
-                            className="rounded-[1.3rem]"
+                            className="rounded-lg"
                         />
                         <Button
                             onClick={handleChangeUsername}
                             disabled={changeUsername.isPending || !newUsername.trim()}
-                            className="rounded-[1.3rem] lg:hidden"
+                            className="rounded-lg lg:hidden"
                         >
                             {changeUsername.isPending ? t('account.saving') : t('account.save')}
                         </Button>
@@ -132,7 +132,7 @@ export function SettingAccount() {
 
                 <div className={sectionClassName}>
                     <div className="mb-4 flex items-start gap-3">
-                        <span className="grid size-9 shrink-0 place-items-center rounded-[1.1rem] bg-primary/12 text-xs font-semibold text-primary shadow-waterhouse-soft">
+                        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/12 text-xs font-semibold text-primary shadow-sm">
                             02
                         </span>
                         <div className="space-y-1">
@@ -151,7 +151,7 @@ export function SettingAccount() {
                                 value={oldPassword}
                                 onChange={(e) => setOldPassword(e.target.value)}
                                 placeholder={t('account.password.oldPlaceholder')}
-                                className="rounded-[1.3rem] pr-10"
+                                className="rounded-lg pr-10"
                             />
                             <button
                                 type="button"
@@ -169,7 +169,7 @@ export function SettingAccount() {
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
                                 placeholder={t('account.password.newPlaceholder')}
-                                className="rounded-[1.3rem] pr-10"
+                                className="rounded-lg pr-10"
                             />
                             <button
                                 type="button"
@@ -187,7 +187,7 @@ export function SettingAccount() {
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 placeholder={t('account.password.confirmPlaceholder')}
-                                className="rounded-[1.3rem] pr-10"
+                                className="rounded-lg pr-10"
                             />
                             <button
                                 type="button"
@@ -205,17 +205,17 @@ export function SettingAccount() {
                         <Button
                             onClick={handleChangePassword}
                             disabled={changePassword.isPending || !oldPassword || !newPassword || !confirmPassword}
-                            className="w-full rounded-[1.3rem] sm:w-auto sm:min-w-36"
+                            className="w-full rounded-lg sm:w-auto sm:min-w-36"
                         >
                             {changePassword.isPending ? t('account.saving') : t('account.password.change')}
                         </Button>
                     </div>
                 </div>
 
-                <div className="waterhouse-pod relative overflow-hidden rounded-[2rem] border border-destructive/20 bg-destructive/6 p-5 shadow-waterhouse-soft">
+                <div className="relative overflow-hidden rounded-xl border border-destructive/20 bg-destructive/6 p-5 shadow-sm">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex items-start gap-3">
-                            <span className="grid size-9 shrink-0 place-items-center rounded-[1.1rem] bg-destructive/12 text-xs font-semibold text-destructive shadow-waterhouse-soft">
+                            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-destructive/12 text-xs font-semibold text-destructive shadow-sm">
                                 03
                             </span>
                             <div className="space-y-1">
@@ -230,7 +230,7 @@ export function SettingAccount() {
                             variant="destructive"
                             size="sm"
                             onClick={logout}
-                            className="rounded-[1.3rem] sm:min-w-32"
+                            className="rounded-lg sm:min-w-32"
                         >
                             {t('account.logout.button')}
                         </Button>

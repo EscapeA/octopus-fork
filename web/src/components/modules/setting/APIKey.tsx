@@ -343,7 +343,7 @@ function APIKeyForm({ apiKey, isPending, submitLabel, onSubmit, onClose }: APIKe
                                             variant={checked ? 'default' : 'outline'}
                                             className={cn(
                                                 'cursor-pointer select-none',
-                                                !checked && 'bg-background/40 hover:bg-background/70'
+                                                !checked && 'bg-card hover:bg-card'
                                             )}
                                         >
                                             {m}
@@ -817,8 +817,8 @@ export function APIKeyPagePanel() {
     return (
         <APIKeyPanelBase
             idPrefix="apikey-page"
-            containerClassName="waterhouse-island relative space-y-5 rounded-[2.3rem] border border-border/35 bg-card/58 p-5 text-card-foreground shadow-waterhouse-deep backdrop-blur-[var(--waterhouse-shell-blur)] md:p-6"
-            listClassName="waterhouse-pod min-h-[24rem] space-y-2 overflow-y-auto rounded-[1.8rem] border border-border/30 bg-background/30 p-3 shadow-waterhouse-soft md:min-h-[32rem]"
+            containerClassName="relative space-y-5 rounded-xl border border-border/35 bg-card p-5 text-card-foreground shadow-md  md:p-6"
+            listClassName="min-h-[24rem] space-y-2 overflow-y-auto rounded-lg border border-border/30 bg-card p-3 shadow-sm md:min-h-[32rem]"
         />
     );
 }
@@ -827,11 +827,11 @@ export function SettingAPIKey() {
     return (
         <APIKeyPanelBase
             idPrefix="apikey"
-            containerClassName="waterhouse-island relative space-y-5 rounded-[2.1rem] border border-border/35 bg-card/58 p-6 text-card-foreground shadow-waterhouse-deep backdrop-blur-[var(--waterhouse-shell-blur)]"
-            listClassName="waterhouse-pod h-36 space-y-2 overflow-y-auto rounded-[1.6rem] border border-border/30 bg-background/30 p-3 shadow-waterhouse-soft"
+            containerClassName="relative space-y-5 rounded-xl border border-border/35 bg-card p-6 text-card-foreground shadow-md "
+            listClassName="h-36 space-y-2 overflow-y-auto rounded-lg border border-border/30 bg-card p-3 shadow-sm"
             renderHeaderExtra={() => (
                 <MorphingDialog>
-                    <MorphingDialogTrigger className="waterhouse-pod h-9 w-9 flex items-center justify-center rounded-[1rem] border-border/30 bg-background/36 text-muted-foreground shadow-waterhouse-soft transition-colors hover:bg-background/52">
+                    <MorphingDialogTrigger className="h-9 w-9 flex items-center justify-center rounded-md border-border/30 bg-card text-muted-foreground shadow-sm transition-colors hover:bg-card">
                         <Maximize2 className="size-4" />
                     </MorphingDialogTrigger>
                     <MorphingDialogContainer>

@@ -19,7 +19,7 @@ function HealthSignalCard({
     issueLabel: string;
 }) {
     return (
-        <article className="rounded-2xl border border-border/60 bg-background/70 p-4">
+        <article className="rounded-xl border border-border/60 bg-card p-4">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <div className="text-xs text-muted-foreground">{title}</div>
@@ -27,7 +27,7 @@ function HealthSignalCard({
                         <StatusBadge label={ok ? okLabel : issueLabel} tone={ok ? 'success' : 'warning'} />
                     </div>
                 </div>
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${ok ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'}`}>
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${ok ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'}`}>
                     <Icon className="h-4 w-4" />
                 </div>
             </div>
@@ -54,7 +54,7 @@ export function Health() {
     const { data, isLoading, error } = useOpsHealthStatus();
 
     return (
-        <section className="rounded-3xl border border-card-border bg-card p-5 text-card-foreground custom-shadow">
+        <section className="rounded-xl border border-border/35 bg-card p-5 text-card-foreground">
             <div className="mb-4 space-y-1">
                 <h3 className="text-base font-semibold">{t('tabs.health')}</h3>
                 <p className="text-sm leading-6 text-muted-foreground">{t('health.description')}</p>
@@ -122,7 +122,7 @@ export function Health() {
                         />
                     </div>
 
-                    <article className="rounded-2xl border border-border/60 bg-background/70 p-4">
+                    <article className="rounded-xl border border-border/60 bg-card p-4">
                         <div className="mb-4 flex items-center justify-between gap-3">
                             <div>
                                 <h4 className="text-sm font-semibold">{t('health.detail.failingGroups')}</h4>
@@ -142,7 +142,7 @@ export function Health() {
                                 {(data?.failing_groups ?? []).map((item) => (
                                     <article
                                         key={`${item.group_id}-${item.endpoint_type}`}
-                                        className="rounded-2xl border border-border/40 bg-card p-4"
+                                        className="rounded-xl border border-border/40 bg-card p-4"
                                     >
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="min-w-0">
@@ -158,11 +158,11 @@ export function Health() {
                                         </div>
 
                                         <div className="mt-4 grid grid-cols-2 gap-3">
-                                            <div className="rounded-2xl border border-border/40 bg-background/70 p-3">
+                                            <div className="rounded-lg border border-border/40 bg-card p-3">
                                                 <div className="text-xs text-muted-foreground">{t('health.detail.healthScore')}</div>
                                                 <div className="mt-2 text-lg font-semibold">{item.health_score}</div>
                                             </div>
-                                            <div className="rounded-2xl border border-border/40 bg-background/70 p-3">
+                                            <div className="rounded-lg border border-border/40 bg-card p-3">
                                                 <div className="text-xs text-muted-foreground">{t('health.detail.failureCount')}</div>
                                                 <div className="mt-2 text-lg font-semibold">{item.failure_count}</div>
                                             </div>

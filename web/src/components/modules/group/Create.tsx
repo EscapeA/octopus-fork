@@ -42,11 +42,10 @@ export function CreateDialogContent() {
 
     return (
         <div className="relative flex h-full min-h-0 w-full max-w-full flex-col">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_18%,color-mix(in_oklch,var(--waterhouse-highlight)_18%,transparent)_0%,transparent_32%),linear-gradient(135deg,color-mix(in_oklch,white_14%,transparent),transparent_46%,color-mix(in_oklch,var(--primary)_10%,transparent))]" />
             <MorphingDialogTitle className="shrink-0">
                 <header className="relative mb-5 flex items-start justify-between gap-4">
                     <div className="space-y-3">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-background/44 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-primary shadow-waterhouse-soft backdrop-blur-md">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-card px-3 py-1 text-[0.68rem] font-semibold text-primary">
                             <Sparkles className="size-3.5" />
                             {t('create.submit')}
                         </div>

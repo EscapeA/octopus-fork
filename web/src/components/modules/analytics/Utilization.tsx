@@ -23,9 +23,9 @@ function BreakdownCard({
     getMeta?: (item: BreakdownItem) => ReactNode;
 }) {
     return (
-        <article className="waterhouse-pod rounded-[1.75rem] border border-border/30 bg-background/40 p-4 shadow-waterhouse-soft backdrop-blur-md">
+        <article className="rounded-lg border border-border/30 bg-card p-4 shadow-sm ">
             <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-[1.05rem] bg-primary/10 text-primary shadow-waterhouse-soft">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shadow-sm">
                     <Icon className="h-4 w-4" />
                 </div>
                 <h4 className="text-sm font-semibold">{title}</h4>
@@ -33,7 +33,7 @@ function BreakdownCard({
 
             <div className="max-h-80 space-y-3 overflow-y-auto pr-1">
                 {items.map((item) => (
-                    <div key={`${title}-${getName(item)}`} className="waterhouse-pod rounded-[1.35rem] border border-border/25 bg-background/48 px-3 py-3 shadow-waterhouse-soft">
+                    <div key={`${title}-${getName(item)}`} className="rounded-lg border border-border/25 bg-card px-3 py-3 shadow-sm">
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <div className="truncate text-sm font-medium">{getName(item)}</div>
