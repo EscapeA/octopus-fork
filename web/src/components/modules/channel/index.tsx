@@ -5,6 +5,13 @@ import { Card } from './Card';
 import { useToolbarViewOptionsStore } from '@/components/modules/toolbar';
 import { VirtualizedGrid } from '@/components/common/VirtualizedGrid';
 import { useSearchableList, useChannelFilter, createChannelFilterPredicate } from '@/hooks/use-searchable-list';
+import type { Channel as ChannelModel } from '@/api/endpoints/channel';
+import type { StatsMetricsFormatted } from '@/api/endpoints/stats';
+
+type ChannelListItem = {
+    raw: ChannelModel;
+    formatted: StatsMetricsFormatted;
+};
 import { LoadingState } from '@/components/common/LoadingState';
 import { ErrorState } from '@/components/common/ErrorState';
 
@@ -14,10 +21,12 @@ export function Channel() {
     const layout = useToolbarViewOptionsStore((s) => s.getLayout(pageKey));
     const filter = useChannelFilter();
 
-    const { visibleItems: visibleChannels } = useSearchableList({
+    const { visibleItems: visibleChannels } = useSearchableList<ChannelListItem>({
         data: channelsData,
         pageKey,
         filter,
+        getItemId: (item) => item.raw.id,
+        getItemName: (item) => item.raw.name,
         filterPredicate: (item, f) => createChannelFilterPredicate(f as 'all' | 'enabled' | 'disabled')(item.raw),
     });
 

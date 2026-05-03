@@ -20,47 +20,58 @@ type GroupItem = SortableItem & {
 
 type FilterPredicate<T> = (item: T, filter: string) => boolean;
 
-interface UseSearchableListOptions<T extends SortableItem> {
+interface UseSearchableListOptions<T> {
     data: T[] | undefined;
     pageKey: ToolbarCreatedSortablePage;
     filter?: string;
     filterPredicate?: FilterPredicate<T>;
+    getItemId?: (item: T) => number;
+    getItemName?: (item: T) => string;
 }
 
-function getSortComparator<T extends SortableItem>(sortField: 'name' | 'created', sortOrder: 'asc' | 'desc') {
+function getSortComparator<T>(
+    sortField: 'name' | 'created',
+    sortOrder: 'asc' | 'desc',
+    getItemId: (item: T) => number,
+    getItemName: (item: T) => string,
+) {
     return (a: T, b: T) => {
         const diff = sortField === 'name'
-            ? a.name.localeCompare(b.name)
-            : a.id - b.id;
+            ? getItemName(a).localeCompare(getItemName(b))
+            : getItemId(a) - getItemId(b);
         return sortOrder === 'asc' ? diff : -diff;
     };
 }
 
-export function useSearchableList<T extends SortableItem>({
+export function useSearchableList<T>({
     data,
     pageKey,
     filter,
     filterPredicate,
+    getItemId,
+    getItemName,
 }: UseSearchableListOptions<T>) {
     const searchTerm = useSearchStore((s) => s.getSearchTerm(pageKey));
     const sortField = useToolbarViewOptionsStore((s) => s.getSortField(pageKey));
     const sortOrder = useToolbarViewOptionsStore((s) => s.getSortOrder(pageKey));
+    const resolvedGetItemId = getItemId ?? ((item: T) => (item as SortableItem).id);
+    const resolvedGetItemName = getItemName ?? ((item: T) => (item as SortableItem).name);
 
     const sortedItems = useMemo(() => {
         if (!data) return [];
-        return [...data].sort(getSortComparator(sortField, sortOrder));
-    }, [data, sortField, sortOrder]);
+        return [...data].sort(getSortComparator(sortField, sortOrder, resolvedGetItemId, resolvedGetItemName));
+    }, [data, sortField, sortOrder, resolvedGetItemId, resolvedGetItemName]);
 
     const visibleItems = useMemo(() => {
         const term = searchTerm.toLowerCase().trim();
-        const byName = !term ? sortedItems : sortedItems.filter((item) => item.name.toLowerCase().includes(term));
+        const byName = !term ? sortedItems : sortedItems.filter((item) => resolvedGetItemName(item).toLowerCase().includes(term));
 
         if (filter && filterPredicate) {
             return byName.filter((item) => filterPredicate(item, filter));
         }
 
         return byName;
-    }, [sortedItems, searchTerm, filter, filterPredicate]);
+    }, [sortedItems, searchTerm, filter, filterPredicate, resolvedGetItemName]);
 
     return { visibleItems, sortedItems, searchTerm, sortField, sortOrder };
 }

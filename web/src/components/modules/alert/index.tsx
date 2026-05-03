@@ -284,7 +284,13 @@ export function Alert() {
     };
 
     const handleChannelTypeChange = (draft: AlertChannelDraft, newType: NotifChannelType): AlertChannelDraft => {
-        return createAlertChannelDraft({ type: newType, name: draft.name, url: draft.url, secret: draft.secret, config: '' } as any);
+        return createAlertChannelDraft({
+            type: newType,
+            name: draft.name,
+            url: draft.url,
+            secret: draft.secret,
+            config: '',
+        });
     };
 
     const handleCreateRule = () => {

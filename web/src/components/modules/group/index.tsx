@@ -14,6 +14,7 @@ import {
     MorphingDialogTrigger,
 } from '@/components/ui/morphing-dialog';
 import { matchesGroupEndpointFilter } from './utils';
+import type { GroupEndpointFilter } from './utils';
 import { CreateDialogContent } from './Create';
 import { buttonVariants } from '@/components/ui/button';
 import { useSearchableList, useGroupFilter } from '@/hooks/use-searchable-list';
@@ -34,7 +35,11 @@ export function Group() {
             if (f === 'with-members') return (item.items?.length || 0) > 0;
             if (f === 'empty') return (item.items?.length || 0) === 0;
             if (f !== 'all') {
-                return matchesGroupEndpointFilter(f, item.endpoint_type, (item.items || []).map((i) => (i as { model_name: string }).model_name));
+                return matchesGroupEndpointFilter(
+                    f as GroupEndpointFilter,
+                    item.endpoint_type,
+                    (item.items || []).map((i) => (i as { model_name: string }).model_name),
+                );
             }
             return true;
         },

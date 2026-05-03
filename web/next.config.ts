@@ -29,12 +29,14 @@ const createNextConfig = (phase: string): NextConfig => ({
   images: {
     unoptimized: true,
   },
-  optimizePackageImports: [
-    "recharts",
-    "@lobehub/icons",
-    "lucide-react",
-    "@radix-ui/react-icons",
-  ],
+  experimental: {
+    optimizePackageImports: [
+      "recharts",
+      "@lobehub/icons",
+      "lucide-react",
+      "@radix-ui/react-icons",
+    ],
+  },
   env: {
     NEXT_PUBLIC_APP_VERSION: resolveAppVersion(),
   },
