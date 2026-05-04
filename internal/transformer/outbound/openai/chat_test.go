@@ -278,6 +278,44 @@ func TestChatOutboundTransformRequest_AttachesStandaloneDeepSeekReasoningToNextT
 	}
 }
 
+func TestChatOutboundTransformRequest_DropsTrailingStandaloneDeepSeekReasoning(t *testing.T) {
+	outbound := &ChatOutbound{}
+	reasoning := "orphan reasoning"
+
+	request := &model.InternalLLMRequest{
+		Model: "deepseek-v4-pro",
+		Messages: []model.Message{
+			{
+				Role:             "assistant",
+				ReasoningContent: &reasoning,
+			},
+		},
+	}
+
+	httpReq, err := outbound.TransformRequest(context.Background(), request, "https://api.deepseek.com/v1", "sk-test")
+	if err != nil {
+		t.Fatalf("TransformRequest() error = %v", err)
+	}
+
+	body, err := io.ReadAll(httpReq.Body)
+	if err != nil {
+		t.Fatalf("failed to read request body: %v", err)
+	}
+
+	var got struct {
+		Messages []struct {
+			ReasoningContent *string `json:"reasoning_content,omitempty"`
+		} `json:"messages"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("failed to unmarshal outbound body: %v", err)
+	}
+
+	if len(got.Messages) != 0 {
+		t.Fatalf("expected trailing standalone reasoning to be dropped, got %d messages: %s", len(got.Messages), body)
+	}
+}
+
 func TestChatOutboundTransformRequest_PreservesReasoningContentForDeepSeekFollowUpTurn(t *testing.T) {
 	outbound := &ChatOutbound{}
 	reasoning := "finished reasoning from the prior turn"

@@ -131,33 +131,24 @@ func attachStandaloneDeepSeekReasoningMessages(request *model.InternalLLMRequest
 
 	mergedMessages := make([]model.Message, 0, len(request.Messages))
 	pendingReasoning := ""
-	pendingReasoningAttached := false
 
 	for _, msg := range request.Messages {
 		reasoningContent := msg.GetReasoningContent()
 		if isStandaloneDeepSeekReasoningMessage(msg, reasoningContent) {
 			pendingReasoning += reasoningContent
-			pendingReasoningAttached = false
 			continue
 		}
 
 		if pendingReasoning != "" && msg.Role == "assistant" && msg.GetReasoningContent() == "" {
-			msg.ReasoningContent = &pendingReasoning
-			pendingReasoningAttached = true
+			attachedReasoning := pendingReasoning
+			msg.ReasoningContent = &attachedReasoning
+			pendingReasoning = ""
 		}
 
 		mergedMessages = append(mergedMessages, msg)
 		if msg.Role != "assistant" {
 			pendingReasoning = ""
-			pendingReasoningAttached = false
 		}
-	}
-
-	if pendingReasoning != "" && !pendingReasoningAttached {
-		mergedMessages = append(mergedMessages, model.Message{
-			Role:             "assistant",
-			ReasoningContent: &pendingReasoning,
-		})
 	}
 
 	request.Messages = mergedMessages
