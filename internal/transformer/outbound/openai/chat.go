@@ -131,18 +131,30 @@ func attachStandaloneDeepSeekReasoningMessages(request *model.InternalLLMRequest
 
 	mergedMessages := make([]model.Message, 0, len(request.Messages))
 	pendingReasoning := ""
+	lastReasoning := ""
 
 	for _, msg := range request.Messages {
 		reasoningContent := msg.GetReasoningContent()
 		if isStandaloneDeepSeekReasoningMessage(msg, reasoningContent) {
 			pendingReasoning += reasoningContent
+			lastReasoning = pendingReasoning
 			continue
 		}
 
-		if pendingReasoning != "" && msg.Role == "assistant" && len(msg.ToolCalls) > 0 && msg.GetReasoningContent() == "" {
-			attachedReasoning := pendingReasoning
-			msg.ReasoningContent = &attachedReasoning
-			pendingReasoning = ""
+		if msg.Role == "assistant" && reasoningContent != "" {
+			lastReasoning = reasoningContent
+		}
+
+		if msg.Role == "assistant" && len(msg.ToolCalls) > 0 && msg.GetReasoningContent() == "" {
+			if pendingReasoning != "" {
+				attached := pendingReasoning
+				msg.ReasoningContent = &attached
+				lastReasoning = attached
+				pendingReasoning = ""
+			} else if lastReasoning != "" {
+				attached := lastReasoning
+				msg.ReasoningContent = &attached
+			}
 		}
 
 		mergedMessages = append(mergedMessages, msg)
@@ -197,7 +209,7 @@ func normalizeMessageForOpenAICompat(msg *model.Message) {
 		}
 	}
 
-	if msg.Content.Content == nil && len(msg.Content.MultipleContent) == 0 {
+	if msg.Content.Content == nil && len(msg.Content.MultipleContent) == 0 && msg.GetReasoningContent() == "" {
 		empty := ""
 		msg.Content.Content = &empty
 	}

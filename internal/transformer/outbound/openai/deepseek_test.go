@@ -187,8 +187,8 @@ func TestDeepSeekReasoningEffortEnablesThinking(t *testing.T) {
 				},
 			},
 			{
-				Role:        "tool",
-				ToolCallID:  &toolCallID,
+				Role:       "tool",
+				ToolCallID: &toolCallID,
 				Content: model.MessageContent{
 					Content: strPtr("result"),
 				},
@@ -268,6 +268,71 @@ func TestDeepSeekNoThinkingWhenNotDetected(t *testing.T) {
 	// extra_body should NOT be present for non-DeepSeek
 	if _, hasExtra := parsed["extra_body"]; hasExtra {
 		t.Error("extra_body should be stripped for non-DeepSeek targets")
+	}
+}
+
+func TestDeepSeekDistinctReasoningPerTurn(t *testing.T) {
+	reasoning1 := "reasoning 1.1: search current AI news"
+	reasoning2 := "reasoning 1.2: refine search query"
+	reasoning3 := "reasoning 1.3: summarize search results"
+
+	request := &model.InternalLLMRequest{
+		Model: "deepseek-v4-pro-max",
+		Messages: []model.Message{
+			{Role: "user", Content: model.MessageContent{Content: strPtr("latest AI news")}},
+			{Role: "assistant", ReasoningContent: &reasoning1},
+			{Role: "assistant", ToolCalls: []model.ToolCall{{ID: "c0", Type: "function", Function: model.FunctionCall{Name: "search", Arguments: `{}`}}}},
+			{Role: "tool", ToolCallID: strPtr("c0"), Content: model.MessageContent{Content: strPtr("result0")}},
+			{Role: "assistant", ReasoningContent: &reasoning2},
+			{Role: "assistant", ToolCalls: []model.ToolCall{{ID: "c1", Type: "function", Function: model.FunctionCall{Name: "search", Arguments: `{}`}}}},
+			{Role: "tool", ToolCallID: strPtr("c1"), Content: model.MessageContent{Content: strPtr("result1")}},
+			{Role: "assistant", ReasoningContent: &reasoning3},
+			{Role: "assistant", ToolCalls: []model.ToolCall{{ID: "c2", Type: "function", Function: model.FunctionCall{Name: "search", Arguments: `{}`}}}},
+			{Role: "tool", ToolCallID: strPtr("c2"), Content: model.MessageContent{Content: strPtr("result2")}},
+		},
+		TransformerMetadata: map[string]string{
+			model.TransformerMetadataGroupEndpointType: "deepseek",
+		},
+	}
+
+	compatRequest := cloneRequestForOpenAICompat(request)
+	sanitizeRequestForOpenAICompat(compatRequest, "https://api.deepseek.com/v1")
+	for i := range compatRequest.Messages {
+		normalizeMessageForOpenAICompat(&compatRequest.Messages[i])
+	}
+
+	body, err := json.Marshal(compatRequest)
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+
+	var parsed map[string]interface{}
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+
+	messages := parsed["messages"].([]interface{})
+	toolCallReasonings := make([]string, 0)
+	for _, msgRaw := range messages {
+		msg := msgRaw.(map[string]interface{})
+		if msg["tool_calls"] != nil {
+			reasoningContent, _ := msg["reasoning_content"].(string)
+			toolCallReasonings = append(toolCallReasonings, reasoningContent)
+		}
+	}
+
+	if len(toolCallReasonings) != 3 {
+		t.Fatalf("expected 3 tool_calls messages with reasoning, got %d", len(toolCallReasonings))
+	}
+
+	if toolCallReasonings[0] != reasoning1 {
+		t.Errorf("tool_call[0] has wrong reasoning: %q, expected %q", toolCallReasonings[0], reasoning1)
+	}
+	if toolCallReasonings[1] != reasoning2 {
+		t.Errorf("tool_call[1] has wrong reasoning: %q, expected %q", toolCallReasonings[1], reasoning2)
+	}
+	if toolCallReasonings[2] != reasoning3 {
+		t.Errorf("tool_call[2] has wrong reasoning: %q, expected %q", toolCallReasonings[2], reasoning3)
 	}
 }
 
