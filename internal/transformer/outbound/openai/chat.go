@@ -139,7 +139,7 @@ func attachStandaloneDeepSeekReasoningMessages(request *model.InternalLLMRequest
 			continue
 		}
 
-		if pendingReasoning != "" && msg.Role == "assistant" && msg.GetReasoningContent() == "" {
+		if pendingReasoning != "" && msg.Role == "assistant" && len(msg.ToolCalls) > 0 && msg.GetReasoningContent() == "" {
 			attachedReasoning := pendingReasoning
 			msg.ReasoningContent = &attachedReasoning
 			pendingReasoning = ""
@@ -170,11 +170,10 @@ func shouldKeepDeepSeekReasoningContent(msg *model.Message, preserveDeepSeekReas
 		return false
 	}
 
-	// DeepSeek requires reasoning_content to be passed back in all subsequent
-	// requests whenever thinking mode is enabled. This applies regardless of
-	// whether the current assistant message itself contains tool_calls —
-	// once tool calling enters the conversation, every assistant message's
-	// reasoning_content must be preserved across all following turns.
+	// DeepSeek requires reasoning_content to be passed back for assistant
+	// messages that contain tool_calls when thinking mode is enabled. Assistant
+	// messages without tool calls may include reasoning_content, but DeepSeek
+	// ignores it in later non-tool-call turns.
 	return true
 }
 

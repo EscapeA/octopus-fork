@@ -316,6 +316,137 @@ func TestChatOutboundTransformRequest_DropsTrailingStandaloneDeepSeekReasoning(t
 	}
 }
 
+func TestChatOutboundTransformRequest_DropsStandaloneDeepSeekReasoningBeforeFinalAnswer(t *testing.T) {
+	outbound := &ChatOutbound{}
+	reasoning := "final answer reasoning is optional and ignored"
+	content := "final answer"
+
+	request := &model.InternalLLMRequest{
+		Model: "deepseek-v4-pro",
+		Messages: []model.Message{
+			{
+				Role:             "assistant",
+				ReasoningContent: &reasoning,
+			},
+			{
+				Role: "assistant",
+				Content: model.MessageContent{
+					Content: &content,
+				},
+			},
+			{
+				Role: "user",
+				Content: model.MessageContent{
+					Content: loPtr("next question"),
+				},
+			},
+		},
+	}
+
+	httpReq, err := outbound.TransformRequest(context.Background(), request, "https://api.deepseek.com/v1", "sk-test")
+	if err != nil {
+		t.Fatalf("TransformRequest() error = %v", err)
+	}
+
+	body, err := io.ReadAll(httpReq.Body)
+	if err != nil {
+		t.Fatalf("failed to read request body: %v", err)
+	}
+
+	var got struct {
+		Messages []struct {
+			Role             string  `json:"role"`
+			ReasoningContent *string `json:"reasoning_content,omitempty"`
+		} `json:"messages"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("failed to unmarshal outbound body: %v", err)
+	}
+
+	if len(got.Messages) != 2 {
+		t.Fatalf("expected standalone final-answer reasoning to be dropped, got %d messages: %s", len(got.Messages), body)
+	}
+	for i, msg := range got.Messages {
+		if msg.ReasoningContent != nil {
+			t.Fatalf("expected no reasoning_content on message %d, got %q", i, *msg.ReasoningContent)
+		}
+	}
+}
+
+func TestChatOutboundTransformRequest_AttachesStandaloneDeepSeekReasoningAcrossAssistantTextToToolCall(t *testing.T) {
+	outbound := &ChatOutbound{}
+	reasoning := "tool reasoning emitted separately"
+	finalContent := "previous final answer"
+	toolContent := ""
+	toolCallID := "call_1"
+
+	request := &model.InternalLLMRequest{
+		Model: "deepseek-v4-pro",
+		Messages: []model.Message{
+			{
+				Role:             "assistant",
+				ReasoningContent: &reasoning,
+			},
+			{
+				Role: "assistant",
+				Content: model.MessageContent{
+					Content: &finalContent,
+				},
+			},
+			{
+				Role: "assistant",
+				Content: model.MessageContent{
+					Content: &toolContent,
+				},
+				ToolCalls: []model.ToolCall{
+					{
+						ID:   toolCallID,
+						Type: "function",
+						Function: model.FunctionCall{
+							Name:      "lookup_weather",
+							Arguments: `{"city":"Shanghai"}`,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	httpReq, err := outbound.TransformRequest(context.Background(), request, "https://api.deepseek.com/v1", "sk-test")
+	if err != nil {
+		t.Fatalf("TransformRequest() error = %v", err)
+	}
+
+	body, err := io.ReadAll(httpReq.Body)
+	if err != nil {
+		t.Fatalf("failed to read request body: %v", err)
+	}
+
+	var got struct {
+		Messages []struct {
+			Role             string           `json:"role"`
+			ReasoningContent *string          `json:"reasoning_content,omitempty"`
+			ToolCalls        []model.ToolCall `json:"tool_calls,omitempty"`
+		} `json:"messages"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("failed to unmarshal outbound body: %v", err)
+	}
+
+	if len(got.Messages) != 2 {
+		t.Fatalf("expected standalone reasoning to be dropped then attached to tool call, got %d messages: %s", len(got.Messages), body)
+	}
+	if got.Messages[0].ReasoningContent != nil {
+		t.Fatalf("expected final answer message to omit reasoning_content, got %q", *got.Messages[0].ReasoningContent)
+	}
+	if got.Messages[1].ReasoningContent == nil || *got.Messages[1].ReasoningContent != reasoning {
+		t.Fatalf("expected reasoning_content %q on tool-call message, got %#v", reasoning, got.Messages[1].ReasoningContent)
+	}
+	if len(got.Messages[1].ToolCalls) != 1 {
+		t.Fatalf("expected tool_calls to be preserved, got %d", len(got.Messages[1].ToolCalls))
+	}
+}
+
 func TestChatOutboundTransformRequest_PreservesReasoningContentForDeepSeekFollowUpTurn(t *testing.T) {
 	outbound := &ChatOutbound{}
 	reasoning := "finished reasoning from the prior turn"
