@@ -10,7 +10,13 @@ func normalizeOpenAICompatReasoningEffort(effort string) string {
 		return ""
 	case "low", "medium", "high":
 		return normalized
+	case "xhigh", "max":
+		// Anthropic/DeepSeek extended reasoning levels —
+		// map to the highest standard OpenAI level.
+		return "high"
 	default:
-		return strings.TrimSpace(effort)
+		// Unknown effort values are silently dropped rather than passed
+		// through to providers that may reject them.
+		return ""
 	}
 }

@@ -211,7 +211,7 @@ func TestChatOutboundTransformRequest_PreservesReasoningContentForDeepSeekToolCo
 	}
 }
 
-func TestChatOutboundTransformRequest_ClearsReasoningContentForDeepSeekFollowUpTurn(t *testing.T) {
+func TestChatOutboundTransformRequest_PreservesReasoningContentForDeepSeekFollowUpTurn(t *testing.T) {
 	outbound := &ChatOutbound{}
 	reasoning := "finished reasoning from the prior turn"
 	content := "final answer"
@@ -251,8 +251,8 @@ func TestChatOutboundTransformRequest_ClearsReasoningContentForDeepSeekFollowUpT
 	if len(got.Messages) != 1 {
 		t.Fatalf("expected 1 message, got %d", len(got.Messages))
 	}
-	if got.Messages[0].ReasoningContent != nil {
-		t.Fatalf("expected reasoning_content to be cleared for DeepSeek follow-up turns, got %#v", got.Messages[0].ReasoningContent)
+	if got.Messages[0].ReasoningContent == nil || *got.Messages[0].ReasoningContent != reasoning {
+		t.Fatalf("expected reasoning_content %q to be preserved for DeepSeek follow-up turns, got %#v", reasoning, got.Messages[0].ReasoningContent)
 	}
 	if request.Messages[0].ReasoningContent == nil || *request.Messages[0].ReasoningContent != reasoning {
 		t.Fatalf("expected original request reasoning_content to stay intact")
@@ -320,7 +320,7 @@ func TestChatOutboundTransformRequest_PreservesReasoningContentForDeepSeekEndpoi
 	}
 }
 
-func TestChatOutboundTransformRequest_ClearsReasoningContentForDeepSeekReasonerFollowUpTurn(t *testing.T) {
+func TestChatOutboundTransformRequest_PreservesReasoningContentForDeepSeekReasonerFollowUpTurn(t *testing.T) {
 	outbound := &ChatOutbound{}
 	reasoning := "reasoner chain of thought"
 	content := "final answer"
@@ -360,8 +360,8 @@ func TestChatOutboundTransformRequest_ClearsReasoningContentForDeepSeekReasonerF
 	if len(got.Messages) != 1 {
 		t.Fatalf("expected 1 message, got %d", len(got.Messages))
 	}
-	if got.Messages[0].ReasoningContent != nil {
-		t.Fatalf("expected reasoning_content to be cleared for deepseek-reasoner follow-up turns, got %q", *got.Messages[0].ReasoningContent)
+	if got.Messages[0].ReasoningContent == nil || *got.Messages[0].ReasoningContent != reasoning {
+		t.Fatalf("expected reasoning_content %q to be preserved for deepseek-reasoner follow-up turns, got %#v", reasoning, got.Messages[0].ReasoningContent)
 	}
 }
 

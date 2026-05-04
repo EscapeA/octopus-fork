@@ -83,7 +83,12 @@ func sanitizeRequestForOpenAICompat(request *model.InternalLLMRequest, baseURL s
 	}
 
 	normalizeDeepSeekReasoningCompat(request, baseURL)
-	request.ReasoningEffort = normalizeOpenAICompatReasoningEffort(request.ReasoningEffort)
+
+	// Only apply generic reasoning-effort normalization to non-DeepSeek
+	// providers. DeepSeek already handles effort mapping in the call above.
+	if !isDeepSeekCompatRequest(baseURL, request) {
+		request.ReasoningEffort = normalizeOpenAICompatReasoningEffort(request.ReasoningEffort)
+	}
 
 	preserveDeepSeekReasoning := shouldPreserveDeepSeekReasoning(baseURL, request)
 
@@ -121,8 +126,12 @@ func shouldKeepDeepSeekReasoningContent(msg *model.Message, preserveDeepSeekReas
 		return false
 	}
 
-	// Only replay reasoning_content for same-turn tool-call continuation.
-	return len(msg.ToolCalls) > 0
+	// DeepSeek requires reasoning_content to be passed back in all subsequent
+	// requests whenever thinking mode is enabled. This applies regardless of
+	// whether the current assistant message itself contains tool_calls —
+	// once tool calling enters the conversation, every assistant message's
+	// reasoning_content must be preserved across all following turns.
+	return true
 }
 
 func normalizeMessagesForOpenAICompat(messages []model.Message) {
