@@ -211,6 +211,73 @@ func TestChatOutboundTransformRequest_PreservesReasoningContentForDeepSeekToolCo
 	}
 }
 
+func TestChatOutboundTransformRequest_AttachesStandaloneDeepSeekReasoningToNextToolCall(t *testing.T) {
+	outbound := &ChatOutbound{}
+	reasoning := "need one more tool round"
+	content := ""
+	toolCallID := "call_1"
+
+	request := &model.InternalLLMRequest{
+		Model: "deepseek-v4-pro",
+		Messages: []model.Message{
+			{
+				Role:             "assistant",
+				ReasoningContent: &reasoning,
+			},
+			{
+				Role: "assistant",
+				Content: model.MessageContent{
+					Content: &content,
+				},
+				ToolCalls: []model.ToolCall{
+					{
+						ID:   toolCallID,
+						Type: "function",
+						Function: model.FunctionCall{
+							Name:      "lookup_weather",
+							Arguments: `{"city":"Shanghai"}`,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	httpReq, err := outbound.TransformRequest(context.Background(), request, "https://api.deepseek.com/v1", "sk-test")
+	if err != nil {
+		t.Fatalf("TransformRequest() error = %v", err)
+	}
+
+	body, err := io.ReadAll(httpReq.Body)
+	if err != nil {
+		t.Fatalf("failed to read request body: %v", err)
+	}
+
+	var got struct {
+		Messages []struct {
+			Role             string           `json:"role"`
+			ReasoningContent *string          `json:"reasoning_content,omitempty"`
+			ToolCalls        []model.ToolCall `json:"tool_calls,omitempty"`
+		} `json:"messages"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("failed to unmarshal outbound body: %v", err)
+	}
+
+	if len(got.Messages) != 1 {
+		t.Fatalf("expected standalone reasoning message to be merged, got %d messages: %s", len(got.Messages), body)
+	}
+	if got.Messages[0].ReasoningContent == nil || *got.Messages[0].ReasoningContent != reasoning {
+		t.Fatalf("expected reasoning_content %q on tool-call message, got %#v", reasoning, got.Messages[0].ReasoningContent)
+	}
+	if len(got.Messages[0].ToolCalls) != 1 {
+		t.Fatalf("expected tool_calls to be preserved, got %d", len(got.Messages[0].ToolCalls))
+	}
+	if request.Messages[0].ReasoningContent == nil || *request.Messages[0].ReasoningContent != reasoning {
+		t.Fatalf("expected original standalone reasoning message to stay intact")
+	}
+}
+
 func TestChatOutboundTransformRequest_PreservesReasoningContentForDeepSeekFollowUpTurn(t *testing.T) {
 	outbound := &ChatOutbound{}
 	reasoning := "finished reasoning from the prior turn"

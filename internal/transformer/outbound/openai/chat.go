@@ -91,6 +91,9 @@ func sanitizeRequestForOpenAICompat(request *model.InternalLLMRequest, baseURL s
 	}
 
 	preserveDeepSeekReasoning := shouldPreserveDeepSeekReasoning(baseURL, request)
+	if preserveDeepSeekReasoning {
+		attachStandaloneDeepSeekReasoningMessages(request)
+	}
 
 	for i := range request.Messages {
 		sanitizeMessageForOpenAICompat(&request.Messages[i], preserveDeepSeekReasoning)
@@ -119,6 +122,56 @@ func sanitizeMessageForOpenAICompat(msg *model.Message, preserveDeepSeekReasonin
 
 func shouldPreserveDeepSeekReasoning(baseURL string, request *model.InternalLLMRequest) bool {
 	return isDeepSeekCompatRequest(baseURL, request)
+}
+
+func attachStandaloneDeepSeekReasoningMessages(request *model.InternalLLMRequest) {
+	if request == nil || len(request.Messages) == 0 {
+		return
+	}
+
+	mergedMessages := make([]model.Message, 0, len(request.Messages))
+	pendingReasoning := ""
+	pendingReasoningAttached := false
+
+	for _, msg := range request.Messages {
+		reasoningContent := msg.GetReasoningContent()
+		if isStandaloneDeepSeekReasoningMessage(msg, reasoningContent) {
+			pendingReasoning += reasoningContent
+			pendingReasoningAttached = false
+			continue
+		}
+
+		if pendingReasoning != "" && msg.Role == "assistant" && msg.GetReasoningContent() == "" {
+			msg.ReasoningContent = &pendingReasoning
+			pendingReasoningAttached = true
+		}
+
+		mergedMessages = append(mergedMessages, msg)
+		if msg.Role != "assistant" {
+			pendingReasoning = ""
+			pendingReasoningAttached = false
+		}
+	}
+
+	if pendingReasoning != "" && !pendingReasoningAttached {
+		mergedMessages = append(mergedMessages, model.Message{
+			Role:             "assistant",
+			ReasoningContent: &pendingReasoning,
+		})
+	}
+
+	request.Messages = mergedMessages
+}
+
+func isStandaloneDeepSeekReasoningMessage(msg model.Message, reasoningContent string) bool {
+	return msg.Role == "assistant" &&
+		reasoningContent != "" &&
+		msg.Content.Content == nil &&
+		len(msg.Content.MultipleContent) == 0 &&
+		len(msg.ToolCalls) == 0 &&
+		msg.ToolCallID == nil &&
+		msg.Refusal == "" &&
+		len(msg.Images) == 0
 }
 
 func shouldKeepDeepSeekReasoningContent(msg *model.Message, preserveDeepSeekReasoning bool, reasoningContent string) bool {
