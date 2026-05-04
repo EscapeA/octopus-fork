@@ -1,5 +1,6 @@
 {
   "login": {
+    "welcome": "欢迎回来",
     "username": "用户名",
     "usernamePlaceholder": "请输入用户名",
     "password": "密码",

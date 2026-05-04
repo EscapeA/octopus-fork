@@ -1,5 +1,6 @@
 {
   "login": {
+    "welcome": "Welcome back",
     "username": "Username",
     "usernamePlaceholder": "Enter your username",
     "password": "Password",

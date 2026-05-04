@@ -53,6 +53,8 @@ function assertNoHardcodedCopy(relativePath, forbiddenSnippets) {
 
 function run() {
     assertLocaleParity();
+    const en = readJson(path.join(localeDir, 'en.json'));
+    assert.equal(en.login?.welcome, 'Welcome back', 'en.json should define login.welcome');
     assertNoHardcodedCopy('src/components/modules/group/Editor.tsx', [
         'API 分类',
         'Condition (JSON)',

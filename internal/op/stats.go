@@ -28,10 +28,11 @@ var statsTotalCacheLock sync.RWMutex
 // hourly/daily statistics align with the user's local date/hour boundaries.
 func statsNow() time.Time {
 	offset, err := SettingGetInt(model.SettingKeyStatsTimezoneOffset)
+	now := statsTimeNow()
 	if err != nil || offset == 0 {
-		return time.Now()
+		return now
 	}
-	return time.Now().UTC().Add(time.Duration(offset) * time.Hour)
+	return now.UTC().Add(time.Duration(offset) * time.Hour)
 }
 
 // statsToday returns the current date string (YYYYMMDD) in the configured timezone.
@@ -56,6 +57,8 @@ var statsAPIKeyCache = cache.New[int, model.StatsAPIKey](16)
 var statsAPIKeyCacheNeedUpdate = make(map[int]struct{})
 var statsAPIKeyCacheNeedUpdateLock sync.Mutex
 var statsAPIKeyMutationLock sync.Mutex
+
+var statsTimeNow = time.Now
 
 func StatsSaveDBTask() {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)

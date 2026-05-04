@@ -374,9 +374,16 @@ export function GroupCard({ group }: { group: Group }) {
     const totalCount = testProgress?.total ?? group.items?.length ?? 0;
     const progressValue = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
-    const [showAllMembers, setShowAllMembers] = useState(false);
-    const visibleMembers = showAllMembers ? members : members.slice(0, 6);
-    const hiddenMembersCount = Math.max(0, members.length - 6);
+    const maxVisibleMembers = 6;
+    const memberRowHeightRem = 3.25;
+    const memberRowGapRem = 0.5;
+    const memberListPaddingRem = 1.25;
+    const memberListEmptyHeightRem = 10;
+    const visibleMemberCount = Math.min(Math.max(members.length, 1), maxVisibleMembers);
+    // Keep the card compact for short groups and turn the list into an inner scroller after 6 rows.
+    const memberListHeightRem = members.length === 0
+        ? memberListEmptyHeightRem
+        : memberListPaddingRem + (visibleMemberCount * memberRowHeightRem) + ((visibleMemberCount - 1) * memberRowGapRem);
 
     return (
         <article className="group relative flex flex-col rounded-xl border border-border bg-card p-4 text-card-foreground">
@@ -529,7 +536,10 @@ export function GroupCard({ group }: { group: Group }) {
                 </div>
             </section>
 
-            <section className="relative min-h-[25.25rem] overflow-hidden rounded-lg border border-border/25 bg-card">
+            <section
+                className="relative overflow-hidden rounded-lg border border-border/25 bg-card transition-[height] duration-200"
+                style={{ height: `${memberListHeightRem}rem` }}
+            >
                 <MemberList
                     members={members}
                     onReorder={setMembers}
