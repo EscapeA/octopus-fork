@@ -64,7 +64,7 @@ func getSettingList(c *gin.Context) {
 func setSetting(c *gin.Context) {
 	var setting model.Setting
 	if err := c.ShouldBindJSON(&setting); err != nil {
-		resp.Error(c, http.StatusBadRequest, err.Error())
+		resp.Error(c, http.StatusBadRequest, resp.ErrInvalidJSON)
 		return
 	}
 	if err := setting.Validate(); err != nil {

@@ -128,7 +128,10 @@ func doChannelProbeRequest(client *http.Client, req *http.Request) (int, string,
 	}
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	if err != nil {
+		return resp.StatusCode, "", fmt.Errorf("read response body: %w", err)
+	}
 	bodyText := strings.TrimSpace(string(body))
 	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusTooManyRequests {
 		return resp.StatusCode, bodyText, nil

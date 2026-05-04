@@ -78,7 +78,7 @@ func getGroupList(c *gin.Context) {
 func createGroup(c *gin.Context) {
 	var group model.Group
 	if err := c.ShouldBindJSON(&group); err != nil {
-		resp.Error(c, http.StatusBadRequest, err.Error())
+		resp.Error(c, http.StatusBadRequest, resp.ErrInvalidJSON)
 		return
 	}
 	group.EndpointType = model.NormalizeEndpointType(group.EndpointType)
@@ -104,7 +104,7 @@ func createGroup(c *gin.Context) {
 func updateGroup(c *gin.Context) {
 	var req model.GroupUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.Error(c, http.StatusBadRequest, err.Error())
+		resp.Error(c, http.StatusBadRequest, resp.ErrInvalidJSON)
 		return
 	}
 	if req.EndpointType != nil {
@@ -164,7 +164,7 @@ func classifyGroupMutationError(err error) (int, string, bool) {
 func startGroupTest(c *gin.Context) {
 	var req helper.GroupModelTestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		resp.Error(c, http.StatusBadRequest, err.Error())
+		resp.Error(c, http.StatusBadRequest, resp.ErrInvalidJSON)
 		return
 	}
 
@@ -188,7 +188,7 @@ func startGroupTest(c *gin.Context) {
 
 	progress, err := helper.StartGroupModelTest(group, channels)
 	if err != nil {
-		resp.Error(c, http.StatusBadRequest, err.Error())
+		resp.Error(c, http.StatusBadRequest, "failed to start group test")
 		return
 	}
 	resp.Success(c, progress)
@@ -213,7 +213,7 @@ func getGroupTestProgress(c *gin.Context) {
 func autoGroupModels(c *gin.Context) {
 	result, err := op.AutoGroupModels(c.Request.Context())
 	if err != nil {
-		resp.Error(c, http.StatusInternalServerError, err.Error())
+		resp.InternalError(c)
 		return
 	}
 	resp.Success(c, result)
@@ -223,7 +223,7 @@ func deleteGroup(c *gin.Context) {
 	id := c.Param("id")
 	idNum, err := strconv.Atoi(id)
 	if err != nil {
-		resp.Error(c, http.StatusBadRequest, err.Error())
+		resp.Error(c, http.StatusBadRequest, "invalid group id")
 		return
 	}
 	if err := op.GroupDel(idNum, c.Request.Context()); err != nil {

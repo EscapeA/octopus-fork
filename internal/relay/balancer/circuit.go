@@ -39,11 +39,16 @@ func circuitKey(channelID, keyID int, modelName string) string {
 // getOrCreateEntry 获取或创建熔断器条目
 func getOrCreateEntry(key string) *circuitEntry {
 	if v, ok := globalBreaker.Load(key); ok {
-		return v.(*circuitEntry)
+		if entry, ok := v.(*circuitEntry); ok {
+			return entry
+		}
 	}
 	entry := &circuitEntry{State: StateClosed}
 	actual, _ := globalBreaker.LoadOrStore(key, entry)
-	return actual.(*circuitEntry)
+	if e, ok := actual.(*circuitEntry); ok {
+		return e
+	}
+	return entry
 }
 
 // getThreshold 获取熔断阈值配置
@@ -90,7 +95,10 @@ func IsTripped(channelID, keyID int, modelName string) (tripped bool, remaining 
 	if !ok {
 		return false, 0 // 无记录，视为 Closed
 	}
-	entry := v.(*circuitEntry)
+	entry, ok := v.(*circuitEntry)
+	if !ok {
+		return false, 0
+	}
 
 	entry.mu.Lock()
 	defer entry.mu.Unlock()
@@ -126,7 +134,10 @@ func RecordSuccess(channelID, keyID int, modelName string) {
 	if !ok {
 		return
 	}
-	entry := v.(*circuitEntry)
+	entry, ok := v.(*circuitEntry)
+	if !ok {
+		return
+	}
 
 	entry.mu.Lock()
 	defer entry.mu.Unlock()

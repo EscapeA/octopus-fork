@@ -1,9 +1,14 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lingyuins/octopus/internal/conf"
@@ -33,6 +38,7 @@ func Start() error {
 	if conf.IsDebug() {
 		r.Use(middleware.Logger())
 	}
+	r.Use(middleware.SecurityHeaders())
 	r.Use(middleware.Cors())
 	r.Use(middleware.AuditManagementWrite())
 	if static.StaticFS != nil {
@@ -52,6 +58,11 @@ func Start() error {
 		return fmt.Errorf("listen on %s: %w", httpSrv.Addr, err)
 	}
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Errorf("http server panic recovered: %v", r)
+			}
+		}()
 		if err := httpSrv.Serve(ln); err != nil && err != http.ErrServerClosed {
 			log.Errorf("http server listen and serve error: %v", err)
 		}
@@ -60,5 +71,18 @@ func Start() error {
 }
 
 func Close() error {
-	return httpSrv.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return httpSrv.Shutdown(ctx)
+}
+
+// ListenSignal waits for SIGINT/SIGTERM and then calls Close for graceful shutdown.
+func ListenSignal() {
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	sig := <-sigCh
+	log.Infof("received signal: %v, shutting down gracefully", sig)
+	if err := Close(); err != nil {
+		log.Errorf("shutdown error: %v", err)
+	}
 }

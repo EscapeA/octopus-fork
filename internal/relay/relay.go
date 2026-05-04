@@ -706,6 +706,11 @@ func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http
 	}
 	results := make(chan sseReadResult, 1)
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Errorf("SSE reader panic recovered: %v", r)
+			}
+		}()
 		defer close(results)
 		readCfg := &sse.ReadConfig{MaxEventSize: maxSSEEventSize}
 		for ev, err := range sse.Read(response.Body, readCfg) {

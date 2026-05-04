@@ -29,13 +29,9 @@ func Auth() gin.HandlerFunc {
 		}
 
 		if userID == 0 {
-			currentUser := op.UserGet()
-			if currentUser.ID == 0 {
-				resp.Error(c, http.StatusUnauthorized, resp.ErrUnauthorized)
-				c.Abort()
-				return
-			}
-			userID = currentUser.ID
+			resp.Error(c, http.StatusUnauthorized, resp.ErrUnauthorized)
+			c.Abort()
+			return
 		}
 
 		currentUser, err := op.UserGetByID(userID, c.Request.Context())

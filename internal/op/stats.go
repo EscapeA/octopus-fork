@@ -23,6 +23,22 @@ var statsDailyCacheLock sync.RWMutex
 var statsTotalCache model.StatsTotal
 var statsTotalCacheLock sync.RWMutex
 
+// statsNow returns the current time adjusted by the configured timezone offset.
+// When the container runs in UTC but users are in a different timezone, this ensures
+// hourly/daily statistics align with the user's local date/hour boundaries.
+func statsNow() time.Time {
+	offset, err := SettingGetInt(model.SettingKeyStatsTimezoneOffset)
+	if err != nil || offset == 0 {
+		return time.Now()
+	}
+	return time.Now().UTC().Add(time.Duration(offset) * time.Hour)
+}
+
+// statsToday returns the current date string (YYYYMMDD) in the configured timezone.
+func statsToday() string {
+	return statsNow().Format("20060102")
+}
+
 var statsHourlyCache [24]model.StatsHourly
 var statsHourlyCacheLock sync.RWMutex
 
@@ -128,7 +144,7 @@ func persistStatsSnapshots(
 		return result.Error
 	}
 
-	todayDate := time.Now().Format("20060102")
+	todayDate := statsToday()
 	hourlyStats := make([]model.StatsHourly, 0, 24)
 	for hour := 0; hour < 24; hour++ {
 		if hourlyAll[hour].Date == todayDate {
@@ -303,7 +319,7 @@ func requeueStatsDirtyIDs(channelIDs []int, modelIDs []int, apiKeyIDs []int) {
 }
 
 func StatsDailyUpdate(ctx context.Context, metrics model.StatsMetrics) error {
-	today := time.Now().Format("20060102")
+	today := statsToday()
 
 	statsDailyCacheLock.Lock()
 	if statsDailyCache.Date == today {
@@ -349,9 +365,9 @@ func StatsChannelUpdate(channelID int, metrics model.StatsMetrics) error {
 }
 
 func StatsHourlyUpdate(metrics model.StatsMetrics) error {
-	now := time.Now()
+	now := statsNow()
 	nowHour := now.Hour()
-	todayDate := time.Now().Format("20060102")
+	todayDate := now.Format("20060102")
 
 	statsHourlyCacheLock.Lock()
 	defer statsHourlyCacheLock.Unlock()
@@ -536,9 +552,9 @@ func StatsChannelList() []model.StatsChannel {
 }
 
 func StatsHourlyGet() []model.StatsHourly {
-	now := time.Now()
+	now := statsNow()
 	currentHour := now.Hour()
-	todayDate := time.Now().Format("20060102")
+	todayDate := now.Format("20060102")
 
 	statsHourlyCacheLock.RLock()
 	defer statsHourlyCacheLock.RUnlock()
@@ -570,7 +586,7 @@ func StatsGetDaily(ctx context.Context) ([]model.StatsDaily, error) {
 
 func statsRefreshCache(ctx context.Context) error {
 	dbConn := db.GetDB().WithContext(ctx)
-	today := time.Now().Format("20060102")
+	today := statsToday()
 
 	var loadedDaily model.StatsDaily
 	result := dbConn.Last(&loadedDaily)

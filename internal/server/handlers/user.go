@@ -70,7 +70,7 @@ func createUser(c *gin.Context) {
 		return
 	}
 	if err := op.UserCreate(req, c.Request.Context()); err != nil {
-		resp.Error(c, http.StatusBadRequest, err.Error())
+		resp.Error(c, http.StatusBadRequest, "failed to create user")
 		return
 	}
 	resp.Success(c, nil)
@@ -79,7 +79,7 @@ func createUser(c *gin.Context) {
 func listUsers(c *gin.Context) {
 	users, err := op.UserList(c.Request.Context())
 	if err != nil {
-		resp.Error(c, http.StatusInternalServerError, err.Error())
+		resp.InternalError(c)
 		return
 	}
 	resp.Success(c, users)
@@ -95,7 +95,7 @@ func updateUserRole(c *gin.Context) {
 		return
 	}
 	if err := op.UserUpdateRole(req.ID, req.Role, c.Request.Context()); err != nil {
-		resp.Error(c, http.StatusBadRequest, err.Error())
+		resp.Error(c, http.StatusBadRequest, "failed to update role")
 		return
 	}
 	resp.Success(c, nil)
@@ -110,7 +110,7 @@ func deleteUser(c *gin.Context) {
 	}
 	currentUserID := uint(c.GetInt("user_id"))
 	if err := op.UserDelete(uint(id), currentUserID, c.Request.Context()); err != nil {
-		resp.Error(c, http.StatusBadRequest, err.Error())
+		resp.Error(c, http.StatusBadRequest, "failed to delete user")
 		return
 	}
 	resp.Success(c, nil)

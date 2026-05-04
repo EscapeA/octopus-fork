@@ -29,7 +29,10 @@ func GetSticky(apiKeyID int, requestModel string, ttl time.Duration) *SessionEnt
 	if !ok {
 		return nil
 	}
-	entry := v.(*SessionEntry)
+	entry, ok := v.(*SessionEntry)
+	if !ok {
+		return nil
+	}
 
 	if time.Since(entry.Timestamp) > ttl {
 		// 过期，惰性清除

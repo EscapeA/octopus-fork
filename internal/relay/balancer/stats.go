@@ -53,7 +53,9 @@ func normalizeAutoStatsModelName(modelName string) string {
 func getOrCreateStats(channelID int, modelName string) *ChannelStats {
 	key := statsKey(channelID, modelName)
 	if v, ok := globalAutoStats.Load(key); ok {
-		return v.(*ChannelStats)
+		if s, ok := v.(*ChannelStats); ok {
+			return s
+		}
 	}
 	threshold := getSampleThreshold()
 	entry := &ChannelStats{
@@ -61,7 +63,10 @@ func getOrCreateStats(channelID int, modelName string) *ChannelStats {
 		cacheValidDuration: 5 * time.Second,
 	}
 	actual, _ := globalAutoStats.LoadOrStore(key, entry)
-	return actual.(*ChannelStats)
+	if s, ok := actual.(*ChannelStats); ok {
+		return s
+	}
+	return entry
 }
 
 // getMinSamples returns the minimum samples threshold before using success rate.
@@ -195,6 +200,9 @@ func GetAutoStats(channelID int, modelName string) (successRate float64, totalSa
 	if !ok {
 		return 0, 0
 	}
-	stats := v.(*ChannelStats)
+	stats, ok := v.(*ChannelStats)
+	if !ok {
+		return 0, 0
+	}
 	return stats.GetStats(getTimeWindow())
 }

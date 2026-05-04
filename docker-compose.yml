@@ -8,4 +8,5 @@ services:
     volumes:
       - ./data:/app/data
     environment:
-      OCTOPUS_AUTH_JWT_SECRET: "change-this-to-a-long-random-secret"
+      TZ: "Asia/Shanghai"
+      OCTOPUS_AUTH_JWT_SECRET: "change-this-to-a-long-random-secret"

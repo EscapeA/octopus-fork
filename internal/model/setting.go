@@ -46,6 +46,7 @@ const (
 	SettingKeyAIRouteTimeoutSeconds                SettingKey = "ai_route_timeout_seconds"                 // AI路由分析单次请求超时（秒）
 	SettingKeyAIRouteParallelism                   SettingKey = "ai_route_parallelism"                     // AI路由分析批次最大并发数
 	SettingKeyAIRouteServices                      SettingKey = "ai_route_services"                        // AI路由分析服务池(JSON)
+	SettingKeyStatsTimezoneOffset                  SettingKey = "stats_timezone_offset"                   // 统计时区偏移（小时），例如 UTC+8 设置为 8
 )
 
 type Setting struct {
@@ -91,6 +92,7 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyAIRouteTimeoutSeconds, Value: "180"},
 		{Key: SettingKeyAIRouteParallelism, Value: "3"},
 		{Key: SettingKeyAIRouteServices, Value: "[]"},
+		{Key: SettingKeyStatsTimezoneOffset, Value: "0"},
 	}
 }
 
@@ -103,7 +105,8 @@ func (s *Setting) Validate() error {
 		SettingKeySemanticCacheEmbeddingTimeoutSeconds,
 		SettingKeyAutoStrategyMinSamples, SettingKeyAutoStrategyTimeWindow, SettingKeyAutoStrategySampleThreshold,
 		SettingKeyAutoStrategyLatencyWeight,
-		SettingKeyAIRouteGroupID, SettingKeyAIRouteTimeoutSeconds, SettingKeyAIRouteParallelism:
+		SettingKeyAIRouteGroupID, SettingKeyAIRouteTimeoutSeconds, SettingKeyAIRouteParallelism,
+		SettingKeyStatsTimezoneOffset:
 		v, err := strconv.Atoi(s.Value)
 		if err != nil {
 			return fmt.Errorf("setting value must be an integer")
@@ -140,6 +143,9 @@ func (s *Setting) Validate() error {
 		}
 		if s.Key == SettingKeyAIRouteParallelism && v < 1 {
 			return fmt.Errorf("ai route parallelism must be greater than 0")
+		}
+		if s.Key == SettingKeyStatsTimezoneOffset && (v < -12 || v > 14) {
+			return fmt.Errorf("stats timezone offset must be between -12 and 14")
 		}
 		return nil
 	case SettingKeyRelayLogKeepEnabled, SettingKeySemanticCacheEnabled:

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/lingyuins/octopus/internal/conf"
-	"github.com/lingyuins/octopus/internal/model"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -50,8 +49,8 @@ func VerifyJWTToken(token string) (bool, uint, string) {
 	if err != nil || !jwtToken.Valid {
 		return false, 0, ""
 	}
-	if claims.Role == "" {
-		claims.Role = model.UserRoleAdmin
+	if claims.Role == "" || claims.UserID == 0 {
+		return false, 0, ""
 	}
 	return true, claims.UserID, claims.Role
 }

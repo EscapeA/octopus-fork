@@ -13,7 +13,9 @@ func RequirePermission(perm auth.Permission) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		role := c.GetString("user_role")
 		if role == "" {
-			role = "admin" // backward-compat: existing users without role get admin
+			resp.Error(c, http.StatusForbidden, "permission denied")
+			c.Abort()
+			return
 		}
 		if !auth.HasPermission(role, perm) {
 			resp.Error(c, http.StatusForbidden, "permission denied")

@@ -60,9 +60,14 @@ func ConsumeTokens(apiKeyID int, modelName string, tpm int, tokenCount int) {
 
 func getOrCreateRateLimitBucket(m *sync.Map, key string, ratePerMinute int, burst int) *ratelimit.TokenBucket {
 	if v, ok := m.Load(key); ok {
-		return v.(*ratelimit.TokenBucket)
+		if b, ok := v.(*ratelimit.TokenBucket); ok {
+			return b
+		}
 	}
 	bucket := ratelimit.NewTokenBucket(ratePerMinute, burst)
 	actual, _ := m.LoadOrStore(key, bucket)
-	return actual.(*ratelimit.TokenBucket)
+	if b, ok := actual.(*ratelimit.TokenBucket); ok {
+		return b
+	}
+	return bucket
 }

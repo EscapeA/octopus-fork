@@ -98,6 +98,11 @@ func runTask(entry *taskEntry) {
 			return
 		}
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Errorf("task %s panic recovered: %v", entry.name, r)
+				}
+			}()
 			defer entry.running.Store(false)
 			entry.fn()
 		}()

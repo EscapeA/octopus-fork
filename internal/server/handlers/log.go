@@ -55,7 +55,7 @@ func listLog(c *gin.Context) {
 	if startTimeStr != "" {
 		st, err := strconv.Atoi(startTimeStr)
 		if err != nil {
-			resp.Error(c, http.StatusBadRequest, err.Error())
+			resp.Error(c, http.StatusBadRequest, "invalid start_time")
 			return
 		}
 		startTime = &st
@@ -63,7 +63,7 @@ func listLog(c *gin.Context) {
 	if endTimeStr != "" {
 		et, err := strconv.Atoi(endTimeStr)
 		if err != nil {
-			resp.Error(c, http.StatusBadRequest, err.Error())
+			resp.Error(c, http.StatusBadRequest, "invalid end_time")
 			return
 		}
 		endTime = &et

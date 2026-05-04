@@ -54,7 +54,7 @@ func SendWebhook(channel *model.AlertNotifChannel, payload AlertWebhookPayload) 
 	if err != nil {
 		return fmt.Errorf("send webhook: %w", err)
 	}
-	resp.Body.Close()
+	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("webhook responded %d", resp.StatusCode)
 	}
@@ -112,7 +112,7 @@ func SendGotify(channel *model.AlertNotifChannel, payload AlertWebhookPayload) e
 	if err != nil {
 		return fmt.Errorf("send gotify: %w", err)
 	}
-	resp.Body.Close()
+	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("gotify responded %d", resp.StatusCode)
 	}
