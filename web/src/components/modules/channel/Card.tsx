@@ -188,7 +188,7 @@ export function Card({ channel, stats, layout = 'grid' }: { channel: Channel; st
             </MorphingDialogTrigger>
 
             <MorphingDialogContainer>
-                <MorphingDialogContent className="relative flex w-[min(100vw-1rem,56rem)] max-w-full flex-col overflow-hidden rounded-xl border border-border bg-card px-4 py-4 text-card-foreground md:px-6 md:py-5">
+                <MorphingDialogContent className="relative flex max-h-[calc(100dvh-2rem)] min-h-0 w-[min(100vw-1rem,56rem)] max-w-full flex-col overflow-hidden rounded-xl border border-border bg-card px-4 py-4 text-card-foreground md:px-6 md:py-5">
                     <CardContent channel={channel} stats={stats} />
                 </MorphingDialogContent>
             </MorphingDialogContainer>

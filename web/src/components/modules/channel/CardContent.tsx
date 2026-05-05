@@ -223,9 +223,9 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
                 </header>
             </MorphingDialogTitle>
 
-            <MorphingDialogDescription>
-                <Tabs value={currentView}>
-                    <TabsContents>
+            <MorphingDialogDescription className="flex min-h-0 flex-1 flex-col">
+                <Tabs value={currentView} className="flex min-h-0 flex-1 flex-col">
+                    <TabsContents className="min-h-0 flex-1">
                         <TabsContent value="viewing" >
                             <div className="max-h-[min(46rem,calc(100dvh-13rem))] space-y-4 overflow-y-auto pr-1 sm:space-y-5">
                                 <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -527,7 +527,7 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
                             </div>
                         </TabsContent>
 
-                        <TabsContent value="editing">
+                        <TabsContent value="editing" className="h-[min(46rem,calc(100dvh-13rem))] min-h-0">
                             <ChannelForm
                                 formData={formData}
                                 onFormDataChange={setFormData}
