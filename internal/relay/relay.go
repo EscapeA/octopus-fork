@@ -396,21 +396,23 @@ func Handler(endpointType string, inboundType inbound.InboundType, c *gin.Contex
 				}
 
 				result := ra.attempt()
+				// 合并当前 route 的 attempts，确保 Save() 能正确提取渠道信息
+				currentAttempts := append(allAttempts, routeIter.Attempts()...)
 				if result.Success {
 					lastErr = nil
-					metrics.Save(true, nil, allAttempts)
+					metrics.Save(true, nil, currentAttempts)
 					return
 				}
 
 				switch result.Decision.Scope {
 				case ScopeNone:
 					lastErr = result.Err
-					metrics.Save(false, lastErr, allAttempts)
+					metrics.Save(false, lastErr, currentAttempts)
 					resp.BadGateway(c)
 					return
 				case ScopeAbortAll:
 					lastErr = result.Err
-					metrics.Save(false, result.Err, allAttempts)
+					metrics.Save(false, result.Err, currentAttempts)
 					return
 				case ScopeSameChannel:
 					lastErr = result.Err
@@ -422,7 +424,7 @@ func Handler(endpointType string, inboundType inbound.InboundType, c *gin.Contex
 					break // 跳出 key 循环，尝试下一个渠道
 				default:
 					lastErr = result.Err
-					metrics.Save(false, lastErr, allAttempts)
+					metrics.Save(false, lastErr, currentAttempts)
 					resp.BadGateway(c)
 					return
 				}

@@ -15,8 +15,8 @@ import (
 	"gorm.io/gorm"
 )
 
-const relayLogMaxSize = 20
-const relayLogMaxSizeNoDB = 100 // 当不保存到数据库时，允许更大的缓存用于实时查询
+const relayLogMaxSize = 200
+const relayLogMaxSizeNoDB = 200 // 当不保存到数据库时，允许更大的缓存用于实时查询
 const relayLogStreamTokenTTL = 5 * time.Minute
 
 var relayLogCache = make([]model.RelayLog, 0, relayLogMaxSize)

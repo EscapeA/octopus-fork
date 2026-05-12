@@ -14,8 +14,12 @@ export function Home() {
             <HomeAnalyticsOverview />
             <StatsChart />
             <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.4fr)]">
-                <Activity />
-                <Rank />
+                <div className="min-w-0">
+                    <Activity />
+                </div>
+                <div className="min-w-0">
+                    <Rank />
+                </div>
             </div>
         </PageWrapper>
     );
