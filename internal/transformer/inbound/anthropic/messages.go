@@ -159,7 +159,6 @@ func (i *MessagesInbound) TransformRequest(ctx context.Context, body []byte) (*m
 					}
 				case "tool_result":
 					hasToolResult = true
-					// TODO: support other result types
 					if block.Content != nil {
 						toolMsg := model.Message{
 							Role:            "tool",
@@ -175,15 +174,35 @@ func (i *MessagesInbound) TransformRequest(ctx context.Context, body []byte) (*m
 							}
 						} else if len(block.Content.MultipleContent) > 0 {
 							// Handle multiple content blocks in tool_result
-							// Keep as MultipleContent to preserve the original format
 							toolContentParts := make([]model.MessageContentPart, 0, len(block.Content.MultipleContent))
 							for _, contentBlock := range block.Content.MultipleContent {
-								if contentBlock.Type == "text" {
+								switch contentBlock.Type {
+								case "text":
 									toolContentParts = append(toolContentParts, model.MessageContentPart{
 										Type: "text",
 										Text: contentBlock.Text,
 									})
-									i.inputToken += int64(tokenizer.CountTokens(*contentBlock.Text, chatReq.Model))
+									if contentBlock.Text != nil {
+										i.inputToken += int64(tokenizer.CountTokens(*contentBlock.Text, chatReq.Model))
+									}
+								case "image":
+									if contentBlock.Source != nil && contentBlock.Source.Type == "base64" {
+										imageURL := fmt.Sprintf("data:%s;base64,%s", contentBlock.Source.MediaType, contentBlock.Source.Data)
+										toolContentParts = append(toolContentParts, model.MessageContentPart{
+											Type: "image_url",
+											ImageURL: &model.ImageURL{
+												URL: imageURL,
+											},
+										})
+									}
+								default:
+									// Preserve unknown content types as-is for forward compatibility
+									if contentBlock.Text != nil {
+										toolContentParts = append(toolContentParts, model.MessageContentPart{
+											Type: contentBlock.Type,
+											Text: contentBlock.Text,
+										})
+									}
 								}
 							}
 

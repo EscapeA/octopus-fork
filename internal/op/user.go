@@ -2,6 +2,7 @@ package op
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -17,6 +18,12 @@ var userCache model.User
 
 const minInitialAdminPasswordLength = 12
 
+// Sentinel errors for bootstrap flow.
+var (
+	ErrBootstrapAlreadySetUp = errors.New("initial admin account is already set up")
+	ErrBootstrapCredentials  = errors.New("invalid bootstrap credentials")
+)
+
 func validateUserRole(role string) error {
 	if role != model.UserRoleAdmin && role != model.UserRoleEditor && role != model.UserRoleViewer {
 		return fmt.Errorf("invalid role: %s", role)
@@ -27,13 +34,13 @@ func validateUserRole(role string) error {
 func validateManagedUserCredentials(username, password string) error {
 	username = strings.TrimSpace(username)
 	if username == "" {
-		return fmt.Errorf("username is required")
+		return fmt.Errorf("%w: username is required", ErrBootstrapCredentials)
 	}
 	if password == "" {
-		return fmt.Errorf("password is required")
+		return fmt.Errorf("%w: password is required", ErrBootstrapCredentials)
 	}
 	if utf8.RuneCountInString(password) < minInitialAdminPasswordLength {
-		return fmt.Errorf("password must be at least %d characters long", minInitialAdminPasswordLength)
+		return fmt.Errorf("%w: password must be at least %d characters long", ErrBootstrapCredentials, minInitialAdminPasswordLength)
 	}
 	return nil
 }
@@ -116,9 +123,6 @@ func deleteLegacyAdminUser(targetUsername string) error {
 
 func UserBootstrapCreate(username, password string) error {
 	if err := validateManagedUserCredentials(username, password); err != nil {
-		if strings.Contains(err.Error(), "at least") {
-			return fmt.Errorf("initial admin %s", err.Error())
-		}
 		return err
 	}
 	username = strings.TrimSpace(username)
@@ -128,7 +132,7 @@ func UserBootstrapCreate(username, password string) error {
 		return fmt.Errorf("failed to inspect user state: %w", err)
 	}
 	if count > 0 || UserReady() {
-		return fmt.Errorf("initial admin account is already set up")
+		return ErrBootstrapAlreadySetUp
 	}
 
 	user := model.User{

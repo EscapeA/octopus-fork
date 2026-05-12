@@ -109,7 +109,7 @@ export function Activity() {
                 className="relative flex-1 overflow-x-auto px-4 pb-5 pt-4 md:px-5 md:pb-5"
                 style={{ maskImage, WebkitMaskImage: maskImage }}
             >
-                <div className="ml-auto w-fit rounded-lg border border-border bg-card p-3.5">
+                <div className="w-fit rounded-lg border border-border bg-card p-3.5">
                     <div className="grid gap-1"
                         style={{
                             gridTemplateColumns: 'repeat(54, 1rem)',

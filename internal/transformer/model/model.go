@@ -138,12 +138,6 @@ type InternalLLMRequest struct {
 	// [Learn more](https://platform.openai.com/docs/guides/safety-best-practices#safety-identifiers).
 	User *string `json:"user,omitempty"`
 
-	// Parameters for audio output. Required when audio output is requested with
-	// `modalities: ["audio"]`.
-	// [Learn more](https://platform.openai.com/docs/guides/audio).
-	// TODO
-	// Audio ChatCompletionAudioParam `json:"audio,omitzero"`
-
 	// Modify the likelihood of specified tokens appearing in the completion.
 	//
 	// Accepts a JSON object that maps tokens (specified by their token ID in the
@@ -174,10 +168,7 @@ type InternalLLMRequest struct {
 	// Any of "text", "audio", "image".
 	Modalities []string `json:"modalities,omitempty"`
 
-	Audio *struct {
-		Format string `json:"format,omitempty"`
-		Voice  string `json:"voice,omitempty"`
-	} `json:"audio,omitempty"`
+	Audio *ChatCompletionAudioParam `json:"audio,omitempty"`
 
 	// Controls effort on reasoning for reasoning models. It can be set to "low", "medium", or "high".
 	ReasoningEffort string `json:"reasoning_effort,omitempty"`
@@ -207,8 +198,8 @@ type InternalLLMRequest struct {
 
 	// Static predicted output content, such as the content of a text file that is
 	// being regenerated.
-	// TODO
-	// Prediction ChatCompletionPredictionContentParam `json:"prediction,omitempty"`
+	// See https://platform.openai.com/docs/api-reference/chat/create#chat-create-prediction.
+	Prediction *ChatCompletionPredictionContent `json:"prediction,omitempty"`
 
 	// Whether to enable
 	// [parallel function calling](https://platform.openai.com/docs/guides/function-calling#configuring-parallel-function-calling)
@@ -417,6 +408,30 @@ type StreamOptions struct {
 	// and the choices field will always be an empty array.
 	// All other chunks will also include a usage field, but with a null value.
 	IncludeUsage bool `json:"include_usage,omitempty"`
+}
+
+// ChatCompletionAudioParam specifies parameters for audio output.
+// See https://platform.openai.com/docs/guides/audio.
+type ChatCompletionAudioParam struct {
+	// The voice to use for audio output. Any of "alloy", "ash", "coral", "echo", "fable", "onyx", "nova", "sage", "shimmer".
+	Voice string `json:"voice"`
+	// The format of the audio output. Any of "mp3", "opus", "aac", "flac", "wav", "pcm". Defaults to "mp3".
+	Format string `json:"format,omitempty"`
+}
+
+// ChatCompletionPredictionContent contains static predicted output content.
+// See https://platform.openai.com/docs/api-reference/chat/create#chat-create-prediction.
+type ChatCompletionPredictionContent struct {
+	// Type of the prediction content. Currently only "content" is supported.
+	Type string `json:"type"`
+	// Content parts that make up the prediction.
+	Content []PredictionContentPart `json:"content"`
+}
+
+// PredictionContentPart represents a single part of prediction content.
+type PredictionContentPart struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
 }
 
 type Stop struct {
@@ -629,9 +644,20 @@ type File struct {
 // ResponseFormat specifies the format of the response.
 type ResponseFormat struct {
 	// Any of "json_schema", "json_object", "text".
-	Type string `json:"type"`
-	// TODO: Schema
-	JSONSchema json.RawMessage `json:"json_schema,omitempty"`
+	Type       string                    `json:"type"`
+	JSONSchema *ResponseFormatJSONSchema `json:"json_schema,omitempty"`
+}
+
+// ResponseFormatJSONSchema defines a structured JSON Schema for response formatting.
+type ResponseFormatJSONSchema struct {
+	// The name of the schema.
+	Name string `json:"name"`
+	// A description of what the schema represents.
+	Description string `json:"description,omitempty"`
+	// The actual JSON Schema definition.
+	Schema json.RawMessage `json:"schema"`
+	// Whether to enforce strict schema adherence.
+	Strict *bool `json:"strict,omitempty"`
 }
 
 // Response is the unified response model.
@@ -873,11 +899,12 @@ type CacheControl struct {
 type toolJSONMarshaller Tool
 
 func (t Tool) MarshalJSON() ([]byte, error) {
-	// TODO: find a better way to save the image generation tool to the request body.
 	m := toolJSONMarshaller(t)
-	// ImageGeneration is not a valid field for chat completion, so we should remove it from the request.
-	m.ImageGeneration = nil
-
+	// ImageGeneration is only valid when the tool type is "image_generation".
+	// For other types (e.g., "function"), strip it to keep the JSON clean.
+	if t.Type != "image_generation" {
+		m.ImageGeneration = nil
+	}
 	return json.Marshal(m)
 }
 

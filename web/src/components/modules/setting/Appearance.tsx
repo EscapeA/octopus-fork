@@ -22,7 +22,7 @@ import {
     useNavStore,
     type NavItem,
 } from '@/components/modules/navbar';
-import { serializeNavOrder, serializeNavVisible } from '@/components/modules/navbar/nav-order';
+import { serializeNavOrder, serializeNavVisible } from '@/components/modules/navbar';
 import { useSettingStore, type Locale } from '@/stores/setting';
 import { SettingKey, useSetSetting, useSettingList } from '@/api/endpoints/setting';
 import { toast } from '@/components/common/Toast';

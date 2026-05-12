@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/lingyuins/octopus/internal/transformer/model"
+	"github.com/lingyuins/octopus/internal/utils/log"
 	"github.com/lingyuins/octopus/internal/utils/xurl"
 	"github.com/samber/lo"
 )
@@ -306,7 +307,14 @@ func convertLLMToGeminiRequest(request *model.InternalLLMRequest) *model.GeminiG
 			hasConfig = true
 		case "json_schema":
 			config.ResponseMimeType = "application/json"
-			// TODO: Convert JSON schema to Gemini schema format if schema is provided
+			if request.ResponseFormat.JSONSchema != nil {
+				geminiSchema, err := convertJSONSchemaToGeminiSchema(request.ResponseFormat.JSONSchema)
+				if err != nil {
+					log.Warnf("failed to convert JSON schema to Gemini format: %v", err)
+				} else {
+					config.ResponseSchema = geminiSchema
+				}
+			}
 			hasConfig = true
 		case "text":
 			config.ResponseMimeType = "text/plain"
@@ -584,6 +592,71 @@ func convertGeminiFinishReason(reason string) string {
 	default:
 		return "stop"
 	}
+}
+
+// convertJSONSchemaToGeminiSchema converts an OpenAI-style ResponseFormatJSONSchema
+// to a Gemini-compatible GeminiSchema. It cleans unsupported keywords and maps types.
+func convertJSONSchemaToGeminiSchema(schema *model.ResponseFormatJSONSchema) (*model.GeminiSchema, error) {
+	if schema == nil || len(schema.Schema) == 0 {
+		return nil, fmt.Errorf("empty JSON schema")
+	}
+
+	// Parse JSON Schema to map
+	var raw map[string]any
+	if err := json.Unmarshal(schema.Schema, &raw); err != nil {
+		return nil, fmt.Errorf("failed to parse JSON schema: %w", err)
+	}
+
+	// Clean Gemini-incompatible keywords
+	cleanGeminiSchema(raw)
+
+	// Convert map to GeminiSchema struct
+	return mapToGeminiSchema(raw), nil
+}
+
+// mapToGeminiSchema recursively converts a cleaned map[string]any to a GeminiSchema.
+func mapToGeminiSchema(m map[string]any) *model.GeminiSchema {
+	gs := &model.GeminiSchema{}
+
+	if t, ok := m["type"].(string); ok {
+		gs.Type = t
+	}
+
+	if props, ok := m["properties"].(map[string]any); ok {
+		gs.Properties = make(map[string]*model.GeminiSchema, len(props))
+		for k, v := range props {
+			if child, ok := v.(map[string]any); ok {
+				gs.Properties[k] = mapToGeminiSchema(child)
+			}
+		}
+	}
+
+	if items, ok := m["items"].(map[string]any); ok {
+		gs.Items = mapToGeminiSchema(items)
+	}
+
+	if req, ok := m["required"].([]any); ok {
+		gs.Required = make([]string, 0, len(req))
+		for _, r := range req {
+			if s, ok := r.(string); ok {
+				gs.Required = append(gs.Required, s)
+			}
+		}
+	}
+	if req, ok := m["required"].([]string); ok {
+		gs.Required = req
+	}
+
+	if enums, ok := m["enum"].([]any); ok {
+		gs.Enum = make([]string, 0, len(enums))
+		for _, e := range enums {
+			if s, ok := e.(string); ok {
+				gs.Enum = append(gs.Enum, s)
+			}
+		}
+	}
+
+	return gs
 }
 
 func cleanGeminiSchema(schema map[string]any) {

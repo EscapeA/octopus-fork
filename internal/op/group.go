@@ -12,6 +12,7 @@ import (
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/utils/cache"
+	"github.com/lingyuins/octopus/internal/utils/log"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -468,7 +469,7 @@ func GroupUpdate(req *model.GroupUpdateRequest, ctx context.Context) (*model.Gro
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
-			panic(r)
+			log.Errorf("panic recovered in transaction: %v", r)
 		}
 	}()
 
@@ -588,7 +589,7 @@ func GroupDel(id int, ctx context.Context) error {
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
-			panic(r)
+			log.Errorf("panic recovered in transaction: %v", r)
 		}
 	}()
 
@@ -616,7 +617,7 @@ func GroupDelAll(ctx context.Context) (int64, error) {
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
-			panic(r)
+			log.Errorf("panic recovered in transaction: %v", r)
 		}
 	}()
 

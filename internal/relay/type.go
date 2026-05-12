@@ -25,6 +25,7 @@ var maxSSEEventSize = 32 * 1024 * 1024
 
 const (
 	defaultMaxRetryPerCandidate = 3
+	defaultMaxRouteRetries      = 2
 	defaultRatelimitCooldown    = 300
 	defaultMaxTotalAttempts     = 0
 )
@@ -47,6 +48,14 @@ func getMaxRetryPerCandidate() int {
 
 func getMaxAttemptsPerCandidate() int {
 	return getMaxRetryPerCandidate() + 1
+}
+
+func getMaxRouteRetries() int {
+	v, err := op.SettingGetInt(dbmodel.SettingKeyRelayRouteRetries)
+	if err != nil || v < 1 {
+		return defaultMaxRouteRetries
+	}
+	return v
 }
 
 func getRatelimitCooldown() int {
@@ -318,10 +327,10 @@ func classifyNonHTTPError(err error) RetryDecision {
 		}
 	}
 
-	// 网络连接错误：连接失败，换 key 可能解决（不同 key 可能走不同路径）
+	// 网络连接错误：连接失败。同渠道所有 Key 指向同一 host，换 Key 无意义，直接换渠道。
 	if isNetworkError(err) {
 		return RetryDecision{
-			Scope:   ScopeSameChannel,
+			Scope:   ScopeNextChannel,
 			Reason:  "network error",
 			Code:    0,
 			IsError: true,

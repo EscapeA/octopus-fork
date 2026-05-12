@@ -373,8 +373,7 @@ export function ChannelForm({
 
     return (
         <form onSubmit={onSubmit} className="flex h-full min-h-0 flex-col">
-            <div className="flex-1 min-h-0 overflow-y-auto px-1">
-            <div className="space-y-4 pb-2">
+            <div className="flex-1 min-h-0 overflow-y-auto px-1 space-y-4 pb-2">
             <section className={sectionClassName}>
                 <SectionHeader icon={Sparkles} title={t('template.label')} hint={t('template.hint')} />
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -589,7 +588,7 @@ export function ChannelForm({
                         <div className="space-y-2 max-h-48 overflow-y-auto">
                             {testSummary.results.map((result, idx) => (
                                 <div key={`${result.base_url}-${result.key_masked}-${idx}`} className="rounded-lg border border-border/30 bg-card p-2.5 text-xs space-y-1">
-                                    <div className="flex items-center justify-between gap-2">
+<div className="flex flex-wrap items-center justify-between gap-2">
                                         <span className="font-mono truncate">{result.base_url}</span>
                                         <div className="flex items-center gap-1 shrink-0">
                                             <Badge variant="secondary">{result.key_masked || '-'}</Badge>
@@ -698,7 +697,7 @@ export function ChannelForm({
                         </span>
                     </AccordionTrigger>
                     <AccordionContent className="pt-4">
-                        <div className={sectionClassName}>
+                        <div className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className={fieldGroupClassName}>
                                 <label htmlFor={`${idPrefix}-auto-group`} className={labelClassName}>
@@ -811,7 +810,7 @@ export function ChannelForm({
                             />
                         </div>
 
-                        <div className="space-y-4 rounded-lg border border-border/30 bg-card p-4">
+                        <div className="space-y-4 pt-2 border-t border-border/20">
                             <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div>
                                     <p className="text-sm font-medium text-card-foreground">{t('requestRewrite')}</p>
@@ -913,7 +912,6 @@ export function ChannelForm({
                     </AccordionContent>
                 </AccordionItem>
             </Accordion>
-            </div>
             </div>
 
             <section className={`${sectionClassName} mt-4 flex shrink-0 flex-col gap-4 md:flex-row md:items-center md:justify-between`}>

@@ -284,7 +284,7 @@ function MorphingDialogContent({
       ref={containerRef}
       layoutId={`dialog-${uniqueId}`}
       className={cn(
-        'relative overflow-hidden rounded-xl border border-border bg-card shadow-lg',
+        'relative flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-lg max-w-2xl w-[calc(100vw-2rem)] max-h-[90dvh]',
         className
       )}
       style={style}

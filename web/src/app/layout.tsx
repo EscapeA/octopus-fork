@@ -16,6 +16,7 @@ export default function RootLayout({
   return (
     <html suppressHydrationWarning>
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="theme-color" content="#faf8f5" />
         <meta name="application-name" content="Octopus" />
         <meta name="apple-mobile-web-app-capable" content="yes" />

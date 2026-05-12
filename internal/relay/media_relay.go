@@ -70,6 +70,7 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 	}
 
 	apiKeyID := c.GetInt("api_key_id")
+	startTime := time.Now()
 
 	// 2. Resolve channel group
 	groupEndpointType := mediaEndpointTypeToGroupEndpointType(endpointType)
@@ -86,17 +87,23 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 		return
 	}
 
+	operationCtx, cancel := newRelayOperationContext()
+	defer cancel()
+
+	maxKeyRetriesPerRoute := getMaxAttemptsPerCandidate()
+	maxRouteRetries := getMaxRouteRetries()
 	ratelimitCooldown := getRatelimitCooldown()
-	maxAttemptsPerCandidate := getMaxAttemptsPerCandidate()
 	maxTotalAttempts := getMaxTotalAttempts()
 
+	var allAttempts []dbmodel.ChannelAttempt
 	var lastErr error
+	var routeIter *balancer.Iterator
 
-outer:
-	for iter.Next() {
-		if maxTotalAttempts > 0 && iter.ForwardedAttempts() >= maxTotalAttempts {
-			lastErr = fmt.Errorf("reached relay max total attempts: %d", maxTotalAttempts)
-			break
+	for routeRound := 1; routeRound <= maxRouteRetries; routeRound++ {
+		if err := operationCtx.Err(); err != nil {
+			lastErr = err
+			log.Infof("relay operation ended before media request completed: %v", err)
+			return
 		}
 		select {
 		case <-c.Request.Context().Done():
@@ -105,24 +112,17 @@ outer:
 		default:
 		}
 
-		item := iter.Item()
+		routeIter = balancer.NewIterator(group, apiKeyID, requestModel)
 
-		prepare := PrepareCandidate(c.Request.Context(), item, iter, ratelimitCooldown, requestModel, nil)
-		if prepare.SkipReason != "" {
-			recordPreparedCandidateSkip(iter, item, prepare)
-			continue
-		}
-
-		channel := prepare.Channel
-		usedKey := prepare.UsedKey
-		resolvedModel := prepare.ResolvedModel
-
-		var failedKeyIDs []int
-	innerRetry:
-		for tryIndex := 1; tryIndex <= maxAttemptsPerCandidate; tryIndex++ {
-			if maxTotalAttempts > 0 && iter.ForwardedAttempts() >= maxTotalAttempts {
+		for routeIter.Next() {
+			if maxTotalAttempts > 0 && len(allAttempts) >= maxTotalAttempts {
 				lastErr = fmt.Errorf("reached relay max total attempts: %d", maxTotalAttempts)
-				break outer
+				goto mediaExhausted
+			}
+			if err := operationCtx.Err(); err != nil {
+				lastErr = err
+				log.Infof("relay operation ended before media retry completed: %v", err)
+				goto mediaExhausted
 			}
 			select {
 			case <-c.Request.Context().Done():
@@ -131,113 +131,203 @@ outer:
 			default:
 			}
 
-			if tryIndex > 1 {
-				usedKey = channel.GetChannelKeyExcludingWithCooldown(failedKeyIDs, ratelimitCooldown)
-				if usedKey.ChannelKey == "" {
-					log.Infof("channel %s has no more keys to retry, moving to next channel", channel.Name)
-					break innerRetry
+			item := routeIter.Item()
+
+			channel, err := op.ChannelGet(item.ChannelID, c.Request.Context())
+			if err != nil {
+				log.Warnf("failed to get channel %d: %v", item.ChannelID, err)
+				routeIter.Skip(item.ChannelID, 0, fmt.Sprintf("channel_%d", item.ChannelID), fmt.Sprintf("channel not found: %v", err))
+				continue
+			}
+			if !channel.Enabled {
+				routeIter.Skip(channel.ID, 0, channel.Name, "channel disabled")
+				continue
+			}
+
+			resolvedModel := resolveCandidateModelName(requestModel, item)
+			if resolvedModel == "" {
+				routeIter.Skip(channel.ID, 0, channel.Name, "model not found in channel")
+				continue
+			}
+
+			// 渠道内 Key 级重试
+			var failedKeyIDs []int
+			for keyRound := 1; keyRound <= maxKeyRetriesPerRoute; keyRound++ {
+				if maxTotalAttempts > 0 && len(allAttempts) >= maxTotalAttempts {
+					lastErr = fmt.Errorf("reached relay max total attempts: %d", maxTotalAttempts)
+					goto mediaExhausted
 				}
-				if iter.SkipCircuitBreak(channel.ID, usedKey.ID, channel.Name, resolvedModel) {
+				if err := operationCtx.Err(); err != nil {
+					lastErr = err
+					log.Infof("relay operation ended: %v", err)
+					goto mediaExhausted
+				}
+				select {
+				case <-c.Request.Context().Done():
+					return
+				default:
+				}
+
+				var usedKey dbmodel.ChannelKey
+				if keyRound == 1 {
+					usedKey = channel.GetChannelKeyWithCooldown(ratelimitCooldown)
+				} else {
+					usedKey = channel.GetChannelKeyExcludingWithCooldown(failedKeyIDs, ratelimitCooldown)
+				}
+				if usedKey.ChannelKey == "" {
+					break
+				}
+
+				// 熔断跳过不消耗 Key 重试配额
+				if routeIter.SkipCircuitBreak(channel.ID, usedKey.ID, channel.Name, resolvedModel) {
 					failedKeyIDs = append(failedKeyIDs, usedKey.ID)
-					tryIndex--
+					keyRound--
 					continue
 				}
-			}
 
-			log.Infof("media relay: endpoint=%d, model=%s, forwarding to channel: %s model: %s key_id: %d (candidate %d/%d, attempt %d/%d)",
-				endpointType, requestModel, channel.Name, resolvedModel, usedKey.ID,
-				iter.Index()+1, iter.Len(), tryIndex, maxAttemptsPerCandidate)
+				log.Infof("media relay: endpoint=%d, model=%s, channel: %s model: %s key_id: %d (route R%d, key %d/%d)",
+					endpointType, requestModel, channel.Name, resolvedModel, usedKey.ID,
+					routeRound, keyRound, maxKeyRetriesPerRoute)
 
-			span := iter.StartAttempt(channel.ID, usedKey.ID, channel.Name, resolvedModel)
+				span := routeIter.StartAttempt(channel.ID, usedKey.ID, channel.Name, resolvedModel)
+				statusCode, fwdErr := forwardMediaRequest(c, cfg, channel, usedKey.ChannelKey, bodyBytes, requestModel, resolvedModel, streamRequested)
 
-			// Build and send upstream request
-			statusCode, fwdErr := forwardMediaRequest(c, cfg, channel, usedKey.ChannelKey, bodyBytes, requestModel, resolvedModel, streamRequested)
+				written := c.Writer.Written()
+				decision := ClassifyRelayError(statusCode, fwdErr, written)
 
-			// 检查是否已写入响应（媒体端点可能是流式）
-			written := c.Writer.Written()
+				usedKey.StatusCode = statusCode
+				usedKey.LastUseTimeStamp = time.Now().Unix()
 
-			// 使用错误分类驱动决策
-			decision := ClassifyRelayError(statusCode, fwdErr, written)
+				if decision.Scope == ScopeNone && !decision.IsError {
+					op.ChannelKeyUpdate(usedKey)
+					span.End(dbmodel.AttemptSuccess, statusCode, "")
+					op.StatsChannelUpdate(channel.ID, dbmodel.StatsMetrics{
+						WaitTime:       span.Duration().Milliseconds(),
+						RequestSuccess: 1,
+					})
+					balancer.RecordSuccess(channel.ID, usedKey.ID, resolvedModel)
+					balancer.RecordAutoSuccess(channel.ID, resolvedModel)
+					balancer.SetSticky(apiKeyID, requestModel, channel.ID, usedKey.ID)
 
-			usedKey.StatusCode = statusCode
-			usedKey.LastUseTimeStamp = time.Now().Unix()
+					allAttempts = append(allAttempts, routeIter.Attempts()...)
+					recordMediaRelayLog(apiKeyID, requestModel, bodyBytes, channel.ID, channel.Name, resolvedModel, time.Since(startTime), allAttempts, nil)
+					return
+				}
 
-			if decision.Scope == ScopeNone && !decision.IsError {
-				// Success
-				// Media endpoints don't have token-based cost, so TotalCost is left unchanged.
 				op.ChannelKeyUpdate(usedKey)
-				span.End(dbmodel.AttemptSuccess, statusCode, "")
+				span.End(dbmodel.AttemptFailed, statusCode, decision.String())
 				op.StatsChannelUpdate(channel.ID, dbmodel.StatsMetrics{
-					WaitTime:       span.Duration().Milliseconds(),
-					RequestSuccess: 1,
+					WaitTime:      span.Duration().Milliseconds(),
+					RequestFailed: 1,
 				})
-				balancer.RecordSuccess(channel.ID, usedKey.ID, resolvedModel)
-				balancer.RecordAutoSuccess(channel.ID, resolvedModel)
-				balancer.SetSticky(apiKeyID, requestModel, channel.ID, usedKey.ID)
-				return
-			}
 
-			// Failure
-			op.ChannelKeyUpdate(usedKey)
+				if decision.Scope == ScopeNextChannel || decision.Scope == ScopeAbortAll {
+					balancer.RecordFailure(channel.ID, usedKey.ID, resolvedModel)
+					balancer.RecordAutoFailure(channel.ID, resolvedModel)
+				}
 
-			// 构造日志消息
-			msg := decision.String()
-			if maxAttemptsPerCandidate > 1 {
-				msg = fmt.Sprintf("attempt %d/%d: %s", tryIndex, maxAttemptsPerCandidate, msg)
-			}
-			span.End(dbmodel.AttemptFailed, statusCode, msg)
-			op.StatsChannelUpdate(channel.ID, dbmodel.StatsMetrics{
-				WaitTime:      span.Duration().Milliseconds(),
-				RequestFailed: 1,
-			})
+				if decision.IsError {
+					log.Warnf("media relay: channel %s failed on key %d: %v (decision: %s)",
+						channel.Name, keyRound, fwdErr, decision.Scope.String())
+				}
 
-			// 熔断器和 Auto 策略：只在换候选或停止时记录失败
-			if decision.Scope == ScopeNextChannel || decision.Scope == ScopeAbortAll {
-				balancer.RecordFailure(channel.ID, usedKey.ID, resolvedModel)
-				balancer.RecordAutoFailure(channel.ID, resolvedModel)
-			}
-
-			if decision.IsError {
-				log.Warnf("media relay: channel %s failed on attempt %d/%d: %v (decision: %s)",
-					channel.Name, tryIndex, maxAttemptsPerCandidate, fwdErr, decision.Scope.String())
-			}
-
-			// 根据错误分类决策进行重试控制
-			switch decision.Scope {
-			case ScopeNone:
-				// 不重试，直接失败
-				lastErr = fwdErr
-				resp.Error(c, http.StatusBadGateway, lastErr.Error())
-				return
-
-			case ScopeAbortAll:
-				// 停止所有重试（流式响应已写入）
-				return
-
-			case ScopeSameChannel:
-				// 同候选换 Key 重试
-				lastErr = fwdErr
-				failedKeyIDs = append(failedKeyIDs, usedKey.ID)
-				continue innerRetry
-
-			case ScopeNextChannel:
-				// 换下一个候选重试
-				lastErr = fwdErr
-				failedKeyIDs = append(failedKeyIDs, usedKey.ID)
-				break innerRetry
-
-			default:
-				// 未知决策，保守停止
-				lastErr = fwdErr
-				resp.Error(c, http.StatusBadGateway, lastErr.Error())
-				return
+				switch decision.Scope {
+				case ScopeNone:
+					lastErr = fwdErr
+					allAttempts = append(allAttempts, routeIter.Attempts()...)
+					recordMediaRelayLog(apiKeyID, requestModel, bodyBytes, channel.ID, channel.Name, resolvedModel, time.Since(startTime), allAttempts, fwdErr)
+					resp.Error(c, http.StatusBadGateway, lastErr.Error())
+					return
+				case ScopeAbortAll:
+					allAttempts = append(allAttempts, routeIter.Attempts()...)
+					recordMediaRelayLog(apiKeyID, requestModel, bodyBytes, channel.ID, channel.Name, resolvedModel, time.Since(startTime), allAttempts, lastErr)
+					return
+				case ScopeSameChannel:
+					lastErr = fwdErr
+					failedKeyIDs = append(failedKeyIDs, usedKey.ID)
+				case ScopeNextChannel:
+					lastErr = fwdErr
+					failedKeyIDs = append(failedKeyIDs, usedKey.ID)
+					break
+				default:
+					lastErr = fwdErr
+					allAttempts = append(allAttempts, routeIter.Attempts()...)
+					recordMediaRelayLog(apiKeyID, requestModel, bodyBytes, channel.ID, channel.Name, resolvedModel, time.Since(startTime), allAttempts, fwdErr)
+					resp.Error(c, http.StatusBadGateway, lastErr.Error())
+					return
+				}
 			}
 		}
+allAttempts = append(allAttempts, routeIter.Attempts()...)
 	}
+	// All route rounds exhausted
+	recordMediaRelayLog(apiKeyID, requestModel, bodyBytes, 0, "", "", time.Since(startTime), allAttempts, lastErr)
+	resp.Error(c, http.StatusBadGateway, fmt.Sprintf("all channels failed: %v", lastErr))
+	return
 
-	// All channels failed
+mediaExhausted:
+	// Only reached via goto from within the relay loop (context canceled / max attempts)
+	allAttempts = append(allAttempts, routeIter.Attempts()...)
+	recordMediaRelayLog(apiKeyID, requestModel, bodyBytes, 0, "", "", time.Since(startTime), allAttempts, lastErr)
 	resp.Error(c, http.StatusBadGateway, fmt.Sprintf("all channels failed: %v", lastErr))
 }
+
+
+// recordMediaRelayLog creates a RelayLog entry and updates global stats for media endpoints.
+func recordMediaRelayLog(apiKeyID int, requestModel string, bodyBytes []byte, channelID int, channelName string, resolvedModel string, duration time.Duration, attempts []dbmodel.ChannelAttempt, relayErr error) {
+	ctx, cancel := newRelayPersistenceContext()
+	defer cancel()
+
+	relayLog := dbmodel.RelayLog{
+		Time:             time.Now().Add(-duration).Unix(),
+		RequestModelName: requestModel,
+		RequestAPIKeyID:  apiKeyID,
+		ChannelId:        channelID,
+		ChannelName:      channelName,
+		ActualModelName:  resolvedModel,
+		UseTime:          int(duration.Milliseconds()),
+		Attempts:         attempts,
+		TotalAttempts:    len(attempts),
+	}
+
+	if apiKey, getErr := op.APIKeyGet(apiKeyID, ctx); getErr == nil {
+		relayLog.RequestAPIKeyName = apiKey.Name
+	}
+
+	if len(bodyBytes) > 0 {
+		relayLog.RequestContent = string(bodyBytes)
+	}
+
+	if relayErr != nil {
+		relayLog.Error = relayErr.Error()
+	}
+
+	if logErr := op.RelayLogAdd(ctx, relayLog); logErr != nil {
+		log.Warnf("failed to save media relay log: %v", logErr)
+	}
+
+	// Record global and API-key stats (media endpoints don't have token/cost data)
+stats := dbmodel.StatsMetrics{
+		WaitTime: int64(duration.Milliseconds()),
+	}
+	if relayErr == nil {
+		stats.RequestSuccess = 1
+		log.Infof("media relay complete: model=%s, channel=%d(%s), duration=%dms, attempts=%d",
+			requestModel, channelID, channelName, duration.Milliseconds(), len(attempts))
+	} else {
+		stats.RequestFailed = 1
+		log.Infof("media relay failed: model=%s, duration=%dms, attempts=%d, error=%v",
+			requestModel, duration.Milliseconds(), len(attempts), relayErr)
+	}
+
+	op.StatsTotalUpdate(stats)
+	op.StatsHourlyUpdate(stats)
+	if statsErr := op.StatsDailyUpdate(ctx, stats); statsErr != nil {
+		log.Warnf("failed to update daily stats for media relay: %v", statsErr)
+	}
+	op.StatsAPIKeyUpdate(apiKeyID, stats)
+}
+
 
 func recordPreparedCandidateSkip(iter *balancer.Iterator, item dbmodel.GroupItem, prepare PrepareCandidateResult) {
 	if prepare.SkipReason == "" {

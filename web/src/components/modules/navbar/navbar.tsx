@@ -36,7 +36,7 @@ export function NavBar() {
             <motion.nav
                 aria-label={t('ariaLabel')}
                 className={cn(
-                    "fixed bottom-5 left-1/2 flex max-w-[calc(100vw-1.5rem)] -translate-x-1/2 items-center gap-1 overflow-x-auto p-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+                    "fixed left-1/2 bottom-[calc(1.25rem+env(safe-area-inset-bottom,0px))] flex max-w-[calc(100vw-1.5rem)] -translate-x-1/2 items-center gap-1 overflow-x-auto p-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
                     "rounded-2xl border border-border bg-sidebar text-sidebar-foreground",
                     "md:sticky md:top-6 md:left-auto md:bottom-auto md:h-[calc(100dvh-3rem)] md:max-w-none md:translate-x-0 md:flex-col md:gap-2 md:overflow-visible md:p-3"
                 )}
@@ -63,7 +63,7 @@ export function NavBar() {
                                 "group relative z-20 flex items-center justify-center rounded-lg border transition-[color,background-color,border-color] duration-150 md:w-full",
                                 isMobile ? "size-9" : "w-12 h-11 md:justify-start md:gap-3 md:px-3",
                                 isActive
-                                    ? "border-transparent bg-primary/8 text-primary md:border-l-2 md:border-l-primary md:border-t-0 md:border-r-0 md:border-b-0"
+                                    ? "border-transparent bg-primary/15 text-primary border-t-2 border-t-primary md:border-t-0 md:border-l-2 md:border-l-primary md:border-r-0 md:border-b-0"
                                     : "border-transparent text-sidebar-foreground/50 hover:bg-muted/60 hover:text-sidebar-foreground"
                             )}
                             initial={lightweightMotion ? false : { opacity: 0, scale: 0.8 }}

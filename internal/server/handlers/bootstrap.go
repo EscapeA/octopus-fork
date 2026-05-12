@@ -1,8 +1,8 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lingyuins/octopus/internal/model"
@@ -42,15 +42,11 @@ func createBootstrapAdmin(c *gin.Context) {
 		return
 	}
 	if err := op.UserBootstrapCreate(user.Username, user.Password); err != nil {
-		switch err.Error() {
-		case "username is required", "password is required":
-			resp.Error(c, http.StatusBadRequest, err.Error())
-			return
-		case "initial admin account is already set up":
+		if errors.Is(err, op.ErrBootstrapAlreadySetUp) {
 			resp.Error(c, http.StatusConflict, err.Error())
 			return
 		}
-		if strings.Contains(err.Error(), "at least") {
+		if errors.Is(err, op.ErrBootstrapCredentials) {
 			resp.Error(c, http.StatusBadRequest, err.Error())
 			return
 		}

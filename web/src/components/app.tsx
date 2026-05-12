@@ -19,7 +19,7 @@ import { toast } from '@/components/common/Toast';
 import { ENTRANCE_VARIANTS } from '@/lib/animations/fluid-transitions';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { CONTENT_MAP } from '@/route';
-import { parseNavOrder, parseNavVisible } from '@/components/modules/navbar/nav-order';
+import { parseNavOrder, parseNavVisible } from '@/components/modules/navbar';
 import { apiClient } from '@/api/client';
 import { logger } from '@/lib/logger';
 import { FirstRunSetup } from '@/components/modules/first-run-setup';
@@ -45,7 +45,7 @@ function getNavOrderFromSettings(settings: Setting[] | undefined): NavItem[] {
 
 function getNavVisibleFromSettings(settings: Setting[] | undefined): NavItem[] {
     const navVisibleValue = settings?.find((item) => item.key === SettingKey.NavVisible)?.value;
-    return parseNavVisible(navVisibleValue) as NavItem[];
+    return parseNavVisible(navVisibleValue);
 }
 
 function HeaderActions({ activeItem }: { activeItem: NavItem }) {
@@ -453,7 +453,7 @@ export function AppContainer() {
                             filter: 'blur(4px)',
                         }}
                         transition={{ duration: lightweightMotion ? 0.18 : 0.35, ease: [0.16, 1, 0.3, 1] }}
-                        className="h-full min-h-0 flex-1 pb-4"
+                        className="h-full min-h-0 flex-1 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"
                     >
                         <ContentLoader activeRoute={activeItem} />
                     </motion.div>

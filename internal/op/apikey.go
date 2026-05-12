@@ -7,6 +7,7 @@ import (
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/utils/cache"
+	"github.com/lingyuins/octopus/internal/utils/log"
 )
 
 var apiKeyCache = cache.New[int, model.APIKey](16)
@@ -34,6 +35,9 @@ func APIKeyUpdate(key *model.APIKey, ctx context.Context) error {
 	return nil
 }
 
+// APIKeyList returns all API keys from the in-memory cache. The cache is
+// refreshed at startup via InitCache and updated on mutations. The ctx
+// parameter is reserved for future use (e.g., DB fallback).
 func APIKeyList(ctx context.Context) ([]model.APIKey, error) {
 	keys := make([]model.APIKey, 0, apiKeyCache.Len())
 	for _, apiKey := range apiKeyCache.GetAll() {
@@ -67,7 +71,7 @@ func APIKeyDelete(id int, ctx context.Context) error {
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
-			panic(r)
+			log.Errorf("panic recovered in APIKeyDelete transaction: %v", r)
 		}
 	}()
 

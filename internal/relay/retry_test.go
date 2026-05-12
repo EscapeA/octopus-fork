@@ -215,22 +215,22 @@ func TestClassifyRelayError_NetworkErrors(t *testing.T) {
 		{
 			name:      "connection refused",
 			err:       errors.New("connection refused"),
-			wantScope: ScopeSameChannel,
+			wantScope: ScopeNextChannel,
 		},
 		{
 			name:      "connection reset",
 			err:       errors.New("connection reset by peer"),
-			wantScope: ScopeSameChannel,
+			wantScope: ScopeNextChannel,
 		},
 		{
 			name:      "network unreachable",
 			err:       errors.New("network is unreachable"),
-			wantScope: ScopeSameChannel,
+			wantScope: ScopeNextChannel,
 		},
 		{
 			name:      "DNS error",
 			err:       errors.New("no such host"),
-			wantScope: ScopeSameChannel,
+			wantScope: ScopeNextChannel,
 		},
 		{
 			name:      "generic error",

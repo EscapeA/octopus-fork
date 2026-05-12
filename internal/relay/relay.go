@@ -279,169 +279,159 @@ func Handler(endpointType string, inboundType inbound.InboundType, c *gin.Contex
 		streamSession:     streamSession,
 	}
 
-	maxAttemptsPerCandidate := getMaxAttemptsPerCandidate()
+	maxKeyRetriesPerRoute := getMaxAttemptsPerCandidate()
+	maxRouteRetries := getMaxRouteRetries()
 	ratelimitCooldown := getRatelimitCooldown()
 	maxTotalAttempts := getMaxTotalAttempts()
 
-outer:
-	for iter.Next() {
-		if maxTotalAttempts > 0 && iter.ForwardedAttempts() >= maxTotalAttempts {
-			lastErr = fmt.Errorf("reached relay max total attempts: %d", maxTotalAttempts)
-			break
-		}
+	var allAttempts []dbmodel.ChannelAttempt
+
+	for routeRound := 1; routeRound <= maxRouteRetries; routeRound++ {
+		// 每轮开始前检查操作上下文
 		if err := req.operationCtx.Err(); err != nil {
 			lastErr = err
 			logRelayErrorfByContext(err, "relay operation ended before request completed: %v", err)
-			metrics.Save(false, err, iter.Attempts())
+			metrics.Save(false, err, allAttempts)
 			return
 		}
 
-		item := iter.Item()
+		// 每轮路由重试重建迭代器（粘性渠道自然在最前）
+		routeIter := balancer.NewIterator(group, apiKeyID, requestModel)
 
-		// 获取通道
-		channel, err := op.ChannelGet(item.ChannelID, req.operationCtx)
-		if err != nil {
-			log.Warnf("failed to get channel %d: %v", item.ChannelID, err)
-			iter.Skip(item.ChannelID, 0, fmt.Sprintf("channel_%d", item.ChannelID), fmt.Sprintf("channel not found: %v", err))
-			lastErr = err
-			continue
-		}
-		if !channel.Enabled {
-			iter.Skip(channel.ID, 0, channel.Name, "channel disabled")
-			continue
-		}
-
-		usedKey := channel.GetChannelKeyWithCooldown(ratelimitCooldown)
-		if usedKey.ChannelKey == "" {
-			iter.Skip(channel.ID, 0, channel.Name, "no available key")
-			continue
-		}
-
-		resolvedModelName := resolveCandidateModelName(requestModel, item)
-		if strings.TrimSpace(resolvedModelName) == "" {
-			iter.Skip(channel.ID, usedKey.ID, channel.Name, "resolved upstream model is empty")
-			continue
-		}
-
-		// 熔断检查
-		if iter.SkipCircuitBreak(channel.ID, usedKey.ID, channel.Name, resolvedModelName) {
-			continue
-		}
-
-		// 出站适配器
-		outAdapter := outbound.Get(channel.Type)
-		if outAdapter == nil {
-			iter.Skip(channel.ID, usedKey.ID, channel.Name, fmt.Sprintf("unsupported channel type: %d", channel.Type))
-			continue
-		}
-
-		// 类型兼容性检查
-		if internalRequest.IsEmbeddingRequest() && !outbound.IsEmbeddingChannelType(channel.Type) {
-			iter.Skip(channel.ID, usedKey.ID, channel.Name, "channel type not compatible with embedding request")
-			continue
-		}
-		if internalRequest.IsChatRequest() && !outbound.IsChatChannelType(channel.Type) {
-			iter.Skip(channel.ID, usedKey.ID, channel.Name, "channel type not compatible with chat request")
-			continue
-		}
-		if !isZenCandidateChannelAllowed(requestModel, channel.Type, internalRequest.IsEmbeddingRequest()) {
-			iter.Skip(channel.ID, usedKey.ID, channel.Name, "channel type not preferred for zen model prefix")
-			continue
-		}
-
-		// 设置实际模型
-		internalRequest.Model = resolvedModelName
-
-		var failedKeyIDs []int
-	innerRetry:
-		for tryIndex := 1; tryIndex <= maxAttemptsPerCandidate; tryIndex++ {
-			if maxTotalAttempts > 0 && iter.ForwardedAttempts() >= maxTotalAttempts {
+		for routeIter.Next() {
+			if maxTotalAttempts > 0 && len(allAttempts) >= maxTotalAttempts {
 				lastErr = fmt.Errorf("reached relay max total attempts: %d", maxTotalAttempts)
-				break outer
+				goto exhausted
 			}
 			if err := req.operationCtx.Err(); err != nil {
 				lastErr = err
 				logRelayErrorfByContext(err, "relay operation ended before request completed: %v", err)
-				metrics.Save(false, err, iter.Attempts())
+				metrics.Save(false, err, allAttempts)
 				return
 			}
 
-			if tryIndex > 1 {
-				usedKey = channel.GetChannelKeyExcludingWithCooldown(failedKeyIDs, ratelimitCooldown)
-				if usedKey.ChannelKey == "" {
-					log.Infof("channel %s has no more keys to retry, moving to next channel", channel.Name)
-					break innerRetry
+			item := routeIter.Item()
+
+			channel, err := op.ChannelGet(item.ChannelID, req.operationCtx)
+			if err != nil {
+				log.Warnf("failed to get channel %d: %v", item.ChannelID, err)
+				routeIter.Skip(item.ChannelID, 0, fmt.Sprintf("channel_%d", item.ChannelID), fmt.Sprintf("channel not found: %v", err))
+				continue
+			}
+			if !channel.Enabled {
+				routeIter.Skip(channel.ID, 0, channel.Name, "channel disabled")
+				continue
+			}
+
+			resolvedModelName := resolveCandidateModelName(requestModel, item)
+			if strings.TrimSpace(resolvedModelName) == "" {
+				routeIter.Skip(channel.ID, 0, channel.Name, "resolved upstream model is empty")
+				continue
+			}
+
+			// 出站适配器 + 类型兼容性（渠道级，一次检查）
+			outAdapter := outbound.Get(channel.Type)
+			if outAdapter == nil {
+				routeIter.Skip(channel.ID, 0, channel.Name, fmt.Sprintf("unsupported channel type: %d", channel.Type))
+				continue
+			}
+			if internalRequest.IsEmbeddingRequest() && !outbound.IsEmbeddingChannelType(channel.Type) {
+				routeIter.Skip(channel.ID, 0, channel.Name, "channel type not compatible with embedding request")
+				continue
+			}
+			if internalRequest.IsChatRequest() && !outbound.IsChatChannelType(channel.Type) {
+				routeIter.Skip(channel.ID, 0, channel.Name, "channel type not compatible with chat request")
+				continue
+			}
+			if !isZenCandidateChannelAllowed(requestModel, channel.Type, internalRequest.IsEmbeddingRequest()) {
+				routeIter.Skip(channel.ID, 0, channel.Name, "channel type not preferred for zen model prefix")
+				continue
+			}
+
+			internalRequest.Model = resolvedModelName
+
+			// 渠道内 Key 级重试
+			var failedKeyIDs []int
+			for keyRound := 1; keyRound <= maxKeyRetriesPerRoute; keyRound++ {
+				if maxTotalAttempts > 0 && len(allAttempts) >= maxTotalAttempts {
+					lastErr = fmt.Errorf("reached relay max total attempts: %d", maxTotalAttempts)
+					goto exhausted
 				}
-				if iter.SkipCircuitBreak(channel.ID, usedKey.ID, channel.Name, resolvedModelName) {
+				if err := req.operationCtx.Err(); err != nil {
+					lastErr = err
+					logRelayErrorfByContext(err, "relay operation ended: %v", err)
+					metrics.Save(false, err, allAttempts)
+					return
+				}
+
+				var usedKey dbmodel.ChannelKey
+				if keyRound == 1 {
+					usedKey = channel.GetChannelKeyWithCooldown(ratelimitCooldown)
+				} else {
+					usedKey = channel.GetChannelKeyExcludingWithCooldown(failedKeyIDs, ratelimitCooldown)
+				}
+				if usedKey.ChannelKey == "" {
+					break
+				}
+
+				// 熔断跳过不消耗 Key 重试配额
+				if routeIter.SkipCircuitBreak(channel.ID, usedKey.ID, channel.Name, resolvedModelName) {
 					failedKeyIDs = append(failedKeyIDs, usedKey.ID)
-					tryIndex--
+					keyRound--
 					continue
 				}
-			}
 
-			log.Infof("request model %s, mode: %d, forwarding to channel: %s model: %s key_id: %d (candidate %d/%d, attempt %d/%d, sticky=%t)",
-				requestModel, group.Mode, channel.Name, resolvedModelName, usedKey.ID,
-				iter.Index()+1, iter.Len(), tryIndex, maxAttemptsPerCandidate, iter.IsSticky())
+				log.Infof("request model %s, mode: %d, channel: %s model: %s key_id: %d (route R%d, key %d/%d, sticky=%t)",
+					requestModel, group.Mode, channel.Name, resolvedModelName, usedKey.ID,
+					routeRound, keyRound, maxKeyRetriesPerRoute, routeIter.IsSticky())
 
-			ra := &relayAttempt{
-				relayRequest:         req,
-				outAdapter:           outAdapter,
-				channel:              channel,
-				usedKey:              usedKey,
-				firstTokenTimeOutSec: group.FirstTokenTimeOut,
-				tryIndex:             tryIndex,
-				tryTotal:             maxAttemptsPerCandidate,
-			}
+				ra := &relayAttempt{
+					relayRequest:         req,
+					outAdapter:           outAdapter,
+					channel:              channel,
+					usedKey:              usedKey,
+					firstTokenTimeOutSec: group.FirstTokenTimeOut,
+					tryIndex:             keyRound,
+					tryTotal:             maxKeyRetriesPerRoute,
+				}
 
-			result := ra.attempt()
-			if result.Success {
-				lastErr = nil
-				metrics.Save(true, nil, iter.Attempts())
-				return
-			}
+				result := ra.attempt()
+				if result.Success {
+					lastErr = nil
+					metrics.Save(true, nil, allAttempts)
+					return
+				}
 
-			// 根据错误分类决策进行重试控制
-			switch result.Decision.Scope {
-			case ScopeNone:
-				// 不重试，直接失败
-				lastErr = result.Err
-				metrics.Save(false, lastErr, iter.Attempts())
-				resp.BadGateway(c)
-				return
-
-			case ScopeAbortAll:
-				// 停止所有重试（流式响应已写入）
-				lastErr = result.Err
-				metrics.Save(false, result.Err, iter.Attempts())
-				return
-
-			case ScopeSameChannel:
-				// 同候选换 Key 重试
-				lastErr = result.Err
-				failedKeyIDs = append(failedKeyIDs, usedKey.ID)
-				// 继续内层循环，尝试下一个 Key
-				continue innerRetry
-
-			case ScopeNextChannel:
-				// 换下一个候选重试
-				lastErr = result.Err
-				failedKeyIDs = append(failedKeyIDs, usedKey.ID)
-				// 跳出内层循环，进入下一个候选
-				break innerRetry
-
-			default:
-				// 未知决策，保守停止
-				lastErr = result.Err
-				metrics.Save(false, lastErr, iter.Attempts())
-				resp.BadGateway(c)
-				return
+				switch result.Decision.Scope {
+				case ScopeNone:
+					lastErr = result.Err
+					metrics.Save(false, lastErr, allAttempts)
+					resp.BadGateway(c)
+					return
+				case ScopeAbortAll:
+					lastErr = result.Err
+					metrics.Save(false, result.Err, allAttempts)
+					return
+				case ScopeSameChannel:
+					lastErr = result.Err
+					failedKeyIDs = append(failedKeyIDs, usedKey.ID)
+					// 继续 keyRound 循环，尝试同渠道下一个 Key
+				case ScopeNextChannel:
+					lastErr = result.Err
+					failedKeyIDs = append(failedKeyIDs, usedKey.ID)
+					break // 跳出 key 循环，尝试下一个渠道
+				default:
+					lastErr = result.Err
+					metrics.Save(false, lastErr, allAttempts)
+					resp.BadGateway(c)
+					return
+				}
 			}
 		}
+		allAttempts = append(allAttempts, routeIter.Attempts()...)
 	}
 
-	// 所有通道都失败
-	metrics.Save(false, lastErr, iter.Attempts())
-	resp.Error(c, http.StatusBadGateway, "all channels failed")
+exhausted:
 }
 
 // attempt 统一管理一次通道尝试的完整生命周期
@@ -757,7 +747,9 @@ func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http
 		case <-firstTokenC:
 			logClientDisconnected()
 			log.Warnf("first token timeout (%ds), switching channel", ra.firstTokenTimeOutSec)
-			_ = response.Body.Close()
+			if err := response.Body.Close(); err != nil {
+				log.Warnf("failed to close response body on first token timeout: %v", err)
+			}
 			return fmt.Errorf("first token timeout (%ds)", ra.firstTokenTimeOutSec)
 		case r, ok := <-results:
 			if !ok {

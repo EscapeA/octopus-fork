@@ -6,6 +6,10 @@ export {
     isFixedVisibleNavItem,
     normalizeNavOrder,
     normalizeVisibleNavItems,
+    parseNavOrder,
+    parseNavVisible,
+    serializeNavOrder,
+    serializeNavVisible,
     useNavStore,
     type NavItem,
 } from "./nav-store"

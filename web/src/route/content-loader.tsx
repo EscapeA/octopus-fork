@@ -1,7 +1,5 @@
 'use client';
 
-'use client';
-
 import { CONTENT_MAP } from './config';
 import type { RouteId } from './config';
 import { useTranslations } from 'next-intl';

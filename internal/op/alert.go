@@ -11,6 +11,7 @@ import (
 )
 
 var alertStateCache sync.Map // int(ruleID) -> model.AlertStateRecord
+var alertStateMu sync.Mutex  // protects read-modify-write in AlertStateSet
 
 func AlertRuleList(ctx context.Context) ([]model.AlertRule, error) {
 	var rules []model.AlertRule
@@ -61,12 +62,17 @@ func AlertNotifChannelDelete(ctx context.Context, id int) error {
 
 func AlertStateGet(ruleID int) model.AlertStateRecord {
 	if v, ok := alertStateCache.Load(ruleID); ok {
-		return v.(model.AlertStateRecord)
+		if record, ok := v.(model.AlertStateRecord); ok {
+			return record
+		}
 	}
 	return model.AlertStateRecord{RuleID: ruleID, State: model.AlertStateOK}
 }
 
 func AlertStateSet(ruleID int, state model.AlertState) {
+	alertStateMu.Lock()
+	defer alertStateMu.Unlock()
+
 	record := AlertStateGet(ruleID)
 	record.State = state
 	now := timeNow()

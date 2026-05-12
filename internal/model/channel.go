@@ -194,6 +194,20 @@ func (c *Channel) GetChannelKey() ChannelKey {
 	return c.GetChannelKeyWithCooldown(300)
 }
 
+// EnabledKeyCount returns the number of enabled keys with non-empty ChannelKey.
+func (c *Channel) EnabledKeyCount() int {
+	if c == nil {
+		return 0
+	}
+	count := 0
+	for _, k := range c.Keys {
+		if k.Enabled && k.ChannelKey != "" {
+			count++
+		}
+	}
+	return count
+}
+
 func (c *Channel) GetChannelKeyExcluding(excludeKeyIDs []int) ChannelKey {
 	return c.GetChannelKeyExcludingWithCooldown(excludeKeyIDs, 300)
 }
@@ -225,11 +239,11 @@ func (c *Channel) GetChannelKeyExcludingWithCooldown(excludeKeyIDs []int, rateli
 		if _, excluded := excludeSet[k.ID]; excluded {
 			continue
 		}
-		if ratelimitCooldownSec > 0 && k.StatusCode == 429 && k.LastUseTimeStamp > 0 {
-			if nowSec-k.LastUseTimeStamp < int64(ratelimitCooldownSec) {
-				continue
+if ratelimitCooldownSec > 0 && k.LastUseTimeStamp > 0 && k.StatusCode >= 400 {
+				if nowSec-k.LastUseTimeStamp < int64(ratelimitCooldownSec) {
+					continue
+				}
 			}
-		}
 		if !bestSet || k.TotalCost < bestCost {
 			best = k
 			bestCost = k.TotalCost

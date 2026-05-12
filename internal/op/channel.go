@@ -168,7 +168,7 @@ func ChannelUpdate(req *model.ChannelUpdateRequest, ctx context.Context) (*model
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
-			panic(r)
+			log.Errorf("panic recovered in transaction: %v", r)
 		}
 	}()
 
@@ -330,7 +330,7 @@ func ChannelDel(id int, ctx context.Context) error {
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
-			panic(r)
+			log.Errorf("panic recovered in transaction: %v", r)
 		}
 	}()
 

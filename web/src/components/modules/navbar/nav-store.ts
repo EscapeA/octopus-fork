@@ -89,6 +89,35 @@ export function isFixedVisibleNavItem(item: NavItem): boolean {
     return FIXED_VISIBLE_NAV_ITEMS.includes(item);
 }
 
+export function parseNavOrder(value: string | null | undefined): NavItem[] {
+    if (!value) return [...DEFAULT_NAV_ORDER];
+    try {
+        const parsed = JSON.parse(value);
+        return normalizeNavOrder(parsed);
+    } catch {
+        return [...DEFAULT_NAV_ORDER];
+    }
+}
+
+export function parseNavVisible(value: string | null | undefined, orderedItems?: readonly NavItem[]): NavItem[] {
+    const ordered = orderedItems ?? DEFAULT_NAV_ORDER;
+    if (!value) return [...DEFAULT_NAV_ORDER];
+    try {
+        const parsed = JSON.parse(value);
+        return normalizeVisibleNavItems(parsed, ordered);
+    } catch {
+        return normalizeVisibleNavItems(DEFAULT_NAV_ORDER, ordered);
+    }
+}
+
+export function serializeNavOrder(items: readonly NavItem[]): string {
+    return JSON.stringify(normalizeNavOrder(items));
+}
+
+export function serializeNavVisible(items: readonly NavItem[]): string {
+    return JSON.stringify(normalizeVisibleNavItems(items, DEFAULT_NAV_ORDER));
+}
+
 interface NavState {
     activeItem: NavItem;
     prevItem: NavItem | null;
