@@ -1,0 +1,78 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
+import type { RelayLog, RelayLogDetail } from '@/api/endpoints/log';
+import { resolveLogDisplayFields } from './display.ts';
+
+function buildLog(overrides: Partial<RelayLog> = {}): RelayLog {
+    return {
+        id: 1,
+        time: 0,
+        request_model_name: 'deepseek-v4-pro-max',
+        request_api_key_name: '',
+        endpoint_type: '',
+        channel: 0,
+        channel_name: '',
+        actual_model_name: '',
+        input_tokens: 0,
+        output_tokens: 0,
+        ftut: 0,
+        use_time: 0,
+        cost: 0,
+        error: '',
+        attempts: [],
+        total_attempts: 0,
+        ...overrides,
+    };
+}
+
+test('resolveLogDisplayFields infers deepseek endpoint and uses attempt channel fallback', () => {
+    const log = buildLog({
+        attempts: [
+            {
+                channel_id: 12,
+                channel_name: 'DeepSeek Channel',
+                model_name: 'deepseek-v4-pro-max',
+                attempt_num: 1,
+                status: 'success',
+                duration: 10,
+            },
+        ],
+    });
+
+    const result = resolveLogDisplayFields(log);
+    assert.equal(result.endpointType, 'deepseek');
+    assert.equal(result.channelName, 'DeepSeek Channel');
+    assert.equal(result.actualModelName, 'deepseek-v4-pro-max');
+});
+
+test('resolveLogDisplayFields prefers detail payload over list payload', () => {
+    const log = buildLog({
+        endpoint_type: '',
+        channel_name: '',
+        actual_model_name: '',
+    });
+    const detail: RelayLogDetail = {
+        ...log,
+        endpoint_type: 'deepseek',
+        channel_name: 'Relay Channel',
+        actual_model_name: 'deepseek-v4-pro-max',
+        request_content: '{}',
+        response_content: '{}',
+    };
+
+    const result = resolveLogDisplayFields(log, detail);
+    assert.equal(result.endpointType, 'deepseek');
+    assert.equal(result.channelName, 'Relay Channel');
+    assert.equal(result.actualModelName, 'deepseek-v4-pro-max');
+});
+
+test('resolveLogDisplayFields falls back to chat when only generic chat models exist', () => {
+    const log = buildLog({
+        request_model_name: 'gpt-4o-mini',
+        actual_model_name: 'gpt-4o-mini',
+    });
+
+    const result = resolveLogDisplayFields(log);
+    assert.equal(result.endpointType, 'chat');
+});

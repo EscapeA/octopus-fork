@@ -13,6 +13,7 @@ import { getModelIcon } from '@/lib/model-icons';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { endpointTypeLabelKey } from '@/components/modules/group/utils';
+import { resolveLogDisplayFields } from './display';
 import { CopyIconButton } from '@/components/common/CopyButton';
 import {
     MorphingDialog,
@@ -188,25 +189,26 @@ function DeferredJsonContent({ content, fallbackText }: { content: string | unde
 export function LogCard({ log }: { log: RelayLog }) {
     const t = useTranslations('log.card');
     const tGroup = useTranslations('group');
-    const { Avatar: ModelAvatar, color: brandColor } = useMemo(
-        () => getModelIcon(log.actual_model_name),
-        [log.actual_model_name]
-    );
-    const requestAPIKeyName = useMemo(() => log.request_api_key_name?.trim() ?? '', [log.request_api_key_name]);
     const { detail, isLoading: isDetailLoading, fetchDetail, reset: resetDetail } = useLogDetail();
-
     const hasError = !!log.error;
     const hasMultipleAttempts = log.attempts && log.attempts.length > 1;
     const [isDiagnosticExpanded, setIsDiagnosticExpanded] = useState(false);
-    const displayChannelName = log.channel_name?.trim() || '-';
+    const displayFields = useMemo(() => resolveLogDisplayFields(log, detail), [detail, log]);
+    const { Avatar: ModelAvatar, color: brandColor } = useMemo(
+        () => getModelIcon(displayFields.actualModelName),
+        [displayFields.actualModelName]
+    );
+    const requestAPIKeyName = displayFields.requestAPIKeyName;
+    const displayChannelName = displayFields.channelName || '-';
     const displayEndpointType = useMemo(() => {
-        const rawEndpointType = log.endpoint_type?.trim();
+        const rawEndpointType = displayFields.endpointType;
         if (!rawEndpointType) return '-';
 
         const labelKey = endpointTypeLabelKey(rawEndpointType);
         return labelKey ? tGroup(labelKey) : rawEndpointType;
-    }, [log.endpoint_type, tGroup]);
-    const displayActualModelName = log.actual_model_name?.trim() || '-';
+    }, [displayFields.endpointType, tGroup]);
+    const displayActualModelName = displayFields.actualModelName || '-';
+    const displayRequestModelName = displayFields.requestModelName || log.request_model_name;
 
     const requestContent = detail?.request_content;
     const responseContent = detail?.response_content;
@@ -224,8 +226,8 @@ export function LogCard({ log }: { log: RelayLog }) {
                         <ModelAvatar size={40} />
                         <div className="min-w-0 flex flex-col gap-3">
                             <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm md:flex-nowrap">
-                                <span className="min-w-0 max-w-full font-semibold text-card-foreground truncate md:max-w-[32%]" title={log.request_model_name}>
-                                    {log.request_model_name}
+                                <span className="min-w-0 max-w-full font-semibold text-card-foreground truncate md:max-w-[32%]" title={displayRequestModelName}>
+                                    {displayRequestModelName}
                                 </span>
                                 <ArrowRight className="size-3.5 shrink-0 text-muted-foreground/50" />
                                 <Badge
@@ -310,7 +312,7 @@ export function LogCard({ log }: { log: RelayLog }) {
                         <MorphingDialogClose className="top-4 right-5 text-muted-foreground hover:text-foreground transition-colors" />
                         <MorphingDialogTitle className="flex items-center gap-2 mb-3 text-sm">
                             <ModelAvatar size={28} />
-                            <span className="font-semibold text-card-foreground">{log.request_model_name}</span>
+                            <span className="font-semibold text-card-foreground">{displayRequestModelName}</span>
                             <ArrowRight className="size-3.5 text-muted-foreground/50" />
                             <Badge
                                 variant="secondary"
@@ -343,8 +345,8 @@ export function LogCard({ log }: { log: RelayLog }) {
                             )}
                         </MorphingDialogTitle>
 
-                        <MorphingDialogDescription className="flex-1 min-h-0">
-                            <div className="flex flex-col min-h-0 h-full gap-4">
+                        <MorphingDialogDescription className="flex-1 min-h-0 overflow-hidden">
+                            <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
                                 {(hasError || hasMultipleAttempts) && (
                                     <div className={cn(
                                         "flex-initial min-h-0 flex flex-col rounded-2xl border overflow-hidden max-h-[40%]",
@@ -456,7 +458,7 @@ export function LogCard({ log }: { log: RelayLog }) {
                                         </AnimatePresence>
                                     </div>
                                 )}
-                                <div className="flex-1 min-h-0 overflow-hidden">
+                                <div className="min-h-0 flex-1 overflow-hidden pb-1">
                                     <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-2">
                                         <div className="flex min-h-0 flex-col rounded-2xl border border-border bg-muted/30 overflow-hidden">
                                             <div className="flex items-center gap-2 px-3 md:px-4 py-2.5 md:py-3 border-b border-border bg-muted/50 shrink-0">
@@ -466,7 +468,7 @@ export function LogCard({ log }: { log: RelayLog }) {
                                                     {log.input_tokens.toLocaleString()} {t('tokens')}
                                                 </Badge>
                                             </div>
-                                            <div className="min-h-0 flex-1 overflow-auto">
+                                            <div className="min-h-0 flex-1 overflow-auto pb-4">
                                                 {isDetailLoading ? (
                                                     <div className="p-4 flex items-center justify-center h-full">
                                                         <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
@@ -484,7 +486,7 @@ export function LogCard({ log }: { log: RelayLog }) {
                                                     {log.output_tokens.toLocaleString()} {t('tokens')}
                                                 </Badge>
                                             </div>
-                                            <div className="min-h-0 flex-1 overflow-auto">
+                                            <div className="min-h-0 flex-1 overflow-auto pb-4">
                                                 {isDetailLoading ? (
                                                     <div className="p-4 flex items-center justify-center h-full">
                                                         <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
@@ -499,7 +501,8 @@ export function LogCard({ log }: { log: RelayLog }) {
                             </div>
                         </MorphingDialogDescription>
 
-                        <div className="flex flex-wrap items-center gap-3 md:gap-4 pt-4 mt-auto text-xs text-muted-foreground shrink-0">
+                        <div className="shrink-0 border-t border-border/50 pt-3 text-xs text-muted-foreground">
+                            <div className="flex flex-wrap items-center gap-3 md:gap-4">
                             <div className="flex items-center gap-1.5">
                                 <Clock className="size-3.5" style={{ color: brandColor }} />
                                 <span className="tabular-nums">{formatTime(log.time)}</span>
@@ -525,6 +528,7 @@ export function LogCard({ log }: { log: RelayLog }) {
                                 <span className="font-medium text-emerald-600 dark:text-emerald-400">
                                     {t('cost')}: {Number(log.cost).toFixed(6)}
                                 </span>
+                            </div>
                             </div>
                         </div>
                     </MorphingDialogContent>
