@@ -262,7 +262,7 @@ func Handler(endpointType string, inboundType inbound.InboundType, c *gin.Contex
 	}
 
 	// 初始化 Metrics
-	metrics := NewRelayMetrics(apiKeyID, requestModel, internalRequest)
+	metrics := NewRelayMetrics(apiKeyID, requestModel, endpointType, group.EndpointType, internalRequest)
 
 	// 请求级上下文
 	req := &relayRequest{

@@ -79,6 +79,7 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 		resp.Error(c, http.StatusNotFound, "model not found")
 		return
 	}
+	logEndpointType := resolveRelayLogEndpointType(groupEndpointType, group.EndpointType)
 
 	// 3. Create load balancer iterator
 	iter := balancer.NewIterator(group, apiKeyID, requestModel)
@@ -210,7 +211,7 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 					balancer.SetSticky(apiKeyID, requestModel, channel.ID, usedKey.ID)
 
 					allAttempts = append(allAttempts, routeIter.Attempts()...)
-					recordMediaRelayLog(apiKeyID, requestModel, bodyBytes, channel.ID, channel.Name, resolvedModel, time.Since(startTime), allAttempts, nil)
+					recordMediaRelayLog(apiKeyID, requestModel, logEndpointType, bodyBytes, channel.ID, channel.Name, resolvedModel, time.Since(startTime), allAttempts, nil)
 					return
 				}
 
@@ -235,12 +236,12 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 				case ScopeNone:
 					lastErr = fwdErr
 					allAttempts = append(allAttempts, routeIter.Attempts()...)
-					recordMediaRelayLog(apiKeyID, requestModel, bodyBytes, channel.ID, channel.Name, resolvedModel, time.Since(startTime), allAttempts, fwdErr)
+					recordMediaRelayLog(apiKeyID, requestModel, logEndpointType, bodyBytes, channel.ID, channel.Name, resolvedModel, time.Since(startTime), allAttempts, fwdErr)
 					resp.Error(c, http.StatusBadGateway, lastErr.Error())
 					return
 				case ScopeAbortAll:
 					allAttempts = append(allAttempts, routeIter.Attempts()...)
-					recordMediaRelayLog(apiKeyID, requestModel, bodyBytes, channel.ID, channel.Name, resolvedModel, time.Since(startTime), allAttempts, lastErr)
+					recordMediaRelayLog(apiKeyID, requestModel, logEndpointType, bodyBytes, channel.ID, channel.Name, resolvedModel, time.Since(startTime), allAttempts, lastErr)
 					return
 				case ScopeSameChannel:
 					lastErr = fwdErr
@@ -252,29 +253,28 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 				default:
 					lastErr = fwdErr
 					allAttempts = append(allAttempts, routeIter.Attempts()...)
-					recordMediaRelayLog(apiKeyID, requestModel, bodyBytes, channel.ID, channel.Name, resolvedModel, time.Since(startTime), allAttempts, fwdErr)
+					recordMediaRelayLog(apiKeyID, requestModel, logEndpointType, bodyBytes, channel.ID, channel.Name, resolvedModel, time.Since(startTime), allAttempts, fwdErr)
 					resp.Error(c, http.StatusBadGateway, lastErr.Error())
 					return
 				}
 			}
 		}
-allAttempts = append(allAttempts, routeIter.Attempts()...)
+		allAttempts = append(allAttempts, routeIter.Attempts()...)
 	}
 	// All route rounds exhausted
-	recordMediaRelayLog(apiKeyID, requestModel, bodyBytes, 0, "", "", time.Since(startTime), allAttempts, lastErr)
+	recordMediaRelayLog(apiKeyID, requestModel, logEndpointType, bodyBytes, 0, "", "", time.Since(startTime), allAttempts, lastErr)
 	resp.Error(c, http.StatusBadGateway, fmt.Sprintf("all channels failed: %v", lastErr))
 	return
 
 mediaExhausted:
 	// Only reached via goto from within the relay loop (context canceled / max attempts)
 	allAttempts = append(allAttempts, routeIter.Attempts()...)
-	recordMediaRelayLog(apiKeyID, requestModel, bodyBytes, 0, "", "", time.Since(startTime), allAttempts, lastErr)
+	recordMediaRelayLog(apiKeyID, requestModel, logEndpointType, bodyBytes, 0, "", "", time.Since(startTime), allAttempts, lastErr)
 	resp.Error(c, http.StatusBadGateway, fmt.Sprintf("all channels failed: %v", lastErr))
 }
-
 
 // recordMediaRelayLog creates a RelayLog entry and updates global stats for media endpoints.
-func recordMediaRelayLog(apiKeyID int, requestModel string, bodyBytes []byte, channelID int, channelName string, resolvedModel string, duration time.Duration, attempts []dbmodel.ChannelAttempt, relayErr error) {
+func recordMediaRelayLog(apiKeyID int, requestModel string, endpointType string, bodyBytes []byte, channelID int, channelName string, resolvedModel string, duration time.Duration, attempts []dbmodel.ChannelAttempt, relayErr error) {
 	ctx, cancel := newRelayPersistenceContext()
 	defer cancel()
 
@@ -282,6 +282,7 @@ func recordMediaRelayLog(apiKeyID int, requestModel string, bodyBytes []byte, ch
 		Time:             time.Now().Add(-duration).Unix(),
 		RequestModelName: requestModel,
 		RequestAPIKeyID:  apiKeyID,
+		EndpointType:     endpointType,
 		ChannelId:        channelID,
 		ChannelName:      channelName,
 		ActualModelName:  resolvedModel,
@@ -307,7 +308,7 @@ func recordMediaRelayLog(apiKeyID int, requestModel string, bodyBytes []byte, ch
 	}
 
 	// Record global and API-key stats (media endpoints don't have token/cost data)
-stats := dbmodel.StatsMetrics{
+	stats := dbmodel.StatsMetrics{
 		WaitTime: int64(duration.Milliseconds()),
 	}
 	if relayErr == nil {
@@ -327,7 +328,6 @@ stats := dbmodel.StatsMetrics{
 	}
 	op.StatsAPIKeyUpdate(apiKeyID, stats)
 }
-
 
 func recordPreparedCandidateSkip(iter *balancer.Iterator, item dbmodel.GroupItem, prepare PrepareCandidateResult) {
 	if prepare.SkipReason == "" {

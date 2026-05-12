@@ -7,12 +7,17 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/lingyuins/octopus/internal/conf"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/transformer/outbound"
 	"github.com/dlclark/regexp2"
 )
 
 func FetchModels(ctx context.Context, request model.Channel) ([]string, error) {
+	if conf.IsDevMockSuccess() {
+		return filterDevMockModels(request)
+	}
+
 	client, err := ChannelHttpClient(&request)
 	if err != nil {
 		return nil, err
@@ -47,6 +52,36 @@ func FetchModels(ctx context.Context, request model.Channel) ([]string, error) {
 		return matchModel, nil
 	}
 	return fetchModel, nil
+}
+
+func filterDevMockModels(request model.Channel) ([]string, error) {
+	models := []string{
+		"gpt-4o",
+		"gpt-4.1",
+		"text-embedding-3-small",
+		"claude-3-7-sonnet",
+		"gemini-2.5-pro",
+		"mimo-v2.5",
+	}
+	if request.MatchRegex == nil || strings.TrimSpace(*request.MatchRegex) == "" {
+		return models, nil
+	}
+
+	re, err := regexp2.Compile(*request.MatchRegex, regexp2.ECMAScript)
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]string, 0, len(models))
+	for _, item := range models {
+		matched, err := re.MatchString(item)
+		if err != nil {
+			return nil, err
+		}
+		if matched {
+			filtered = append(filtered, item)
+		}
+	}
+	return filtered, nil
 }
 
 // refer: https://platform.openai.com/docs/api-reference/models/list

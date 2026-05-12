@@ -71,6 +71,10 @@ func runStart() error {
 		shutdown.Shutdown()
 		return fmt.Errorf("user init error: %w", err)
 	}
+	if err := op.EnsureDevBootstrapData(context.Background()); err != nil {
+		shutdown.Shutdown()
+		return fmt.Errorf("dev bootstrap init error: %w", err)
+	}
 
 	if err := server.Start(); err != nil {
 		shutdown.Shutdown()

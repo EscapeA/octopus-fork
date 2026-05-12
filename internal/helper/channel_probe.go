@@ -8,7 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lingyuins/octopus/internal/conf"
 	appmodel "github.com/lingyuins/octopus/internal/model"
+	"github.com/lingyuins/octopus/internal/utils/log"
 )
 
 type ChannelTestResult struct {
@@ -28,6 +30,30 @@ type ChannelTestSummary struct {
 }
 
 func TestChannel(ctx context.Context, request appmodel.Channel) (*ChannelTestSummary, error) {
+	if conf.IsDevMockSuccess() {
+		baseURL := "dev-mock://local"
+		if len(request.BaseUrls) > 0 && strings.TrimSpace(request.BaseUrls[0].URL) != "" {
+			baseURL = strings.TrimSpace(request.BaseUrls[0].URL)
+		}
+		keyMasked := "sk-o...0001"
+		if len(request.Keys) > 0 && strings.TrimSpace(request.Keys[0].ChannelKey) != "" {
+			keyMasked = maskSecret(request.Keys[0].ChannelKey)
+		}
+		log.Infof("dev mock channel test success: base_url=%s", baseURL)
+		return &ChannelTestSummary{
+			Passed: true,
+			Results: []ChannelTestResult{{
+				BaseURL:      baseURL,
+				KeyMasked:    keyMasked,
+				StatusCode:   http.StatusOK,
+				Passed:       true,
+				LatencyMS:    1,
+				Message:      "ok",
+				ResponseBody: devMockText,
+			}},
+		}, nil
+	}
+
 	client, err := ChannelHttpClient(&request)
 	if err != nil {
 		return nil, err

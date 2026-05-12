@@ -10,9 +10,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lingyuins/octopus/internal/conf"
 	appmodel "github.com/lingyuins/octopus/internal/model"
 	transmodel "github.com/lingyuins/octopus/internal/transformer/model"
 	"github.com/lingyuins/octopus/internal/transformer/outbound"
+	"github.com/lingyuins/octopus/internal/utils/log"
 )
 
 type GroupModelTestRequest struct {
@@ -58,6 +60,9 @@ var groupProbeProgress sync.Map
 var groupProbeProgressTTL = 10 * time.Minute
 
 func TestGroupModels(ctx context.Context, group *appmodel.Group, channels map[int]appmodel.Channel) (*GroupModelTestSummary, error) {
+	if conf.IsDevMockSuccess() {
+		return buildDevMockGroupTestSummary(group)
+	}
 	progress := &GroupModelTestProgress{Total: len(group.Items)}
 	return runGroupModelTest(ctx, group, channels, progress)
 }
@@ -68,6 +73,24 @@ func StartGroupModelTest(group *appmodel.Group, channels map[int]appmodel.Channe
 	}
 	if len(group.Items) == 0 {
 		return nil, fmt.Errorf("group has no items")
+	}
+	if conf.IsDevMockSuccess() {
+		summary, err := buildDevMockGroupTestSummary(group)
+		if err != nil {
+			return nil, err
+		}
+		progress := &GroupModelTestProgress{
+			ID:        uuid.NewString(),
+			Passed:    summary.Passed,
+			Completed: summary.Completed,
+			Total:     summary.Total,
+			Done:      true,
+			Results:   append([]GroupModelTestResult(nil), summary.Results...),
+			Message:   "dev mock success",
+		}
+		storeGroupModelProgress(progress)
+		log.Infof("dev mock group test success: group=%s total=%d", group.Name, len(group.Items))
+		return progress, nil
 	}
 
 	id := uuid.NewString()
@@ -367,4 +390,34 @@ func normalizeGroupProbeEndpointType(endpointType string) string {
 
 func stringPtr(value string) *string {
 	return &value
+}
+
+func buildDevMockGroupTestSummary(group *appmodel.Group) (*GroupModelTestSummary, error) {
+	if group == nil {
+		return nil, fmt.Errorf("group is nil")
+	}
+	if len(group.Items) == 0 {
+		return nil, fmt.Errorf("group has no items")
+	}
+
+	results := make([]GroupModelTestResult, 0, len(group.Items))
+	for _, item := range group.Items {
+		results = append(results, GroupModelTestResult{
+			ItemID:       item.ID,
+			ChannelID:    item.ChannelID,
+			ChannelName:  "dev-mock-channel",
+			ModelName:    item.ModelName,
+			Passed:       true,
+			Attempts:     1,
+			StatusCode:   http.StatusOK,
+			ResponseText: devMockText,
+			Message:      "ok",
+		})
+	}
+	return &GroupModelTestSummary{
+		Passed:    true,
+		Completed: len(results),
+		Total:     len(results),
+		Results:   results,
+	}, nil
 }

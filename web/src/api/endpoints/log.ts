@@ -33,6 +33,7 @@ export interface RelayLog {
     time: number;                // 时间戳
     request_model_name: string;  // 请求模型名称
     request_api_key_name?: string; // 请求使用的 API Key 名称
+    endpoint_type?: string;      // 命中的端点分类
     channel: number;             // 实际使用的渠道ID
     channel_name: string;        // 渠道名称
     actual_model_name: string;   // 实际使用模型名称

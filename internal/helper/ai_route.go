@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lingyuins/octopus/internal/conf"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op"
 	"github.com/lingyuins/octopus/internal/utils/log"
@@ -30,6 +31,40 @@ type aiRouteProgressEntry struct {
 }
 
 func StartGenerateAIRoute(req model.GenerateAIRouteRequest) (*model.GenerateAIRouteProgress, error) {
+	if conf.IsDevMockSuccess() {
+		now := aiRouteProgressNow()
+		progress := &model.GenerateAIRouteProgress{
+			ID:              uuid.NewString(),
+			Scope:           req.Scope,
+			GroupID:         req.GroupID,
+			Status:          model.AIRouteTaskStatusCompleted,
+			CurrentStep:     model.AIRouteTaskStepCompleted,
+			ProgressPercent: 100,
+			TotalBatches:    1,
+			CompletedBatches: 1,
+			Done:            true,
+			ResultReady:     true,
+			Message:         "dev mock success",
+			StartedAt:       cloneTimePtr(&now),
+			UpdatedAt:       cloneTimePtr(&now),
+			HeartbeatAt:     cloneTimePtr(&now),
+			FinishedAt:      cloneTimePtr(&now),
+			EventSequence:   1,
+			Result: &model.GenerateAIRouteResult{
+				Scope:      req.Scope,
+				GroupID:    req.GroupID,
+				GroupCount: 1,
+				RouteCount: 1,
+				ItemCount:  1,
+			},
+		}
+		storeAIRouteProgress(progress)
+		publishGenerateAIRouteProgress(progress)
+		log.Infof("dev mock ai route success: scope=%s group_id=%d", req.Scope, req.GroupID)
+		cloned := cloneAIRouteProgress(progress)
+		return &cloned, nil
+	}
+
 	existingProgress, err := findActiveAIRouteProgress(req)
 	if err != nil {
 		return nil, err

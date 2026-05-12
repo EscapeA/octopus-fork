@@ -145,7 +145,7 @@ export function ChannelForm({
     const t = useTranslations('channel.form');
     const isCompactViewport = useIsMobile();
     const requestRewriteSupported = isRequestRewriteSupportedChannelType(formData.type);
-    const sectionClassName = 'space-y-4 rounded-lg border border-border/30 bg-card p-4 md:p-5';
+    const sectionClassName = 'space-y-4 rounded-lg bg-card/70 p-4 md:p-5';
     const labelClassName = 'text-sm font-medium text-card-foreground';
     const fieldGroupClassName = 'space-y-2';
 
@@ -373,7 +373,7 @@ export function ChannelForm({
 
     return (
         <form onSubmit={onSubmit} className="flex h-full min-h-0 flex-col">
-            <div className="flex-1 min-h-0 overflow-y-auto px-1 space-y-4 pb-2">
+            <div className="flex-1 min-h-0 space-y-4 overflow-y-auto pb-2">
             <section className={sectionClassName}>
                 <SectionHeader icon={Sparkles} title={t('template.label')} hint={t('template.hint')} />
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -690,7 +690,7 @@ export function ChannelForm({
 
             <Accordion type="single" collapsible className="w-full">
                 <AccordionItem value="advanced" className="border-none">
-                    <AccordionTrigger className="rounded-lg border border-border/30 bg-card px-4 py-4 text-sm font-medium text-card-foreground shadow-sm transition-colors hover:bg-card hover:no-underline">
+                    <AccordionTrigger className="rounded-lg bg-card/70 px-4 py-4 text-sm font-medium text-card-foreground transition-colors hover:bg-card hover:no-underline">
                         <span className="flex items-center gap-2">
                             <span className="h-2 w-2 rounded-full bg-primary/70" />
                             {t('advanced')}
@@ -914,7 +914,7 @@ export function ChannelForm({
             </Accordion>
             </div>
 
-            <section className={`${sectionClassName} mt-4 flex shrink-0 flex-col gap-4 md:flex-row md:items-center md:justify-between`}>
+            <section className={`${sectionClassName} mt-4 flex shrink-0 flex-col gap-4 border-t border-border/20 pt-4 md:flex-row md:items-center md:justify-between`}>
                 <label className="flex items-center gap-2 cursor-pointer">
                     <Switch
                         checked={formData.enabled}

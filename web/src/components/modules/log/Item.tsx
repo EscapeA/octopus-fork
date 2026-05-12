@@ -12,6 +12,7 @@ import { type RelayLog, type ChannelAttempt, useLogDetail } from '@/api/endpoint
 import { getModelIcon } from '@/lib/model-icons';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { endpointTypeLabelKey } from '@/components/modules/group/utils';
 import { CopyIconButton } from '@/components/common/CopyButton';
 import {
     MorphingDialog,
@@ -186,6 +187,7 @@ function DeferredJsonContent({ content, fallbackText }: { content: string | unde
 
 export function LogCard({ log }: { log: RelayLog }) {
     const t = useTranslations('log.card');
+    const tGroup = useTranslations('group');
     const { Avatar: ModelAvatar, color: brandColor } = useMemo(
         () => getModelIcon(log.actual_model_name),
         [log.actual_model_name]
@@ -196,6 +198,15 @@ export function LogCard({ log }: { log: RelayLog }) {
     const hasError = !!log.error;
     const hasMultipleAttempts = log.attempts && log.attempts.length > 1;
     const [isDiagnosticExpanded, setIsDiagnosticExpanded] = useState(false);
+    const displayChannelName = log.channel_name?.trim() || '-';
+    const displayEndpointType = useMemo(() => {
+        const rawEndpointType = log.endpoint_type?.trim();
+        if (!rawEndpointType) return '-';
+
+        const labelKey = endpointTypeLabelKey(rawEndpointType);
+        return labelKey ? tGroup(labelKey) : rawEndpointType;
+    }, [log.endpoint_type, tGroup]);
+    const displayActualModelName = log.actual_model_name?.trim() || '-';
 
     const requestContent = detail?.request_content;
     const responseContent = detail?.response_content;
@@ -212,28 +223,38 @@ export function LogCard({ log }: { log: RelayLog }) {
                     <div className={cn("p-4 grid grid-cols-[auto_1fr] gap-4", hasError ? "items-start" : "items-center")}>
                         <ModelAvatar size={40} />
                         <div className="min-w-0 flex flex-col gap-3">
-                            <div className="flex items-center gap-2 min-w-0 text-sm">
-                                <span className="font-semibold text-card-foreground truncate" title={log.request_model_name}>
+                            <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm md:flex-nowrap">
+                                <span className="min-w-0 max-w-full font-semibold text-card-foreground truncate md:max-w-[32%]" title={log.request_model_name}>
                                     {log.request_model_name}
                                 </span>
                                 <ArrowRight className="size-3.5 shrink-0 text-muted-foreground/50" />
+                                <Badge
+                                    variant="secondary"
+                                    className="max-w-full shrink-0 text-xs px-1.5 py-0"
+                                    style={{ backgroundColor: `${brandColor}15`, color: brandColor }}
+                                    title={displayEndpointType}
+                                >
+                                    <span className="block max-w-[10rem] truncate">{displayEndpointType}</span>
+                                </Badge>
+                                <ArrowRight className="size-3.5 shrink-0 text-muted-foreground/50" />
                                 {hasMultipleAttempts ? (
                                     <RetryBadgeWithTooltip
-                                        channelName={log.channel_name}
+                                        channelName={displayChannelName}
                                         brandColor={brandColor}
                                         attempts={log.attempts!}
                                     />
                                 ) : (
                                     <Badge
                                         variant="secondary"
-                                        className="shrink-0 text-xs px-1.5 py-0"
+                                        className="max-w-full shrink-0 text-xs px-1.5 py-0"
                                         style={{ backgroundColor: `${brandColor}15`, color: brandColor }}
+                                        title={displayChannelName}
                                     >
-                                        {log.channel_name}
+                                        <span className="block max-w-[18rem] truncate">{displayChannelName}</span>
                                     </Badge>
                                 )}
-                                <span className="text-muted-foreground truncate" title={log.actual_model_name}>
-                                    {log.actual_model_name}
+                                <span className="min-w-0 text-muted-foreground truncate md:flex-1" title={displayActualModelName}>
+                                    {displayActualModelName}
                                 </span>
                                 {log.attempts?.some(a => a.sticky) && (
                                     <Pin className="size-3.5 shrink-0 text-amber-500" />
@@ -291,22 +312,32 @@ export function LogCard({ log }: { log: RelayLog }) {
                             <ModelAvatar size={28} />
                             <span className="font-semibold text-card-foreground">{log.request_model_name}</span>
                             <ArrowRight className="size-3.5 text-muted-foreground/50" />
+                            <Badge
+                                variant="secondary"
+                                className="max-w-full shrink-0 text-xs px-1.5 py-0"
+                                style={{ backgroundColor: `${brandColor}15`, color: brandColor }}
+                                title={displayEndpointType}
+                            >
+                                <span className="block max-w-[10rem] truncate">{displayEndpointType}</span>
+                            </Badge>
+                            <ArrowRight className="size-3.5 text-muted-foreground/50" />
                             {hasMultipleAttempts ? (
                                 <RetryBadgeWithTooltip
-                                    channelName={log.channel_name}
+                                    channelName={displayChannelName}
                                     brandColor={brandColor}
                                     attempts={log.attempts!}
                                 />
                             ) : (
                                 <Badge
                                     variant="secondary"
-                                    className="text-xs px-1.5 py-0"
+                                    className="max-w-full text-xs px-1.5 py-0"
                                     style={{ backgroundColor: `${brandColor}15`, color: brandColor }}
+                                    title={displayChannelName}
                                 >
-                                    {log.channel_name}
+                                    <span className="block max-w-[18rem] truncate">{displayChannelName}</span>
                                 </Badge>
                             )}
-                            <span className="text-muted-foreground">{log.actual_model_name}</span>
+                            <span className="min-w-0 flex-1 truncate text-muted-foreground" title={displayActualModelName}>{displayActualModelName}</span>
                             {log.attempts?.some(a => a.sticky) && (
                                 <Pin className="size-3.5 shrink-0 text-amber-500" />
                             )}
@@ -426,8 +457,8 @@ export function LogCard({ log }: { log: RelayLog }) {
                                     </div>
                                 )}
                                 <div className="flex-1 min-h-0 overflow-hidden">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full min-h-0">
-                                        <div className="flex flex-col rounded-2xl border border-border bg-muted/30 overflow-hidden min-h-0">
+                                    <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-2">
+                                        <div className="flex min-h-0 flex-col rounded-2xl border border-border bg-muted/30 overflow-hidden">
                                             <div className="flex items-center gap-2 px-3 md:px-4 py-2.5 md:py-3 border-b border-border bg-muted/50 shrink-0">
                                                 <Send className="size-4 text-green-500" />
                                                 <span className="text-sm font-medium text-card-foreground">{t('requestContent')}</span>
@@ -435,7 +466,7 @@ export function LogCard({ log }: { log: RelayLog }) {
                                                     {log.input_tokens.toLocaleString()} {t('tokens')}
                                                 </Badge>
                                             </div>
-                                            <div className="flex-1 overflow-auto min-h-0">
+                                            <div className="min-h-0 flex-1 overflow-auto">
                                                 {isDetailLoading ? (
                                                     <div className="p-4 flex items-center justify-center h-full">
                                                         <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
@@ -445,7 +476,7 @@ export function LogCard({ log }: { log: RelayLog }) {
                                                 )}
                                             </div>
                                         </div>
-                                        <div className="flex flex-col rounded-2xl border border-border bg-muted/30 overflow-hidden min-h-0">
+                                        <div className="flex min-h-0 flex-col rounded-2xl border border-border bg-muted/30 overflow-hidden">
                                             <div className="flex items-center gap-2 px-3 md:px-4 py-2.5 md:py-3 border-b border-border bg-muted/50 shrink-0">
                                                 <MessageSquare className="size-4 text-purple-500" />
                                                 <span className="text-sm font-medium text-card-foreground">{t('responseContent')}</span>
@@ -453,7 +484,7 @@ export function LogCard({ log }: { log: RelayLog }) {
                                                     {log.output_tokens.toLocaleString()} {t('tokens')}
                                                 </Badge>
                                             </div>
-                                            <div className="flex-1 overflow-auto min-h-0">
+                                            <div className="min-h-0 flex-1 overflow-auto">
                                                 {isDetailLoading ? (
                                                     <div className="p-4 flex items-center justify-center h-full">
                                                         <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />

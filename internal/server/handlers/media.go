@@ -13,6 +13,7 @@ func init() {
 	// JSON endpoints: require API key auth + JSON content type
 	router.NewGroupRouter("/v1").
 		Use(middleware.APIKeyAuth()).
+		Use(middleware.DevMockPublicSuccess()).
 		Use(middleware.RequireJSON()).
 		AddRoute(
 			router.NewRoute("/images/generations", http.MethodPost).
@@ -46,6 +47,7 @@ func init() {
 	// Multipart endpoints: require API key auth only (no RequireJSON)
 	router.NewGroupRouter("/v1").
 		Use(middleware.APIKeyAuth()).
+		Use(middleware.DevMockPublicSuccess()).
 		AddRoute(
 			router.NewRoute("/images/edits", http.MethodPost).
 				Handle(imageEdit),
