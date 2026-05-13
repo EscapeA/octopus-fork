@@ -67,6 +67,27 @@ test('resolveLogDisplayFields prefers detail payload over list payload', () => {
     assert.equal(result.actualModelName, 'deepseek-v4-pro-max');
 });
 
+test('resolveLogDisplayFields falls back to channel id mapping when channel names are empty', () => {
+    const log = buildLog({
+        channel: 42,
+        channel_name: '',
+        attempts: [
+            {
+                channel_id: 42,
+                channel_name: '',
+                model_name: 'deepseek-v4-pro-max',
+                attempt_num: 1,
+                status: 'success',
+                duration: 10,
+            },
+        ],
+    });
+
+    const result = resolveLogDisplayFields(log, null, new Map([[42, 'DeepSeek Fallback Channel']]));
+    assert.equal(result.channelId, 42);
+    assert.equal(result.channelName, 'DeepSeek Fallback Channel');
+});
+
 test('resolveLogDisplayFields falls back to chat when only generic chat models exist', () => {
     const log = buildLog({
         request_model_name: 'gpt-4o-mini',

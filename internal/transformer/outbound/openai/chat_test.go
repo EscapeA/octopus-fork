@@ -211,6 +211,65 @@ func TestChatOutboundTransformRequest_PreservesReasoningContentForDeepSeekToolCo
 	}
 }
 
+func TestChatOutboundTransformRequest_PreservesReasoningContentForMimoToolContinuation(t *testing.T) {
+	outbound := &ChatOutbound{}
+	reasoning := "need one more tool round"
+	content := ""
+	toolCallID := "call_1"
+
+	request := &model.InternalLLMRequest{
+		Model: "mimo-v2.5-pro",
+		Messages: []model.Message{
+			{
+				Role: "assistant",
+				Content: model.MessageContent{
+					Content: &content,
+				},
+				ReasoningContent: &reasoning,
+				ToolCalls: []model.ToolCall{
+					{
+						ID:   toolCallID,
+						Type: "function",
+						Function: model.FunctionCall{
+							Name:      "lookup_weather",
+							Arguments: `{"city":"Shanghai"}`,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	httpReq, err := outbound.TransformRequest(context.Background(), request, "https://api.xiaomimimo.com/v1", "sk-test")
+	if err != nil {
+		t.Fatalf("TransformRequest() error = %v", err)
+	}
+
+	body, err := io.ReadAll(httpReq.Body)
+	if err != nil {
+		t.Fatalf("failed to read request body: %v", err)
+	}
+
+	var got struct {
+		Messages []struct {
+			ReasoningContent *string `json:"reasoning_content,omitempty"`
+		} `json:"messages"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("failed to unmarshal outbound body: %v", err)
+	}
+
+	if len(got.Messages) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(got.Messages))
+	}
+	if got.Messages[0].ReasoningContent == nil || *got.Messages[0].ReasoningContent != reasoning {
+		t.Fatalf("expected reasoning_content %q, got %#v", reasoning, got.Messages[0].ReasoningContent)
+	}
+	if request.Messages[0].ReasoningContent == nil || *request.Messages[0].ReasoningContent != reasoning {
+		t.Fatalf("expected original request reasoning_content to stay intact")
+	}
+}
+
 func TestChatOutboundTransformRequest_AttachesStandaloneDeepSeekReasoningToNextToolCall(t *testing.T) {
 	outbound := &ChatOutbound{}
 	reasoning := "need one more tool round"
@@ -851,6 +910,59 @@ func TestChatOutboundTransformRequest_MapsDeepSeekThinkingControls(t *testing.T)
 	}
 }
 
+func TestChatOutboundTransformRequest_MapsMimoThinkingControls(t *testing.T) {
+	outbound := &ChatOutbound{}
+	stream := false
+
+	request := &model.InternalLLMRequest{
+		Model:           "mimo-v2.5-pro",
+		ReasoningEffort: "xhigh",
+		Store:           &stream,
+		ExtraBody:       json.RawMessage(`{"thinking":{"type":"enabled"},"foo":"bar"}`),
+		Messages: []model.Message{
+			{
+				Role: "user",
+				Content: model.MessageContent{
+					Content: loPtr("hello"),
+				},
+			},
+		},
+	}
+
+	httpReq, err := outbound.TransformRequest(context.Background(), request, "https://api.xiaomimimo.com/v1", "sk-test")
+	if err != nil {
+		t.Fatalf("TransformRequest() error = %v", err)
+	}
+
+	body, err := io.ReadAll(httpReq.Body)
+	if err != nil {
+		t.Fatalf("failed to read request body: %v", err)
+	}
+
+	var got struct {
+		ReasoningEffort string         `json:"reasoning_effort,omitempty"`
+		ExtraBody       map[string]any `json:"extra_body,omitempty"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("failed to unmarshal outbound body: %v", err)
+	}
+
+	if got.ReasoningEffort != "max" {
+		t.Fatalf("expected mimo reasoning_effort max, got %q", got.ReasoningEffort)
+	}
+
+	thinking, ok := got.ExtraBody["thinking"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected extra_body.thinking to be preserved, got %#v", got.ExtraBody)
+	}
+	if thinking["type"] != "enabled" {
+		t.Fatalf("expected extra_body.thinking.type enabled, got %#v", thinking["type"])
+	}
+	if got.ExtraBody["foo"] != "bar" {
+		t.Fatalf("expected extra_body custom fields to be preserved, got %#v", got.ExtraBody["foo"])
+	}
+}
+
 func TestChatOutboundTransformRequest_DisablesDeepSeekThinkingWhenReasoningEffortNone(t *testing.T) {
 	outbound := &ChatOutbound{}
 	stream := false
@@ -901,6 +1013,59 @@ func TestChatOutboundTransformRequest_DisablesDeepSeekThinkingWhenReasoningEffor
 	}
 	if got.ExtraBody.Thinking.Type != "disabled" {
 		t.Fatalf("expected deepseek thinking to be disabled, got %q", got.ExtraBody.Thinking.Type)
+	}
+}
+
+func TestChatOutboundTransformRequest_DisablesMimoThinkingWhenReasoningEffortNone(t *testing.T) {
+	outbound := &ChatOutbound{}
+	stream := false
+
+	request := &model.InternalLLMRequest{
+		Model:           "mimo-v2.5-pro",
+		ReasoningEffort: "none",
+		Store:           &stream,
+		Messages: []model.Message{
+			{
+				Role: "user",
+				Content: model.MessageContent{
+					Content: loPtr("hello"),
+				},
+			},
+		},
+	}
+
+	httpReq, err := outbound.TransformRequest(context.Background(), request, "https://api.xiaomimimo.com/v1", "sk-test")
+	if err != nil {
+		t.Fatalf("TransformRequest() error = %v", err)
+	}
+
+	body, err := io.ReadAll(httpReq.Body)
+	if err != nil {
+		t.Fatalf("failed to read request body: %v", err)
+	}
+
+	bodyText := string(body)
+	if strings.Contains(bodyText, `"reasoning_effort":"none"`) {
+		t.Fatalf("expected invalid reasoning_effort none to be omitted, got %s", bodyText)
+	}
+
+	var got struct {
+		ReasoningEffort *string `json:"reasoning_effort,omitempty"`
+		ExtraBody       struct {
+			Thinking struct {
+				Type string `json:"type"`
+			} `json:"thinking"`
+		} `json:"extra_body,omitempty"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("failed to unmarshal outbound body: %v", err)
+	}
+
+	if got.ReasoningEffort != nil {
+		t.Fatalf("expected reasoning_effort to be omitted, got %q", *got.ReasoningEffort)
+	}
+	if got.ExtraBody.Thinking.Type != "disabled" {
+		t.Fatalf("expected mimo thinking to be disabled, got %q", got.ExtraBody.Thinking.Type)
 	}
 }
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
+import { useChannelList } from '@/api/endpoints/channel';
 import { useLogs } from '@/api/endpoints/log';
 import { LogCard } from './Item';
 import { Loader2 } from 'lucide-react';
@@ -16,6 +17,14 @@ import { VirtualizedGrid } from '@/components/common/VirtualizedGrid';
 export function Log() {
     const t = useTranslations('log');
     const { logs, hasMore, isLoading, isLoadingMore, loadMore } = useLogs();
+    const { data: channels = [] } = useChannelList();
+    const channelNameById = useMemo(() => {
+        const map = new Map<number, string>();
+        for (const item of channels) {
+            map.set(item.raw.id, item.raw.name);
+        }
+        return map;
+    }, [channels]);
 
     const canLoadMore = hasMore && !isLoading && !isLoadingMore && logs.length > 0;
     const handleReachEnd = useCallback(() => {
@@ -51,7 +60,7 @@ export function Log() {
                     estimateItemHeight={80}
                     overscan={8}
                     getItemKey={(log) => `log-${log.id}`}
-                    renderItem={(log) => <LogCard log={log} />}
+                    renderItem={(log) => <LogCard log={log} channelNameById={channelNameById} />}
                     footer={footer}
                     onReachEnd={handleReachEnd}
                     reachEndEnabled={canLoadMore}

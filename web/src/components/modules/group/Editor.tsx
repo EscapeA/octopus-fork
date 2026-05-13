@@ -418,6 +418,9 @@ export function GroupEditor({
                                             </option>
                                         ))}
                                     </select>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        {t('form.endpointType.hint')}
+                                    </p>
                                 </Field>
                                 <Field className="md:col-span-2">
                                     <FieldLabel htmlFor="group-match-regex">{t('form.matchRegex')}</FieldLabel>

@@ -47,9 +47,10 @@ interface RetryBadgeWithTooltipProps {
     channelName: string;
     brandColor: string;
     attempts: ChannelAttempt[];
+    channelNameById?: ReadonlyMap<number, string>;
 }
 
-function RetryBadgeWithTooltip({ channelName, brandColor, attempts }: RetryBadgeWithTooltipProps) {
+function RetryBadgeWithTooltip({ channelName, brandColor, attempts, channelNameById }: RetryBadgeWithTooltipProps) {
     const t = useTranslations('log.card');
 
     return (
@@ -80,7 +81,7 @@ function RetryBadgeWithTooltip({ channelName, brandColor, attempts }: RetryBadge
                             </Badge>
                             <div className="flex min-w-0 flex-col flex-1">
                                 <span className="truncate text-xs font-semibold text-foreground">
-                                    {attempt.channel_name}
+                                    {attempt.channel_name?.trim() || channelNameById?.get(attempt.channel_id) || `Channel #${attempt.channel_id}`}
                                 </span>
                                 <span className="text-[10px] text-muted-foreground">
                                     {attempt.model_name} • {formatDuration(attempt.duration)}
@@ -129,9 +130,11 @@ function DeferredJsonContent({ content, fallbackText }: { content: string | unde
 
     if (!content) {
         return (
-            <pre className="p-4 text-xs text-muted-foreground whitespace-pre-wrap wrap-break-word leading-relaxed">
-                {fallbackText}
-            </pre>
+            <div className="h-full min-h-0 overflow-auto overscroll-contain">
+                <pre className="p-4 text-xs text-muted-foreground whitespace-pre-wrap wrap-break-word leading-relaxed">
+                    {fallbackText}
+                </pre>
+            </div>
         );
     }
 
@@ -144,7 +147,7 @@ function DeferredJsonContent({ content, fallbackText }: { content: string | unde
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.15 }}
-                    className="p-4 flex items-center justify-center h-full"
+                    className="flex h-full min-h-0 items-center justify-center overflow-auto overscroll-contain p-4"
                 >
                     <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
                 </motion.div>
@@ -155,7 +158,7 @@ function DeferredJsonContent({ content, fallbackText }: { content: string | unde
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="p-4"
+                    className="h-full min-h-0 overflow-auto overscroll-contain p-4"
                 >
                     <JsonView
                         value={parsed.data as object}
@@ -177,7 +180,7 @@ function DeferredJsonContent({ content, fallbackText }: { content: string | unde
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="p-4 text-xs text-muted-foreground whitespace-pre-wrap wrap-break-word font-mono leading-relaxed"
+                    className="h-full min-h-0 overflow-auto overscroll-contain p-4 text-xs text-muted-foreground whitespace-pre-wrap wrap-break-word font-mono leading-relaxed"
                 >
                     {content}
                 </motion.pre>
@@ -186,14 +189,14 @@ function DeferredJsonContent({ content, fallbackText }: { content: string | unde
     );
 }
 
-export function LogCard({ log }: { log: RelayLog }) {
+export function LogCard({ log, channelNameById }: { log: RelayLog; channelNameById?: ReadonlyMap<number, string> }) {
     const t = useTranslations('log.card');
     const tGroup = useTranslations('group');
     const { detail, isLoading: isDetailLoading, fetchDetail, reset: resetDetail } = useLogDetail();
     const hasError = !!log.error;
     const hasMultipleAttempts = log.attempts && log.attempts.length > 1;
     const [isDiagnosticExpanded, setIsDiagnosticExpanded] = useState(false);
-    const displayFields = useMemo(() => resolveLogDisplayFields(log, detail), [detail, log]);
+    const displayFields = useMemo(() => resolveLogDisplayFields(log, detail, channelNameById), [channelNameById, detail, log]);
     const { Avatar: ModelAvatar, color: brandColor } = useMemo(
         () => getModelIcon(displayFields.actualModelName),
         [displayFields.actualModelName]
@@ -244,6 +247,7 @@ export function LogCard({ log }: { log: RelayLog }) {
                                         channelName={displayChannelName}
                                         brandColor={brandColor}
                                         attempts={log.attempts!}
+                                        channelNameById={channelNameById}
                                     />
                                 ) : (
                                     <Badge
@@ -308,7 +312,7 @@ export function LogCard({ log }: { log: RelayLog }) {
                 </MorphingDialogTrigger>
 
                 <MorphingDialogContainer>
-                    <MorphingDialogContent className="relative w-[calc(100vw-2rem)] md:w-[95vw] md:max-w-7xl bg-card text-card-foreground px-6 py-4 rounded-xl max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden">
+                    <MorphingDialogContent className="relative flex max-h-[calc(100dvh-2rem)] min-h-0 w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl bg-card px-6 py-4 text-card-foreground md:w-[95vw] md:max-w-7xl">
                         <MorphingDialogClose className="top-4 right-5 text-muted-foreground hover:text-foreground transition-colors" />
                         <MorphingDialogTitle className="flex items-center gap-2 mb-3 text-sm">
                             <ModelAvatar size={28} />
@@ -328,6 +332,7 @@ export function LogCard({ log }: { log: RelayLog }) {
                                     channelName={displayChannelName}
                                     brandColor={brandColor}
                                     attempts={log.attempts!}
+                                    channelNameById={channelNameById}
                                 />
                             ) : (
                                 <Badge
@@ -345,8 +350,8 @@ export function LogCard({ log }: { log: RelayLog }) {
                             )}
                         </MorphingDialogTitle>
 
-                        <MorphingDialogDescription className="flex-1 min-h-0 overflow-hidden">
-                            <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
+                        <MorphingDialogDescription className="flex min-h-0 flex-1 overflow-hidden">
+                            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
                                 {(hasError || hasMultipleAttempts) && (
                                     <div className={cn(
                                         "flex-initial min-h-0 flex flex-col rounded-2xl border overflow-hidden max-h-[40%]",
@@ -434,7 +439,7 @@ export function LogCard({ log }: { log: RelayLog }) {
                                                                     >
                                                                         <div className="flex items-center gap-2">
                                                                             <span className="font-semibold text-foreground">
-                                                                                {attempt.channel_name}
+                                                                                {attempt.channel_name?.trim() || channelNameById?.get(attempt.channel_id) || `Channel #${attempt.channel_id}`}
                                                                             </span>
                                                                             <span className="text-muted-foreground">
                                                                                 ({attempt.model_name})
@@ -468,7 +473,7 @@ export function LogCard({ log }: { log: RelayLog }) {
                                                     {log.input_tokens.toLocaleString()} {t('tokens')}
                                                 </Badge>
                                             </div>
-                                            <div className="min-h-0 flex-1 overflow-auto pb-4">
+                                            <div className="min-h-0 flex-1 overflow-hidden">
                                                 {isDetailLoading ? (
                                                     <div className="p-4 flex items-center justify-center h-full">
                                                         <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
@@ -486,7 +491,7 @@ export function LogCard({ log }: { log: RelayLog }) {
                                                     {log.output_tokens.toLocaleString()} {t('tokens')}
                                                 </Badge>
                                             </div>
-                                            <div className="min-h-0 flex-1 overflow-auto pb-4">
+                                            <div className="min-h-0 flex-1 overflow-hidden">
                                                 {isDetailLoading ? (
                                                     <div className="p-4 flex items-center justify-center h-full">
                                                         <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />

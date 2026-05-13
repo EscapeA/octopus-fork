@@ -32,6 +32,22 @@ function lastAttemptValue(
     return '';
 }
 
+function firstNonZero(...values: Array<number | null | undefined>) {
+    for (const value of values) {
+        if (typeof value === 'number' && value > 0) return value;
+    }
+    return 0;
+}
+
+function lastAttemptChannelId(attempts: ChannelAttempt[] | undefined) {
+    if (!attempts?.length) return 0;
+    for (let index = attempts.length - 1; index >= 0; index -= 1) {
+        const value = attempts[index]?.channel_id;
+        if (typeof value === 'number' && value > 0) return value;
+    }
+    return 0;
+}
+
 function inferEndpointTypeFromModels(modelNames: string[]) {
     const normalizedNames = modelNames
         .map((name) => name.trim().toLowerCase())
@@ -54,7 +70,11 @@ function inferEndpointTypeFromModels(modelNames: string[]) {
     return normalizedNames.length > 0 ? 'chat' : '';
 }
 
-export function resolveLogDisplayFields(log: RelayLog, detail?: RelayLogDetail | null) {
+export function resolveLogDisplayFields(
+    log: RelayLog,
+    detail?: RelayLogDetail | null,
+    channelNameById?: ReadonlyMap<number, string>,
+) {
     const mergedAttempts = detail?.attempts?.length ? detail.attempts : log.attempts;
 
     const requestModelName = firstNonEmpty(detail?.request_model_name, log.request_model_name);
@@ -73,10 +93,12 @@ export function resolveLogDisplayFields(log: RelayLog, detail?: RelayLogDetail |
             lastAttemptValue(mergedAttempts, (attempt) => attempt.model_name),
         ]),
     );
+    const channelId = firstNonZero(detail?.channel, log.channel, lastAttemptChannelId(mergedAttempts));
     const channelName = firstNonEmpty(
         detail?.channel_name,
         log.channel_name,
         lastAttemptValue(mergedAttempts, (attempt) => attempt.channel_name),
+        channelId > 0 ? channelNameById?.get(channelId) : '',
     );
 
     return {
@@ -84,6 +106,7 @@ export function resolveLogDisplayFields(log: RelayLog, detail?: RelayLogDetail |
         requestModelName,
         actualModelName,
         endpointType,
+        channelId,
         channelName,
     };
 }

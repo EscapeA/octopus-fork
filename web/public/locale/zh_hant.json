@@ -1332,7 +1332,8 @@
       "selectChannel": "供應源",
       "selectModel": "模型",
       "endpointType": {
-        "label": "API 分類",
+        "label": "路由 API 分類",
+        "hint": "用於限制該分組匹配哪類請求，與渠道中的「渠道類型」不是同一個設定。",
         "options": {
           "all": "全部",
           "chat": "對話",

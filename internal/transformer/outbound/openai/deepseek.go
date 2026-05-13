@@ -8,8 +8,25 @@ import (
 )
 
 func isDeepSeekCompatRequest(baseURL string, request *model.InternalLLMRequest) bool {
+	return isProviderReasoningCompatRequest(baseURL, request, "deepseek")
+}
+
+func isMimoCompatRequest(baseURL string, request *model.InternalLLMRequest) bool {
+	return isProviderReasoningCompatRequest(baseURL, request, "mimo")
+}
+
+func isReasoningCompatRequest(baseURL string, request *model.InternalLLMRequest) bool {
+	return isDeepSeekCompatRequest(baseURL, request) || isMimoCompatRequest(baseURL, request)
+}
+
+func isProviderReasoningCompatRequest(baseURL string, request *model.InternalLLMRequest, provider string) bool {
+	provider = strings.ToLower(strings.TrimSpace(provider))
+	if provider == "" {
+		return false
+	}
+
 	lowerBaseURL := strings.ToLower(strings.TrimSpace(baseURL))
-	if lowerBaseURL != "" && strings.Contains(lowerBaseURL, "deepseek") {
+	if lowerBaseURL != "" && strings.Contains(lowerBaseURL, provider) {
 		return true
 	}
 	if request == nil {
@@ -18,17 +35,17 @@ func isDeepSeekCompatRequest(baseURL string, request *model.InternalLLMRequest) 
 
 	if strings.EqualFold(
 		strings.TrimSpace(request.TransformerMetadata[model.TransformerMetadataGroupEndpointType]),
-		"deepseek",
+		provider,
 	) {
 		return true
 	}
 
 	lowerModelName := strings.ToLower(strings.TrimSpace(request.Model))
-	return strings.Contains(lowerModelName, "deepseek")
+	return strings.Contains(lowerModelName, provider)
 }
 
 func normalizeDeepSeekReasoningCompat(request *model.InternalLLMRequest, baseURL string) {
-	if request == nil || !isDeepSeekCompatRequest(baseURL, request) {
+	if request == nil || !isReasoningCompatRequest(baseURL, request) {
 		return
 	}
 

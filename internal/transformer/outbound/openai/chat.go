@@ -84,9 +84,10 @@ func sanitizeRequestForOpenAICompat(request *model.InternalLLMRequest, baseURL s
 
 	normalizeDeepSeekReasoningCompat(request, baseURL)
 
-	// Only apply generic reasoning-effort normalization to non-DeepSeek
-	// providers. DeepSeek already handles effort mapping in the call above.
-	if !isDeepSeekCompatRequest(baseURL, request) {
+	// Only apply generic reasoning-effort normalization to non-provider-specific
+	// reasoning-compatible targets. DeepSeek and Mimo already handle effort
+	// mapping in the call above.
+	if !isReasoningCompatRequest(baseURL, request) {
 		request.ReasoningEffort = normalizeOpenAICompatReasoningEffort(request.ReasoningEffort)
 	}
 
@@ -99,7 +100,7 @@ func sanitizeRequestForOpenAICompat(request *model.InternalLLMRequest, baseURL s
 		sanitizeMessageForOpenAICompat(&request.Messages[i], preserveDeepSeekReasoning)
 	}
 
-	if !isDeepSeekCompatRequest(baseURL, request) {
+	if !isReasoningCompatRequest(baseURL, request) {
 		request.ExtraBody = nil
 	}
 	request.Include = nil
@@ -121,7 +122,7 @@ func sanitizeMessageForOpenAICompat(msg *model.Message, preserveDeepSeekReasonin
 }
 
 func shouldPreserveDeepSeekReasoning(baseURL string, request *model.InternalLLMRequest) bool {
-	return isDeepSeekCompatRequest(baseURL, request)
+	return isReasoningCompatRequest(baseURL, request)
 }
 
 func attachStandaloneDeepSeekReasoningMessages(request *model.InternalLLMRequest) {
