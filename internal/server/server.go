@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -41,7 +42,10 @@ func Start() error {
 	r.Use(middleware.SecurityHeaders())
 	r.Use(middleware.Cors())
 	r.Use(middleware.AuditManagementWrite())
-	if static.StaticFS != nil {
+	if localStaticDir, ok := resolveLocalStaticDir(); ok {
+		log.Infof("serving frontend static assets from local directory: %s", localStaticDir)
+		r.Use(middleware.StaticLocal("/", localStaticDir))
+	} else if static.StaticFS != nil {
 		r.Use(middleware.StaticEmbed("/", static.StaticFS))
 	} else {
 		log.Warnf("frontend static assets are not embedded; API endpoints remain available, but the management UI requires building the web app first")
@@ -85,4 +89,19 @@ func ListenSignal() {
 	if err := Close(); err != nil {
 		log.Errorf("shutdown error: %v", err)
 	}
+}
+
+func resolveLocalStaticDir() (string, bool) {
+	if !conf.IsDebug() {
+		return "", false
+	}
+
+	for _, dir := range []string{"web/out", "static/out"} {
+		indexPath := filepath.Join(dir, "index.html")
+		if info, err := os.Stat(indexPath); err == nil && !info.IsDir() {
+			return dir, true
+		}
+	}
+
+	return "", false
 }

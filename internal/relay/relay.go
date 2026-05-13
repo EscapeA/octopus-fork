@@ -396,8 +396,9 @@ func Handler(endpointType string, inboundType inbound.InboundType, c *gin.Contex
 				}
 
 				result := ra.attempt()
-				// 合并当前 route 的 attempts，确保 Save() 能正确提取渠道信息
-				currentAttempts := append(allAttempts, routeIter.Attempts()...)
+				// 当前请求的 attempt 记录挂在 relayRequest.iter（即 routeIter）上；
+				// 不要从最外层 req.iter 读取，否则成功日志会丢失渠道信息。
+				currentAttempts := append(allAttempts, req.iter.Attempts()...)
 				if result.Success {
 					lastErr = nil
 					metrics.Save(true, nil, currentAttempts)

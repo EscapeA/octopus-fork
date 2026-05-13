@@ -88,6 +88,27 @@ test('resolveLogDisplayFields falls back to channel id mapping when channel name
     assert.equal(result.channelName, 'DeepSeek Fallback Channel');
 });
 
+test('resolveLogDisplayFields falls back to channel id label when no channel name sources exist', () => {
+    const log = buildLog({
+        channel: 77,
+        channel_name: '',
+        attempts: [
+            {
+                channel_id: 77,
+                channel_name: '',
+                model_name: 'gpt-4o-mini',
+                attempt_num: 1,
+                status: 'success',
+                duration: 10,
+            },
+        ],
+    });
+
+    const result = resolveLogDisplayFields(log);
+    assert.equal(result.channelId, 77);
+    assert.equal(result.channelName, 'Channel #77');
+});
+
 test('resolveLogDisplayFields falls back to chat when only generic chat models exist', () => {
     const log = buildLog({
         request_model_name: 'gpt-4o-mini',
