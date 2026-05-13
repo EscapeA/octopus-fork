@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { useTranslations } from 'next-intl';
-import { Bell, GripVertical, Languages, ListOrdered, Monitor, Moon, RotateCcw, Sun } from 'lucide-react';
+import { Bell, Clock3, GripVertical, Languages, ListOrdered, Monitor, Moon, RotateCcw, Sun } from 'lucide-react';
 import {
     DragDropContext,
     Draggable,
@@ -28,6 +28,18 @@ import { SettingKey, useSetSetting, useSettingList } from '@/api/endpoints/setti
 import { toast } from '@/components/common/Toast';
 
 type AlertNotifyLanguage = Locale;
+const TIME_ZONE_OPTIONS = [
+    'Asia/Shanghai',
+    'Asia/Tokyo',
+    'Asia/Singapore',
+    'UTC',
+    'Europe/London',
+    'Europe/Berlin',
+    'America/New_York',
+    'America/Chicago',
+    'America/Denver',
+    'America/Los_Angeles',
+] as const;
 
 function normalizeAlertNotifyLanguage(value: string | null | undefined): AlertNotifyLanguage {
     switch (value) {
@@ -228,7 +240,7 @@ function NavigationPreferences() {
 export function SettingAppearance() {
     const t = useTranslations('setting');
     const { theme, setTheme } = useTheme();
-    const { locale, setLocale } = useSettingStore();
+    const { locale, setLocale, timeZone, setTimeZone } = useSettingStore();
     const { data: settings } = useSettingList();
     const setSetting = useSetSetting();
     const [alertNotifyLanguage, setAlertNotifyLanguage] = useState<AlertNotifyLanguage>('en');
@@ -306,7 +318,7 @@ export function SettingAppearance() {
                         </Select>
                     </div>
 
-                    <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="grid gap-4 lg:grid-cols-3">
                         <div className="flex flex-col gap-4 rounded-lg border-border/30 bg-card p-4 shadow-sm">
                             <div className="flex items-center gap-3">
                                 <Languages className="h-5 w-5 text-muted-foreground" />
@@ -322,6 +334,26 @@ export function SettingAppearance() {
                                     <SelectItem value="en" className="rounded-xl">{t('language.en')}</SelectItem>
                                 </SelectContent>
                             </Select>
+                        </div>
+
+                        <div className="flex flex-col gap-4 rounded-lg border-border/30 bg-card p-4 shadow-sm">
+                            <div className="flex items-center gap-3">
+                                <Clock3 className="h-5 w-5 text-muted-foreground" />
+                                <span className="text-sm font-medium">{t('timeZone.label')}</span>
+                            </div>
+                            <Select value={timeZone} onValueChange={setTimeZone}>
+                                <SelectTrigger className="w-full rounded-lg">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-lg">
+                                    {TIME_ZONE_OPTIONS.map((option) => (
+                                        <SelectItem key={option} value={option} className="rounded-xl">
+                                            {t(`timeZone.options.${option}`)}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <p className="text-xs leading-5 text-muted-foreground">{t('timeZone.description')}</p>
                         </div>
 
                         <div className="flex flex-col gap-4 rounded-lg border-border/30 bg-card p-4 shadow-sm">

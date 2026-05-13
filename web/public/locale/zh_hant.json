@@ -717,6 +717,22 @@
       "zh_hant": "繁體中文",
       "en": "English"
     },
+    "timeZone": {
+      "label": "使用者時區",
+      "description": "用於頁面中的日期與時間顯示，預設使用上海時區。",
+      "options": {
+        "Asia/Shanghai": "亞洲/上海 (UTC+08:00)",
+        "Asia/Tokyo": "亞洲/東京 (UTC+09:00)",
+        "Asia/Singapore": "亞洲/新加坡 (UTC+08:00)",
+        "UTC": "世界協調時間 (UTC+00:00)",
+        "Europe/London": "歐洲/倫敦 (UTC+00:00/UTC+01:00)",
+        "Europe/Berlin": "歐洲/柏林 (UTC+01:00/UTC+02:00)",
+        "America/New_York": "美洲/紐約 (UTC-05:00/UTC-04:00)",
+        "America/Chicago": "美洲/芝加哥 (UTC-06:00/UTC-05:00)",
+        "America/Denver": "美洲/丹佛 (UTC-07:00/UTC-06:00)",
+        "America/Los_Angeles": "美洲/洛杉磯 (UTC-08:00/UTC-07:00)"
+      }
+    },
     "alertLanguage": {
       "label": "告警發送語言",
       "zh_hans": "簡體中文",

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 export type Locale = 'zh-Hans' | 'zh-Hant' | 'en';
+export const DEFAULT_TIME_ZONE = 'Asia/Shanghai';
 
 export function normalizeLocale(locale: string | null | undefined): Locale {
     switch (locale) {
@@ -30,16 +31,33 @@ export function normalizeLocale(locale: string | null | undefined): Locale {
     }
 }
 
+export function normalizeTimeZone(timeZone: string | null | undefined): string {
+    if (!timeZone) {
+        return DEFAULT_TIME_ZONE;
+    }
+
+    try {
+        Intl.DateTimeFormat(undefined, { timeZone });
+        return timeZone;
+    } catch {
+        return DEFAULT_TIME_ZONE;
+    }
+}
+
 interface SettingState {
     locale: Locale;
+    timeZone: string;
     setLocale: (locale: Locale) => void;
+    setTimeZone: (timeZone: string) => void;
 }
 
 export const useSettingStore = create<SettingState>()(
     persist(
         (set) => ({
             locale: 'zh-Hans',
+            timeZone: DEFAULT_TIME_ZONE,
             setLocale: (locale) => set({ locale: normalizeLocale(locale) }),
+            setTimeZone: (timeZone) => set({ timeZone: normalizeTimeZone(timeZone) }),
         }),
         {
             name: 'octopus-settings',
@@ -50,9 +68,9 @@ export const useSettingStore = create<SettingState>()(
                     ...currentState,
                     ...typed,
                     locale: normalizeLocale(typed?.locale),
+                    timeZone: normalizeTimeZone(typed?.timeZone),
                 };
             },
         }
     )
 );
-

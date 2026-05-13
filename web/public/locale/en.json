@@ -717,6 +717,22 @@
       "zh_hant": "Chinese (Traditional)",
       "en": "English"
     },
+    "timeZone": {
+      "label": "User time zone",
+      "description": "Used for date and time display across the UI. Defaults to Asia/Shanghai.",
+      "options": {
+        "Asia/Shanghai": "Asia/Shanghai (UTC+08:00)",
+        "Asia/Tokyo": "Asia/Tokyo (UTC+09:00)",
+        "Asia/Singapore": "Asia/Singapore (UTC+08:00)",
+        "UTC": "UTC (UTC+00:00)",
+        "Europe/London": "Europe/London (UTC+00:00/UTC+01:00)",
+        "Europe/Berlin": "Europe/Berlin (UTC+01:00/UTC+02:00)",
+        "America/New_York": "America/New_York (UTC-05:00/UTC-04:00)",
+        "America/Chicago": "America/Chicago (UTC-06:00/UTC-05:00)",
+        "America/Denver": "America/Denver (UTC-07:00/UTC-06:00)",
+        "America/Los_Angeles": "America/Los_Angeles (UTC-08:00/UTC-07:00)"
+      }
+    },
     "alertLanguage": {
       "label": "Alert Send Language",
       "zh_hans": "Chinese (Simplified)",

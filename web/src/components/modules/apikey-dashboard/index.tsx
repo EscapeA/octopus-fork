@@ -12,6 +12,7 @@ import { PageWrapper } from '@/components/common/PageWrapper';
 import { CopyIconButton } from '@/components/common/CopyButton';
 import { useCallback, useState } from 'react';
 import type { JSX } from 'react';
+import { writeClipboardText } from '@/lib/clipboard';
 import {
     ArrowDownToLine,
     ArrowUpFromLine,
@@ -46,7 +47,7 @@ export function APIKeyDashboard() {
             if (copying) return false;
             setCopying(true);
             try {
-                await navigator.clipboard.writeText(text);
+                await writeClipboardText(text);
                 toast.success(`${label} copied`);
                 return true;
             } catch {
