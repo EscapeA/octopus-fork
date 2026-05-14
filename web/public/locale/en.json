@@ -1490,6 +1490,7 @@
     }
   },
   "channel": {
+    "empty": "There are no channels yet",
     "card": {
       "requestCount": "Requests",
       "totalCost": "Total Cost",

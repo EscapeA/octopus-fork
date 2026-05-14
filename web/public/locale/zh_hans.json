@@ -1490,6 +1490,7 @@
     }
   },
   "channel": {
+    "empty": "当前没有任何渠道",
     "card": {
       "requestCount": "请求次数",
       "totalCost": "总成本",

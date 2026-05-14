@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { Wrench } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { PageWrapper } from '@/components/common/PageWrapper';
 import { Tabs, TabsContents, TabsContent, TabsList, TabsTrigger } from '@/components/animate-ui/components/animate/tabs';
@@ -16,26 +15,9 @@ type OpsTab = 'cache' | 'quota' | 'health' | 'system' | 'audit';
 export function Ops() {
     const t = useTranslations('ops');
     const [activeTab, setActiveTab] = useState<OpsTab>('cache');
-    const subtitle = t('subtitle');
 
     return (
         <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain space-y-6 pb-24 md:pb-4 rounded-t-xl">
-            <section className="rounded-xl border border-border bg-card p-5 text-card-foreground">
-                <div className="flex items-start gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                        <Wrench className="h-5 w-5" />
-                    </div>
-                    <div className="min-w-0 space-y-2">
-                        <h2 className="text-2xl font-bold">{t('title')}</h2>
-                        {subtitle ? (
-                            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                                {subtitle}
-                            </p>
-                        ) : null}
-                    </div>
-                </div>
-            </section>
-
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as OpsTab)}>
                 <section className="rounded-xl border border-border bg-card p-5 text-card-foreground">
                     <div className="overflow-x-auto">

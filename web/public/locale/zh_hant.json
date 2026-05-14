@@ -1490,6 +1490,7 @@
     }
   },
   "channel": {
+    "empty": "目前沒有任何供應源",
     "card": {
       "requestCount": "請求次數",
       "totalCost": "總成本",

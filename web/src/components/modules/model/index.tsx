@@ -1,9 +1,8 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useModelMarket, useUpdateModelPrice } from '@/api/endpoints/model';
+import { useModelMarket } from '@/api/endpoints/model';
 import { ModelItem } from './Item';
-import { ModelMarketSummary } from './MarketSummary';
 import { useSearchStore, useToolbarViewOptionsStore } from '@/components/modules/toolbar';
 import { VirtualizedGrid } from '@/components/common/VirtualizedGrid';
 import { sortModelMarketItems } from './sort';
@@ -38,22 +37,8 @@ export function Model() {
         return byName;
     }, [sortedModels, searchTerm, filter]);
 
-    const summary = market?.summary ?? {
-        model_count: 0,
-        coverage_count: 0,
-        unique_channel_count: 0,
-        average_latency_ms: 0,
-        last_update_time: '',
-    };
-
     return (
-        <section className="relative flex h-full min-h-0 flex-col gap-4" aria-label={pageKey}>
-            <ModelMarketSummary
-                summary={summary}
-                onRefresh={() => updateModelPrice.mutate()}
-                isRefreshing={updateModelPrice.isPending}
-            />
-
+        <section className="relative flex h-full min-h-0 flex-col" aria-label={pageKey}>
             <section className="relative flex min-h-0 flex-1 flex-col rounded-xl border border-border/35 bg-card p-3 text-card-foreground md:p-4">
                 <div className="relative min-h-0 flex-1">
                     {visibleModels.length > 0 ? (

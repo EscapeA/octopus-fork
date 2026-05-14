@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { BarChart3, Waves, Orbit } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { PageWrapper } from '@/components/common/PageWrapper';
 import { Tabs, TabsContents, TabsContent, TabsList, TabsTrigger } from '@/components/animate-ui/components/animate/tabs';
@@ -18,38 +17,9 @@ export function Analytics() {
     const t = useTranslations('analytics');
     const [activeTab, setActiveTab] = useState<AnalyticsTab>('utilization');
     const [range, setRange] = useState<AnalyticsRange>('7d');
-    const subtitle = t('subtitle');
 
     return (
         <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain space-y-6 rounded-t-xl pb-24 md:pb-4">
-            <section className="relative overflow-hidden rounded-xl border border-border/35 bg-card p-5 text-card-foreground md:p-6">
-                <div className="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="flex items-start gap-4">
-                        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg border border-border/35 bg-card text-primary">
-                            <BarChart3 className="h-5 w-5" />
-                        </div>
-                        <div className="min-w-0 space-y-3">
-                            <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-card px-3 py-1 text-[0.68rem] font-semibold text-primary">
-                                <Waves className="h-3.5 w-3.5" />
-                                {t('title')}
-                            </div>
-                            <div className="space-y-2">
-                                <h2 className="text-2xl font-bold tracking-tight md:text-[2rem]">{t('title')}</h2>
-                                {subtitle ? (
-                                    <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                                        {subtitle}
-                                    </p>
-                                ) : null}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2 self-start rounded-lg border border-border/25 bg-card px-3 py-2 text-sm text-muted-foreground">
-                        <Orbit className="h-4 w-4 text-primary" />
-                        {t(`range.${range}`)}
-                    </div>
-                </div>
-            </section>
-
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as AnalyticsTab)}>
                 <section className="relative overflow-hidden rounded-xl border border-border/35 bg-card p-4 text-card-foreground md:p-5">
                     <div className="relative flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
