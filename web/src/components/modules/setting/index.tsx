@@ -17,32 +17,32 @@ import { SettingSemanticCache } from './SemanticCache';
 import { SettingRouteGroupDanger } from './RouteGroupDanger';
 
 export function Setting() {
+    const cards = [
+        { id: 'setting-appearance', node: <SettingAppearance /> },
+        { id: 'setting-ai-route', node: <SettingAIRoute /> },
+        { id: 'setting-auto-strategy', node: <SettingAutoStrategy /> },
+        { id: 'setting-account', node: <SettingAccount /> },
+        { id: 'setting-semantic-cache', node: <SettingSemanticCache /> },
+        { id: 'setting-retry', node: <SettingRetry /> },
+        { id: 'setting-log', node: <SettingLog /> },
+        { id: 'setting-info', node: <SettingInfo /> },
+        { id: 'setting-system', node: <SettingSystem /> },
+        { id: 'setting-llmprice', node: <SettingLLMPrice /> },
+        { id: 'setting-llmsync', node: <SettingLLMSync /> },
+        { id: 'setting-circuit-breaker', node: <SettingCircuitBreaker /> },
+        { id: 'setting-backup', node: <SettingBackup /> },
+        { id: 'setting-route-group-danger', node: <SettingRouteGroupDanger /> },
+    ];
+
     return (
         <div className="h-full min-h-0 overflow-y-auto overscroll-contain rounded-t-xl">
             <PageWrapper className="pb-24 md:pb-6">
-                <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(20rem,0.82fr)] xl:items-start">
-                    <div className="flex min-w-0 flex-col gap-5">
-                        <SettingAppearance key="setting-appearance" />
-                        <SettingAIRoute key="setting-ai-route" />
-                        <SettingAutoStrategy key="setting-auto-strategy" />
-                    </div>
-
-                    <div className="flex min-w-0 flex-col gap-5">
-                        <SettingAccount key="setting-account" />
-                        <SettingSemanticCache key="setting-semantic-cache" />
-                        <SettingRetry key="setting-retry" />
-                        <SettingLog key="setting-log" />
-                    </div>
-
-                    <div className="flex min-w-0 flex-col gap-5">
-                        <SettingInfo key="setting-info" />
-                        <SettingSystem key="setting-system" />
-                        <SettingLLMPrice key="setting-llmprice" />
-                        <SettingLLMSync key="setting-llmsync" />
-                        <SettingCircuitBreaker key="setting-circuit-breaker" />
-                        <SettingBackup key="setting-backup" />
-                        <SettingRouteGroupDanger key="setting-route-group-danger" />
-                    </div>
+                <div className="columns-1 gap-5 lg:columns-2 xl:columns-3 [column-fill:balance]">
+                    {cards.map((card) => (
+                        <div key={card.id} className="mb-5 min-w-0 break-inside-avoid">
+                            {card.node}
+                        </div>
+                    ))}
                 </div>
             </PageWrapper>
         </div>
