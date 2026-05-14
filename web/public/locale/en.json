@@ -474,6 +474,7 @@
     "rules": {
       "title": "Alert Rules",
       "new": "New Rule",
+      "empty": "There are no alert rules yet",
       "confirmDelete": "Delete this rule? This cannot be undone.",
       "cooldown": "cooldown {seconds}s",
       "form": {
@@ -486,6 +487,7 @@
     "channels": {
       "title": "Notification Channels",
       "new": "New Channel",
+      "empty": "There are no notification channels yet",
       "confirmDelete": "Delete this notification channel? This cannot be undone.",
       "form": {
         "namePlaceholder": "Channel name",
@@ -1395,6 +1397,7 @@
   "model": {
     "loading": "Loading model market...",
     "empty": "No matching models found",
+    "emptyAll": "There are no models yet",
     "create": {
       "title": "Create Model",
       "name": "Model Name",
@@ -1467,6 +1470,7 @@
       "refreshFailed": "Failed to refresh logs"
     },
     "list": {
+      "empty": "There are no logs yet",
       "noMore": "No more logs"
     },
     "card": {

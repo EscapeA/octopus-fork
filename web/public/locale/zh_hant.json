@@ -474,6 +474,7 @@
     "rules": {
       "title": "告警規則",
       "new": "新增規則",
+      "empty": "目前沒有任何告警規則",
       "confirmDelete": "確認刪除此規則嗎？此操作無法復原。",
       "cooldown": "冷卻 {seconds} 秒",
       "form": {
@@ -486,6 +487,7 @@
     "channels": {
       "title": "通知渠道",
       "new": "新增渠道",
+      "empty": "目前沒有任何通知渠道",
       "confirmDelete": "確認刪除此通知渠道嗎？此操作無法復原。",
       "form": {
         "namePlaceholder": "渠道名稱",
@@ -1395,6 +1397,7 @@
   "model": {
     "loading": "載入模型廣場中...",
     "empty": "目前沒有符合條件的模型",
+    "emptyAll": "目前沒有任何模型",
     "create": {
       "title": "建立模型",
       "name": "模型名稱",
@@ -1467,6 +1470,7 @@
       "refreshFailed": "日誌重新整理失敗"
     },
     "list": {
+      "empty": "目前沒有任何日誌",
       "noMore": "沒有更多日誌了"
     },
     "card": {

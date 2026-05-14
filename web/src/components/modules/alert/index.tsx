@@ -431,7 +431,11 @@ export function Alert() {
                     )}
 
                     <div className="space-y-2">
-                        {(rules || []).map((rule) => {
+                        {(!rules || rules.length === 0) ? (
+                            <div className="rounded-xl border border-dashed border-border/35 bg-card px-6 py-10 text-center text-sm text-muted-foreground">
+                                {t('rules.empty')}
+                            </div>
+                        ) : (rules || []).map((rule) => {
                             const isEditing = editingRuleId === rule.id;
 
                             return (
@@ -602,7 +606,11 @@ export function Alert() {
                     )}
 
                     <div className="space-y-2">
-                        {(channels || []).map((channel) => {
+                        {(!channels || channels.length === 0) ? (
+                            <div className="rounded-xl border border-dashed border-border/35 bg-card px-6 py-10 text-center text-sm text-muted-foreground">
+                                {t('channels.empty')}
+                            </div>
+                        ) : (channels || []).map((channel) => {
                             const isEditing = editingChannelId === channel.id;
 
                             return (

@@ -29,9 +29,16 @@ export function Analytics() {
                             <BarChart3 className="h-5 w-5" />
                         </div>
                         {subtitle ? (
-                            <p className="min-w-0 max-w-3xl text-sm leading-6 text-muted-foreground">
-                                {subtitle}
-                            </p>
+                            <div className="min-w-0 space-y-3">
+                                <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+                                    {subtitle}
+                                </p>
+                                <div className="flex flex-wrap gap-2 text-xs font-medium text-muted-foreground">
+                                    <span className="rounded-lg border border-border/25 bg-card px-2.5 py-1">{t('cards.utilization.title')}</span>
+                                    <span className="rounded-lg border border-border/25 bg-card px-2.5 py-1">{t('cards.routeHealth.title')}</span>
+                                    <span className="rounded-lg border border-border/25 bg-card px-2.5 py-1">{t('evaluation.title')}</span>
+                                </div>
+                            </div>
                         ) : null}
                     </div>
                     <div className="flex items-center gap-2 self-start rounded-lg border border-border/25 bg-card px-3 py-2 text-sm text-muted-foreground">

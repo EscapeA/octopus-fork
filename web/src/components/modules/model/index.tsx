@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { useModelMarket, useUpdateModelPrice } from '@/api/endpoints/model';
+import { useTranslations } from 'next-intl';
 import { ModelItem } from './Item';
 import { ModelMarketSummary } from './MarketSummary';
 import { useSearchStore, useToolbarViewOptionsStore } from '@/components/modules/toolbar';
@@ -9,6 +10,7 @@ import { VirtualizedGrid } from '@/components/common/VirtualizedGrid';
 import { sortModelMarketItems } from './sort';
 
 export function Model() {
+    const t = useTranslations('model');
     const { data: market } = useModelMarket();
     const updateModelPrice = useUpdateModelPrice();
     const pageKey = 'model' as const;
@@ -21,6 +23,7 @@ export function Model() {
         const items = market?.items ?? [];
         return sortModelMarketItems(items, modelSortMode);
     }, [market, modelSortMode]);
+    const hasAnyModel = (market?.items.length ?? 0) > 0;
 
     const visibleModels = useMemo(() => {
         const term = searchTerm.toLowerCase().trim();
@@ -67,10 +70,15 @@ export function Model() {
                         />
                     ) : (
                         <div className="relative flex h-full min-h-[18rem] items-center justify-center overflow-hidden rounded-xl border border-dashed border-border/35 bg-card">
-                            <div className="relative flex items-end gap-3">
-                                <span className="h-24 w-16 rounded-lg border border-border/30 bg-card" />
-                                <span className="h-28 w-20 rounded-xl border border-primary/18 bg-card" />
-                                <span className="h-20 w-14 rounded-lg border border-border/30 bg-card" />
+                            <div className="relative flex flex-col items-center gap-4 px-6 text-center">
+                                <div className="flex items-end gap-3">
+                                    <span className="h-24 w-16 rounded-lg border border-border/30 bg-card" />
+                                    <span className="h-28 w-20 rounded-xl border border-primary/18 bg-card" />
+                                    <span className="h-20 w-14 rounded-lg border border-border/30 bg-card" />
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                    {hasAnyModel ? t('empty') : t('emptyAll')}
+                                </p>
                             </div>
                         </div>
                     )}
