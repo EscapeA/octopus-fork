@@ -165,9 +165,9 @@ export function SettingSemanticCache() {
     };
 
     return (
-        <div className="rounded-xl border border-border/35 bg-card p-6 space-y-5 text-card-foreground">
+        <div className="min-w-0 space-y-5 rounded-xl border border-border/35 bg-card p-6 text-card-foreground">
             <div className="space-y-1">
-                <h2 className="text-lg font-bold text-card-foreground flex items-center gap-2">
+                <h2 className="flex items-center gap-2 text-lg font-bold text-card-foreground">
                     <Database className="h-5 w-5" />
                     {t('semanticCache.title')}
                 </h2>
@@ -176,8 +176,8 @@ export function SettingSemanticCache() {
                 </p>
             </div>
 
-            <div className="flex items-center justify-between gap-4 rounded-lg border border-border/30 bg-card p-4">
-                <div className="flex items-center gap-3">
+            <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-border/30 bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 flex items-center gap-3">
                     <Sparkles className="h-5 w-5 text-muted-foreground" />
                     <span className="text-sm font-medium">{t('semanticCache.enabled.label')}</span>
                 </div>
@@ -185,8 +185,8 @@ export function SettingSemanticCache() {
             </div>
 
             <div className="space-y-2 rounded-lg border border-border/30 bg-card p-4">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div className="flex items-center gap-3">
+                <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="min-w-0 flex items-center gap-3">
                         <Clock3 className="h-5 w-5 text-muted-foreground" />
                         <span className="text-sm font-medium">{t('semanticCache.ttl.label')}</span>
                     </div>
@@ -197,7 +197,7 @@ export function SettingSemanticCache() {
                         onChange={(event) => setTTL(event.target.value)}
                         onBlur={() => saveTextSetting(SettingKey.SemanticCacheTTL, ttl)}
                         placeholder={t('semanticCache.ttl.placeholder')}
-                        className="w-72 rounded-xl"
+                        className="w-full rounded-xl md:w-72"
                     />
                 </div>
                 <p className="pl-8 text-xs text-muted-foreground">
@@ -206,8 +206,8 @@ export function SettingSemanticCache() {
             </div>
 
             <div className="space-y-2 rounded-lg border border-border/30 bg-card p-4">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div className="flex items-center gap-3">
+                <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="min-w-0 flex items-center gap-3">
                         <Percent className="h-5 w-5 text-muted-foreground" />
                         <span className="text-sm font-medium">{t('semanticCache.threshold.label')}</span>
                     </div>
@@ -219,7 +219,7 @@ export function SettingSemanticCache() {
                         onChange={(event) => setThreshold(event.target.value)}
                         onBlur={() => saveTextSetting(SettingKey.SemanticCacheThreshold, threshold)}
                         placeholder={t('semanticCache.threshold.placeholder')}
-                        className="w-72 rounded-xl"
+                        className="w-full rounded-xl md:w-72"
                     />
                 </div>
                 <p className="pl-8 text-xs text-muted-foreground">
@@ -228,8 +228,8 @@ export function SettingSemanticCache() {
             </div>
 
             <div className="space-y-2 rounded-lg border border-border/30 bg-card p-4">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div className="flex items-center gap-3">
+                <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="min-w-0 flex items-center gap-3">
                         <HardDrive className="h-5 w-5 text-muted-foreground" />
                         <span className="text-sm font-medium">{t('semanticCache.maxEntries.label')}</span>
                     </div>
@@ -240,7 +240,7 @@ export function SettingSemanticCache() {
                         onChange={(event) => setMaxEntries(event.target.value)}
                         onBlur={() => saveTextSetting(SettingKey.SemanticCacheMaxEntries, maxEntries)}
                         placeholder={t('semanticCache.maxEntries.placeholder')}
-                        className="w-72 rounded-xl"
+                        className="w-full rounded-xl md:w-72"
                     />
                 </div>
                 <p className="pl-8 text-xs text-muted-foreground">
@@ -258,8 +258,8 @@ export function SettingSemanticCache() {
                     </p>
                 </div>
 
-                <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
+                <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="min-w-0 flex items-center gap-3">
                         <Link2 className="h-5 w-5 text-muted-foreground" />
                         <span className="text-sm font-medium">{t('semanticCache.baseUrl.label')}</span>
                     </div>
@@ -273,12 +273,12 @@ export function SettingSemanticCache() {
                             )
                         }
                         placeholder={t('semanticCache.baseUrl.placeholder')}
-                        className="w-72 rounded-xl"
+                        className="w-full rounded-xl md:w-72"
                     />
                 </div>
 
-                <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
+                <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="min-w-0 flex items-center gap-3">
                         <KeyRound className="h-5 w-5 text-muted-foreground" />
                         <span className="text-sm font-medium">{t('semanticCache.apiKey.label')}</span>
                     </div>
@@ -293,12 +293,12 @@ export function SettingSemanticCache() {
                             )
                         }
                         placeholder={t('semanticCache.apiKey.placeholder')}
-                        className="w-72 rounded-xl"
+                        className="w-full rounded-xl md:w-72"
                     />
                 </div>
 
-                <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
+                <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="min-w-0 flex items-center gap-3">
                         <Bot className="h-5 w-5 text-muted-foreground" />
                         <span className="text-sm font-medium">{t('semanticCache.model.label')}</span>
                     </div>
@@ -312,13 +312,13 @@ export function SettingSemanticCache() {
                             )
                         }
                         placeholder={t('semanticCache.model.placeholder')}
-                        className="w-72 rounded-xl"
+                        className="w-full rounded-xl md:w-72"
                     />
                 </div>
 
                 <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div className="min-w-0 flex items-center gap-3">
                             <Clock3 className="h-5 w-5 text-muted-foreground" />
                             <span className="text-sm font-medium">{t('semanticCache.timeoutSeconds.label')}</span>
                         </div>
@@ -334,7 +334,7 @@ export function SettingSemanticCache() {
                                 )
                             }
                             placeholder={t('semanticCache.timeoutSeconds.placeholder')}
-                            className="w-72 rounded-xl"
+                            className="w-full rounded-xl md:w-72"
                         />
                     </div>
                     <p className="pl-8 text-xs text-muted-foreground">
