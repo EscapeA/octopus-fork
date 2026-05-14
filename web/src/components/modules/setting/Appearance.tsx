@@ -318,7 +318,7 @@ export function SettingAppearance() {
                         </Select>
                     </div>
 
-                    <div className="grid gap-4 lg:grid-cols-3">
+                    <div className="grid gap-4 lg:grid-cols-2">
                         <div className="flex flex-col gap-4 rounded-lg border-border/30 bg-card p-4 shadow-sm">
                             <div className="flex items-center gap-3">
                                 <Languages className="h-5 w-5 text-muted-foreground" />

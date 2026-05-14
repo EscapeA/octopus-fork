@@ -25,14 +25,19 @@ export function Ops() {
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                         <Wrench className="h-5 w-5" />
                     </div>
-                    <div className="min-w-0 space-y-2">
-                        <h2 className="text-2xl font-bold">{t('title')}</h2>
-                        {subtitle ? (
+                    {subtitle ? (
+                        <div className="min-w-0 space-y-3">
                             <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
                                 {subtitle}
                             </p>
-                        ) : null}
-                    </div>
+                            <div className="flex flex-wrap gap-2 text-xs font-medium text-muted-foreground">
+                                <span className="rounded-lg border border-border/25 bg-card px-2.5 py-1">{t('tabs.cache')}</span>
+                                <span className="rounded-lg border border-border/25 bg-card px-2.5 py-1">{t('tabs.quota')}</span>
+                                <span className="rounded-lg border border-border/25 bg-card px-2.5 py-1">{t('tabs.health')}</span>
+                                <span className="rounded-lg border border-border/25 bg-card px-2.5 py-1">{t('tabs.system')}</span>
+                            </div>
+                        </div>
+                    ) : null}
                 </div>
             </section>
 

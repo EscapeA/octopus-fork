@@ -474,6 +474,7 @@
     "rules": {
       "title": "告警规则",
       "new": "新建规则",
+      "empty": "当前没有任何告警规则",
       "confirmDelete": "确认删除该规则吗？此操作不可撤销。",
       "cooldown": "冷却 {seconds} 秒",
       "form": {
@@ -486,6 +487,7 @@
     "channels": {
       "title": "通知渠道",
       "new": "新建渠道",
+      "empty": "当前没有任何通知渠道",
       "confirmDelete": "确认删除该通知渠道吗？此操作不可撤销。",
       "form": {
         "namePlaceholder": "渠道名称",
@@ -1395,6 +1397,7 @@
   "model": {
     "loading": "加载模型广场中...",
     "empty": "当前没有匹配的模型",
+    "emptyAll": "当前没有任何模型",
     "create": {
       "title": "创建模型",
       "name": "模型名称",
@@ -1467,6 +1470,7 @@
       "refreshFailed": "日志刷新失败"
     },
     "list": {
+      "empty": "当前没有任何日志",
       "noMore": "没有更多日志了"
     },
     "card": {
@@ -1490,6 +1494,7 @@
     }
   },
   "channel": {
+    "empty": "当前没有任何渠道",
     "card": {
       "requestCount": "请求次数",
       "totalCost": "总成本",

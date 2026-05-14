@@ -47,16 +47,19 @@ export function SettingRetry() {
     };
 
     return (
-        <div className="rounded-xl border-border/35 bg-card p-6 space-y-5 text-card-foreground shadow-md ">
-            <h2 className="text-lg font-bold text-card-foreground flex items-center gap-2">
+        <div className="space-y-5 rounded-xl border-border/35 bg-card p-6 text-card-foreground shadow-md">
+            <h2 className="flex items-center gap-2 text-lg font-bold text-card-foreground">
                 <RotateCcw className="h-5 w-5" />
                 {t('retry.title')}
             </h2>
 
             <div className="space-y-4">
                 {RETRY_FIELDS.map((field) => (
-                    <div key={field.key} className="flex flex-col gap-3 rounded-lg border-border/30 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between">
-                        <div className="flex flex-col gap-1">
+                    <div
+                        key={field.key}
+                        className="flex min-w-0 flex-col gap-3 rounded-lg border-border/30 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between"
+                    >
+                        <div className="min-w-0 flex flex-col gap-1">
                             <span className="text-sm font-medium">{t(field.labelKey)}</span>
                             {field.hintKey ? (
                                 <span className="text-xs text-muted-foreground">{t(field.hintKey)}</span>
@@ -70,7 +73,7 @@ export function SettingRetry() {
                             onChange={(e) => setValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
                             onBlur={() => handleSave(field.key)}
                             placeholder={t(field.placeholderKey)}
-                            className="w-48 rounded-xl"
+                            className="w-full rounded-xl md:w-48"
                         />
                     </div>
                 ))}
