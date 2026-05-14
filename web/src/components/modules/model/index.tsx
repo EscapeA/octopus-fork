@@ -9,7 +9,6 @@ import { sortModelMarketItems } from './sort';
 
 export function Model() {
     const { data: market } = useModelMarket();
-    const updateModelPrice = useUpdateModelPrice();
     const pageKey = 'model' as const;
     const searchTerm = useSearchStore((s) => s.getSearchTerm(pageKey));
     const layout = useToolbarViewOptionsStore((s) => s.getLayout(pageKey));
