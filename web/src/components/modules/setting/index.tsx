@@ -22,27 +22,27 @@ export function Setting() {
             <PageWrapper className="pb-24 md:pb-6">
                 <div className="grid gap-5 xl:grid-cols-[minmax(0,1.42fr)_minmax(20rem,0.78fr)] xl:items-start">
                     <div className="min-w-0 space-y-5">
-                        <div className="grid gap-5 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] xl:items-start">
+                        <div className="grid gap-5 2xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] 2xl:items-start">
                             <SettingAppearance key="setting-appearance" />
                             <SettingAccount key="setting-account" />
                         </div>
 
                         <SettingAIRoute key="setting-ai-route" />
 
-                        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.9fr)]">
+                        <div className="grid gap-5 2xl:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.9fr)]">
                             <SettingSemanticCache key="setting-semantic-cache" />
                             <div className="flex min-w-0 flex-col gap-5">
                                 <SettingRetry key="setting-retry" />
                             </div>
                         </div>
 
-                        <div className="grid gap-5 xl:grid-cols-2">
+                        <div className="grid gap-5 2xl:grid-cols-2">
                             <SettingAutoStrategy key="setting-auto-strategy" />
                             <SettingLog key="setting-log" />
                         </div>
                     </div>
 
-                    <div className="flex min-w-0 flex-col gap-5 xl:sticky xl:top-0">
+                    <div className="flex min-w-0 flex-col gap-5">
                         <SettingInfo key="setting-info" />
                         <SettingSystem key="setting-system" />
                         <SettingLLMPrice key="setting-llmprice" />
