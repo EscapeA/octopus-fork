@@ -22,10 +22,21 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+    MorphingDialog,
+    MorphingDialogClose,
+    MorphingDialogContainer,
+    MorphingDialogContent,
+    MorphingDialogDescription,
+    MorphingDialogTitle,
+    MorphingDialogTrigger,
+    useMorphingDialog,
+} from '@/components/ui/morphing-dialog';
 import { toast } from '@/components/common/Toast';
+import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshCw, X, Plus, FlaskConical, CheckCircle2, AlertTriangle, Sparkles, Orbit, Layers3, KeyRound, Cable } from 'lucide-react';
+import { RefreshCw, X, Plus, FlaskConical, CheckCircle2, AlertTriangle, Sparkles, Orbit, Layers3, KeyRound, Cable, Search, Check, ListFilter } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 export interface ChannelKeyFormItem {
@@ -90,6 +101,11 @@ export function getEffectiveRequestRewriteFormData(channelType: ChannelType, con
     };
 }
 
+function hasManualVersionSuffix(rawUrl: string): boolean {
+    const normalized = rawUrl.trim().split(/[?#]/)[0].replace(/\/+$/, '').toLowerCase();
+    return /\/(v\d+(?:beta)?|api\/v\d+)$/.test(normalized);
+}
+
 export interface ChannelFormProps {
     formData: ChannelFormData;
     onFormDataChange: (data: ChannelFormData) => void;
@@ -100,6 +116,8 @@ export interface ChannelFormProps {
     onCancel?: () => void;
     cancelText?: string;
     idPrefix?: string;
+    showTemplatePicker?: boolean;
+    onShowTemplatePicker?: () => void;
 }
 
 import {
@@ -131,6 +149,210 @@ function SectionHeader({
     );
 }
 
+interface ModelPickerDialogPanelProps {
+    models: string[];
+    selectedModels: string[];
+    isLoading: boolean;
+    onApply: (models: string[]) => void;
+}
+
+function ModelPickerDialogPanel({ models, selectedModels, isLoading, onApply }: ModelPickerDialogPanelProps) {
+    const t = useTranslations('channel.form.modelPicker');
+    const { setIsOpen } = useMorphingDialog();
+    const [searchTerm, setSearchTerm] = useState('');
+    const [draftSelected, setDraftSelected] = useState<string[]>(selectedModels);
+
+    useEffect(() => {
+        setDraftSelected(selectedModels);
+    }, [selectedModels]);
+
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const filteredModels = normalizedSearch
+        ? models.filter((model) => model.toLowerCase().includes(normalizedSearch))
+        : models;
+    const selectedSet = new Set(draftSelected);
+    const allFilteredSelected = filteredModels.length > 0 && filteredModels.every((model) => selectedSet.has(model));
+
+    const toggleModel = (model: string) => {
+        setDraftSelected((current) =>
+            current.includes(model)
+                ? current.filter((item) => item !== model)
+                : [...current, model]
+        );
+    };
+
+    const handleSelectFiltered = () => {
+        if (filteredModels.length === 0) return;
+
+        setDraftSelected((current) => {
+            const currentSet = new Set(current);
+            if (filteredModels.every((model) => currentSet.has(model))) {
+                return current.filter((model) => !filteredModels.includes(model));
+            }
+            return Array.from(new Set([...current, ...filteredModels]));
+        });
+    };
+
+    const handleApply = () => {
+        onApply(draftSelected);
+        setIsOpen(false);
+    };
+
+    return (
+        <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border/35 bg-card text-card-foreground shadow-md">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_14%,color-mix(in_oklch,var(--primary)_18%,transparent)_0%,transparent_30%),linear-gradient(180deg,color-mix(in_oklch,white_18%,transparent),transparent_28%)]" />
+            <MorphingDialogTitle className="shrink-0">
+                <header className="relative flex items-center justify-between gap-4 border-b border-border/20 px-5 py-4 md:px-6">
+                    <div className="min-w-0 space-y-2">
+                        <div className="flex items-center gap-2">
+                            <span className="h-2.5 w-10 rounded-full bg-primary/18 shadow-sm" />
+                            <span className="h-2.5 w-20 rounded-full bg-card shadow-inner" />
+                        </div>
+                        <div className="space-y-1">
+                            <h3 className="truncate text-lg font-semibold tracking-tight text-card-foreground md:text-xl">
+                                {t('title')}
+                            </h3>
+                            <p className="text-xs text-muted-foreground">
+                                {t('description', { count: models.length })}
+                            </p>
+                        </div>
+                    </div>
+                    <MorphingDialogClose className="relative right-0 top-0" />
+                </header>
+            </MorphingDialogTitle>
+
+            <MorphingDialogDescription disableLayoutAnimation className="relative flex min-h-0 flex-1 flex-col gap-4 px-4 py-4 md:px-6">
+                <div className="relative shrink-0">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                        value={searchTerm}
+                        onChange={(event) => setSearchTerm(event.target.value)}
+                        placeholder={t('searchPlaceholder')}
+                        className="h-11 rounded-lg pl-9"
+                    />
+                </div>
+
+                <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <Badge variant="secondary" className="rounded-full">
+                            {t('selectedCount', { count: draftSelected.length })}
+                        </Badge>
+                        <span>{t('filteredCount', { count: filteredModels.length })}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDraftSelected([])}
+                            disabled={draftSelected.length === 0}
+                            className="h-8 rounded-lg px-2 text-xs text-muted-foreground hover:text-foreground"
+                        >
+                            {t('clear')}
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={handleSelectFiltered}
+                            disabled={filteredModels.length === 0}
+                            className="h-8 rounded-lg px-2 text-xs"
+                        >
+                            <ListFilter className="size-3.5" />
+                            {allFilteredSelected ? t('unselectFiltered') : t('selectFiltered')}
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border/25 bg-card p-2 shadow-sm">
+                    {isLoading ? (
+                        <div className="flex h-40 items-center justify-center gap-2 text-sm text-muted-foreground">
+                            <RefreshCw className="size-4 animate-spin" />
+                            {t('loading')}
+                        </div>
+                    ) : filteredModels.length > 0 ? (
+                        <div className="grid gap-2 sm:grid-cols-2">
+                            {filteredModels.map((model) => {
+                                const selected = selectedSet.has(model);
+                                return (
+                                    <button
+                                        key={model}
+                                        type="button"
+                                        onClick={() => toggleModel(model)}
+                                        className={`flex min-w-0 items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors ${
+                                            selected
+                                                ? 'border-primary/30 bg-primary/10 text-foreground'
+                                                : 'border-border/25 bg-background/40 text-muted-foreground hover:border-border/60 hover:text-foreground'
+                                        }`}
+                                    >
+                                        <span className={`flex size-5 shrink-0 items-center justify-center rounded-md border ${
+                                            selected ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card'
+                                        }`}>
+                                            {selected ? <Check className="size-3.5" /> : null}
+                                        </span>
+                                        <span className="min-w-0 flex-1 truncate font-mono" title={model}>
+                                            {model}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
+                            {models.length === 0 ? t('empty') : t('noSearchResult')}
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex shrink-0 flex-col gap-2 border-t border-border/20 pt-4 sm:flex-row">
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setIsOpen(false)}
+                        className="h-11 rounded-lg sm:flex-1"
+                    >
+                        {t('cancel')}
+                    </Button>
+                    <Button
+                        type="button"
+                        onClick={handleApply}
+                        className="h-11 rounded-lg sm:flex-1"
+                    >
+                        {t('apply', { count: draftSelected.length })}
+                    </Button>
+                </div>
+            </MorphingDialogDescription>
+        </div>
+    );
+}
+
+export function TemplatePickerGrid({
+    compact,
+    onApplyTemplate,
+}: {
+    compact: boolean;
+    onApplyTemplate: (templateKey: string) => void;
+}) {
+    const t = useTranslations('channel.form');
+
+    return (
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {channelTemplates.slice(0, compact ? 4 : channelTemplates.length).map((template) => (
+                <Button
+                    key={template.key}
+                    type="button"
+                    variant="outline"
+                    onClick={() => onApplyTemplate(template.key)}
+                    className="h-auto min-h-20 flex-col items-start gap-1 rounded-lg border-border/30 bg-card px-3.5 py-3 text-left whitespace-normal hover:bg-card md:min-h-24 md:rounded-lg md:px-4"
+                >
+                    <span className="text-sm font-semibold">{template.name}</span>
+                    <span className="text-xs text-muted-foreground">{t(template.descriptionKey)}</span>
+                </Button>
+            ))}
+        </div>
+    );
+}
+
 export function ChannelForm({
     formData,
     onFormDataChange,
@@ -141,6 +363,8 @@ export function ChannelForm({
     onCancel,
     cancelText,
     idPrefix = 'channel',
+    showTemplatePicker = true,
+    onShowTemplatePicker,
 }: ChannelFormProps) {
     const t = useTranslations('channel.form');
     const isCompactViewport = useIsMobile();
@@ -153,7 +377,7 @@ export function ChannelForm({
     // This avoids "empty list" UI and also keeps URL + APIKEY layout consistent.
     useEffect(() => {
         if (!formData.base_urls || formData.base_urls.length === 0) {
-            onFormDataChange({ ...formData, base_urls: [{ url: '', delay: 0 }] });
+            onFormDataChange({ ...formData, base_urls: [{ url: '', delay: 0, suffix_mode: 'auto' }] });
             return;
         }
         if (!formData.keys || formData.keys.length === 0) {
@@ -172,6 +396,7 @@ export function ChannelForm({
         ? formData.custom_model.split(',').map((m) => m.trim()).filter(Boolean)
         : [];
     const [inputValue, setInputValue] = useState('');
+    const [fetchedModels, setFetchedModels] = useState<string[]>([]);
     const inputRef = useRef<HTMLInputElement>(null);
 
     const fetchModel = useFetchModel();
@@ -186,6 +411,13 @@ export function ChannelForm({
         const custom_model = nextCustom.join(',');
         if (formData.model === model && formData.custom_model === custom_model) return;
         onFormDataChange({ ...formData, model, custom_model });
+    };
+
+    const applyFetchedModelSelection = (selectedModels: string[]) => {
+        const customModelSet = new Set(customModels);
+        const nextAutoModels = Array.from(new Set(selectedModels)).filter((model) => !customModelSet.has(model));
+        updateModels(nextAutoModels, customModels);
+        toast.success(t('modelPicker.applySuccess', { count: nextAutoModels.length }));
     };
 
     const normalizeFetchedModels = (data: unknown): string[] => {
@@ -222,6 +454,7 @@ export function ChannelForm({
         base_urls: (formData.base_urls ?? []).filter((u) => u.url.trim()).map((u) => ({
             url: u.url.trim(),
             delay: Number(u.delay || 0),
+            suffix_mode: u.suffix_mode && u.suffix_mode !== 'auto' ? u.suffix_mode : undefined,
         })),
         keys: formData.keys
             .filter((k) => k.channel_key.trim())
@@ -255,6 +488,7 @@ export function ChannelForm({
 
     const handleRefreshModels = async () => {
         if (!formData.base_urls?.[0]?.url || !effectiveKey) return;
+        setFetchedModels([]);
         fetchModel.mutate(
             {
                 type: formData.type,
@@ -271,14 +505,15 @@ export function ChannelForm({
                 onSuccess: (data) => {
                     const normalizedModels = normalizeFetchedModels(data);
                     if (normalizedModels.length > 0) {
-                        const nextAuto = Array.from(new Set([...autoModels, ...normalizedModels]));
-                        updateModels(nextAuto, customModels);
-                        toast.success(t('modelRefreshSuccess'));
+                        setFetchedModels(normalizedModels);
+                        toast.success(t('modelRefreshSuccess', { count: normalizedModels.length }));
                     } else {
+                        setFetchedModels([]);
                         toast.warning(t('modelRefreshEmpty'));
                     }
                 },
                 onError: (error) => {
+                    setFetchedModels([]);
                     const errorMessage = error instanceof Error ? error.message : String(error);
                     toast.error(t('modelRefreshFailed'), { description: errorMessage });
                 },
@@ -331,7 +566,7 @@ export function ChannelForm({
     const handleAddBaseUrl = () => {
         onFormDataChange({
             ...formData,
-            base_urls: [...(formData.base_urls ?? []), { url: '', delay: 0 }],
+            base_urls: [...(formData.base_urls ?? []), { url: '', delay: 0, suffix_mode: 'auto' }],
         });
     };
 
@@ -374,26 +609,31 @@ export function ChannelForm({
     return (
         <form onSubmit={onSubmit} className="flex h-full min-h-0 flex-col">
             <div className="flex-1 min-h-0 space-y-4 overflow-y-auto pb-2">
-            <section className={sectionClassName}>
-                <SectionHeader icon={Sparkles} title={t('template.label')} hint={t('template.hint')} />
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                    {channelTemplates.slice(0, isCompactViewport ? 4 : channelTemplates.length).map((template) => (
-                        <Button
-                            key={template.key}
-                            type="button"
-                            variant="outline"
-                            onClick={() => handleApplyTemplate(template.key)}
-                            className="h-auto min-h-20 flex-col items-start gap-1 rounded-lg border-border/30 bg-card px-3.5 py-3 text-left whitespace-normal hover:bg-card md:min-h-24 md:rounded-lg md:px-4"
-                        >
-                            <span className="text-sm font-semibold">{template.name}</span>
-                            <span className="text-xs text-muted-foreground">{t(template.descriptionKey)}</span>
-                        </Button>
-                    ))}
+            {showTemplatePicker ? (
+                <section className={sectionClassName}>
+                    <SectionHeader icon={Sparkles} title={t('template.label')} hint={t('template.hint')} />
+                    <TemplatePickerGrid
+                        compact={isCompactViewport}
+                        onApplyTemplate={handleApplyTemplate}
+                    />
+                </section>
+            ) : (
+                <div className="flex justify-end">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={onShowTemplatePicker}
+                        className="h-8 rounded-lg text-xs transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-100 ease-out active:scale-[0.98]"
+                    >
+                        <Sparkles className="size-3.5" />
+                        {t('template.open')}
+                    </Button>
                 </div>
-            </section>
+            )}
 
             <section className={sectionClassName}>
-                <SectionHeader icon={Orbit} title={t('name')} hint={t('type')} />
+                <SectionHeader icon={Orbit} title={t('basicInfo')} />
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className={fieldGroupClassName}>
                         <label htmlFor={`${idPrefix}-name`} className={labelClassName}>
@@ -435,11 +675,11 @@ export function ChannelForm({
             </section>
 
             <section className={sectionClassName}>
-                <SectionHeader icon={Cable} title={t('baseUrls')} hint={t('baseUrlUrl')} />
-                <div className="flex items-center justify-between">
-                    <label className={labelClassName}>
-                        {t('baseUrls')} {formData.base_urls.length > 0 ? `(${formData.base_urls.length})` : ''}
-                    </label>
+                <SectionHeader icon={Cable} title={t('baseUrlConfig')} hint={t('baseUrlHint')} />
+                <div className="flex items-center justify-end gap-2">
+                    <Badge variant="secondary" className="rounded-full">
+                        {formData.base_urls.length}
+                    </Badge>
                     <Button
                         type="button"
                         variant="ghost"
@@ -453,38 +693,60 @@ export function ChannelForm({
                 </div>
                 <div className="space-y-2">
                     {(formData.base_urls ?? []).map((u, idx) => (
-                        <div key={`baseurl-${idx}`} className="flex items-center gap-2 rounded-lg border border-border/25 bg-card p-2">
-                            <Input
-                                id={`${idPrefix}-base-${idx}`}
-                                type="url"
-                                value={u.url}
-                                onChange={(e) => handleUpdateBaseUrl(idx, { url: e.target.value })}
-                                placeholder={t('baseUrlUrl')}
-                                required={idx === 0}
-                                className="flex-1 rounded-lg"
-                            />
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleRemoveBaseUrl(idx)}
-                                disabled={(formData.base_urls ?? []).length <= 1}
-                                className="h-8 w-8 p-0 rounded-xl text-muted-foreground hover:text-destructive disabled:opacity-40 hover:bg-transparent"
-                                title={t('remove')}
-                            >
-                                <X className="h-4 w-4" />
-                            </Button>
+                        <div key={`baseurl-${idx}`} className="space-y-1.5 rounded-lg border border-border/25 bg-card p-2">
+                            <div className="flex items-center gap-2">
+                                <Input
+                                    id={`${idPrefix}-base-${idx}`}
+                                    type="url"
+                                    value={u.url}
+                                    onChange={(e) => handleUpdateBaseUrl(idx, { url: e.target.value })}
+                                    placeholder={t('baseUrlUrl')}
+                                    required={idx === 0}
+                                    className="flex-1 rounded-lg"
+                                />
+                                <Select
+                                    value={u.suffix_mode === 'custom' ? 'custom' : 'auto'}
+                                    onValueChange={(value) => handleUpdateBaseUrl(idx, { suffix_mode: value as Channel['base_urls'][number]['suffix_mode'] })}
+                                >
+                                    <SelectTrigger className="h-10 w-44 shrink-0 rounded-lg">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-lg">
+                                        <SelectItem className="rounded-xl" value="auto">{t('baseUrlSuffixAuto')}</SelectItem>
+                                        <SelectItem className="rounded-xl" value="custom">{t('baseUrlSuffixCustom')}</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleRemoveBaseUrl(idx)}
+                                    disabled={(formData.base_urls ?? []).length <= 1}
+                                    className="h-8 w-8 rounded-xl p-0 text-muted-foreground hover:bg-transparent hover:text-destructive disabled:opacity-40"
+                                    title={t('remove')}
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            {u.suffix_mode === 'auto' ? (
+                                <p className={cn(
+                                    'px-1 text-xs leading-5',
+                                    hasManualVersionSuffix(u.url) ? 'text-destructive' : 'text-muted-foreground'
+                                )}>
+                                    {hasManualVersionSuffix(u.url) ? t('baseUrlAutoWarning') : t('baseUrlAutoHint')}
+                                </p>
+                            ) : null}
                         </div>
                     ))}
                 </div>
             </section>
 
             <section className={sectionClassName}>
-                <SectionHeader icon={KeyRound} title={t('apiKey')} hint={t('remark')} />
-                <div className="flex items-center justify-between">
-                    <label className={labelClassName}>
-                        {t('apiKey')} {formData.keys.length > 0 ? `(${formData.keys.length})` : ''}
-                    </label>
+                <SectionHeader icon={KeyRound} title={t('apiKeyConfig')} />
+                <div className="flex items-center justify-end gap-2">
+                    <Badge variant="secondary" className="rounded-full">
+                        {formData.keys.length}
+                    </Badge>
                     <Button
                         type="button"
                         variant="ghost"
@@ -538,10 +800,28 @@ export function ChannelForm({
             </section>
 
             <section className={sectionClassName}>
-                <SectionHeader icon={Layers3} title={t('model')} hint={t('modelSelected')} />
-                <div className="flex items-center justify-between gap-2">
-                    <label className={labelClassName}>{t('model')}</label>
+                <SectionHeader icon={Layers3} title={t('modelConfig')} />
+                <div className="flex items-center justify-end gap-2">
                     <div className="flex items-center gap-2">
+                        <MorphingDialog onOpen={handleRefreshModels}>
+                            <MorphingDialogTrigger
+                                disabled={!formData.base_urls?.[0]?.url || !effectiveKey || fetchModel.isPending}
+                                className="inline-flex h-6 items-center justify-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground/50 transition-colors hover:bg-transparent hover:text-muted-foreground"
+                            >
+                                <RefreshCw className={`h-3 w-3 ${fetchModel.isPending ? 'animate-spin' : ''}`} />
+                                {t('modelRefresh')}
+                            </MorphingDialogTrigger>
+                            <MorphingDialogContainer>
+                                <MorphingDialogContent className="h-[calc(100dvh-2rem)] w-[min(100vw-2rem,54rem)] max-w-full rounded-xl border border-border/35 bg-card p-0 md:h-[min(44rem,calc(100dvh-3rem))]">
+                                    <ModelPickerDialogPanel
+                                        models={fetchedModels}
+                                        selectedModels={autoModels}
+                                        isLoading={fetchModel.isPending}
+                                        onApply={applyFetchedModelSelection}
+                                    />
+                                </MorphingDialogContent>
+                            </MorphingDialogContainer>
+                        </MorphingDialog>
                         <Button
                             type="button"
                             variant="ghost"
@@ -556,17 +836,6 @@ export function ChannelForm({
                                 <FlaskConical className="h-3 w-3 mr-1" />
                             )}
                             {t('test.button')}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleRefreshModels}
-                            disabled={!formData.base_urls?.[0]?.url || !effectiveKey || fetchModel.isPending}
-                            className="h-6 px-2 text-xs text-muted-foreground/50 hover:text-muted-foreground hover:bg-transparent"
-                        >
-                            <RefreshCw className={`h-3 w-3 mr-1 ${fetchModel.isPending ? 'animate-spin' : ''}`} />
-                            {t('modelRefresh')}
                         </Button>
                     </div>
                 </div>
