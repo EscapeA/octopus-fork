@@ -207,9 +207,9 @@ function ProviderPromptCacheView({
                 />
             </div>
 
-            <article className="rounded-xl border border-border/60 bg-card p-4">
-                <div className="grid gap-6">
-                    <div className="space-y-3">
+            <article className="min-w-0 rounded-xl border border-border/60 bg-card p-4">
+                <div className="grid min-w-0 gap-6">
+                    <div className="min-w-0 space-y-3">
                         <div>
                             <h4 className="text-sm font-semibold">{t('cache.providerPrompt.providers.title')}</h4>
                             <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -222,7 +222,7 @@ function ProviderPromptCacheView({
                             </div>
                         ) : (
                             <div className="overflow-x-auto rounded-xl border border-border/60">
-                                <table className="w-full min-w-[720px] text-left">
+                                <table className="w-full min-w-[640px] text-left md:min-w-[720px]">
                                     <thead>
                                         <tr className="border-b border-border/40 bg-muted/30">
                                             <th className="px-3 py-2.5 text-xs font-medium text-muted-foreground">
@@ -255,30 +255,32 @@ function ProviderPromptCacheView({
                         )}
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="min-w-0 space-y-3">
                         <div>
                             <h4 className="text-sm font-semibold">{t('cache.providerPrompt.trend.title')}</h4>
                             <p className="mt-1 text-sm leading-6 text-muted-foreground">
                                 {t('cache.providerPrompt.trend.description')}
                             </p>
                         </div>
-                        <div className="rounded-xl border border-border/60 bg-card p-4">
-                            <div className="flex h-40 items-end gap-2">
-                                {trend.map((point) => {
-                                    const height = `${Math.max(8, (point.cache_read_tokens / maxReadTokens) * 100)}%`;
-                                    return (
-                                        <div key={point.timestamp} className="flex flex-1 flex-col items-center gap-2">
-                                            <div
-                                                className="w-full rounded-t-md bg-primary/20"
-                                                style={{ height }}
-                                                title={`${formatUnixTime(point.timestamp)} | ${formatCount(point.cache_read_tokens)} read`}
-                                            />
-                                            <div className="text-[10px] text-muted-foreground">
-                                                {formatUnixTime(point.timestamp)}
+                        <div className="min-w-0 rounded-xl border border-border/60 bg-card p-4">
+                            <div className="max-w-full overflow-x-auto pb-1">
+                                <div className="flex h-40 min-w-max items-end gap-2 pr-2">
+                                    {trend.map((point) => {
+                                        const height = `${Math.max(8, (point.cache_read_tokens / maxReadTokens) * 100)}%`;
+                                        return (
+                                            <div key={point.timestamp} className="flex w-20 flex-none flex-col items-center gap-2">
+                                                <div
+                                                    className="w-full rounded-t-md bg-primary/20"
+                                                    style={{ height }}
+                                                    title={`${formatUnixTime(point.timestamp)} | ${formatCount(point.cache_read_tokens)} read`}
+                                                />
+                                                <div className="w-full whitespace-nowrap text-center text-[10px] text-muted-foreground">
+                                                    {formatUnixTime(point.timestamp)}
+                                                </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -303,7 +305,7 @@ export function Cache() {
                         {view === 'semantic' ? t('cache.description') : t('cache.providerPrompt.description')}
                     </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                     <ViewSwitcher
                         value={view}
                         onChange={setView}

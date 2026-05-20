@@ -1,9 +1,9 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useChannelGroupList, useChannelList, useLastSyncTime, useSyncChannel } from '@/api/endpoints/channel';
 import { Card } from './Card';
-import { useToolbarViewOptionsStore } from '@/components/modules/toolbar';
+import { useToolbarViewOptionsStore } from '@/components/modules/toolbar/view-options-store';
 import { useSearchableList, useChannelFilter, createChannelFilterPredicate } from '@/hooks/use-searchable-list';
 import type { Channel as ChannelModel, ChannelGroup } from '@/api/endpoints/channel';
 import type { StatsMetricsFormatted } from '@/api/endpoints/stats';
@@ -15,7 +15,8 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/common/Toast';
 import { Badge } from '@/components/ui/badge';
-import { ChannelGroupManager } from './GroupManager';
+import { cn } from '@/lib/utils';
+import { getChannelGroupDisplayName } from './GroupManager';
 
 type ChannelListItem = {
     raw: ChannelModel;
@@ -24,14 +25,17 @@ type ChannelListItem = {
 
 export function Channel() {
     const { data: channelsData, isLoading, isError, refetch } = useChannelList();
-    const { data: channelGroupsData = [], isLoading: isGroupLoading, isError: isGroupError } = useChannelGroupList();
+    const { data: channelGroupsData = [] } = useChannelGroupList();
     const { data: lastSyncTime } = useLastSyncTime();
     const syncChannel = useSyncChannel();
     const pageKey = 'channel' as const;
     const layout = useToolbarViewOptionsStore((s) => s.getLayout(pageKey));
+    const selectedGroupId = useToolbarViewOptionsStore((s) => s.selectedChannelGroupId);
+    const setSelectedGroupId = useToolbarViewOptionsStore((s) => s.setSelectedChannelGroupId);
     const filter = useChannelFilter();
     const t = useTranslations('channel');
     const settingT = useTranslations('setting');
+    const defaultGroupName = t('groupManager.defaultName');
 
     const formatLastSyncTime = (timeStr: string | undefined) => {
         if (!timeStr) return settingT('llmSync.neverSynced');
@@ -52,15 +56,6 @@ export function Channel() {
             },
         });
     };
-
-    const { visibleItems: visibleChannels } = useSearchableList<ChannelListItem>({
-        data: channelsData,
-        pageKey,
-        filter,
-        getItemId: (item) => item.raw.id,
-        getItemName: (item) => item.raw.name,
-        filterPredicate: (item, f) => createChannelFilterPredicate(f as 'all' | 'enabled' | 'disabled')(item.raw),
-    });
 
     const channelGroups = useMemo<ChannelGroup[]>(() => {
         if (channelGroupsData.length > 0) {
@@ -85,47 +80,42 @@ export function Channel() {
         }));
     }, [channelGroupsData, channelsData, t]);
 
-    const channelCountByGroup = useMemo(() => {
-        const counts = new Map<number, number>();
-        for (const item of channelsData ?? []) {
-            counts.set(item.raw.group_id, (counts.get(item.raw.group_id) ?? 0) + 1);
+    const activeGroup = useMemo(() => {
+        if (channelGroups.length === 0) {
+            return null;
         }
-        return counts;
-    }, [channelsData]);
+        return channelGroups.find((group) => group.id === selectedGroupId) ?? channelGroups[0];
+    }, [channelGroups, selectedGroupId]);
 
-    const groupedVisibleChannels = useMemo(() => {
-        const groups = channelGroups.map((group) => ({ group, items: [] as ChannelListItem[] }));
-        const groupMap = new Map(groups.map((entry) => [entry.group.id, entry]));
-
-        for (const item of visibleChannels) {
-            const entry = groupMap.get(item.raw.group_id);
-            if (entry) {
-                entry.items.push(item);
-                continue;
-            }
-            const fallback = groups[0];
-            if (fallback) {
-                fallback.items.push(item);
-            }
+    useEffect(() => {
+        if (activeGroup && selectedGroupId !== activeGroup.id) {
+            setSelectedGroupId(activeGroup.id);
         }
+    }, [activeGroup, selectedGroupId, setSelectedGroupId]);
 
-        return groups;
-    }, [channelGroups, visibleChannels]);
+    const activeGroupChannels = useMemo(() => {
+        if (!activeGroup) {
+            return channelsData;
+        }
+        return (channelsData ?? []).filter((item) => item.raw.group_id === activeGroup.id);
+    }, [activeGroup, channelsData]);
+
+    const { visibleItems: visibleChannels } = useSearchableList<ChannelListItem>({
+        data: activeGroupChannels,
+        pageKey,
+        filter,
+        getItemId: (item) => item.raw.id,
+        getItemName: (item) => item.raw.name,
+        filterPredicate: (item, f) => createChannelFilterPredicate(f as 'all' | 'enabled' | 'disabled')(item.raw),
+    });
 
     const channelGridClassName = layout === 'list'
         ? 'grid grid-cols-1 gap-4'
         : 'grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3';
 
     return (
-        <section className="relative flex h-full min-h-0 flex-col" aria-label={pageKey}>
-            <div className="relative flex h-full min-h-0 flex-col gap-4 rounded-xl border border-border bg-card p-3 text-card-foreground md:p-4">
-                <ChannelGroupManager
-                    groups={channelGroups}
-                    channelCountByGroup={channelCountByGroup}
-                    isLoading={isGroupLoading}
-                    isError={isGroupError}
-                />
-
+        <section className="relative flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain rounded-t-xl pb-24 md:pb-4" aria-label={pageKey}>
+            <div className="relative flex flex-col gap-4 rounded-xl border border-border bg-card p-3 text-card-foreground md:p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                     <div className="flex items-center gap-2 rounded-lg border-border/30 bg-card px-3 py-2 text-xs text-muted-foreground sm:text-sm">
                         <Clock3 className="h-4 w-4 text-primary" />
@@ -144,43 +134,43 @@ export function Channel() {
                     </Button>
                 </div>
 
-                <div className="relative min-h-0 flex-1">
+                <div className="relative">
                     {isLoading ? (
                         <LoadingState />
                     ) : isError ? (
                         <ErrorState onRetry={() => refetch()} />
                     ) : (channelsData?.length ?? 0) > 0 ? (
-                        <div className="h-full space-y-4 overflow-y-auto pr-1">
-                            {groupedVisibleChannels.map(({ group, items }) => (
-                                <section key={group.id} className="rounded-xl border border-border/30 bg-card/70 p-3 md:p-4">
-                                    <header className="mb-3 flex flex-wrap items-center gap-2">
-                                        <h3 className="text-sm font-semibold text-card-foreground">{group.name}</h3>
-                                        {group.is_default ? (
-                                            <Badge variant="secondary" className="rounded-full">
-                                                {t('groupManager.defaultBadge')}
-                                            </Badge>
-                                        ) : null}
+                        <section className="rounded-xl border border-border/30 bg-card/70 p-3 md:p-4">
+                            {activeGroup ? (
+                                <header className="mb-3 flex flex-wrap items-center gap-2">
+                                    <h3 className="text-sm font-semibold text-card-foreground">
+                                        {getChannelGroupDisplayName(activeGroup, defaultGroupName)}
+                                    </h3>
+                                    {activeGroup.is_default ? (
                                         <Badge variant="secondary" className="rounded-full">
-                                            {t('groupManager.visibleCount', { count: items.length })}
+                                            {t('groupManager.defaultBadge')}
                                         </Badge>
-                                    </header>
+                                    ) : null}
+                                    <Badge variant="secondary" className="rounded-full">
+                                        {t('groupManager.visibleCount', { count: visibleChannels.length })}
+                                    </Badge>
+                                </header>
+                            ) : null}
 
-                                    {items.length > 0 ? (
-                                        <div className={channelGridClassName}>
-                                            {items.map((item) => (
-                                                <Card key={`channel-${item.raw.id}`} channel={item.raw} stats={item.formatted} layout={layout} />
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="flex min-h-[8rem] items-center justify-center rounded-lg border border-dashed border-border/30 bg-card text-sm text-muted-foreground">
-                                            {t('groupManager.emptyGroup')}
-                                        </div>
-                                    )}
-                                </section>
-                            ))}
-                        </div>
+                            {visibleChannels.length > 0 ? (
+                                <div className={cn(channelGridClassName, 'pr-1')}>
+                                    {visibleChannels.map((item) => (
+                                        <Card key={`channel-${item.raw.id}`} channel={item.raw} stats={item.formatted} layout={layout} />
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="flex min-h-[8rem] items-center justify-center rounded-lg border border-dashed border-border/30 bg-card px-4 text-center text-sm text-muted-foreground">
+                                    {t('groupManager.emptyGroup')}
+                                </div>
+                            )}
+                        </section>
                     ) : (
-                        <div className="flex h-full min-h-[18rem] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-card">
+                        <div className="flex min-h-[18rem] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-card px-4 py-6 text-center">
                             <Radio className="h-12 w-12 text-muted-foreground/30" strokeWidth={1.5} />
                             <p className="text-sm text-muted-foreground">{t('empty')}</p>
                         </div>
