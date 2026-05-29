@@ -93,6 +93,10 @@ func Migrate(conn *gorm.DB) error {
 		&model.AlertNotifChannel{},
 		&model.AlertStateRecord{},
 		&model.AlertHistory{},
+		&model.RemoteSite{},
+		&model.BalanceSnapshot{},
+		&model.CheckInRecord{},
+		&model.APICredentialProfile{},
 		&migrate.MigrationRecord{},
 	); err != nil {
 		return err

@@ -1,7 +1,7 @@
 import { lazyWithPreload } from './lazy-with-preload';
 import { lazy, ComponentType } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { Home, Radio, Sparkles, FolderTree, Settings, Logs, Users, Bell, BarChart3, Wrench, KeyRound } from 'lucide-react';
+import { Home, Radio, Sparkles, FolderTree, Settings, Logs, Users, Bell, BarChart3, Wrench, KeyRound, Globe, CalendarCheck } from 'lucide-react';
 import { DEFAULT_NAV_ORDER } from '@/components/modules/navbar';
 
 export type LazyComponent = ReturnType<typeof lazy> & {
@@ -28,9 +28,15 @@ const Setting_Module = lazyWithPreload(() => import('@/components/modules/settin
 const User_Module = lazyWithPreload(() => import('@/components/modules/user').then(m => ({ default: m.User })));
 const Alert_Module = lazyWithPreload(() => import('@/components/modules/alert').then(m => ({ default: m.Alert })));
 const Ops_Module = lazyWithPreload(() => import('@/components/modules/ops').then(m => ({ default: m.Ops })));
+const Hub_Module = lazyWithPreload(() => import('@/components/modules/remote-site').then(m => ({ default: m.RemoteSite })));
+const CheckIn_Module = lazyWithPreload(() => import('@/components/modules/checkin').then(m => ({ default: m.CheckIn })));
+const Credential_Module = lazyWithPreload(() => import('@/components/modules/credential').then(m => ({ default: m.Credential })));
 
 export const ROUTES: RouteConfig[] = [
     { id: 'home', icon: Home, component: Home_Module },
+    { id: 'hub', icon: Globe, component: Hub_Module },
+    { id: 'checkin', icon: CalendarCheck, component: CheckIn_Module },
+    { id: 'credential', icon: KeySquare, component: Credential_Module },
     { id: 'channel', icon: Radio, component: Channel_Module },
     { id: 'group', icon: FolderTree, component: Group_Module },
     { id: 'model', icon: Sparkles, component: Model_Module },

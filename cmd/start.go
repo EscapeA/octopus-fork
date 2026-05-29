@@ -11,6 +11,7 @@ import (
 	"github.com/lingyuins/octopus/internal/relay/balancer"
 	"github.com/lingyuins/octopus/internal/server"
 	"github.com/lingyuins/octopus/internal/task"
+	"github.com/lingyuins/octopus/internal/utils/crypto"
 	"github.com/lingyuins/octopus/internal/utils/log"
 	"github.com/lingyuins/octopus/internal/utils/shutdown"
 	"github.com/lingyuins/octopus/internal/utils/telemetry"
@@ -37,6 +38,12 @@ var startCmd = &cobra.Command{
 
 func runStart() error {
 	shutdown.Init(log.Logger)
+
+	if key := conf.AppConfig.Security.EncryptionKey; key != "" {
+		crypto.Init(key)
+	} else if secret := conf.AppConfig.Auth.JWTSecret; secret != "" {
+		crypto.Init(secret)
+	}
 
 	if err := db.InitDB(conf.AppConfig.Database.Type, conf.AppConfig.Database.Path, conf.IsDebug()); err != nil {
 		return fmt.Errorf("database init error: %w", err)

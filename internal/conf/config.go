@@ -41,6 +41,10 @@ type External struct {
 	UpdateAPIURL string `mapstructure:"update_api_url"`
 }
 
+type Security struct {
+	EncryptionKey string `mapstructure:"encryption_key"`
+}
+
 type Config struct {
 	Server   Server   `mapstructure:"server"`
 	Log      Log      `mapstructure:"log"`
@@ -48,6 +52,7 @@ type Config struct {
 	Auth     Auth     `mapstructure:"auth"`
 	Relay    Relay    `mapstructure:"relay"`
 	External External `mapstructure:"external"`
+	Security Security `mapstructure:"security"`
 }
 
 var AppConfig Config
@@ -134,6 +139,7 @@ func setDefaults() {
 	viper.SetDefault("external.llm_price_url", "https://models.dev/api.json")
 	viper.SetDefault("external.update_url", "https://github.com/lingyuins/octopus/releases/latest/download")
 	viper.SetDefault("external.update_api_url", "https://api.github.com/repos/lingyuins/octopus/releases/latest")
+	viper.SetDefault("security.encryption_key", "")
 }
 
 func defaultDataDir() string {

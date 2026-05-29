@@ -7,6 +7,7 @@ import (
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op/relaylog"
+	"github.com/lingyuins/octopus/internal/op/remotesite"
 	"github.com/lingyuins/octopus/internal/op/setting"
 	"github.com/lingyuins/octopus/internal/op/stats"
 	"github.com/lingyuins/octopus/internal/price"
@@ -15,13 +16,15 @@ import (
 )
 
 const (
-	TaskPriceUpdate  = "price_update"
-	TaskStatsSave    = "stats_save"
-	TaskRuntimeState = "runtime_state_save"
-	TaskRelayLogSave = "relay_log_save"
-	TaskSyncLLM      = "sync_llm"
-	TaskCleanLLM     = "clean_llm"
-	TaskBaseUrlDelay = "base_url_delay"
+	TaskPriceUpdate    = "price_update"
+	TaskStatsSave      = "stats_save"
+	TaskRuntimeState   = "runtime_state_save"
+	TaskRelayLogSave   = "relay_log_save"
+	TaskSyncLLM        = "sync_llm"
+	TaskCleanLLM       = "clean_llm"
+	TaskBaseUrlDelay   = "base_url_delay"
+	TaskBalanceCapture = "hub_balance_capture"
+	TaskAutoCheckIn    = "hub_auto_checkin"
 )
 
 func Init() {
@@ -88,4 +91,20 @@ func Init() {
 	})
 
 	Register(TaskAlertEvaluate, 60*time.Second, false, EvaluateAlertRules)
+
+	// Hub: capture balance snapshots every 6 hours
+	Register(TaskBalanceCapture, 6*time.Hour, false, func() {
+		n := remotesite.CaptureAllBalanceSnapshots(context.Background())
+		if n > 0 {
+			log.Infof("captured balance snapshots for %d remote sites", n)
+		}
+	})
+
+	// Hub: auto check-in daily at task tick (every 12 hours; the check-in logic is idempotent per day)
+	Register(TaskAutoCheckIn, 12*time.Hour, false, func() {
+		records := remotesite.ExecuteCheckInAll(context.Background())
+		if len(records) > 0 {
+			log.Infof("auto check-in completed for %d remote sites", len(records))
+		}
+	})
 }
