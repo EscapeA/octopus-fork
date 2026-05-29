@@ -8,9 +8,10 @@ import {
     useRefreshAllRemoteSites,
     type RemoteSite as RemoteSiteModel,
 } from '@/api/endpoints/remote-site';
+import { useDiscoverSites, type DiscoveredSite } from '@/api/endpoints/site-discovery';
 import { LoadingState } from '@/components/common/LoadingState';
 import { ErrorState } from '@/components/common/ErrorState';
-import { Globe, RefreshCw, Plus, Trash2, ExternalLink, CircleDot, Pencil, KeyRound } from 'lucide-react';
+import { Globe, RefreshCw, Plus, Trash2, ExternalLink, CircleDot, Pencil, KeyRound, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/common/Toast';
 import { Badge } from '@/components/ui/badge';
@@ -95,6 +96,8 @@ export function RemoteSite() {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingSite, setEditingSite] = useState<RemoteSiteModel | null>(null);
     const [tokenSiteId, setTokenSiteId] = useState<number | null>(null);
+    const [discoveredSites, setDiscoveredSites] = useState<DiscoveredSite[] | null>(null);
+    const discoverSites = useDiscoverSites();
     const t = useTranslations('hub');
 
     const handleDelete = (id: number) => {
@@ -133,6 +136,44 @@ export function RemoteSite() {
         setTokenSiteId(id);
     };
 
+    const handleDiscover = () => {
+        discoverSites.mutate(undefined, {
+            onSuccess: (data) => {
+                setDiscoveredSites(data);
+            },
+            onError: (err) => toast.error(err.message),
+        });
+    };
+
+    const handleAddDiscovered = (site: DiscoveredSite) => {
+        setEditingSite({
+            id: 0,
+            name: site.name,
+            base_url: site.base_url,
+            site_type: site.type,
+            auth_type: 'access_token',
+            access_token: '',
+            username: '',
+            password: '',
+            exchange_rate: 7,
+            enabled: true,
+            tags: '',
+            notes: '',
+            pinned: false,
+            sort_order: 0,
+            remote_user_id: 0,
+            remote_username: '',
+            quota: 0,
+            health_status: 'unknown',
+            health_message: '',
+            last_sync_at: null,
+            created_at: '',
+            updated_at: '',
+        });
+        setDiscoveredSites(null);
+        setDialogOpen(true);
+    };
+
     if (isLoading) return <LoadingState />;
     if (isError) return <ErrorState onRetry={refetch} />;
 
@@ -157,6 +198,15 @@ export function RemoteSite() {
                     <Button size="sm" onClick={handleCreate}>
                         <Plus className="h-4 w-4 mr-1" />
                         {t('addSite')}
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDiscover}
+                        disabled={discoverSites.isPending}
+                    >
+                        <Search className={cn('h-4 w-4 mr-1', discoverSites.isPending && 'animate-spin')} />
+                        {t('discover')}
                     </Button>
                 </div>
             </div>
@@ -199,6 +249,38 @@ export function RemoteSite() {
                             <Button variant="ghost" size="sm" onClick={() => setTokenSiteId(null)}>✕</Button>
                         </div>
                         <TokenManager siteId={tokenSiteId} />
+                    </div>
+                </div>
+            )}
+
+            {discoveredSites && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setDiscoveredSites(null)}>
+                    <div className="bg-background rounded-lg shadow-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold">{t('discoveredTitle')}</h3>
+                            <Button variant="ghost" size="sm" onClick={() => setDiscoveredSites(null)}>✕</Button>
+                        </div>
+                        {discoveredSites.length > 0 ? (
+                            <div className="space-y-2">
+                                {discoveredSites.map((site, idx) => (
+                                    <div key={idx} className="flex items-center justify-between p-3 rounded-lg border">
+                                        <div className="flex flex-col gap-1">
+                                            <span className="font-medium">{site.name}</span>
+                                            <span className="text-xs text-muted-foreground">{site.base_url}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant="outline" className="text-xs">{site.type}</Badge>
+                                            <Button size="sm" onClick={() => handleAddDiscovered(site)}>
+                                                <Plus className="h-3.5 w-3.5 mr-1" />
+                                                {t('add')}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground text-center py-8">{t('discoveredEmpty')}</p>
+                        )}
                     </div>
                 </div>
             )}
