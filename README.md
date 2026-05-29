@@ -20,7 +20,7 @@
 - 🤖 **Auto Strategy** - Explore candidates first, then prefer higher in-window success rate automatically
 - 🧠 **AI Routing, Auto Grouping & Conditional Groups** - Generate the full routing table from the route page, fill a single group from the edit dialog, and gate groups with JSON conditions
 - 🔄 **Protocol Conversion** - Seamless conversion between OpenAI Chat / OpenAI Responses / OpenAI Embeddings / Anthropic API formats
-- 🌐 **Multi-Provider Support** - Built-in support for OpenAI-compatible, Anthropic, Gemini, and Volcengine channels
+- 🌐 **Multi-Provider Support** - Built-in support for OpenAI-compatible, Anthropic, Gemini, Volcengine, and MiMo channels
 - 🛰️ **Media & Utility Relay** - Relay OpenAI Images, audio, video, search, rerank, and moderation endpoints through the same group / retry / circuit-breaker infrastructure
 - 🧾 **API Key Governance** - Supported-model allowlists, expiry, max-cost caps, RPM / TPM limits, and optional per-model quotas
 - 🔐 **Role-Based Admin Access** - Built-in `admin`, `editor`, and `viewer` roles with server-side permission enforcement
@@ -356,6 +356,7 @@ The program automatically appends API paths based on channel type. You only need
 | Anthropic | `/messages` | `https://api.anthropic.com/v1` | `https://api.anthropic.com/v1/messages` |
 | Gemini | `/models/:model:generateContent` | `https://generativelanguage.googleapis.com/v1beta` | `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent` |
 | Volcengine | `/responses` | `https://ark.cn-beijing.volces.com/api/v3` | `https://ark.cn-beijing.volces.com/api/v3/responses` |
+| MiMo Chat | `/chat/completions` | `https://api.xiaomimimo.com/v1` | `https://api.xiaomimimo.com/v1/chat/completions` |
 
 > 💡 **Tip**: Base URLs now support `Auto detect` and `Custom`. `Auto detect` appends the version suffix based on the channel type, while `Custom` keeps the URL exactly as you entered it.
 
@@ -702,7 +703,7 @@ internal/
 ├── conf/               # Configuration loading & build metadata
 ├── client/             # HTTP client utilities
 ├── db/                 # Database connection & migrations (SQLite/MySQL/PostgreSQL)
-│   └── migrate/        # Versioned schema migrations (001-008)
+│   └── migrate/        # Versioned schema migrations (001-009)
 ├── model/              # Domain types (Channel, Group, APIKey, User, …)
 ├── op/                 # Business logic operations split by domain
 │   ├── airoute/        # AI route generation and compatibility helpers
@@ -723,7 +724,7 @@ internal/
 ├── task/               # Background periodic jobs
 ├── transformer/        # Protocol adapters
 │   ├── inbound/        # Client→Internal (OpenAI, Anthropic)
-│   ├── outbound/       # Internal→Upstream (OpenAI, Anthropic, Gemini, Volcengine)
+│   ├── outbound/       # Internal→Upstream (OpenAI, Anthropic, Gemini, Volcengine, MiMo)
 │   ├── rewrite/        # Request normalization
 │   └── model/          # Shared transformer types & interfaces
 ├── helper/             # Cross-cutting helpers (AI route, channel/group probes, price, notify)

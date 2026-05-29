@@ -20,7 +20,7 @@
 - 🤖 **Auto 智能策略** - 先探索样本不足的候选，再优先选择窗口内成功率更高的渠道
 - 🧠 **AI 路由、自动分组与条件分组** - 支持在路由页生成整张路由表，在分组编辑弹窗中补全单个分组，并用 JSON 条件控制分组命中
 - 🔄 **协议互转** - 支持 OpenAI Chat / OpenAI Responses / OpenAI Embeddings / Anthropic 四种 API 格式互相转换
-- 🌐 **多供应商支持** - 内置支持 OpenAI 兼容、Anthropic、Gemini、Volcengine 渠道
+- 🌐 **多供应商支持** - 内置支持 OpenAI 兼容、Anthropic、Gemini、Volcengine、MiMo 渠道
 - 🛰️ **媒体与工具类中继** - 支持通过同一套分组 / 重试 / 熔断基础设施转发 OpenAI Images、音频、视频、搜索、重排和审核类端点
 - 🧾 **API Key 治理** - 支持模型白名单、过期时间、费用上限、RPM / TPM 限额，以及可选的按模型配额
 - 🔐 **角色化管理权限** - 内置 `admin`、`editor`、`viewer` 三种角色，并由服务端强制执行权限控制
@@ -357,6 +357,7 @@ http://localhost:3000
 | Anthropic | `/messages` | `https://api.anthropic.com/v1` | `https://api.anthropic.com/v1/messages` |
 | Gemini | `/models/:model:generateContent` | `https://generativelanguage.googleapis.com/v1beta` | `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent` |
 | Volcengine | `/responses` | `https://ark.cn-beijing.volces.com/api/v3` | `https://ark.cn-beijing.volces.com/api/v3/responses` |
+| MiMo Chat | `/chat/completions` | `https://api.xiaomimimo.com/v1` | `https://api.xiaomimimo.com/v1/chat/completions` |
 
 > 💡 **提示**：Base URL 现在支持 `自动识别` 和 `自定义` 两种模式。`自动识别` 会按渠道类型自动补版本后缀，`自定义` 会保持你填写的 URL 原样。
 
@@ -704,7 +705,7 @@ internal/
 ├── conf/               # 配置加载与构建元信息
 ├── client/             # HTTP 客户端工具
 ├── db/                 # 数据库连接与迁移（SQLite/MySQL/PostgreSQL）
-│   └── migrate/        # 版本化 Schema 迁移（001-008）
+│   └── migrate/        # 版本化 Schema 迁移（001-009）
 ├── model/              # 领域类型（Channel、Group、APIKey、User……）
 ├── op/                 # 按领域拆分的业务逻辑操作
 │   ├── airoute/        # AI 路由生成与兼容辅助逻辑
@@ -725,7 +726,7 @@ internal/
 ├── task/               # 后台定时任务
 ├── transformer/        # 协议适配器
 │   ├── inbound/        # 客户端→内部（OpenAI、Anthropic）
-│   ├── outbound/       # 内部→上游（OpenAI、Anthropic、Gemini、Volcengine）
+│   ├── outbound/       # 内部→上游（OpenAI、Anthropic、Gemini、Volcengine、MiMo）
 │   ├── rewrite/        # 请求规范化
 │   └── model/          # 共享适配器类型与接口
 ├── helper/             # 横切辅助（AI 路由、渠道/分组探测、价格、通知）
