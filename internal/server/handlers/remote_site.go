@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lingyuins/octopus/internal/hub"
 	_ "github.com/lingyuins/octopus/internal/hub/common"
+	"github.com/lingyuins/octopus/internal/hub/ldoh"
 	_ "github.com/lingyuins/octopus/internal/hub/octopus"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op/remotesite"
@@ -66,6 +67,15 @@ func init() {
 		AddRoute(
 			router.NewRoute("/site-types", http.MethodGet).
 				Handle(listSiteTypes),
+		)
+
+	router.NewGroupRouter("/api/v1/site-discovery").
+		Use(middleware.Auth()).
+		Use(middleware.RequirePermission(auth.PermSitesWrite)).
+		Use(middleware.RequireJSON()).
+		AddRoute(
+			router.NewRoute("/discover", http.MethodGet).
+				Handle(discoverSites),
 		)
 }
 
@@ -206,4 +216,13 @@ func fetchRemoteSitePricing(c *gin.Context) {
 
 func listSiteTypes(c *gin.Context) {
 	resp.Success(c, model.AllSiteTypes())
+}
+
+func discoverSites(c *gin.Context) {
+	sites, err := ldoh.DiscoverSites(c.Request.Context())
+	if err != nil {
+		resp.Error(c, http.StatusBadGateway, err.Error())
+		return
+	}
+	resp.Success(c, sites)
 }

@@ -10,13 +10,14 @@ import {
 } from '@/api/endpoints/remote-site';
 import { LoadingState } from '@/components/common/LoadingState';
 import { ErrorState } from '@/components/common/ErrorState';
-import { Globe, RefreshCw, Plus, Trash2, ExternalLink, CircleDot, Pencil } from 'lucide-react';
+import { Globe, RefreshCw, Plus, Trash2, ExternalLink, CircleDot, Pencil, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/common/Toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 import { SiteDialog } from './SiteDialog';
+import { TokenManager } from './TokenManager';
 
 function healthColor(status: string): string {
     switch (status) {
@@ -27,11 +28,12 @@ function healthColor(status: string): string {
     }
 }
 
-function SiteCard({ site, onEdit, onDelete, onRefresh }: {
+function SiteCard({ site, onEdit, onDelete, onRefresh, onOpenTokens }: {
     site: RemoteSiteModel;
     onEdit: (site: RemoteSiteModel) => void;
     onDelete: (id: number) => void;
     onRefresh: (id: number) => void;
+    onOpenTokens: (id: number) => void;
 }) {
     const t = useTranslations('hub');
 
@@ -44,6 +46,9 @@ function SiteCard({ site, onEdit, onDelete, onRefresh }: {
                     {site.pinned && <Badge variant="secondary" className="text-xs shrink-0">Pin</Badge>}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onOpenTokens(site.id)} title="Tokens">
+                        <KeyRound className="h-3.5 w-3.5" />
+                    </Button>
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onRefresh(site.id)}>
                         <RefreshCw className="h-3.5 w-3.5" />
                     </Button>
@@ -89,6 +94,7 @@ export function RemoteSite() {
     const refreshAll = useRefreshAllRemoteSites();
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingSite, setEditingSite] = useState<RemoteSiteModel | null>(null);
+    const [tokenSiteId, setTokenSiteId] = useState<number | null>(null);
     const t = useTranslations('hub');
 
     const handleDelete = (id: number) => {
@@ -121,6 +127,10 @@ export function RemoteSite() {
     const handleCreate = () => {
         setEditingSite(null);
         setDialogOpen(true);
+    };
+
+    const handleOpenTokens = (id: number) => {
+        setTokenSiteId(id);
     };
 
     if (isLoading) return <LoadingState />;
@@ -160,6 +170,7 @@ export function RemoteSite() {
                             onEdit={handleEdit}
                             onDelete={handleDelete}
                             onRefresh={handleRefresh}
+                            onOpenTokens={handleOpenTokens}
                         />
                     ))}
                 </div>
@@ -179,6 +190,18 @@ export function RemoteSite() {
                 onOpenChange={setDialogOpen}
                 editingSite={editingSite}
             />
+
+            {tokenSiteId && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setTokenSiteId(null)}>
+                    <div className="bg-background rounded-lg shadow-lg w-full max-w-3xl max-h-[80vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold">{t('remoteTokens')}</h3>
+                            <Button variant="ghost" size="sm" onClick={() => setTokenSiteId(null)}>✕</Button>
+                        </div>
+                        <TokenManager siteId={tokenSiteId} />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -80,6 +80,7 @@
   "navbar": {
     "home": "Home",
     "hub": "Hub",
+    "announcement": "Announcements",
     "checkin": "Check-in",
     "credential": "Credentials",
     "channel": "Channel",
@@ -132,7 +133,24 @@
     "chart": {
       "loading": "Loading chart data...",
       "noData": "No balance history data available."
-    }
+    },
+    "remoteTokens": "Remote Tokens",
+    "syncTokens": "Sync Tokens",
+    "tokensSynced": "Synced {count} tokens",
+    "tokenName": "Token Name",
+    "status": "Status",
+    "remainQuota": "Remain Quota",
+    "usedQuota": "Used Quota",
+    "actions": "Actions",
+    "importAsChannel": "Import",
+    "tokenImported": "Token imported as channel",
+    "noTokens": "No remote tokens found"
+  },
+  "announcement": {
+    "title": "Announcements",
+    "refreshAll": "Refresh All",
+    "refreshed": "Refreshed {count} announcements",
+    "empty": "No announcements yet"
   },
   "checkin": {
     "title": "Check-in",

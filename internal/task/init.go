@@ -16,15 +16,16 @@ import (
 )
 
 const (
-	TaskPriceUpdate    = "price_update"
-	TaskStatsSave      = "stats_save"
-	TaskRuntimeState   = "runtime_state_save"
-	TaskRelayLogSave   = "relay_log_save"
-	TaskSyncLLM        = "sync_llm"
-	TaskCleanLLM       = "clean_llm"
-	TaskBaseUrlDelay   = "base_url_delay"
-	TaskBalanceCapture = "hub_balance_capture"
-	TaskAutoCheckIn    = "hub_auto_checkin"
+	TaskPriceUpdate       = "price_update"
+	TaskStatsSave         = "stats_save"
+	TaskRuntimeState      = "runtime_state_save"
+	TaskRelayLogSave      = "relay_log_save"
+	TaskSyncLLM           = "sync_llm"
+	TaskCleanLLM          = "clean_llm"
+	TaskBaseUrlDelay      = "base_url_delay"
+	TaskBalanceCapture    = "hub_balance_capture"
+	TaskAutoCheckIn       = "hub_auto_checkin"
+	TaskAnnouncementFetch = "hub_announcement_fetch"
 )
 
 func Init() {
@@ -105,6 +106,14 @@ func Init() {
 		records := remotesite.ExecuteCheckInAll(context.Background())
 		if len(records) > 0 {
 			log.Infof("auto check-in completed for %d remote sites", len(records))
+		}
+	})
+
+	// Hub: fetch announcements every 4 hours
+	Register(TaskAnnouncementFetch, 4*time.Hour, false, func() {
+		n := remotesite.FetchAllAnnouncements(context.Background())
+		if n > 0 {
+			log.Infof("fetched announcements for %d remote sites", n)
 		}
 	})
 }

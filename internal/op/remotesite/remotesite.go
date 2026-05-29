@@ -237,6 +237,16 @@ func Refresh(ctx context.Context, id int) (*hub.RefreshResult, error) {
 		log.Warnf("failed to save refresh result for site %d: %v", id, err)
 	}
 
+	go func() {
+		bgCtx := context.Background()
+		if _, err := SyncTokens(bgCtx, id); err != nil {
+			log.Warnf("sync tokens during refresh for site %d: %v", id, err)
+		}
+		if err := FetchAndStoreAnnouncement(bgCtx, id); err != nil {
+			log.Warnf("fetch announcement during refresh for site %d: %v", id, err)
+		}
+	}()
+
 	return result, nil
 }
 

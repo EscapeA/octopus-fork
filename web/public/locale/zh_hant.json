@@ -80,6 +80,7 @@
   "navbar": {
     "home": "主頁",
     "hub": "站點管理",
+    "announcement": "公告",
     "checkin": "簽到",
     "credential": "憑據管理",
     "channel": "供應源",
@@ -132,7 +133,24 @@
     "chart": {
       "loading": "載入圖表資料中...",
       "noData": "暫無餘額歷史資料。"
-    }
+    },
+    "remoteTokens": "遠端權杖",
+    "syncTokens": "同步權杖",
+    "tokensSynced": "已同步 {count} 個權杖",
+    "tokenName": "權杖名稱",
+    "status": "狀態",
+    "remainQuota": "剩餘額度",
+    "usedQuota": "已用額度",
+    "actions": "操作",
+    "importAsChannel": "匯入",
+    "tokenImported": "權杖已匯入為渠道",
+    "noTokens": "暫無遠端權杖"
+  },
+  "announcement": {
+    "title": "公告",
+    "refreshAll": "重新整理全部",
+    "refreshed": "已重新整理 {count} 條公告",
+    "empty": "暫無公告"
   },
   "checkin": {
     "title": "簽到",

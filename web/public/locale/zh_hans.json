@@ -80,6 +80,7 @@
   "navbar": {
     "home": "主页",
     "hub": "站点管理",
+    "announcement": "公告",
     "checkin": "签到",
     "credential": "凭据管理",
     "channel": "渠道",
@@ -132,7 +133,24 @@
     "chart": {
       "loading": "加载图表数据中...",
       "noData": "暂无余额历史数据。"
-    }
+    },
+    "remoteTokens": "远程令牌",
+    "syncTokens": "同步令牌",
+    "tokensSynced": "已同步 {count} 个令牌",
+    "tokenName": "令牌名称",
+    "status": "状态",
+    "remainQuota": "剩余额度",
+    "usedQuota": "已用额度",
+    "actions": "操作",
+    "importAsChannel": "导入",
+    "tokenImported": "令牌已导入为渠道",
+    "noTokens": "暂无远程令牌"
+  },
+  "announcement": {
+    "title": "公告",
+    "refreshAll": "刷新全部",
+    "refreshed": "已刷新 {count} 条公告",
+    "empty": "暂无公告"
   },
   "checkin": {
     "title": "签到",
