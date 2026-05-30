@@ -23,6 +23,9 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Ensure static/out exists
+        run: mkdir -p static/out && touch static/out/.keep
+
       - name: Go compile check
         run: go test -run=TestNoSuchTest ./...
 

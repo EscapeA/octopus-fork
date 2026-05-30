@@ -64,6 +64,14 @@ func (m *mockAdapter) FetchSiteStatus(_ context.Context, _ *model.RemoteSite) (*
 	return nil, nil
 }
 
+func (m *mockAdapter) RedeemCode(_ context.Context, _ *model.RemoteSite, _ string) (*RedeemResult, error) {
+	return nil, nil
+}
+
+func (m *mockAdapter) FetchUsageLogs(_ context.Context, _ *model.RemoteSite, _, _ int) ([]RemoteUsageLog, error) {
+	return nil, nil
+}
+
 // withCleanRegistry saves the current global adapters map, replaces it with an
 // empty copy for the duration of the test, then restores the original.
 func withCleanRegistry(t *testing.T) {

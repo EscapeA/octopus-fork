@@ -74,6 +74,14 @@ var auditedManagementWriteRoutes = map[string]struct{}{
 	"POST /api/v1/verification/run":                 {},
 	"POST /api/v1/verification/run-for/:id":         {},
 	"POST /api/v1/cli-export/generate":              {},
+	"POST /api/v1/model-mapping/create":             {},
+	"PUT /api/v1/model-mapping/:id":                 {},
+	"DELETE /api/v1/model-mapping/:id":              {},
+	"POST /api/v1/backup/webdav/config":             {},
+	"POST /api/v1/backup/webdav/test":               {},
+	"POST /api/v1/backup/webdav/backup":             {},
+	"POST /api/v1/backup/webdav/restore":            {},
+	"DELETE /api/v1/backup/webdav/delete":           {},
 }
 
 func AuditManagementWrite() gin.HandlerFunc {

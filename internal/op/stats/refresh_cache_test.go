@@ -23,15 +23,15 @@ func TestRefreshCacheSkipsNonTodayHourlyStats(t *testing.T) {
 
 	testName := strings.NewReplacer("/", "-", "\\", "-", " ", "-").Replace(t.Name())
 	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", testName)
-	if err := db.InitDB("sqlite", dsn, false); err != nil {
+	if err := db.InitDB("sqlite", dsn, true); err != nil {
 		t.Fatalf("init db: %v", err)
 	}
 	defer func() { _ = db.Close() }()
 
 	dbConn := db.GetDB().WithContext(context.Background())
 	if err := dbConn.Create(&model.StatsHourly{
-		Hour: 9,
-		Date: "20260519",
+		Hour:         9,
+		Date:         "20260519",
 		StatsMetrics: model.StatsMetrics{RequestSuccess: 99, InputToken: 999},
 	}).Error; err != nil {
 		t.Fatalf("create yesterday hourly: %v", err)
@@ -64,7 +64,7 @@ func TestStatsHourlyCompositePrimaryKeyAllowsMultipleDatesPerHour(t *testing.T) 
 
 	testName := strings.NewReplacer("/", "-", "\\", "-", " ", "-").Replace(t.Name())
 	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", testName)
-	if err := db.InitDB("sqlite", dsn, false); err != nil {
+	if err := db.InitDB("sqlite", dsn, true); err != nil {
 		t.Fatalf("init db: %v", err)
 	}
 	defer func() { _ = db.Close() }()
