@@ -1,7 +1,7 @@
 import { lazyWithPreload } from './lazy-with-preload';
 import { lazy, ComponentType } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { Home, Radio, Sparkles, FolderTree, Settings, Logs, Users, Bell, BarChart3, Wrench, KeyRound, Globe, GitBranch } from 'lucide-react';
+import { Home, Radio, Sparkles, FolderTree, Settings, Logs, Users, Bell, BarChart3, Wrench, KeyRound, Globe } from 'lucide-react';
 import { DEFAULT_NAV_ORDER } from '@/components/modules/navbar';
 
 export type LazyComponent = ReturnType<typeof lazy> & {
@@ -29,7 +29,6 @@ const User_Module = lazyWithPreload(() => import('@/components/modules/user').th
 const Alert_Module = lazyWithPreload(() => import('@/components/modules/alert').then(m => ({ default: m.Alert })));
 const Ops_Module = lazyWithPreload(() => import('@/components/modules/ops').then(m => ({ default: m.Ops })));
 const Hub_Module = lazyWithPreload(() => import('@/components/modules/remote-site').then(m => ({ default: m.RemoteSite })));
-const ModelMapping_Module = lazyWithPreload(() => import('@/components/modules/model-mapping').then(m => ({ default: m.ModelMappingPage })));
 
 export const ROUTES: RouteConfig[] = [
     { id: 'home', icon: Home, component: Home_Module },
@@ -37,7 +36,6 @@ export const ROUTES: RouteConfig[] = [
     { id: 'channel', icon: Radio, component: Channel_Module },
     { id: 'group', icon: FolderTree, component: Group_Module },
     { id: 'model', icon: Sparkles, component: Model_Module },
-    { id: 'model-mapping', icon: GitBranch, component: ModelMapping_Module },
     { id: 'analytics', icon: BarChart3, component: Analytics_Module },
     { id: 'log', icon: Logs, component: Log_Module },
     { id: 'alert', icon: Bell, component: Alert_Module },

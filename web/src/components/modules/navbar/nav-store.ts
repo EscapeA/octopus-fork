@@ -7,7 +7,6 @@ export type NavItem =
     | 'channel'
     | 'group'
     | 'model'
-    | 'model-mapping'
     | 'analytics'
     | 'log'
     | 'alert'
@@ -22,7 +21,6 @@ export const DEFAULT_NAV_ORDER: NavItem[] = [
     'channel',
     'group',
     'model',
-    'model-mapping',
     'analytics',
     'log',
     'alert',

@@ -27,6 +27,7 @@ export type SettingItemId =
     | 'llmsync'
     | 'circuit-breaker'
     | 'backup'
+    | 'webdav'
     | 'route-group-danger';
 
 export const DEFAULT_SETTING_ORDER: SettingItemId[] = [
@@ -42,6 +43,7 @@ export const DEFAULT_SETTING_ORDER: SettingItemId[] = [
     'llmsync',
     'circuit-breaker',
     'backup',
+    'webdav',
     'route-group-danger',
 ];
 
@@ -115,6 +117,7 @@ export function SettingOrder() {
             llmsync: settingT('llmSync.title'),
             'circuit-breaker': settingT('circuitBreaker.title'),
             backup: settingT('backup.title'),
+            webdav: settingT('webdav.title'),
             'route-group-danger': settingT('routeGroups.title'),
         };
         return map;

@@ -4,7 +4,6 @@ export const DEFAULT_NAV_ORDER = [
     'channel',
     'group',
     'model',
-    'model-mapping',
     'analytics',
     'log',
     'alert',
