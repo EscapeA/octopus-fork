@@ -126,8 +126,9 @@ async function request<T>(
     // 构建请求头
     const headers = new Headers();
 
-    // 只在有 body 时设置 Content-Type
-    if (body) {
+    // POST/PUT/PATCH 始终设置 Content-Type，即使无 body，
+    // 因为后端 RequireJSON() 中间件需要此头来放行非 GET/DELETE 请求
+    if (body || method === 'POST' || method === 'PUT' || method === 'PATCH') {
         headers.set('Content-Type', 'application/json');
     }
 
@@ -163,7 +164,7 @@ export const apiClient = {
      * POST 请求
      */
     post: <T>(path: string, data?: unknown, params?: Record<string, string | number | boolean>, includeAuth = true): Promise<T> =>
-        request<T>('POST', path, data ? JSON.stringify(data) : undefined, params, includeAuth),
+        request<T>('POST', path, JSON.stringify(data ?? {}), params, includeAuth),
 
     /**
      * PUT 请求

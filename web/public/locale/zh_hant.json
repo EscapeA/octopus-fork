@@ -82,6 +82,8 @@
     "hub": "站點管理",
     "announcement": "公告",
     "checkin": "簽到",
+    "redemption": "兌換碼",
+    "usage-history": "用量歷史",
     "credential": "憑據管理",
     "channel": "供應源",
     "group": "分組",
@@ -97,6 +99,14 @@
     "apikey": "API 金鑰"
   },
   "hub": {
+    "tabs": {
+      "sites": "站點",
+      "checkin": "簽到",
+      "announcement": "公告",
+      "redemption": "兌換",
+      "usage": "用量歷史",
+      "credential": "憑證"
+    },
     "title": "遠端站點",
     "addSite": "新增站點",
     "editSite": "編輯站點",
@@ -132,7 +142,13 @@
     },
     "chart": {
       "loading": "載入圖表資料中...",
-      "noData": "暫無餘額歷史資料。"
+      "noData": "暫無餘額歷史資料。",
+      "quota": "餘額",
+      "predicted": "預測",
+      "dailyBurn": "日消耗",
+      "daysRemaining": "剩餘天數",
+      "sevenDayAvg": "7日均值",
+      "estimatedZero": "預計耗盡日"
     },
     "remoteTokens": "遠端權杖",
     "syncTokens": "同步權杖",
@@ -148,7 +164,9 @@
     "actions": "操作",
     "importAsChannel": "匯入",
     "tokenImported": "權杖已匯入為渠道",
-    "noTokens": "暫無遠端權杖"
+    "noTokens": "暫無遠端權杖",
+    "exportTokens": "匯出",
+    "tokensExported": "權杖匯出成功"
   },
   "announcement": {
     "title": "公告",
@@ -166,6 +184,79 @@
     "failed": "簽到失敗",
     "allDone": "已完成 {count} 個站點的簽到",
     "empty": "暫無可簽到的遠端站點。"
+  },
+  "redemption": {
+    "title": "兌換碼",
+    "description": "使用兌換碼為遠端站點新增額度",
+    "labels": {
+      "codes": "兌換碼",
+      "site": "目標站點"
+    },
+    "placeholders": {
+      "codes": "每行輸入一個兌換碼...",
+      "site": "選擇站點"
+    },
+    "hints": {
+      "codes": "每行一個兌換碼，空行將被忽略。"
+    },
+    "buttons": {
+      "redeem": "兌換",
+      "redeeming": "兌換中...",
+      "redeemAll": "在所有站點兌換"
+    },
+    "status": {
+      "success": "成功",
+      "already_used": "已使用",
+      "invalid": "無效",
+      "failed": "失敗"
+    },
+    "success": {
+      "description": "成功兌換 {success}/{total} 個兌換碼",
+      "allSitesTitle": "兌換完成",
+      "allSitesDesc": "在 {count} 個站點成功兌換"
+    },
+    "errors": {
+      "noCodes": "無兌換碼",
+      "noCodesDesc": "請至少輸入一個兌換碼",
+      "noSite": "未選擇站點",
+      "noSiteDesc": "請選擇目標站點",
+      "failed": "兌換失敗"
+    },
+    "history": {
+      "title": "兌換歷史",
+      "description": "該站點的最近兌換記錄",
+      "selectSite": "選擇站點以查看歷史",
+      "empty": "暫無兌換記錄"
+    }
+  },
+  "usage_history": {
+    "title": "用量歷史",
+    "description": "查看和分析遠端站點的用量歷史",
+    "filters": "篩選條件",
+    "site": "站點",
+    "select_site": "選擇站點",
+    "day_from": "起始日期",
+    "day_to": "結束日期",
+    "model": "模型",
+    "all_models": "所有模型",
+    "token": "令牌",
+    "all_tokens": "所有令牌",
+    "sync": "同步",
+    "sync_all": "同步全部",
+    "sync_success": "已同步 {count} 條記錄",
+    "sync_all_success": "已從所有站點同步 {count} 條記錄",
+    "sync_error": "同步用量歷史失敗",
+    "total_requests": "總請求數",
+    "total_tokens": "總令牌數",
+    "total_quota": "總配額",
+    "history": "歷史記錄",
+    "history_description": "詳細用量記錄",
+    "date": "日期",
+    "requests": "請求數",
+    "prompt_tokens": "輸入令牌",
+    "completion_tokens": "輸出令牌",
+    "quota": "配額",
+    "no_data": "暫無用量數據"
   },
   "credential": {
     "title": "API 憑據",
@@ -197,6 +288,48 @@
       "unchanged": "留空表示不修改"
     }
   },
+  "model_mapping": {
+    "title": "模型映射",
+    "description": "定義全局模型名稱轉換規則。當請求的模型名稱匹配規則時，會自動改寫為目標模型名稱。",
+    "refresh": "刷新",
+    "add": "添加映射",
+    "loading": "加載中...",
+    "empty": "暫無模型映射規則",
+    "name": "名稱",
+    "pattern": "模式",
+    "match_type": "匹配類型",
+    "target_model": "目標模型",
+    "priority": "優先級",
+    "scope": "範圍",
+    "status": "狀態",
+    "actions": "操作",
+    "match_exact": "精確匹配",
+    "match_wildcard": "通配符",
+    "match_regex": "正則表達式",
+    "global": "全局",
+    "enabled": "啟用",
+    "disabled": "禁用",
+    "edit_title": "編輯映射",
+    "create_title": "創建映射",
+    "edit_description": "修改模型映射規則",
+    "create_description": "創建新的模型映射規則",
+    "name_placeholder": "映射規則名稱",
+    "pattern_placeholder": "匹配模式（例如 gpt-4*, claude-3-*）",
+    "target_model_placeholder": "目標模型名稱",
+    "scope_group_id": "作用域分組 ID",
+    "scope_group_id_placeholder": "留空表示全局作用域，或輸入分組 ID",
+    "cancel": "取消",
+    "update": "更新",
+    "create": "創建",
+    "load_error": "加載模型映射失敗",
+    "create_success": "模型映射創建成功",
+    "create_error": "創建模型映射失敗",
+    "update_success": "模型映射更新成功",
+    "update_error": "更新模型映射失敗",
+    "delete_success": "模型映射刪除成功",
+    "delete_error": "刪除模型映射失敗",
+    "confirm_delete": "確定要刪除此模型映射嗎？"
+  },
   "analytics": {
     "title": "分析中心",
     "subtitle": "聚合 Octopus 目前的統計、利用率與路由健康視角，一期先復用現有統計與日誌能力完成可用分析頁。",
@@ -226,6 +359,17 @@
     "states": {
       "loading": "載入中...",
       "empty": "暫無可展示資料"
+    },
+    "latency": {
+      "title": "延遲",
+      "useTime": "請求延遲",
+      "ftut": "首 Token 時間",
+      "avg": "平均",
+      "p50": "P50",
+      "p95": "P95",
+      "p99": "P99",
+      "histogram": "延遲分布",
+      "totalRequests": "共 {count} 次請求"
     },
     "overview": {
       "description": "用現有日統計與請求回放結果聚合出一期總覽，優先提供可讀指標而不是額外設定項。"
@@ -363,6 +507,16 @@
           "timeout": "超時"
         }
       }
+    },
+    "share": {
+      "button": "分享",
+      "title": "分享快照",
+      "download": "下載 PNG",
+      "copy": "複製到剪貼簿",
+      "exportSuccess": "快照已下載",
+      "exportError": "匯出快照失敗",
+      "copySuccess": "快照已複製到剪貼簿",
+      "copyError": "複製到剪貼簿失敗"
     }
   },
   "ops": {
@@ -662,7 +816,12 @@
     "channelTypes": {
       "webhook": "Webhook",
       "gotify": "Gotify",
-      "email": "電子郵件"
+      "email": "電子郵件",
+      "telegram": "Telegram",
+      "feishu": "飛書",
+      "dingtalk": "釘釘",
+      "wecom": "企業微信",
+      "ntfy": "ntfy"
     },
     "rules": {
       "title": "告警規則",
@@ -707,7 +866,15 @@
         "emailPassword": "SMTP 密碼",
         "emailFrom": "寄件人位址",
         "emailTo": "收件人位址（多個用逗號分隔）",
-        "emailUseTls": "使用 TLS"
+        "emailUseTls": "使用 TLS",
+        "telegramBotToken": "Bot Token（從 @BotFather 取得）",
+        "telegramChatId": "Chat ID",
+        "feishuWebhookKey": "Webhook Key",
+        "dingtalkWebhookKey": "機器人 Access Token",
+        "dingtalkSecret": "簽名密鑰（選填，用於 HMAC-SHA256）",
+        "wecomWebhookKey": "群組機器人 Key",
+        "ntfyTopicUrl": "Topic URL（如 https://ntfy.sh/mytopic 或僅 mytopic）",
+        "ntfyAccessToken": "Access Token（選填）"
       }
     },
     "history": {
@@ -1155,6 +1322,37 @@
         "testButton": "測試連線",
         "successDetail": "遷移完成。重新啟動 Octopus 後將使用 {type}: {path}"
       }
+    },
+    "webdav": {
+      "title": "WebDAV 雲端備份",
+      "enabled": "自動備份",
+      "enabledHint": "按計畫自動備份到 WebDAV 伺服器",
+      "baseUrl": "伺服器位址",
+      "username": "使用者名稱",
+      "password": "密碼",
+      "remotePath": "遠端路徑",
+      "includeStats": "包含統計資料",
+      "includeLogs": "包含中繼和審計日誌",
+      "intervalHours": "備份間隔（小時）",
+      "maxBackups": "最多保留備份數",
+      "save": "儲存設定",
+      "saved": "WebDAV 設定已儲存",
+      "saveFailed": "儲存設定失敗",
+      "test": "測試連線",
+      "testSuccess": "WebDAV 連線成功",
+      "testFailed": "WebDAV 連線失敗",
+      "backupNow": "立即備份",
+      "backupStarted": "備份已在背景啟動",
+      "backupFailed": "備份失敗",
+      "remoteBackups": "遠端備份",
+      "restore": "還原",
+      "restoreConfirm": "從備份 {filename} 還原？這將把資料合併到當前資料庫。",
+      "restoreSuccess": "備份還原成功",
+      "restoreFailed": "還原失敗",
+      "delete": "刪除",
+      "deleteConfirm": "刪除備份 {filename}？",
+      "deleteSuccess": "備份已刪除",
+      "deleteFailed": "刪除備份失敗"
     },
     "routeGroups": {
       "title": "路由分組",

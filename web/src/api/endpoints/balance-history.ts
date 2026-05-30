@@ -55,3 +55,21 @@ export function useCaptureBalance() {
         },
     });
 }
+
+export interface BalancePrediction {
+    daily_burn_rate: number;
+    days_remaining: number;
+    estimated_zero_at: string;
+    seven_day_avg_burn: number;
+    thirty_day_avg_burn: number;
+    current_quota: number;
+    trend_points: BalanceChartPoint[];
+}
+
+export function useBalancePrediction(siteId: number) {
+    return useQuery({
+        queryKey: ['balance-history', 'prediction', siteId],
+        queryFn: () => apiClient.get<BalancePrediction>(`/api/v1/balance-history/prediction/${siteId}`),
+        enabled: siteId > 0,
+    });
+}

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/lingyuins/octopus/internal/op/modelmapping"
 )
 
 // CacheInitFunc is a function that initializes a sub-package's in-memory cache.
@@ -96,6 +98,12 @@ func init() {
 	RegisterCacheInit(func(ctx context.Context) error {
 		if err := statsRefreshCache(ctx); err != nil {
 			return fmt.Errorf("stats refresh cache error: %v", err)
+		}
+		return nil
+	})
+	RegisterCacheInit(func(ctx context.Context) error {
+		if err := modelmapping.InitCache(ctx); err != nil {
+			return fmt.Errorf("model mapping init cache error: %v", err)
 		}
 		return nil
 	})

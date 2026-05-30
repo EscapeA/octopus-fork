@@ -1,5 +1,32 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '../client';
+import { apiClient, API_BASE_URL } from '../client';
+import { useAuthStore } from './user';
+
+function getAuthHeader(): string {
+    const token = useAuthStore.getState().token;
+    if (!token) throw new Error('Not authenticated');
+    return `Bearer ${token}`;
+}
+
+function parseFilename(contentDisposition: string | null): string | null {
+    if (!contentDisposition) return null;
+    const match = contentDisposition.match(/filename="([^"]+)"/i);
+    return match?.[1] ?? null;
+}
+
+async function downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    try {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    } finally {
+        URL.revokeObjectURL(url);
+    }
+}
 
 export interface RemoteSiteToken {
     id: number;
@@ -49,5 +76,47 @@ export function useSyncToChannel() {
             channel_name?: string;
             models?: string;
         }) => apiClient.post<unknown>('/api/v1/remote-site-token/sync-to-channel', data),
+    });
+}
+
+export interface BatchExportResult {
+    site_name: string;
+    site_base_url: string;
+    exported_at: string;
+    total_tokens: number;
+    active_tokens: number;
+    tokens: Array<{
+        name: string;
+        key: string;
+        base_url: string;
+        status: number;
+        remain_quota: number;
+        used_quota: number;
+        unlimited_quota: boolean;
+        model_limits?: string;
+        expired_time: number;
+    }>;
+}
+
+export function useExportTokens() {
+    return useMutation({
+        mutationFn: async (siteId: number) => {
+            const res = await fetch(`${API_BASE_URL}/api/v1/remote-site-token/export/${siteId}`, {
+                method: 'GET',
+                headers: {
+                    Authorization: getAuthHeader(),
+                },
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text || res.statusText);
+            }
+
+            const blob = await res.blob();
+            const filename = parseFilename(res.headers.get('content-disposition')) || `tokens-${siteId}.json`;
+            await downloadBlob(blob, filename);
+            return { filename };
+        },
     });
 }

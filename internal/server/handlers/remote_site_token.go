@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lingyuins/octopus/internal/model"
@@ -31,6 +34,10 @@ func init() {
 			router.NewRoute("/sync-to-channel", http.MethodPost).
 				Use(middleware.RequirePermission(auth.PermSitesWrite)).
 				Handle(syncToChannel),
+		).
+		AddRoute(
+			router.NewRoute("/export/:site_id", http.MethodGet).
+				Handle(exportTokens),
 		)
 }
 
@@ -74,4 +81,27 @@ func syncToChannel(c *gin.Context) {
 		return
 	}
 	resp.Success(c, ch)
+}
+
+func exportTokens(c *gin.Context) {
+	siteID, err := strconv.Atoi(c.Param("site_id"))
+	if err != nil {
+		resp.Error(c, http.StatusBadRequest, resp.ErrInvalidParam)
+		return
+	}
+
+	result, err := remotesite.BatchExportTokens(c.Request.Context(), siteID)
+	if err != nil {
+		resp.InternalError(c)
+		return
+	}
+
+	filename := fmt.Sprintf("tokens-%s-%s.json", result.SiteName, time.Now().Format("20060102150405"))
+	c.Header("Content-Type", "application/json")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+	c.Status(http.StatusOK)
+
+	encoder := json.NewEncoder(c.Writer)
+	encoder.SetEscapeHTML(false)
+	_ = encoder.Encode(result)
 }

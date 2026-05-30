@@ -354,6 +354,14 @@ func (a *Adapter) FetchSiteStatus(_ context.Context, _ *model.RemoteSite) (*hub.
 	return nil, nil
 }
 
+func (a *Adapter) RedeemCode(_ context.Context, _ *model.RemoteSite, _ string) (*hub.RedeemResult, error) {
+	return nil, nil
+}
+
+func (a *Adapter) FetchUsageLogs(_ context.Context, _ *model.RemoteSite, _, _ int) ([]hub.RemoteUsageLog, error) {
+	return nil, nil
+}
+
 func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s

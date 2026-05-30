@@ -105,3 +105,23 @@ type AnalyticsGroupHealthItem struct {
 	HealthScore       int    `json:"health_score"`
 	Status            string `json:"status"`
 }
+
+// LatencyDistribution holds latency and FTUT distribution data for a time range.
+type LatencyDistribution struct {
+	TotalRequests int64             `json:"total_requests"`
+	AvgMs         int64             `json:"avg_ms"`
+	P50Ms         int64             `json:"p50_ms"`
+	P95Ms         int64             `json:"p95_ms"`
+	P99Ms         int64             `json:"p99_ms"`
+	FtutAvgMs     int64             `json:"ftut_avg_ms"`
+	FtutP50Ms     int64             `json:"ftut_p50_ms"`
+	FtutP95Ms     int64             `json:"ftut_p95_ms"`
+	FtutP99Ms     int64             `json:"ftut_p99_ms"`
+	Buckets       []HistogramBucket `json:"buckets"`
+}
+
+// HistogramBucket is a single bucket in a latency histogram.
+type HistogramBucket struct {
+	Label string `json:"label"`
+	Count int64  `json:"count"`
+}

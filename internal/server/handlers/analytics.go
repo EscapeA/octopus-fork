@@ -43,6 +43,10 @@ func init() {
 		AddRoute(
 			router.NewRoute("/apikey-breakdown", http.MethodGet).
 				Handle(getAnalyticsAPIKeyBreakdown),
+		).
+		AddRoute(
+			router.NewRoute("/latency-distribution", http.MethodGet).
+				Handle(getAnalyticsLatencyDistribution),
 		)
 }
 
@@ -127,6 +131,19 @@ func getAnalyticsAPIKeyBreakdown(c *gin.Context) {
 	}
 
 	data, err := analytics.AnalyticsAPIKeyBreakdownGet(c.Request.Context(), analyticsRange)
+	if err != nil {
+		resp.InternalError(c)
+		return
+	}
+	resp.Success(c, data)
+}
+
+func getAnalyticsLatencyDistribution(c *gin.Context) {
+	analyticsRange, ok := parseAnalyticsRange(c)
+	if !ok {
+		return
+	}
+	data, err := analytics.AnalyticsLatencyDistributionGet(c.Request.Context(), analyticsRange)
 	if err != nil {
 		resp.InternalError(c)
 		return

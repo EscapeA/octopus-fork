@@ -110,3 +110,119 @@ func CleanOldSnapshots(ctx context.Context, retentionDays int) (int64, error) {
 	}
 	return result.RowsAffected, nil
 }
+
+// PredictBalance analyzes historical balance data and predicts future consumption trends.
+func PredictBalance(ctx context.Context, siteID int) (*model.BalancePrediction, error) {
+	// Get last 30 days of snapshots
+	startDate := time.Now().AddDate(0, 0, -30).Format("2006-01-02")
+	points, err := GetBalanceChartData(ctx, siteID, startDate, "")
+	if err != nil {
+		return nil, fmt.Errorf("get chart data: %w", err)
+	}
+
+	if len(points) < 2 {
+		return nil, fmt.Errorf("insufficient data for prediction (need at least 2 days)")
+	}
+
+	// Calculate daily consumption rates
+	var dailyBurns []float64
+	for i := 1; i < len(points); i++ {
+		prev := points[i-1]
+		curr := points[i]
+
+		// Parse dates to calculate days between
+		prevDate, _ := time.Parse("2006-01-02", prev.DayKey)
+		currDate, _ := time.Parse("2006-01-02", curr.DayKey)
+		daysBetween := currDate.Sub(prevDate).Hours() / 24
+
+		if daysBetween > 0 {
+			burn := (prev.Quota - curr.Quota) / daysBetween
+			if burn > 0 { // Only count positive burns (consumption)
+				dailyBurns = append(dailyBurns, burn)
+			}
+		}
+	}
+
+	if len(dailyBurns) == 0 {
+		return nil, fmt.Errorf("no consumption data available")
+	}
+
+	// Calculate averages
+	sevenDayBurn := avgFloat64(dailyBurns, 7)
+	thirtyDayBurn := avgFloat64(dailyBurns, 30)
+
+	// Use 7-day average as primary prediction (more responsive to recent trends)
+	primaryBurnRate := sevenDayBurn
+
+	// Get current quota from latest point
+	currentQuota := points[len(points)-1].Quota
+
+	// Calculate days remaining
+	var daysRemaining int
+	var estimatedZeroAt string
+	if primaryBurnRate > 0 {
+		daysRemaining = int(currentQuota / primaryBurnRate)
+		zeroDate := time.Now().AddDate(0, 0, daysRemaining)
+		estimatedZeroAt = zeroDate.Format("2006-01-02")
+	} else {
+		daysRemaining = -1 // Infinite
+		estimatedZeroAt = ""
+	}
+
+	// Generate trend points for next 30 days
+	var trendPoints []model.BalanceChartPoint
+	lastDate := points[len(points)-1].DayKey
+	lastQuota := currentQuota
+
+	for i := 1; i <= 30; i++ {
+		nextDate, _ := time.Parse("2006-01-02", lastDate)
+		nextDate = nextDate.AddDate(0, 0, i)
+
+		predictedQuota := lastQuota - (primaryBurnRate * float64(i))
+		if predictedQuota < 0 {
+			predictedQuota = 0
+		}
+
+		trendPoints = append(trendPoints, model.BalanceChartPoint{
+			DayKey: nextDate.Format("2006-01-02"),
+			Quota:  predictedQuota,
+		})
+
+		if predictedQuota <= 0 {
+			break // Stop predicting after quota reaches zero
+		}
+	}
+
+	return &model.BalancePrediction{
+		DailyBurnRate:    primaryBurnRate,
+		DaysRemaining:    daysRemaining,
+		EstimatedZeroAt:  estimatedZeroAt,
+		SevenDayAvgBurn:  sevenDayBurn,
+		ThirtyDayAvgBurn: thirtyDayBurn,
+		CurrentQuota:     currentQuota,
+		TrendPoints:      trendPoints,
+	}, nil
+}
+
+// avgFloat64 calculates the average of the last n elements from a slice.
+func avgFloat64(values []float64, n int) float64 {
+	if len(values) == 0 {
+		return 0
+	}
+
+	start := 0
+	if len(values) > n {
+		start = len(values) - n
+	}
+
+	subset := values[start:]
+	if len(subset) == 0 {
+		return 0
+	}
+
+	sum := 0.0
+	for _, v := range subset {
+		sum += v
+	}
+	return sum / float64(len(subset))
+}

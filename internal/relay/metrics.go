@@ -91,8 +91,10 @@ func (m *RelayMetrics) Save(success bool, err error, attempts []model.ChannelAtt
 	totalAttempts := len(attempts)
 	forwardedAttempts := countForwardedAttempts(attempts)
 
+	useTimeMs := duration.Milliseconds()
+
 	globalStats := model.StatsMetrics{
-		WaitTime:    duration.Milliseconds(),
+		WaitTime:    useTimeMs,
 		InputToken:  m.Stats.InputToken,
 		OutputToken: m.Stats.OutputToken,
 		InputCost:   m.Stats.InputCost,
@@ -103,6 +105,35 @@ func (m *RelayMetrics) Save(success bool, err error, attempts []model.ChannelAtt
 	} else {
 		globalStats.RequestFailed = 1
 	}
+
+	// Latency histogram bucket assignment
+	switch {
+	case useTimeMs < 100:
+		globalStats.HistogramLt100 = 1
+	case useTimeMs < 500:
+		globalStats.Histogram100to500 = 1
+	case useTimeMs < 1000:
+		globalStats.Histogram500to1k = 1
+	case useTimeMs < 5000:
+		globalStats.Histogram1kto5k = 1
+	default:
+		globalStats.HistogramGt5k = 1
+	}
+
+	// FTUT: first token time
+	if !m.FirstTokenTime.IsZero() {
+		ftutMs := m.FirstTokenTime.Sub(m.StartTime).Milliseconds()
+		globalStats.FtutAvg = ftutMs
+		globalStats.FtutP50 = ftutMs
+		globalStats.FtutP95 = ftutMs
+		globalStats.FtutP99 = ftutMs
+	}
+
+	// Latency percentiles from telemetry ring buffer (approximate)
+	snap := telemetry.Global().Snapshot()
+	globalStats.LatencyP50 = int64(snap.AvgLatencyMs)
+	globalStats.LatencyP95 = int64(snap.P95LatencyMs)
+	globalStats.LatencyP99 = int64(snap.P99LatencyMs)
 
 	channelID, channelName := finalChannel(attempts)
 	stats.TotalUpdate(globalStats)

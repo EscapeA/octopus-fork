@@ -8,9 +8,11 @@ import type { AnalyticsRange } from '@/api/endpoints/analytics';
 import { Utilization } from './Utilization';
 import { GroupHealth } from './GroupHealth';
 import { Evaluation } from './Evaluation';
+import { LatencyDistribution } from './LatencyDistribution';
+import { ShareSnapshot } from './ShareSnapshot';
 import { Cache } from '@/components/modules/ops/Cache';
 
-type AnalyticsTab = 'utilization' | 'route-health' | 'cache' | 'evaluation';
+type AnalyticsTab = 'utilization' | 'route-health' | 'cache' | 'evaluation' | 'latency';
 
 const RANGE_OPTIONS: AnalyticsRange[] = ['1d', '7d', '30d', '90d', 'ytd', 'all'];
 
@@ -31,20 +33,35 @@ export function Analytics() {
                                 <TabsTrigger value="utilization">{t('cards.utilization.title')}</TabsTrigger>
                                 <TabsTrigger value="route-health">{t('cards.routeHealth.title')}</TabsTrigger>
                                 <TabsTrigger value="evaluation">{t('evaluation.title')}</TabsTrigger>
+                                <TabsTrigger value="latency">{t('latency.title')}</TabsTrigger>
                             </TabsList>
                         </div>
 
-                        <Tabs value={range} onValueChange={(value) => setRange(value as AnalyticsRange)}>
-                            <div className="overflow-x-auto">
-                                <TabsList className="flex w-max min-w-max flex-nowrap rounded-lg border-border/30 bg-card p-1 xl:min-w-0 xl:flex-wrap">
-                                    {RANGE_OPTIONS.map((option) => (
-                                        <TabsTrigger key={option} value={option}>
-                                            {t(`range.${option}`)}
-                                        </TabsTrigger>
-                                    ))}
-                                </TabsList>
-                            </div>
-                        </Tabs>
+                        <div className="flex items-center gap-2">
+                            <Tabs value={range} onValueChange={(value) => setRange(value as AnalyticsRange)}>
+                                <div className="overflow-x-auto">
+                                    <TabsList className="flex w-max min-w-max flex-nowrap rounded-lg border-border/30 bg-card p-1 xl:min-w-0 xl:flex-wrap">
+                                        {RANGE_OPTIONS.map((option) => (
+                                            <TabsTrigger key={option} value={option}>
+                                                {t(`range.${option}`)}
+                                            </TabsTrigger>
+                                        ))}
+                                    </TabsList>
+                                </div>
+                            </Tabs>
+                            <ShareSnapshot
+                                data={{
+                                    title: t('title'),
+                                    subtitle: t('subtitle'),
+                                    stats: [
+                                        { label: t('cards.utilization.title'), value: '-' },
+                                        { label: t('cards.routeHealth.title'), value: '-' },
+                                        { label: t('evaluation.title'), value: '-' },
+                                    ],
+                                    timestamp: new Date().toLocaleString(),
+                                }}
+                            />
+                        </div>
                     </div>
                 </section>
 
@@ -60,6 +77,9 @@ export function Analytics() {
                     </TabsContent>
                     <TabsContent value="evaluation">
                         <Evaluation />
+                    </TabsContent>
+                    <TabsContent value="latency">
+                        <LatencyDistribution range={range} />
                     </TabsContent>
                 </TabsContents>
             </Tabs>

@@ -59,6 +59,7 @@ const (
 	SettingKeyFailureHintTTLUnauthorized           SettingKey = "failure_hint_ttl_unauthorized"            // 认证失败提示缓存TTL（秒）
 	SettingKeyFailureHintTTLRateLimit              SettingKey = "failure_hint_ttl_rate_limit"              // 限流失败提示缓存TTL（秒）
 	SettingKeyFailureHintTTLNetwork                SettingKey = "failure_hint_ttl_network"                 // 网络失败提示缓存TTL（秒）
+	SettingKeyWebDAVConfig                         SettingKey = "webdav_config"                            // WebDAV 云备份配置（JSON）
 )
 
 type Setting struct {
@@ -117,6 +118,7 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyFailureHintTTLUnauthorized, Value: "10"}, // 默认10秒
 		{Key: SettingKeyFailureHintTTLRateLimit, Value: "5"},     // 默认5秒
 		{Key: SettingKeyFailureHintTTLNetwork, Value: "2"},       // 默认2秒
+		{Key: SettingKeyWebDAVConfig, Value: `{"enabled":false,"base_url":"","username":"","password":"","remote_path":"/octopus-backup/","interval_hours":6,"include_stats":true,"include_logs":false,"max_backups":10}`},
 	}
 }
 
@@ -270,6 +272,12 @@ func (s *Setting) Validate() error {
 		return nil
 	case SettingKeyAIRouteServices:
 		return ValidateAIRouteServiceConfigs(s.Value)
+	case SettingKeyWebDAVConfig:
+		var cfg map[string]any
+		if err := json.Unmarshal([]byte(s.Value), &cfg); err != nil {
+			return fmt.Errorf("webdav config must be a valid JSON object")
+		}
+		return nil
 	}
 
 	return nil

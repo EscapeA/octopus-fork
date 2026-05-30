@@ -195,6 +195,7 @@ func (s *Store) SetQuotaAlerts(n int64) { s.quotaAlerts.Store(n) }
 func (s *Store) Snapshot() Snapshot {
 	s.mu.Lock()
 	p95 := p95Locked(s.latencySamples)
+	p99 := p99Locked(s.latencySamples)
 	trend := make([]TrendPoint, len(s.trendSnapshots))
 	copy(trend, s.trendSnapshots)
 	hasTrend := len(s.trendSnapshots) > 0
@@ -220,6 +221,7 @@ func (s *Store) Snapshot() Snapshot {
 		AvgLatencyMs:        avgLatencyMs,
 		ErrorRate:           errorRate,
 		P95LatencyMs:        p95,
+		P99LatencyMs:        p99,
 		ThroughputRPS:       float64(s.throughputRPS.Load()),
 		ActiveConnections:   s.activeConns.Load(),
 		ActiveSessions:      s.activeSessions.Load(),
@@ -238,6 +240,7 @@ type Snapshot struct {
 	AvgLatencyMs        float64
 	ErrorRate           float64
 	P95LatencyMs        float64
+	P99LatencyMs        float64
 	ThroughputRPS       float64
 	ActiveConnections   int64
 	ActiveSessions      int64
@@ -249,13 +252,21 @@ type Snapshot struct {
 }
 
 func p95Locked(samples []float64) float64 {
+	return percentileLocked(samples, 0.95)
+}
+
+func p99Locked(samples []float64) float64 {
+	return percentileLocked(samples, 0.99)
+}
+
+func percentileLocked(samples []float64, p float64) float64 {
 	if len(samples) == 0 {
 		return 0
 	}
 	sorted := make([]float64, len(samples))
 	copy(sorted, samples)
 	sort.Float64s(sorted)
-	idx := int(math.Ceil(0.95*float64(len(sorted)))) - 1
+	idx := int(math.Ceil(p*float64(len(sorted)))) - 1
 	if idx < 0 {
 		idx = 0
 	}

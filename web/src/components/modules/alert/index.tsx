@@ -52,6 +52,13 @@ function ChannelTypeIcon({ type }: { type: string }) {
             return <MessageSquare className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />;
         case 'email':
             return <Mail className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />;
+        case 'telegram':
+            return <Bell className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />;
+        case 'feishu':
+        case 'dingtalk':
+        case 'wecom':
+        case 'ntfy':
+            return <Bell className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />;
         default:
             return <Webhook className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />;
     }
@@ -166,6 +173,79 @@ function ChannelConfigFields({
                     </label>
                 </>
             );
+        case 'telegram':
+            return (
+                <>
+                    <Input
+                        placeholder={t('channels.form.telegramBotToken')}
+                        value={draft.telegram.bot_token}
+                        onChange={(e) => onChange({ ...draft, telegram: { ...draft.telegram, bot_token: e.target.value } })}
+                        className="rounded-xl"
+                    />
+                    <Input
+                        placeholder={t('channels.form.telegramChatId')}
+                        value={draft.telegram.chat_id}
+                        onChange={(e) => onChange({ ...draft, telegram: { ...draft.telegram, chat_id: e.target.value } })}
+                        className="rounded-xl"
+                    />
+                </>
+            );
+        case 'feishu':
+            return (
+                <>
+                    <Input
+                        placeholder={t('channels.form.feishuWebhookKey')}
+                        value={draft.feishu.webhook_key}
+                        onChange={(e) => onChange({ ...draft, feishu: { ...draft.feishu, webhook_key: e.target.value } })}
+                        className="rounded-xl"
+                    />
+                </>
+            );
+        case 'dingtalk':
+            return (
+                <>
+                    <Input
+                        placeholder={t('channels.form.dingtalkWebhookKey')}
+                        value={draft.dingtalk.webhook_key}
+                        onChange={(e) => onChange({ ...draft, dingtalk: { ...draft.dingtalk, webhook_key: e.target.value } })}
+                        className="rounded-xl"
+                    />
+                    <Input
+                        placeholder={t('channels.form.dingtalkSecret')}
+                        value={draft.dingtalk.secret || ''}
+                        onChange={(e) => onChange({ ...draft, dingtalk: { ...draft.dingtalk, secret: e.target.value } })}
+                        className="rounded-xl"
+                    />
+                </>
+            );
+        case 'wecom':
+            return (
+                <>
+                    <Input
+                        placeholder={t('channels.form.wecomWebhookKey')}
+                        value={draft.wecom.webhook_key}
+                        onChange={(e) => onChange({ ...draft, wecom: { ...draft.wecom, webhook_key: e.target.value } })}
+                        className="rounded-xl"
+                    />
+                </>
+            );
+        case 'ntfy':
+            return (
+                <>
+                    <Input
+                        placeholder={t('channels.form.ntfyTopicUrl')}
+                        value={draft.ntfy.topic_url}
+                        onChange={(e) => onChange({ ...draft, ntfy: { ...draft.ntfy, topic_url: e.target.value } })}
+                        className="rounded-xl"
+                    />
+                    <Input
+                        placeholder={t('channels.form.ntfyAccessToken')}
+                        value={draft.ntfy.access_token || ''}
+                        onChange={(e) => onChange({ ...draft, ntfy: { ...draft.ntfy, access_token: e.target.value } })}
+                        className="rounded-xl"
+                    />
+                </>
+            );
         default:
             return null;
     }
@@ -185,6 +265,32 @@ function getChannelDescription(channel: AlertNotifChannel): string {
             try {
                 const cfg = JSON.parse(channel.config || '{}');
                 return cfg.to || cfg.from || '';
+            } catch {
+                return '';
+            }
+        }
+        case 'telegram': {
+            try {
+                const cfg = JSON.parse(channel.config || '{}');
+                return cfg.chat_id ? `Chat: ${cfg.chat_id}` : '';
+            } catch {
+                return '';
+            }
+        }
+        case 'feishu':
+        case 'dingtalk':
+        case 'wecom': {
+            try {
+                const cfg = JSON.parse(channel.config || '{}');
+                return cfg.webhook_key ? `Key: ${cfg.webhook_key.slice(0, 8)}...` : '';
+            } catch {
+                return '';
+            }
+        }
+        case 'ntfy': {
+            try {
+                const cfg = JSON.parse(channel.config || '{}');
+                return cfg.topic_url || '';
             } catch {
                 return '';
             }
@@ -240,6 +346,16 @@ export function Alert() {
                 return t('channelTypes.gotify');
             case 'email':
                 return t('channelTypes.email');
+            case 'telegram':
+                return t('channelTypes.telegram');
+            case 'feishu':
+                return t('channelTypes.feishu');
+            case 'dingtalk':
+                return t('channelTypes.dingtalk');
+            case 'wecom':
+                return t('channelTypes.wecom');
+            case 'ntfy':
+                return t('channelTypes.ntfy');
             default:
                 return channelType;
         }

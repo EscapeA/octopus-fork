@@ -29,6 +29,10 @@ func init() {
 			router.NewRoute("/capture/:site_id", http.MethodPost).
 				Use(middleware.RequirePermission(auth.PermSitesWrite)).
 				Handle(captureBalance),
+		).
+		AddRoute(
+			router.NewRoute("/prediction/:site_id", http.MethodGet).
+				Handle(getBalancePrediction),
 		)
 }
 
@@ -78,4 +82,19 @@ func captureBalance(c *gin.Context) {
 		return
 	}
 	resp.Success(c, snapshot)
+}
+
+func getBalancePrediction(c *gin.Context) {
+	siteID, err := strconv.Atoi(c.Param("site_id"))
+	if err != nil {
+		resp.Error(c, http.StatusBadRequest, resp.ErrInvalidParam)
+		return
+	}
+
+	prediction, err := remotesite.PredictBalance(c.Request.Context(), siteID)
+	if err != nil {
+		resp.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	resp.Success(c, prediction)
 }

@@ -26,7 +26,7 @@ export interface AlertNotifChannel {
     config?: string;
 }
 
-export const NOTIF_CHANNEL_TYPES = ['webhook', 'gotify', 'email'] as const;
+export const NOTIF_CHANNEL_TYPES = ['webhook', 'gotify', 'email', 'telegram', 'feishu', 'dingtalk', 'wecom', 'ntfy'] as const;
 export type NotifChannelType = (typeof NOTIF_CHANNEL_TYPES)[number];
 
 export interface GotifyConfig {
@@ -43,6 +43,29 @@ export interface EmailConfig {
     from: string;
     to: string;
     use_tls: boolean;
+}
+
+export interface TelegramConfig {
+    bot_token: string;
+    chat_id: string;
+}
+
+export interface FeishuConfig {
+    webhook_key: string;
+}
+
+export interface DingTalkConfig {
+    webhook_key: string;
+    secret?: string;
+}
+
+export interface WeComConfig {
+    webhook_key: string;
+}
+
+export interface NtfyConfig {
+    topic_url: string;
+    access_token?: string;
 }
 
 export interface AlertHistory {

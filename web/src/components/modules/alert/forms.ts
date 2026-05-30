@@ -1,4 +1,13 @@
-import type { NotifChannelType, GotifyConfig, EmailConfig } from '@/api/endpoints/alert';
+import type {
+    NotifChannelType,
+    GotifyConfig,
+    EmailConfig,
+    TelegramConfig,
+    FeishuConfig,
+    DingTalkConfig,
+    WeComConfig,
+    NtfyConfig,
+} from '@/api/endpoints/alert';
 
 export interface AlertRuleDraft {
     name: string;
@@ -23,6 +32,11 @@ export interface AlertChannelDraft {
     secret: string;
     gotify: GotifyConfig;
     email: EmailConfig;
+    telegram: TelegramConfig;
+    feishu: FeishuConfig;
+    dingtalk: DingTalkConfig;
+    wecom: WeComConfig;
+    ntfy: NtfyConfig;
 }
 
 export interface AlertChannelEditable {
@@ -70,6 +84,51 @@ function parseEmailConfig(config?: string): EmailConfig {
     }
 }
 
+function parseTelegramConfig(config?: string): TelegramConfig {
+    if (!config) return { bot_token: '', chat_id: '' };
+    try {
+        return { bot_token: '', chat_id: '', ...JSON.parse(config) };
+    } catch {
+        return { bot_token: '', chat_id: '' };
+    }
+}
+
+function parseFeishuConfig(config?: string): FeishuConfig {
+    if (!config) return { webhook_key: '' };
+    try {
+        return { webhook_key: '', ...JSON.parse(config) };
+    } catch {
+        return { webhook_key: '' };
+    }
+}
+
+function parseDingTalkConfig(config?: string): DingTalkConfig {
+    if (!config) return { webhook_key: '' };
+    try {
+        return { webhook_key: '', ...JSON.parse(config) };
+    } catch {
+        return { webhook_key: '' };
+    }
+}
+
+function parseWeComConfig(config?: string): WeComConfig {
+    if (!config) return { webhook_key: '' };
+    try {
+        return { webhook_key: '', ...JSON.parse(config) };
+    } catch {
+        return { webhook_key: '' };
+    }
+}
+
+function parseNtfyConfig(config?: string): NtfyConfig {
+    if (!config) return { topic_url: '' };
+    try {
+        return { topic_url: '', ...JSON.parse(config) };
+    } catch {
+        return { topic_url: '' };
+    }
+}
+
 export function createAlertChannelDraft<T extends Partial<AlertChannelEditable>>(channel: T = {} as T): AlertChannelDraft {
     const chType = (channel.type || 'webhook') as NotifChannelType;
     return {
@@ -79,6 +138,11 @@ export function createAlertChannelDraft<T extends Partial<AlertChannelEditable>>
         secret: channel.secret ?? '',
         gotify: chType === 'gotify' ? parseGotifyConfig(channel.config) : { server_url: '', token: '' },
         email: chType === 'email' ? parseEmailConfig(channel.config) : { smtp_host: '', smtp_port: 587, username: '', password: '', from: '', to: '', use_tls: true },
+        telegram: chType === 'telegram' ? parseTelegramConfig(channel.config) : { bot_token: '', chat_id: '' },
+        feishu: chType === 'feishu' ? parseFeishuConfig(channel.config) : { webhook_key: '' },
+        dingtalk: chType === 'dingtalk' ? parseDingTalkConfig(channel.config) : { webhook_key: '' },
+        wecom: chType === 'wecom' ? parseWeComConfig(channel.config) : { webhook_key: '' },
+        ntfy: chType === 'ntfy' ? parseNtfyConfig(channel.config) : { topic_url: '' },
     };
 }
 
@@ -119,6 +183,48 @@ export function applyAlertChannelDraft<T extends AlertChannelEditable>(channel: 
                 to: draft.email.to,
                 use_tls: draft.email.use_tls,
             };
+            result.config = JSON.stringify(config);
+            break;
+        }
+        case 'telegram': {
+            const config: TelegramConfig = {
+                bot_token: draft.telegram.bot_token,
+                chat_id: draft.telegram.chat_id,
+            };
+            result.config = JSON.stringify(config);
+            break;
+        }
+        case 'feishu': {
+            const config: FeishuConfig = {
+                webhook_key: draft.feishu.webhook_key,
+            };
+            result.config = JSON.stringify(config);
+            break;
+        }
+        case 'dingtalk': {
+            const config: DingTalkConfig = {
+                webhook_key: draft.dingtalk.webhook_key,
+            };
+            if (draft.dingtalk.secret) {
+                config.secret = draft.dingtalk.secret;
+            }
+            result.config = JSON.stringify(config);
+            break;
+        }
+        case 'wecom': {
+            const config: WeComConfig = {
+                webhook_key: draft.wecom.webhook_key,
+            };
+            result.config = JSON.stringify(config);
+            break;
+        }
+        case 'ntfy': {
+            const config: NtfyConfig = {
+                topic_url: draft.ntfy.topic_url,
+            };
+            if (draft.ntfy.access_token) {
+                config.access_token = draft.ntfy.access_token;
+            }
             result.config = JSON.stringify(config);
             break;
         }

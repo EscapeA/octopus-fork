@@ -4,6 +4,6 @@ type ParticleBackgroundProps = {
   maxOpacity?: number;
 };
 
-export function ParticleBackground(_props: ParticleBackgroundProps) {
+export function ParticleBackground(_props?: ParticleBackgroundProps) {
   return null;
 }

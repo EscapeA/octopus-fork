@@ -28,9 +28,14 @@ type AlertRule struct {
 type AlertNotifChannelType string
 
 const (
-	AlertNotifWebhook AlertNotifChannelType = "webhook"
-	AlertNotifGotify  AlertNotifChannelType = "gotify"
-	AlertNotifEmail   AlertNotifChannelType = "email"
+	AlertNotifWebhook  AlertNotifChannelType = "webhook"
+	AlertNotifGotify   AlertNotifChannelType = "gotify"
+	AlertNotifEmail    AlertNotifChannelType = "email"
+	AlertNotifTelegram AlertNotifChannelType = "telegram"
+	AlertNotifFeishu   AlertNotifChannelType = "feishu"
+	AlertNotifDingTalk AlertNotifChannelType = "dingtalk"
+	AlertNotifWeCom    AlertNotifChannelType = "wecom"
+	AlertNotifNtfy     AlertNotifChannelType = "ntfy"
 )
 
 // AlertNotifChannel defines a notification channel (webhook, gotify, email, etc.).
@@ -46,20 +51,48 @@ type AlertNotifChannel struct {
 
 // GotifyConfig holds the configuration for a Gotify notification channel.
 type GotifyConfig struct {
-	ServerURL string `json:"server_url"` // e.g. https://gotify.example.com
-	Token     string `json:"token"`      // application token
-	Priority  int    `json:"priority,omitempty"`  // message priority (1-10, default 5)
+	ServerURL string `json:"server_url"`         // e.g. https://gotify.example.com
+	Token     string `json:"token"`              // application token
+	Priority  int    `json:"priority,omitempty"` // message priority (1-10, default 5)
 }
 
 // EmailConfig holds the configuration for an Email notification channel.
 type EmailConfig struct {
 	SMTPHost string `json:"smtp_host"`
-	SMTPPort int    `json:"smtp_port"`    // default 587
+	SMTPPort int    `json:"smtp_port"` // default 587
 	Username string `json:"username"`
 	Password string `json:"password"`
-	From     string `json:"from"`         // sender address
-	To       string `json:"to"`           // comma-separated recipient addresses
-	UseTLS   bool   `json:"use_tls"`      // default true
+	From     string `json:"from"`    // sender address
+	To       string `json:"to"`      // comma-separated recipient addresses
+	UseTLS   bool   `json:"use_tls"` // default true
+}
+
+// TelegramConfig holds the configuration for a Telegram notification channel.
+type TelegramConfig struct {
+	BotToken string `json:"bot_token"` // Telegram Bot API token
+	ChatID   string `json:"chat_id"`   // target chat ID
+}
+
+// FeishuConfig holds the configuration for a Feishu (Lark) notification channel.
+type FeishuConfig struct {
+	WebhookKey string `json:"webhook_key"` // bot webhook key
+}
+
+// DingTalkConfig holds the configuration for a DingTalk notification channel.
+type DingTalkConfig struct {
+	WebhookKey string `json:"webhook_key"`      // robot access_token
+	Secret     string `json:"secret,omitempty"` // optional HMAC-SHA256 signing secret
+}
+
+// WeComConfig holds the configuration for a WeCom (Enterprise WeChat) notification channel.
+type WeComConfig struct {
+	WebhookKey string `json:"webhook_key"` // group robot key
+}
+
+// NtfyConfig holds the configuration for an ntfy push notification channel.
+type NtfyConfig struct {
+	TopicURL    string `json:"topic_url"`              // e.g. "https://ntfy.sh/mytopic" or just "mytopic"
+	AccessToken string `json:"access_token,omitempty"` // optional Bearer token
 }
 
 // AlertState represents the current firing state of an alert rule.

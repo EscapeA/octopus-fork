@@ -6,6 +6,7 @@ import (
 
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
+	"github.com/lingyuins/octopus/internal/op/backup"
 	"github.com/lingyuins/octopus/internal/op/relaylog"
 	"github.com/lingyuins/octopus/internal/op/remotesite"
 	"github.com/lingyuins/octopus/internal/op/setting"
@@ -26,6 +27,8 @@ const (
 	TaskBalanceCapture    = "hub_balance_capture"
 	TaskAutoCheckIn       = "hub_auto_checkin"
 	TaskAnnouncementFetch = "hub_announcement_fetch"
+	TaskUsageHistorySync  = "hub_usage_history_sync"
+	TaskWebDAVBackup      = "webdav_backup"
 )
 
 func Init() {
@@ -114,6 +117,21 @@ func Init() {
 		n := remotesite.FetchAllAnnouncements(context.Background())
 		if n > 0 {
 			log.Infof("fetched announcements for %d remote sites", n)
+		}
+	})
+
+	// Hub: sync usage history every 6 hours
+	Register(TaskUsageHistorySync, 6*time.Hour, false, func() {
+		n := remotesite.SyncAllUsageHistory(context.Background())
+		if n > 0 {
+			log.Infof("synced %d usage history records", n)
+		}
+	})
+
+	// WebDAV cloud backup every 6 hours
+	Register(TaskWebDAVBackup, 6*time.Hour, false, func() {
+		if err := backup.PerformWebDAVBackup(context.Background()); err != nil {
+			log.Warnf("webdav backup failed: %v", err)
 		}
 	})
 }

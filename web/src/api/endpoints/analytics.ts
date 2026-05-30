@@ -206,3 +206,30 @@ export function useAnalyticsEvaluationSummary() {
         refetchOnMount: 'always',
     });
 }
+
+export interface HistogramBucket {
+    label: string;
+    count: number;
+}
+
+export interface LatencyDistribution {
+    total_requests: number;
+    avg_ms: number;
+    p50_ms: number;
+    p95_ms: number;
+    p99_ms: number;
+    ftut_avg_ms: number;
+    ftut_p50_ms: number;
+    ftut_p95_ms: number;
+    ftut_p99_ms: number;
+    buckets: HistogramBucket[];
+}
+
+export function useAnalyticsLatencyDistribution(range: AnalyticsRange) {
+    return useQuery({
+        queryKey: ['analytics', 'latency-distribution', range],
+        queryFn: async () => apiClient.get<LatencyDistribution>('/api/v1/analytics/latency-distribution', { range }),
+        refetchInterval: REFETCH_INTERVAL_DEFAULT,
+        refetchOnMount: 'always',
+    });
+}

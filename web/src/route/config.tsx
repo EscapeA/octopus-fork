@@ -1,7 +1,7 @@
 import { lazyWithPreload } from './lazy-with-preload';
 import { lazy, ComponentType } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { Home, Radio, Sparkles, FolderTree, Settings, Logs, Users, Bell, BarChart3, Wrench, KeyRound, Globe, CalendarCheck, Megaphone, KeySquare } from 'lucide-react';
+import { Home, Radio, Sparkles, FolderTree, Settings, Logs, Users, Bell, BarChart3, Wrench, KeyRound, Globe, GitBranch } from 'lucide-react';
 import { DEFAULT_NAV_ORDER } from '@/components/modules/navbar';
 
 export type LazyComponent = ReturnType<typeof lazy> & {
@@ -29,19 +29,15 @@ const User_Module = lazyWithPreload(() => import('@/components/modules/user').th
 const Alert_Module = lazyWithPreload(() => import('@/components/modules/alert').then(m => ({ default: m.Alert })));
 const Ops_Module = lazyWithPreload(() => import('@/components/modules/ops').then(m => ({ default: m.Ops })));
 const Hub_Module = lazyWithPreload(() => import('@/components/modules/remote-site').then(m => ({ default: m.RemoteSite })));
-const Announcement_Module = lazyWithPreload(() => import('@/components/modules/announcement').then(m => ({ default: m.Announcement })));
-const CheckIn_Module = lazyWithPreload(() => import('@/components/modules/checkin').then(m => ({ default: m.CheckIn })));
-const Credential_Module = lazyWithPreload(() => import('@/components/modules/credential').then(m => ({ default: m.Credential })));
+const ModelMapping_Module = lazyWithPreload(() => import('@/components/modules/model-mapping').then(m => ({ default: m.ModelMappingPage })));
 
 export const ROUTES: RouteConfig[] = [
     { id: 'home', icon: Home, component: Home_Module },
     { id: 'hub', icon: Globe, component: Hub_Module },
-    { id: 'announcement', icon: Megaphone, component: Announcement_Module },
-    { id: 'checkin', icon: CalendarCheck, component: CheckIn_Module },
-    { id: 'credential', icon: KeySquare, component: Credential_Module },
     { id: 'channel', icon: Radio, component: Channel_Module },
     { id: 'group', icon: FolderTree, component: Group_Module },
     { id: 'model', icon: Sparkles, component: Model_Module },
+    { id: 'model-mapping', icon: GitBranch, component: ModelMapping_Module },
     { id: 'analytics', icon: BarChart3, component: Analytics_Module },
     { id: 'log', icon: Logs, component: Log_Module },
     { id: 'alert', icon: Bell, component: Alert_Module },

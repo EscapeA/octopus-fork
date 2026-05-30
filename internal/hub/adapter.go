@@ -97,6 +97,14 @@ type SiteStatusInfo struct {
 	SystemName     string  `json:"system_name"`
 }
 
+// RedeemResult is returned by RedeemCode.
+type RedeemResult struct {
+	Success      bool    `json:"success"`
+	Message      string  `json:"message"`
+	QuotaAwarded float64 `json:"quota_awarded"`
+	AlreadyUsed  bool    `json:"already_used"`
+}
+
 // SiteAdapter is the interface that every remote site type must implement.
 // The common adapter provides defaults for the One API / New API family.
 type SiteAdapter interface {
@@ -139,6 +147,26 @@ type SiteAdapter interface {
 
 	// FetchSiteStatus returns the public status of the remote site.
 	FetchSiteStatus(ctx context.Context, site *model.RemoteSite) (*SiteStatusInfo, error)
+
+	// RedeemCode redeems a code on the remote site.
+	// Returns nil when the site does not support redemption.
+	RedeemCode(ctx context.Context, site *model.RemoteSite, code string) (*RedeemResult, error)
+
+	// FetchUsageLogs fetches usage logs from the remote site with pagination.
+	// Returns nil when the site does not support usage log retrieval.
+	FetchUsageLogs(ctx context.Context, site *model.RemoteSite, page, pageSize int) ([]RemoteUsageLog, error)
+}
+
+// RemoteUsageLog represents a single usage/log entry from a remote site.
+type RemoteUsageLog struct {
+	ID               int64   `json:"id"`
+	CreatedAt        int64   `json:"created_at"`
+	ModelName        string  `json:"model_name"`
+	TokenName        string  `json:"token_name"`
+	PromptTokens     int64   `json:"prompt_tokens"`
+	CompletionTokens int64   `json:"completion_tokens"`
+	TotalTokens      int64   `json:"total_tokens"`
+	Quota            float64 `json:"quota"`
 }
 
 // RefreshResult aggregates the outcome of refreshing a remote site's data.

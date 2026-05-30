@@ -139,6 +139,78 @@ func SyncToChannel(ctx context.Context, req *model.SyncToChannelRequest) (*model
 	return ch, nil
 }
 
+// BatchExportToken is a single token entry in the batch export output.
+type BatchExportToken struct {
+	Name           string  `json:"name"`
+	Key            string  `json:"key"`
+	BaseURL        string  `json:"base_url"`
+	Status         int     `json:"status"`
+	RemainQuota    float64 `json:"remain_quota"`
+	UsedQuota      float64 `json:"used_quota"`
+	UnlimitedQuota bool    `json:"unlimited_quota"`
+	ModelLimits    string  `json:"model_limits,omitempty"`
+	ExpiredTime    int64   `json:"expired_time"`
+}
+
+// BatchExportResult is the full payload returned by BatchExportTokens.
+type BatchExportResult struct {
+	SiteName     string             `json:"site_name"`
+	SiteBaseURL  string             `json:"site_base_url"`
+	ExportedAt   time.Time          `json:"exported_at"`
+	TotalTokens  int                `json:"total_tokens"`
+	ActiveTokens int                `json:"active_tokens"`
+	Tokens       []BatchExportToken `json:"tokens"`
+}
+
+// BatchExportTokens returns all cached tokens for a site with decrypted keys,
+// suitable for export as a JSON file.
+func BatchExportTokens(ctx context.Context, siteID int) (*BatchExportResult, error) {
+	site, err := Get(ctx, siteID)
+	if err != nil {
+		return nil, err
+	}
+
+	var tokens []model.RemoteSiteToken
+	if err := db.GetDB().WithContext(ctx).
+		Where("remote_site_id = ?", siteID).
+		Order("id ASC").
+		Find(&tokens).Error; err != nil {
+		return nil, fmt.Errorf("query tokens: %w", err)
+	}
+
+	result := &BatchExportResult{
+		SiteName:    site.Name,
+		SiteBaseURL: site.BaseURL,
+		ExportedAt:  time.Now(),
+		Tokens:      make([]BatchExportToken, 0, len(tokens)),
+	}
+
+	for _, t := range tokens {
+		decrypted, decErr := crypto.Decrypt(t.Key)
+		if decErr != nil {
+			log.Warnf("decrypt token %d for export: %v", t.ID, decErr)
+			continue
+		}
+		entry := BatchExportToken{
+			Name:           t.Name,
+			Key:            decrypted,
+			BaseURL:        site.BaseURL,
+			Status:         t.Status,
+			RemainQuota:    t.RemainQuota,
+			UsedQuota:      t.UsedQuota,
+			UnlimitedQuota: t.UnlimitedQuota,
+			ModelLimits:    t.ModelLimits,
+			ExpiredTime:    t.ExpiredTime,
+		}
+		if entry.Status == 1 {
+			result.ActiveTokens++
+		}
+		result.Tokens = append(result.Tokens, entry)
+	}
+	result.TotalTokens = len(result.Tokens)
+	return result, nil
+}
+
 // SyncAllTokens fetches tokens for all enabled sites.
 func SyncAllTokens(ctx context.Context) int {
 	var sites []model.RemoteSite

@@ -2,6 +2,7 @@ package analytics
 
 import (
 	"context"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -12,9 +13,9 @@ import (
 	"github.com/lingyuins/octopus/internal/op/apikey"
 	"github.com/lingyuins/octopus/internal/op/channel"
 	"github.com/lingyuins/octopus/internal/op/group"
+	"github.com/lingyuins/octopus/internal/op/navorder"
 	"github.com/lingyuins/octopus/internal/op/relaylog"
 	"github.com/lingyuins/octopus/internal/op/setting"
-	"github.com/lingyuins/octopus/internal/op/navorder"
 	"github.com/lingyuins/octopus/internal/op/stats"
 	"github.com/lingyuins/octopus/internal/utils/semantic_cache"
 )
@@ -882,6 +883,145 @@ func analyticsStartTime(r model.AnalyticsRange, now time.Time) *time.Time {
 	}
 }
 
+// AnalyticsLatencyDistributionGet returns latency and FTUT distribution for the given range.
+func AnalyticsLatencyDistributionGet(ctx context.Context, r model.AnalyticsRange) (*model.LatencyDistribution, error) {
+	return loadLatencyDistribution(ctx, r)
+}
+
+func loadLatencyDistribution(ctx context.Context, r model.AnalyticsRange) (*model.LatencyDistribution, error) {
+	startUnix := analyticsRangeStartUnix(r, stats.Now())
+	result := &model.LatencyDistribution{}
+
+	keepEnabled, err := setting.GetBool(model.SettingKeyRelayLogKeepEnabled)
+	if err != nil {
+		return nil, err
+	}
+
+	// Collect all latency values from DB + in-memory cache
+	var latencies []float64
+	var ftuts []float64
+	var totalUseTime int64
+	var totalFtut int64
+	var totalCount int64
+
+	// Histogram accumulators
+	var hLt100, h100to500, h500to1k, h1kto5k, hGt5k int64
+
+	if keepEnabled {
+		type latencyRow struct {
+			UseTime int `json:"use_time"`
+			Ftut    int `json:"ftut"`
+		}
+		var dbRows []latencyRow
+		query := db.GetDB().WithContext(ctx).
+			Model(&model.RelayLog{}).
+			Select("use_time, ftut")
+		if startUnix != nil {
+			query = query.Where("time >= ?", *startUnix)
+		}
+		if err := query.Find(&dbRows).Error; err != nil {
+			return nil, err
+		}
+		for _, row := range dbRows {
+			if row.UseTime > 0 {
+				latencies = append(latencies, float64(row.UseTime))
+				totalUseTime += int64(row.UseTime)
+				totalCount++
+				switch {
+				case row.UseTime < 100:
+					hLt100++
+				case row.UseTime < 500:
+					h100to500++
+				case row.UseTime < 1000:
+					h500to1k++
+				case row.UseTime < 5000:
+					h1kto5k++
+				default:
+					hGt5k++
+				}
+			}
+			if row.Ftut > 0 {
+				ftuts = append(ftuts, float64(row.Ftut))
+				totalFtut += int64(row.Ftut)
+			}
+		}
+	}
+
+	// Merge in-memory cache
+	cache, lock := relaylog.GetCacheAndLock()
+	lock.Lock()
+	for _, logItem := range cache {
+		if startUnix != nil && logItem.Time < *startUnix {
+			continue
+		}
+		if logItem.UseTime > 0 {
+			latencies = append(latencies, float64(logItem.UseTime))
+			totalUseTime += int64(logItem.UseTime)
+			totalCount++
+			switch {
+			case logItem.UseTime < 100:
+				hLt100++
+			case logItem.UseTime < 500:
+				h100to500++
+			case logItem.UseTime < 1000:
+				h500to1k++
+			case logItem.UseTime < 5000:
+				h1kto5k++
+			default:
+				hGt5k++
+			}
+		}
+		if logItem.Ftut > 0 {
+			ftuts = append(ftuts, float64(logItem.Ftut))
+			totalFtut += int64(logItem.Ftut)
+		}
+	}
+	lock.Unlock()
+
+	result.TotalRequests = totalCount
+	if totalCount > 0 {
+		result.AvgMs = totalUseTime / totalCount
+	}
+
+	// Compute percentiles from sorted samples
+	sort.Float64s(latencies)
+	result.P50Ms = int64(percentileFromSorted(latencies, 0.50))
+	result.P95Ms = int64(percentileFromSorted(latencies, 0.95))
+	result.P99Ms = int64(percentileFromSorted(latencies, 0.99))
+
+	sort.Float64s(ftuts)
+	if len(ftuts) > 0 {
+		result.FtutAvgMs = totalFtut / int64(len(ftuts))
+		result.FtutP50Ms = int64(percentileFromSorted(ftuts, 0.50))
+		result.FtutP95Ms = int64(percentileFromSorted(ftuts, 0.95))
+		result.FtutP99Ms = int64(percentileFromSorted(ftuts, 0.99))
+	}
+
+	result.Buckets = []model.HistogramBucket{
+		{Label: "<100ms", Count: hLt100},
+		{Label: "100-500ms", Count: h100to500},
+		{Label: "500ms-1s", Count: h500to1k},
+		{Label: "1-5s", Count: h1kto5k},
+		{Label: ">5s", Count: hGt5k},
+	}
+
+	return result, nil
+}
+
+func percentileFromSorted(sorted []float64, p float64) float64 {
+	if len(sorted) == 0 {
+		return 0
+	}
+	idx := int(math.Ceil(p*float64(len(sorted)))) - 1
+	if idx < 0 {
+		idx = 0
+	}
+	if idx >= len(sorted) {
+		idx = len(sorted) - 1
+	}
+	return sorted[idx]
+}
+
 func splitAnalyticsChannelModels(channel model.Channel) []string {
 	parts := strings.Split(channel.Model, ",")
 	if strings.TrimSpace(channel.CustomModel) != "" {
@@ -915,4 +1055,3 @@ func makeAnalyticsFailureKey(channelID int, actualModelName, requestModelName st
 		strings.TrimSpace(requestModelName),
 	}, "\x00")
 }
-

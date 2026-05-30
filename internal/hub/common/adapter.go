@@ -306,3 +306,77 @@ func (a *Adapter) FetchSiteStatus(ctx context.Context, site *model.RemoteSite) (
 		SystemName:     status.SystemName,
 	}, nil
 }
+
+// ── Redemption ──────────────────────────────────────────────────────────────
+
+type redeemCodeRequest struct {
+	Code string `json:"code"`
+}
+
+type redeemCodeResponse struct {
+	Quota float64 `json:"quota"`
+}
+
+func (a *Adapter) RedeemCode(ctx context.Context, site *model.RemoteSite, code string) (*hub.RedeemResult, error) {
+	req := redeemCodeRequest{Code: code}
+	resp, err := hub.FetchJSON[redeemCodeResponse](ctx, site, http.MethodPost, "/api/user/redemption", req)
+	if err != nil {
+		if strings.Contains(err.Error(), "already") || strings.Contains(err.Error(), "已使用") || strings.Contains(err.Error(), "已兑换") {
+			return &hub.RedeemResult{Success: false, AlreadyUsed: true, Message: err.Error()}, nil
+		}
+		return &hub.RedeemResult{Success: false, Message: err.Error()}, nil
+	}
+	return &hub.RedeemResult{
+		Success:      true,
+		Message:      "Redemption successful",
+		QuotaAwarded: resp.Quota,
+	}, nil
+}
+
+// ── Usage Logs ──────────────────────────────────────────────────────────────
+
+type usageLogItem struct {
+	ID               int64   `json:"id"`
+	CreatedAt        int64   `json:"created_at"`
+	ModelName        string  `json:"model_name"`
+	TokenName        string  `json:"token_name"`
+	PromptTokens     int64   `json:"prompt_tokens"`
+	CompletionTokens int64   `json:"completion_tokens"`
+	Quota            float64 `json:"quota"`
+}
+
+type usageLogListResponse struct {
+	Items []usageLogItem `json:"items"`
+	Total int            `json:"total"`
+}
+
+func (a *Adapter) FetchUsageLogs(ctx context.Context, site *model.RemoteSite, page, pageSize int) ([]hub.RemoteUsageLog, error) {
+	endpoint := fmt.Sprintf("/api/log/self/?p=%d&page_size=%d", page, pageSize)
+	resp, err := hub.FetchJSON[usageLogListResponse](ctx, site, http.MethodGet, endpoint, nil)
+	if err != nil {
+		// Fallback: some sites return flat array
+		items, err2 := hub.FetchJSON[[]usageLogItem](ctx, site, http.MethodGet, endpoint, nil)
+		if err2 != nil {
+			return nil, fmt.Errorf("fetch usage logs: %w (fallback: %w)", err, err2)
+		}
+		return convertUsageLogs(items), nil
+	}
+	return convertUsageLogs(resp.Items), nil
+}
+
+func convertUsageLogs(items []usageLogItem) []hub.RemoteUsageLog {
+	result := make([]hub.RemoteUsageLog, 0, len(items))
+	for _, item := range items {
+		result = append(result, hub.RemoteUsageLog{
+			ID:               item.ID,
+			CreatedAt:        item.CreatedAt,
+			ModelName:        item.ModelName,
+			TokenName:        item.TokenName,
+			PromptTokens:     item.PromptTokens,
+			CompletionTokens: item.CompletionTokens,
+			TotalTokens:      item.PromptTokens + item.CompletionTokens,
+			Quota:            item.Quota,
+		})
+	}
+	return result
+}

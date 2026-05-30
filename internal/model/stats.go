@@ -8,6 +8,24 @@ type StatsMetrics struct {
 	WaitTime       int64   `json:"wait_time" gorm:"bigint"`
 	RequestSuccess int64   `json:"request_success" gorm:"bigint"`
 	RequestFailed  int64   `json:"request_failed" gorm:"bigint"`
+
+	// 延迟分布统计（毫秒）
+	LatencyP50 int64 `json:"latency_p50" gorm:"bigint"`
+	LatencyP95 int64 `json:"latency_p95" gorm:"bigint"`
+	LatencyP99 int64 `json:"latency_p99" gorm:"bigint"`
+
+	// 首 Token 时间统计（毫秒）
+	FtutAvg int64 `json:"ftut_avg" gorm:"bigint"`
+	FtutP50 int64 `json:"ftut_p50" gorm:"bigint"`
+	FtutP95 int64 `json:"ftut_p95" gorm:"bigint"`
+	FtutP99 int64 `json:"ftut_p99" gorm:"bigint"`
+
+	// 延迟直方图（请求计数）
+	HistogramLt100    int64 `json:"histogram_lt_100" gorm:"bigint"`
+	Histogram100to500 int64 `json:"histogram_100_500" gorm:"bigint"`
+	Histogram500to1k  int64 `json:"histogram_500_1k" gorm:"bigint"`
+	Histogram1kto5k   int64 `json:"histogram_1k_5k" gorm:"bigint"`
+	HistogramGt5k     int64 `json:"histogram_gt_5k" gorm:"bigint"`
 }
 
 type StatsTotal struct {
@@ -52,5 +70,36 @@ func (s *StatsMetrics) Add(delta StatsMetrics) {
 	s.WaitTime += delta.WaitTime
 	s.RequestSuccess += delta.RequestSuccess
 	s.RequestFailed += delta.RequestFailed
-}
 
+	// 延迟百分位数取最大值（近似）
+	if delta.LatencyP50 > s.LatencyP50 {
+		s.LatencyP50 = delta.LatencyP50
+	}
+	if delta.LatencyP95 > s.LatencyP95 {
+		s.LatencyP95 = delta.LatencyP95
+	}
+	if delta.LatencyP99 > s.LatencyP99 {
+		s.LatencyP99 = delta.LatencyP99
+	}
+
+	// FTUT 百分位数取最大值（近似）
+	if delta.FtutAvg > s.FtutAvg {
+		s.FtutAvg = delta.FtutAvg
+	}
+	if delta.FtutP50 > s.FtutP50 {
+		s.FtutP50 = delta.FtutP50
+	}
+	if delta.FtutP95 > s.FtutP95 {
+		s.FtutP95 = delta.FtutP95
+	}
+	if delta.FtutP99 > s.FtutP99 {
+		s.FtutP99 = delta.FtutP99
+	}
+
+	// 直方图累加
+	s.HistogramLt100 += delta.HistogramLt100
+	s.Histogram100to500 += delta.Histogram100to500
+	s.Histogram500to1k += delta.Histogram500to1k
+	s.Histogram1kto5k += delta.Histogram1kto5k
+	s.HistogramGt5k += delta.HistogramGt5k
+}

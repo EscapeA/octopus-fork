@@ -4,10 +4,11 @@ import {
     useRemoteTokens,
     useSyncTokens,
     useSyncToChannel,
+    useExportTokens,
     type RemoteSiteToken,
 } from '@/api/endpoints/remote-site-token';
 import { LoadingState } from '@/components/common/LoadingState';
-import { RefreshCw, Download, KeyRound } from 'lucide-react';
+import { RefreshCw, Download, KeyRound, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/common/Toast';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +28,7 @@ export function TokenManager({ siteId }: { siteId: number }) {
     const { data: tokens, isLoading } = useRemoteTokens(siteId);
     const syncTokens = useSyncTokens();
     const syncToChannel = useSyncToChannel();
+    const exportTokens = useExportTokens();
     const t = useTranslations('hub');
 
     const handleSync = () => {
@@ -46,6 +48,13 @@ export function TokenManager({ siteId }: { siteId: number }) {
         });
     };
 
+    const handleExport = () => {
+        exportTokens.mutate(siteId, {
+            onSuccess: () => toast.success(t('tokensExported')),
+            onError: (err) => toast.error(err.message),
+        });
+    };
+
     if (isLoading) return <LoadingState />;
 
     return (
@@ -56,15 +65,26 @@ export function TokenManager({ siteId }: { siteId: number }) {
                     <h3 className="text-sm font-medium">{t('remoteTokens')}</h3>
                     <Badge variant="secondary">{tokens?.length ?? 0}</Badge>
                 </div>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleSync}
-                    disabled={syncTokens.isPending}
-                >
-                    <RefreshCw className={cn('h-3.5 w-3.5 mr-1', syncTokens.isPending && 'animate-spin')} />
-                    {t('syncTokens')}
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExport}
+                        disabled={exportTokens.isPending || !tokens?.length}
+                    >
+                        <Upload className={cn('h-3.5 w-3.5 mr-1')} />
+                        {t('exportTokens')}
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSync}
+                        disabled={syncTokens.isPending}
+                    >
+                        <RefreshCw className={cn('h-3.5 w-3.5 mr-1', syncTokens.isPending && 'animate-spin')} />
+                        {t('syncTokens')}
+                    </Button>
+                </div>
             </div>
 
             {tokens && tokens.length > 0 ? (

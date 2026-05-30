@@ -17,6 +17,7 @@ import (
 	dbmodel "github.com/lingyuins/octopus/internal/model"
 	ch "github.com/lingyuins/octopus/internal/op/channel"
 	grp "github.com/lingyuins/octopus/internal/op/group"
+	"github.com/lingyuins/octopus/internal/op/modelmapping"
 	rl "github.com/lingyuins/octopus/internal/op/ratelimitstore"
 	stg "github.com/lingyuins/octopus/internal/op/setting"
 	st "github.com/lingyuins/octopus/internal/op/stats"
@@ -885,6 +886,9 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 	var allAttempts []dbmodel.ChannelAttempt
 	var lastErr error
 
+	// 应用全局模型映射表（Phase 7）
+	requestModel = modelmapping.Resolve(req.operationCtx, requestModel, group.ID)
+
 	for routeRound := 1; routeRound <= maxRouteRetries; routeRound++ {
 		if err := req.operationCtx.Err(); err != nil {
 			lastErr = err
@@ -920,7 +924,10 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 				continue
 			}
 
-			resolvedModelName := resolveCandidateModelName(requestModel, item)
+			// Apply global model mapping before resolving to upstream model
+			mappedModel := modelmapping.Resolve(req.operationCtx, requestModel, group.ID)
+
+			resolvedModelName := resolveCandidateModelName(mappedModel, item)
 			if strings.TrimSpace(resolvedModelName) == "" {
 				routeIter.Skip(channel.ID, 0, channel.Name, "resolved upstream model is empty")
 				continue

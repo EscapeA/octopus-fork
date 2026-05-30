@@ -122,6 +122,19 @@ type BalanceChartPoint struct {
 
 func (BalanceChartPoint) TableName() string { return "-" }
 
+// BalancePrediction is the response type for balance consumption prediction.
+type BalancePrediction struct {
+	DailyBurnRate    float64             `json:"daily_burn_rate"`     // average daily consumption (7-day weighted)
+	DaysRemaining    int                 `json:"days_remaining"`      // estimated days until quota reaches 0
+	EstimatedZeroAt  string              `json:"estimated_zero_at"`   // YYYY-MM-DD when quota hits 0
+	SevenDayAvgBurn  float64             `json:"seven_day_avg_burn"`  // 7-day average daily burn
+	ThirtyDayAvgBurn float64             `json:"thirty_day_avg_burn"` // 30-day average daily burn
+	CurrentQuota     float64             `json:"current_quota"`       // current quota
+	TrendPoints      []BalanceChartPoint `json:"trend_points"`        // future prediction data points
+}
+
+func (BalancePrediction) TableName() string { return "-" }
+
 // ── Check-in ────────────────────────────────────────────────────────────────
 
 // CheckInRecord stores the result of a check-in attempt for a remote site.

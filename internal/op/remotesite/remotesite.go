@@ -8,8 +8,12 @@ import (
 
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/hub"
+	_ "github.com/lingyuins/octopus/internal/hub/aihubmix"
+	_ "github.com/lingyuins/octopus/internal/hub/axonhub"
+	_ "github.com/lingyuins/octopus/internal/hub/claudecodehub"
 	_ "github.com/lingyuins/octopus/internal/hub/common"
 	_ "github.com/lingyuins/octopus/internal/hub/octopus"
+	_ "github.com/lingyuins/octopus/internal/hub/sub2api"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/utils/crypto"
 	"github.com/lingyuins/octopus/internal/utils/log"
