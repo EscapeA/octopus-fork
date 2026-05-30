@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Activity, Coins, Database, Gauge, HardDrive, Layers3, SlidersHorizontal } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { OpsCacheStatus, OpsProviderPromptCacheProviderItem, OpsProviderPromptCacheSummary } from '@/api/endpoints/ops';
@@ -165,6 +165,46 @@ function ProviderPromptCacheRow({
     );
 }
 
+function formatChartData(trend: Array<{ timestamp: number; cache_read_tokens?: number; cache_write_tokens?: number; request_count?: number }>) {
+    return trend.map((point) => ({
+        time: formatUnixTime(point.timestamp),
+        cache_read_tokens: point.cache_read_tokens ?? 0,
+        cache_write_tokens: point.cache_write_tokens ?? 0,
+        request_count: point.request_count ?? 0,
+    }));
+}
+
+function buildChartConfig(t: CacheTranslations) {
+    return {
+        cache_read_tokens: {
+            label: t('cache.providerPrompt.metrics.cacheReadTokens'),
+            color: 'hsl(var(--chart-1))',
+        },
+        cache_write_tokens: {
+            label: t('cache.providerPrompt.metrics.cacheWriteTokens'),
+            color: 'hsl(var(--chart-2))',
+        },
+    };
+}
+
+function TrendTooltipLabel({ payload }: { payload?: Array<{ payload?: { time?: string } }> }) {
+    if (!payload?.length) return null;
+    const item = payload[0]?.payload;
+    return <div className="font-semibold">{item?.time}</div>;
+}
+
+function TrendTooltipValue({ value, name, t }: { value: number; name: string; t: CacheTranslations }) {
+    const label = name === 'cache_read_tokens'
+        ? t('cache.providerPrompt.metrics.cacheReadTokens')
+        : t('cache.providerPrompt.metrics.cacheWriteTokens');
+    return (
+        <div className="flex items-center justify-between gap-4">
+            <span className="text-muted-foreground">{label}</span>
+            <span className="font-mono font-medium tabular-nums">{formatCount(value)}</span>
+        </div>
+    );
+}
+
 function ProviderPromptCacheView({
     data,
     t,
@@ -178,25 +218,8 @@ function ProviderPromptCacheView({
     const hasTrendActivity = trend.some((item) => item.request_count > 0 || item.cache_read_tokens > 0 || item.cache_write_tokens > 0);
     const missingUsageHint = `${t('cache.providerPrompt.providers.empty')} (${data.parsed_log_count}/${data.sampled_log_count})`;
 
-    const chartData = useMemo(() => {
-        return trend.map((point) => ({
-            time: formatUnixTime(point.timestamp),
-            cache_read_tokens: point.cache_read_tokens ?? 0,
-            cache_write_tokens: point.cache_write_tokens ?? 0,
-            request_count: point.request_count ?? 0,
-        }));
-    }, [trend]);
-
-    const chartConfig = useMemo(() => ({
-        cache_read_tokens: {
-            label: t('cache.providerPrompt.trend.readLabel') || 'Cache Read',
-            color: 'hsl(var(--chart-1))',
-        },
-        cache_write_tokens: {
-            label: t('cache.providerPrompt.trend.writeLabel') || 'Cache Write',
-            color: 'hsl(var(--chart-2))',
-        },
-    }), [t]);
+    const chartData = useMemo(() => formatChartData(trend), [trend]);
+    const chartConfig = useMemo(() => buildChartConfig(t), [t]);
 
     return (
         <div className="space-y-4">
@@ -324,24 +347,10 @@ function ProviderPromptCacheView({
                                                 <ChartTooltipContent
                                                     indicator="dot"
                                                     nameKey="time"
-                                                    labelFormatter={(_value: string, payload: Array<{ payload?: { time?: string; cache_read_tokens?: number; cache_write_tokens?: number; request_count?: number }> }>) => {
-                                                        if (!payload?.length) return null;
-                                                        const item = payload[0]?.payload;
-                                                        return (
-                                                            <div className="font-semibold">{item?.time}</div>
-                                                        );
-                                                    }}
-                                                    formatter={(value: number, name: string) => {
-                                                        const label = name === 'cache_read_tokens'
-                                                            ? t('cache.providerPrompt.metrics.cacheReadTokens')
-                                                            : t('cache.providerPrompt.metrics.cacheWriteTokens');
-                                                        return (
-                                                            <div className="flex items-center justify-between gap-4">
-                                                                <span className="text-muted-foreground">{label}</span>
-                                                                <span className="font-mono font-medium tabular-nums">{formatCount(value)}</span>
-                                                            </div>
-                                                        );
-                                                    }}
+                                                    labelFormatter={(payload) => <TrendTooltipLabel payload={payload as Array<{ payload?: { time?: string } }>} />}
+                                                    formatter={(value, name) => (
+                                                        <TrendTooltipValue value={value as number} name={name as string} t={t} />
+                                                    )}
                                                 />
                                             }
                                         />
