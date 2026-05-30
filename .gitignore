@@ -24,6 +24,7 @@ AGENTS.md
 *-load.yaml
 opencode.json
 octopus.exe
+octopus-dev.exe
 octopus-server.exe
 backend.dev.restart.log
 backend_err.txt
