@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Activity, Coins, Database, Gauge, HardDrive, Layers3, SlidersHorizontal } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { OpsCacheStatus, OpsProviderPromptCacheProviderItem, OpsProviderPromptCacheSummary } from '@/api/endpoints/ops';
@@ -13,6 +13,64 @@ import { formatProviderPromptCacheCount, getProviderPromptCacheTrendTokens } fro
 
 type CacheView = 'semantic' | 'providerPrompt';
 type CacheTranslations = (key: string) => string;
+
+function TrendBar({
+    point,
+    height,
+    maxTrendTokens,
+}: {
+    point: { timestamp: number; cache_read_tokens: number; cache_write_tokens: number; request_count: number };
+    height: string;
+    maxTrendTokens: number;
+}) {
+    const [showTooltip, setShowTooltip] = useState(false);
+    const barRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!showTooltip) return;
+        function handleOutsideClick(e: MouseEvent) {
+            if (barRef.current && !barRef.current.contains(e.target as Node)) {
+                setShowTooltip(false);
+            }
+        }
+        document.addEventListener('click', handleOutsideClick);
+        return () => document.removeEventListener('click', handleOutsideClick);
+    }, [showTooltip]);
+
+    return (
+        <div
+            ref={barRef}
+            className="flex w-20 flex-none flex-col items-center gap-2"
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+            onClick={(e) => {
+                e.stopPropagation();
+                setShowTooltip((prev) => !prev);
+            }}
+        >
+            <div className="relative w-full h-40">
+                <div
+                    className="absolute bottom-0 w-full rounded-t-md bg-primary/20 cursor-pointer hover:bg-primary/30 transition-colors"
+                    style={{ height }}
+                    title={`${formatUnixTime(point.timestamp)} | ${formatCount(point.cache_read_tokens)} read / ${formatCount(point.cache_write_tokens)} write`}
+                />
+                {showTooltip && (
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none">
+                        <div className="rounded-lg border border-border/60 bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg whitespace-nowrap">
+                            <div className="font-semibold">{formatUnixTime(point.timestamp)}</div>
+                            <div className="mt-1 text-muted-foreground">
+                                {formatCount(point.cache_read_tokens)} read / {formatCount(point.cache_write_tokens)} write
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+            <div className="w-full whitespace-nowrap text-center text-[10px] text-muted-foreground">
+                {formatUnixTime(point.timestamp)}
+            </div>
+        </div>
+    );
+}
 
 function formatCount(n: number | undefined) {
     const value = n ?? 0;
@@ -283,20 +341,14 @@ function ProviderPromptCacheView({
                                     <div className="flex h-40 min-w-max items-end gap-2 pr-2">
                                         {trend.map((point) => {
                                             const trendTokens = getProviderPromptCacheTrendTokens(point);
-                                            const height = `${Math.max(8, (trendTokens / maxTrendTokens) * 100)}%`;
+                                            const barHeight = `${Math.max(8, (trendTokens / maxTrendTokens) * 100)}%`;
                                             return (
-                                                <div key={point.timestamp} className="flex w-20 flex-none flex-col items-center gap-2">
-                                                    <div className="relative w-full h-40">
-                                                        <div
-                                                            className="absolute bottom-0 w-full rounded-t-md bg-primary/20"
-                                                            style={{ height }}
-                                                            title={`${formatUnixTime(point.timestamp)} | ${formatCount(point.cache_read_tokens)} read / ${formatCount(point.cache_write_tokens)} write`}
-                                                        />
-                                                    </div>
-                                                    <div className="w-full whitespace-nowrap text-center text-[10px] text-muted-foreground">
-                                                        {formatUnixTime(point.timestamp)}
-                                                    </div>
-                                                </div>
+                                                <TrendBar
+                                                    key={point.timestamp}
+                                                    point={point}
+                                                    height={barHeight}
+                                                    maxTrendTokens={maxTrendTokens}
+                                                />
                                             );
                                         })}
                                     </div>
