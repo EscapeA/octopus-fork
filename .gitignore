@@ -32,7 +32,28 @@ backend_out.txt
 frontend_err.txt
 frontend_out.txt
 
+# planning & docs
+docs/plan/
+
+# git hooks (husky)
+.husky/
+
+# editor/IDE/tooling
 .antigravitycli/d858c6a6-08cb-4ae8-ba81-44cf562fe7eb.json
+.claude/
+.idea/
 .omo/
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
 node_modules/
+
+# package managers - only keep pnpm-lock.yaml
+web/package-lock.json
+web/yarn.lock
 
