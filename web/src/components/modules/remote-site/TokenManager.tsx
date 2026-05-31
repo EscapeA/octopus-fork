@@ -8,7 +8,7 @@ import {
     type RemoteSiteToken,
 } from '@/api/endpoints/remote-site-token';
 import { LoadingState } from '@/components/common/LoadingState';
-import { RefreshCw, Download, KeyRound, Upload } from 'lucide-react';
+import { RefreshCw, Download, KeyRound, Upload, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/common/Toast';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +24,10 @@ function tokenStatusBadge(status: number) {
     }
 }
 
-export function TokenManager({ siteId }: { siteId: number }) {
+// Site types that support token sync with full (unmasked) keys.
+const TOKEN_SUPPORTED_SITE_TYPES = new Set(['sub2api', 'aihubmix']);
+
+export function TokenManager({ siteId, siteType }: { siteId: number; siteType?: string }) {
     const { data: tokens, isLoading } = useRemoteTokens(siteId);
     const syncTokens = useSyncTokens();
     const syncToChannel = useSyncToChannel();
@@ -55,10 +58,18 @@ export function TokenManager({ siteId }: { siteId: number }) {
         });
     };
 
+    const supportsFullKeys = siteType ? TOKEN_SUPPORTED_SITE_TYPES.has(siteType) : true;
+
     if (isLoading) return <LoadingState />;
 
     return (
         <div className="flex flex-col gap-3">
+            {!supportsFullKeys && (
+                <div className="flex items-center gap-2 rounded-md border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm text-yellow-600 dark:text-yellow-400">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>{t('tokensMaskedWarning')}</span>
+                </div>
+            )}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <KeyRound className="h-4 w-4" />
