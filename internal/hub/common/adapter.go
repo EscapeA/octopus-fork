@@ -149,16 +149,16 @@ func (a *Adapter) FetchModelPricing(ctx context.Context, site *model.RemoteSite)
 // ── Tokens ──────────────────────────────────────────────────────────────────
 
 type tokenResponse struct {
-	ID             int     `json:"id"`
-	Name           string  `json:"name"`
-	Key            string  `json:"key"`
-	Status         int     `json:"status"`
-	RemainQuota    float64 `json:"remain_quota"`
-	UsedQuota      float64 `json:"used_quota"`
-	UnlimitedQuota bool    `json:"unlimited_quota"`
-	ModelLimits    string  `json:"model_limits_enabled"`
-	ExpiredTime    int64   `json:"expired_time"`
-	CreatedTime    int64   `json:"created_time"`
+	ID                 int     `json:"id"`
+	Name               string  `json:"name"`
+	Key                string  `json:"key"`
+	Status             int     `json:"status"`
+	RemainQuota        float64 `json:"remain_quota"`
+	UsedQuota          float64 `json:"used_quota"`
+	UnlimitedQuota     bool    `json:"unlimited_quota"`
+	ModelLimitsEnabled bool    `json:"model_limits_enabled"`
+	ExpiredTime        int64   `json:"expired_time"`
+	CreatedTime        int64   `json:"created_time"`
 }
 
 type tokenListResponse struct {
@@ -166,6 +166,10 @@ type tokenListResponse struct {
 	Total int             `json:"total"`
 }
 
+// NOTE: New API's token endpoints (both list and detail) always return masked
+// keys (e.g. "sk-4Hs0***Nb2v"). The full key is only available in the POST
+// response when a token is first created. There is no API to retrieve existing
+// full keys — the New API frontend caches them locally from creation responses.
 func (a *Adapter) FetchTokens(ctx context.Context, site *model.RemoteSite) ([]hub.RemoteToken, error) {
 	resp, err := hub.FetchJSON[tokenListResponse](ctx, site, http.MethodGet, "/api/token/?p=0&page_size=100", nil)
 	if err != nil {
@@ -173,6 +177,12 @@ func (a *Adapter) FetchTokens(ctx context.Context, site *model.RemoteSite) ([]hu
 	}
 	tokens := make([]hub.RemoteToken, 0, len(resp.Items))
 	for _, t := range resp.Items {
+		// Convert bool to string for ModelLimits
+		modelLimits := ""
+		if t.ModelLimitsEnabled {
+			modelLimits = "true"
+		}
+
 		tokens = append(tokens, hub.RemoteToken{
 			ID:             t.ID,
 			Name:           t.Name,
@@ -181,7 +191,7 @@ func (a *Adapter) FetchTokens(ctx context.Context, site *model.RemoteSite) ([]hu
 			RemainQuota:    t.RemainQuota,
 			UsedQuota:      t.UsedQuota,
 			UnlimitedQuota: t.UnlimitedQuota,
-			ModelLimits:    t.ModelLimits,
+			ModelLimits:    modelLimits,
 			ExpiredTime:    t.ExpiredTime,
 			CreatedTime:    t.CreatedTime,
 		})

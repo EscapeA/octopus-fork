@@ -135,6 +135,7 @@
       "siteType": "站點類型",
       "accessToken": "存取權杖",
       "username": "使用者名稱",
+      "usernamePlaceholder": "New API 使用者名稱（用於 New-Api-User header）",
       "password": "密碼",
       "exchangeRate": "匯率（USD）",
       "enabled": "啟用",

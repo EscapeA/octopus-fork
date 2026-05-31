@@ -135,6 +135,7 @@
       "siteType": "站点类型",
       "accessToken": "访问令牌",
       "username": "用户名",
+      "usernamePlaceholder": "New API 用户名（用于 New-Api-User header）",
       "password": "密码",
       "exchangeRate": "汇率（USD）",
       "enabled": "启用",

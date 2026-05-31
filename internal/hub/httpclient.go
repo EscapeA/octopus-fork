@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -43,6 +44,19 @@ func doRequest(ctx context.Context, method, url string, body io.Reader, headers 
 func buildAuthHeaders(site *model.RemoteSite) (map[string]string, error) {
 	headers := map[string]string{
 		"Content-Type": "application/json",
+	}
+	// Some New API backends require New-Api-User header for management endpoints
+	// (e.g., /api/token/, /api/user/checkin). The header value must be the
+	// numeric user ID (not the username string). RemoteUserID is populated by
+	// FetchUserInfo. If RemoteUserID is 0, fall back to parsing Username as a
+	// numeric ID (some New API forks use the ID directly as the username field).
+	if site.RemoteUserID > 0 {
+		headers["New-Api-User"] = strconv.Itoa(site.RemoteUserID)
+	} else if site.Username != "" {
+		// Try to parse Username as a numeric ID fallback
+		if _, err := strconv.Atoi(site.Username); err == nil {
+			headers["New-Api-User"] = site.Username
+		}
 	}
 	if site.AuthType == model.AuthTypeNone {
 		return headers, nil

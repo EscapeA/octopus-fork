@@ -195,15 +195,27 @@ export function SiteDialog({ open, onOpenChange, editingSite }: SiteDialogProps)
                             </div>
                         </>
                     ) : (
-                        <div className="grid gap-2">
-                            <Label>{t('form.accessToken')}</Label>
-                            <Input
-                                type="password"
-                                value={accessToken}
-                                onChange={e => setAccessToken(e.target.value)}
-                                placeholder={isEditing ? t('form.unchanged') : 'sk-...'}
-                            />
-                        </div>
+                        <>
+                            <div className="grid gap-2">
+                                <Label>{t('form.accessToken')}</Label>
+                                <Input
+                                    type="password"
+                                    value={accessToken}
+                                    onChange={e => setAccessToken(e.target.value)}
+                                    placeholder={isEditing ? t('form.unchanged') : 'sk-...'}
+                                />
+                            </div>
+                            {siteType === 'new-api' && (
+                                <div className="grid gap-2">
+                                    <Label>{t('form.username')}</Label>
+                                    <Input
+                                        value={username}
+                                        onChange={e => setUsername(e.target.value)}
+                                        placeholder={t('form.usernamePlaceholder')}
+                                    />
+                                </div>
+                            )}
+                        </>
                     )}
                     <div className="grid gap-2">
                         <Label>{t('form.exchangeRate')}</Label>

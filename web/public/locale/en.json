@@ -135,6 +135,7 @@
       "siteType": "Site Type",
       "accessToken": "Access Token",
       "username": "Username",
+      "usernamePlaceholder": "New API username (for New-Api-User header)",
       "password": "Password",
       "exchangeRate": "Exchange Rate (USD)",
       "enabled": "Enabled",
