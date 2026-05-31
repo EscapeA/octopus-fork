@@ -66,6 +66,9 @@ The top-level `Dockerfile` already builds this frontend and copies the export in
 
 - `src/components/app.tsx`: Main application shell
 - `src/components/modules/home/*`: Runtime/version overview and high-level summaries reused from analytics data
+- `src/components/modules/remote-site/*`: Hub module — tab-based interface with 6 panels: Sites (SitesPanel), Check-in (CheckInPanel), Announcement (AnnouncementPanel), Redemption (RedemptionPanel), Usage History (UsageHistoryPanel), Credential (CredentialPanel), plus BalanceChart and SiteDialog. The formerly standalone announcement, checkin, redemption, usage-history, and credential modules have been merged here as tab panels
+- `src/components/modules/credential/*`: Shared `CredentialDialog` component reused by the Hub CredentialPanel
+- `src/components/modules/model-mapping/*`: Model name mapping rules UI (pattern-based name rewriting). Not registered as a top-level nav route; backed by `/api/v1/model/mappings`
 - `src/components/modules/channel/*`: Channel configuration, key management, sync, latency, and model declarations
 - `src/components/modules/group/*`: Route groups, balancing strategy configuration, group testing, and single-group AI route append flow
 - `src/components/modules/model/*`: Model Market UI, including summary strip, virtualized cards, and price-edit actions
@@ -74,12 +77,18 @@ The top-level `Dockerfile` already builds this frontend and copies the export in
 - `src/components/modules/alert/*`: Alert rules, notification channels, state records, and history views
 - `src/components/modules/ops/*`: Cache, quota, health, system, and audit surfaces
 - `src/components/modules/apikey/*`: API key creation, allowlists, expiry, max-cost, RPM/TPM, and per-model quota controls
-- `src/components/modules/setting/*`: Settings cards including info, appearance/nav preferences, semantic cache, AI route, API key defaults, backup, and dangerous actions
+- `src/components/modules/apikey-dashboard/*`: API key dashboard views
+- `src/components/modules/setting/*`: Settings cards including info, appearance/nav preferences, semantic cache, AI route, API key defaults, database migration, backup, and dangerous actions
 - `src/components/modules/user/*`: Management-console user and role administration
 - `src/components/modules/navbar/*`: Top-level navigation state and persisted nav-order helpers
+- `src/components/modules/toolbar/*`: Shared toolbar components
+- `src/components/modules/login/*`: Login form supporting both username/password and API-key authentication modes
+- `src/components/modules/logo/*`: Shared Octopus logo component used by login and first-run screens
+- `src/components/modules/first-run-setup.tsx`: Bootstrap screen for creating the initial admin account when no admin exists
 - `src/api/`: API client and endpoint hooks
-- `src/route/config.tsx`: UI route registration
-- `public/locale/`: Localized text resources
+- `src/route/config.tsx`: UI route registration (lazy-loaded top-level modules: home, hub, channel, group, model, analytics, log, alert, ops, apikey, setting, user)
+- `src/stores/`: Zustand state stores
+- `public/locale/`: Localized text resources (en, zh_hans, zh_hant)
 
 ## Notes
 
@@ -92,4 +101,7 @@ The top-level `Dockerfile` already builds this frontend and copies the export in
 - `Ops` is organized into `cache`, `quota`, `health`, `system`, and `audit` tabs. Audit only covers selected management write routes, not public relay traffic.
 - Semantic cache settings are split into configured state and runtime-enabled state. Enabling the switch alone is not enough; the embedding base URL and embedding model also need to be configured before runtime metrics turn green.
 - Top-level page order is edited inside the `Appearance` card, persisted through the `nav_order` setting, and normalized against `DEFAULT_NAV_ORDER`, so missing routes are appended automatically and unknown routes are dropped.
+- The Hub (`remote-site`) module consolidates all remote-site management into a single tab-based page. The five formerly standalone modules — announcement, checkin, redemption, usage-history, and credential — no longer exist as separate top-level routes; their UI now lives as tab panels inside `remote-site/`. A shared `CredentialDialog` component remains under `credential/` for reuse by the CredentialPanel.
+- The `model-mapping` module provides pattern-based model name rewriting rules but is not exposed as a top-level navigation route.
+- The login screen supports two authentication modes (user credentials and API key) behind a tabbed interface, and the first-run bootstrap screen appears automatically when no admin account exists.
 - When backend API surfaces or top-level modules change, update both `web/README.md` and the root README files so the embedded-console docs remain consistent.

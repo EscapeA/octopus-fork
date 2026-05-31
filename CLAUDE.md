@@ -170,7 +170,7 @@ Management API uses `{code: int, message: string, data: any}` envelope. `resp.Su
 - App shell: `web/src/components/app.tsx`. Lazy-loaded modules registered in `web/src/route/config.tsx`.
 - API client: `web/src/api/client.ts` (base URL defaults to `.`, override via `NEXT_PUBLIC_API_BASE_URL`).
 - i18n: Locale files in `web/public/locale/{en,zh_hans,zh_hant}.json`. Use `useTranslations('namespace')` from next-intl.
-- Modules: Home, Hub (Remote Sites), Announcement, Check-in, Credential, Channel, Group, Model (Model Market), Analytics, Log, Alert, Ops, APIKey, Setting, User.
+- Modules: Home, Hub (Sites, Check-in, Announcement, Redemption, Usage, Credential tabs), Channel, Group, Model (Model Market), Analytics, Log, Alert, Ops, APIKey, Setting, User.
 - Settings includes Semantic Cache controls and Database Migration switcher; page ordering lives inside Appearance card.
 
 ## Test patterns

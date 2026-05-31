@@ -328,6 +328,7 @@ The embedded management UI currently ships with these top-level modules:
 | Module | What it covers |
 |--------|----------------|
 | Home | Version, runtime status, and high-level summaries |
+| Hub | Remote site management with 6 tabs: Sites, Check-in, Announcement, Redemption, Usage, and Credential |
 | Channel | Upstream provider configuration, keys, headers, sync, and latency probing |
 | Group | Model routing, load-balancing strategies, sticky sessions, group test, and AI route generation |
 | Model Market | Model catalog, custom pricing, channel coverage, enabled key counts, latency, and success summaries |
@@ -336,7 +337,7 @@ The embedded management UI currently ships with these top-level modules:
 | Alert | Alert rules, notification channels, state, and history |
 | Ops | Semantic cache, API key quota posture, system health, runtime summary, and audit trail |
 | APIKey | API key create, edit, delete, supported-model allowlists, expiry, max-cost caps, and RPM / TPM quotas |
-| Setting | Version/update info, appearance and nav preferences, runtime tuning, semantic cache, AI route services, API key defaults, retry, circuit breaker, backup, and dangerous operations |
+| Setting | Version/update info, appearance and nav preferences, runtime tuning, semantic cache, AI route services, API key defaults, database migration, backup, and dangerous operations |
 | User | Admin user management and roles |
 
 ### 📡 Channel Management

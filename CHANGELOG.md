@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.0.0] - 2026-05
+
+### 🚀 Features
+- Hub navigation overhaul: merge five standalone modules (Announcement, Check-in, Redemption, Usage History, Credential) into Hub as tab panels, reducing top-level navigation from 18 to 13 items.
+- Hub tab interface with six tabs: Sites, Check-in, Announcement, Redemption, Usage, and Credential.
+
+### 🐛 Bug Fixes
+- Fix FetchTokens pagination in common Hub adapter — tokens beyond the first page of 100 are now correctly retrieved.
+- Add 13 missing StatsMetrics fields (latency percentiles, FTUT metrics, histogram counts) to all stats formatting functions to resolve TypeScript compilation errors.
+
+### 🛠 Optimizations/Refactor
+- Remove orphaned TokenManager frontend component and remote-site-token API hooks (dead code after Hub navigation merge).
+- Remove 12 orphaned i18n keys across all three locales (en, zh_hans, zh_hant).
+- Bump version to v2.0.0 (version.go, package.json, docker-compose.yml).
+
+**Full Changelog:** https://github.com/lingyuins/octopus/compare/v1.9.8...v2.0.0
+
+---
+
 ## [v1.9.8] - 2026-05
 
 ### 🚀 Features
@@ -85,7 +104,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [v1.9.3] - 2026-07
+## [v1.9.3] - 2026-05
 
 ### 🚀 Features
 - Support endpoint-provider specific rewrites for group relay and media passthrough.
