@@ -125,7 +125,7 @@ Group-level JSON condition matching logic, used by the relay pipeline to evaluat
 Business logic is split into focused subpackages such as `airoute`, `alert`, `analytics`, `apikey`, `audit`, `backup`, `cacheusage`, `channel`, `credential`, `dbmigration`, `group`, `llm`, `navorder`, `ops`, `ratelimitstore`, `relaylog`, `remotesite`, `setting`, `stats`, and `user`. Prefer updating the relevant subpackage first, then any compatibility wrapper in `internal/op/` if one exists.
 
 ### Hub — Remote site management (`internal/hub/`, `internal/op/remotesite/`)
-Multi-site account management for upstream AI relay providers. Features: site CRUD, balance tracking, auto check-in, announcement aggregation, remote token sync, channel migration, API credential management, CLI export, and site discovery. Adapter pattern with 14-method `SiteAdapter` interface; common adapter covers New API/One API family as default fallback. Credentials encrypted via AES-256-GCM. See `internal/hub/README.md` for full API reference.
+Multi-site account management for upstream AI relay providers. Features: site CRUD, balance tracking, auto check-in, announcement aggregation, remote token sync, channel migration, API credential management, CLI export, and site discovery. Adapter pattern with 15-method `SiteAdapter` interface; common adapter covers New API/One API family as default fallback. Credentials encrypted via AES-256-GCM. See `internal/hub/README.md` for full API reference.
 
 ### Media and utility relay
 - `internal/server/handlers/media.go` exposes direct relay endpoints for images, audio, video, music, search, rerank, and moderation.
