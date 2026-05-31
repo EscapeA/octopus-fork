@@ -167,7 +167,8 @@
     "tokenImported": "Token imported as channel",
     "noTokens": "No remote tokens found",
     "exportTokens": "Export",
-    "tokensExported": "Tokens exported successfully"
+    "tokensExported": "Tokens exported successfully",
+    "tokensMaskedWarning": "This site type always returns masked keys from the remote API. Imported token keys cannot be used for actual API calls."
   },
   "announcement": {
     "title": "Announcements",

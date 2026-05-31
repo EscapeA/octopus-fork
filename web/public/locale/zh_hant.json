@@ -167,7 +167,8 @@
     "tokenImported": "權杖已匯入為渠道",
     "noTokens": "暫無遠端權杖",
     "exportTokens": "匯出",
-    "tokensExported": "權杖匯出成功"
+    "tokensExported": "權杖匯出成功",
+    "tokensMaskedWarning": "該類型站點的遠端 API 始終返回脫敏金鑰，匯入的權杖無法用於實際 API 呼叫。"
   },
   "announcement": {
     "title": "公告",

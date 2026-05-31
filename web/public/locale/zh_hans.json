@@ -167,7 +167,8 @@
     "tokenImported": "令牌已导入为渠道",
     "noTokens": "暂无远程令牌",
     "exportTokens": "导出",
-    "tokensExported": "令牌导出成功"
+    "tokensExported": "令牌导出成功",
+    "tokensMaskedWarning": "该类型站点的远程 API 始终返回脱敏密钥，导入的令牌无法用于实际 API 调用。"
   },
   "announcement": {
     "title": "公告",
