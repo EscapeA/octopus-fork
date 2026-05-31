@@ -787,4 +787,5 @@ The three layers are independent: the container timezone affects the server runt
 
 - 🙏 [looplj/axonhub](https://github.com/looplj/axonhub) - The LLM API adaptation module in this project is directly derived from this repository
 - 📊 [sst/models.dev](https://github.com/sst/models.dev) - AI model database providing model pricing data
+- [ALL api hub](https://github.com/qixing-jk/all-api-hub) - Hub
 
