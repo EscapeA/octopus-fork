@@ -171,32 +171,41 @@ type tokenListResponse struct {
 // response when a token is first created. There is no API to retrieve existing
 // full keys — the New API frontend caches them locally from creation responses.
 func (a *Adapter) FetchTokens(ctx context.Context, site *model.RemoteSite) ([]hub.RemoteToken, error) {
-	resp, err := hub.FetchJSON[tokenListResponse](ctx, site, http.MethodGet, "/api/token/?p=0&page_size=100", nil)
-	if err != nil {
-		return nil, fmt.Errorf("fetch tokens: %w", err)
-	}
-	tokens := make([]hub.RemoteToken, 0, len(resp.Items))
-	for _, t := range resp.Items {
-		// Convert bool to string for ModelLimits
-		modelLimits := ""
-		if t.ModelLimitsEnabled {
-			modelLimits = "true"
+	var allTokens []hub.RemoteToken
+	page := 0
+	pageSize := 100
+	for {
+		endpoint := fmt.Sprintf("/api/token/?p=%d&page_size=%d", page, pageSize)
+		resp, err := hub.FetchJSON[tokenListResponse](ctx, site, http.MethodGet, endpoint, nil)
+		if err != nil {
+			return nil, fmt.Errorf("fetch tokens page %d: %w", page, err)
 		}
+		for _, t := range resp.Items {
+			// Convert bool to string for ModelLimits
+			modelLimits := ""
+			if t.ModelLimitsEnabled {
+				modelLimits = "true"
+			}
 
-		tokens = append(tokens, hub.RemoteToken{
-			ID:             t.ID,
-			Name:           t.Name,
-			Key:            t.Key,
-			Status:         t.Status,
-			RemainQuota:    t.RemainQuota,
-			UsedQuota:      t.UsedQuota,
-			UnlimitedQuota: t.UnlimitedQuota,
-			ModelLimits:    modelLimits,
-			ExpiredTime:    t.ExpiredTime,
-			CreatedTime:    t.CreatedTime,
-		})
+			allTokens = append(allTokens, hub.RemoteToken{
+				ID:             t.ID,
+				Name:           t.Name,
+				Key:            t.Key,
+				Status:         t.Status,
+				RemainQuota:    t.RemainQuota,
+				UsedQuota:      t.UsedQuota,
+				UnlimitedQuota: t.UnlimitedQuota,
+				ModelLimits:    modelLimits,
+				ExpiredTime:    t.ExpiredTime,
+				CreatedTime:    t.CreatedTime,
+			})
+		}
+		if len(allTokens) >= resp.Total || len(resp.Items) < pageSize {
+			break
+		}
+		page++
 	}
-	return tokens, nil
+	return allTokens, nil
 }
 
 func (a *Adapter) CreateToken(ctx context.Context, site *model.RemoteSite, req hub.CreateTokenRequest) error {

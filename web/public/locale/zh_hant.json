@@ -151,24 +151,10 @@
       "sevenDayAvg": "7日均值",
       "estimatedZero": "預計耗盡日"
     },
-    "remoteTokens": "遠端權杖",
-    "syncTokens": "同步權杖",
-    "tokensSynced": "已同步 {count} 個權杖",
     "discover": "發現站點",
     "discoveredTitle": "發現的站點",
     "discoveredEmpty": "未發現站點",
-    "add": "新增",
-    "tokenName": "權杖名稱",
-    "status": "狀態",
-    "remainQuota": "剩餘額度",
-    "usedQuota": "已用額度",
-    "actions": "操作",
-    "importAsChannel": "匯入",
-    "tokenImported": "權杖已匯入為渠道",
-    "noTokens": "暫無遠端權杖",
-    "exportTokens": "匯出",
-    "tokensExported": "權杖匯出成功",
-    "tokensMaskedWarning": "該類型站點的遠端 API 始終返回脫敏金鑰，匯入的權杖無法用於實際 API 呼叫。"
+    "add": "新增"
   },
   "announcement": {
     "title": "公告",

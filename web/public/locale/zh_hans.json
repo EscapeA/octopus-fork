@@ -151,24 +151,10 @@
       "sevenDayAvg": "7日均值",
       "estimatedZero": "预计耗尽日"
     },
-    "remoteTokens": "远程令牌",
-    "syncTokens": "同步令牌",
-    "tokensSynced": "已同步 {count} 个令牌",
     "discover": "发现站点",
     "discoveredTitle": "发现的站点",
     "discoveredEmpty": "未发现站点",
-    "add": "添加",
-    "tokenName": "令牌名称",
-    "status": "状态",
-    "remainQuota": "剩余额度",
-    "usedQuota": "已用额度",
-    "actions": "操作",
-    "importAsChannel": "导入",
-    "tokenImported": "令牌已导入为渠道",
-    "noTokens": "暂无远程令牌",
-    "exportTokens": "导出",
-    "tokensExported": "令牌导出成功",
-    "tokensMaskedWarning": "该类型站点的远程 API 始终返回脱敏密钥，导入的令牌无法用于实际 API 调用。"
+    "add": "添加"
   },
   "announcement": {
     "title": "公告",

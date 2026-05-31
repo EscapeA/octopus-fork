@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	Version   = "v1.9.8"
+	Version   = "v2.0.0"
 	Commit    = "unknown"
 	BuildTime = "unknown"
 	Author    = "lingyu"
@@ -24,5 +24,3 @@ func init() {
 		BuildTime = time.Now().UTC().Format(time.RFC3339)
 	}
 }
-
-
