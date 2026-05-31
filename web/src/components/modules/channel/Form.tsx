@@ -473,8 +473,8 @@ export function ChannelForm({
             .filter((k) => k.channel_key.trim())
             .map((k) => ({ enabled: k.enabled, channel_key: k.channel_key.trim(), remark: k.remark ?? '' })),
         proxy: formData.proxy,
-        channel_proxy: formData.channel_proxy?.trim() || null,
-        match_regex: formData.match_regex.trim() || null,
+        channel_proxy: formData.channel_proxy?.trim() || '',
+        match_regex: formData.match_regex.trim() || '',
         custom_header: normalizedHeaders,
         model: formData.model,
         custom_model: formData.custom_model,
@@ -482,7 +482,7 @@ export function ChannelForm({
         enabled: formData.enabled,
         auto_sync: formData.auto_sync,
         auto_group: formData.auto_group,
-        param_override: formData.param_override.trim() || null,
+        param_override: formData.param_override.trim() || '',
     });
 
     const handleTestChannel = () => {
@@ -537,8 +537,8 @@ export function ChannelForm({
                     .filter((k) => k.channel_key.trim())
                     .map((k) => ({ enabled: k.enabled, channel_key: k.channel_key.trim() })),
                 proxy: formData.proxy,
-                channel_proxy: formData.channel_proxy?.trim() || null,
-                match_regex: formData.match_regex.trim() || null,
+                channel_proxy: formData.channel_proxy?.trim() || '',
+                match_regex: formData.match_regex.trim() || '',
                 custom_header: normalizedHeaders,
             },
             {

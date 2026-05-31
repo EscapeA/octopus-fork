@@ -35,7 +35,7 @@ const REDEMPTION_KEYS = {
 export function useRedemptionHistory(siteId: number, limit = 50) {
   return useQuery({
     queryKey: REDEMPTION_KEYS.history(siteId),
-    queryFn: () => apiClient.get<RedemptionRecord[]>(`/api/v1/redemption/history/${siteId}?limit=${limit}`),
+    queryFn: () => apiClient.get<RedemptionRecord[]>(`/api/v1/redemption/history/${siteId}`, { limit }),
   });
 }
 

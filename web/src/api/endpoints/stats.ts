@@ -14,6 +14,24 @@ interface StatsMetrics {
     wait_time: number;
     request_success: number;
     request_failed: number;
+
+    // Latency percentiles (ms)
+    latency_p50: number;
+    latency_p95: number;
+    latency_p99: number;
+
+    // Time to first token (ms)
+    ftut_avg: number;
+    ftut_p50: number;
+    ftut_p95: number;
+    ftut_p99: number;
+
+    // Latency histogram (request counts)
+    histogram_lt_100: number;
+    histogram_100_500: number;
+    histogram_500_1k: number;
+    histogram_1k_5k: number;
+    histogram_gt_5k: number;
 }
 
 export interface StatsMetricsFormatted {
@@ -24,6 +42,24 @@ export interface StatsMetricsFormatted {
     wait_time: ReturnType<typeof formatTime>;
     request_success: ReturnType<typeof formatCount>;
     request_failed: ReturnType<typeof formatCount>;
+
+    // Latency percentiles (formatted as time)
+    latency_p50: ReturnType<typeof formatTime>;
+    latency_p95: ReturnType<typeof formatTime>;
+    latency_p99: ReturnType<typeof formatTime>;
+
+    // Time to first token (formatted as time)
+    ftut_avg: ReturnType<typeof formatTime>;
+    ftut_p50: ReturnType<typeof formatTime>;
+    ftut_p95: ReturnType<typeof formatTime>;
+    ftut_p99: ReturnType<typeof formatTime>;
+
+    // Latency histogram (formatted as count)
+    histogram_lt_100: ReturnType<typeof formatCount>;
+    histogram_100_500: ReturnType<typeof formatCount>;
+    histogram_500_1k: ReturnType<typeof formatCount>;
+    histogram_1k_5k: ReturnType<typeof formatCount>;
+    histogram_gt_5k: ReturnType<typeof formatCount>;
 
     request_count: ReturnType<typeof formatCount>;
     total_token: ReturnType<typeof formatCount>;
@@ -111,6 +147,18 @@ export function useStatsDaily() {
             wait_time: formatTime(item.wait_time),
             request_success: formatCount(item.request_success),
             request_failed: formatCount(item.request_failed),
+            latency_p50: formatTime(item.latency_p50),
+            latency_p95: formatTime(item.latency_p95),
+            latency_p99: formatTime(item.latency_p99),
+            ftut_avg: formatTime(item.ftut_avg),
+            ftut_p50: formatTime(item.ftut_p50),
+            ftut_p95: formatTime(item.ftut_p95),
+            ftut_p99: formatTime(item.ftut_p99),
+            histogram_lt_100: formatCount(item.histogram_lt_100),
+            histogram_100_500: formatCount(item.histogram_100_500),
+            histogram_500_1k: formatCount(item.histogram_500_1k),
+            histogram_1k_5k: formatCount(item.histogram_1k_5k),
+            histogram_gt_5k: formatCount(item.histogram_gt_5k),
             request_count: formatCount(item.request_success + item.request_failed),
             date: item.date,
         })),
@@ -139,6 +187,18 @@ export function useStatsHourly() {
             wait_time: formatTime(item.wait_time),
             request_success: formatCount(item.request_success),
             request_failed: formatCount(item.request_failed),
+            latency_p50: formatTime(item.latency_p50),
+            latency_p95: formatTime(item.latency_p95),
+            latency_p99: formatTime(item.latency_p99),
+            ftut_avg: formatTime(item.ftut_avg),
+            ftut_p50: formatTime(item.ftut_p50),
+            ftut_p95: formatTime(item.ftut_p95),
+            ftut_p99: formatTime(item.ftut_p99),
+            histogram_lt_100: formatCount(item.histogram_lt_100),
+            histogram_100_500: formatCount(item.histogram_100_500),
+            histogram_500_1k: formatCount(item.histogram_500_1k),
+            histogram_1k_5k: formatCount(item.histogram_1k_5k),
+            histogram_gt_5k: formatCount(item.histogram_gt_5k),
             request_count: formatCount(item.request_success + item.request_failed),
         })),
         refetchInterval: REFETCH_INTERVAL_FAST,

@@ -50,6 +50,19 @@ export const SettingKey = {
     AIRouteTimeoutSeconds: 'ai_route_timeout_seconds',
     AIRouteParallelism: 'ai_route_parallelism',
     AIRouteServices: 'ai_route_services',
+    StatsTimezoneOffset: 'stats_timezone_offset',
+    JWTDefaultExpiryMinutes: 'jwt_default_expiry_minutes',
+    JWTRememberMeExpiryDays: 'jwt_remember_me_expiry_days',
+    LoginRateLimitWindow: 'login_rate_limit_window',
+    LoginRateLimitMaxFailed: 'login_rate_limit_max_failed',
+    StreamSessionTTLMinutes: 'stream_session_ttl_minutes',
+    StreamSessionMaxEvents: 'stream_session_max_events',
+    StreamSessionMaxBytesMB: 'stream_session_max_bytes_mb',
+    NotifyHTTPTimeoutSeconds: 'notify_http_timeout_seconds',
+    FailureHintTTLUnauthorized: 'failure_hint_ttl_unauthorized',
+    FailureHintTTLRateLimit: 'failure_hint_ttl_rate_limit',
+    FailureHintTTLNetwork: 'failure_hint_ttl_network',
+    WebDAVConfig: 'webdav_config',
 } as const;
 
 /**

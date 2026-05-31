@@ -106,7 +106,7 @@ export type Channel = {
     channel_proxy?: string | null;
     request_rewrite?: RequestRewriteConfig | null;
     match_regex?: string | null;
-    stats: StatsChannel;
+    stats?: StatsChannel;
 };
 
 // Internal type: backend may return null for slice fields; normalize to [] in select()
@@ -215,16 +215,16 @@ export function useChannelList() {
                 keys: item.keys ?? [],
             }) satisfies Channel,
             formatted: {
-                input_token: formatCount(item.stats.input_token),
-                output_token: formatCount(item.stats.output_token),
-                total_token: formatCount(item.stats.input_token + item.stats.output_token),
-                input_cost: formatMoney(item.stats.input_cost),
-                output_cost: formatMoney(item.stats.output_cost),
-                total_cost: formatMoney(item.stats.input_cost + item.stats.output_cost),
-                request_success: formatCount(item.stats.request_success),
-                request_failed: formatCount(item.stats.request_failed),
-                request_count: formatCount(item.stats.request_success + item.stats.request_failed),
-                wait_time: formatTime(item.stats.wait_time),
+                input_token: formatCount(item.stats?.input_token ?? 0),
+                output_token: formatCount(item.stats?.output_token ?? 0),
+                total_token: formatCount((item.stats?.input_token ?? 0) + (item.stats?.output_token ?? 0)),
+                input_cost: formatMoney(item.stats?.input_cost ?? 0),
+                output_cost: formatMoney(item.stats?.output_cost ?? 0),
+                total_cost: formatMoney((item.stats?.input_cost ?? 0) + (item.stats?.output_cost ?? 0)),
+                request_success: formatCount(item.stats?.request_success ?? 0),
+                request_failed: formatCount(item.stats?.request_failed ?? 0),
+                request_count: formatCount((item.stats?.request_success ?? 0) + (item.stats?.request_failed ?? 0)),
+                wait_time: formatTime(item.stats?.wait_time ?? 0),
             }
         })) as Array<{ raw: Channel; formatted: StatsMetricsFormatted }>,
         refetchInterval: REFETCH_INTERVAL_DEFAULT,

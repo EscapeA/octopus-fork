@@ -81,7 +81,7 @@ export function useDeleteWebDAVBackup() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (filename: string) =>
-      apiClient.delete(`/api/v1/backup/webdav/delete?filename=${encodeURIComponent(filename)}`),
+      apiClient.delete('/api/v1/backup/webdav/delete', { filename }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['webdav', 'files'] })
     },

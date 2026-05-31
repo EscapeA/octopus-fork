@@ -172,10 +172,10 @@ export function useDeleteNotifChannel() {
     });
 }
 
-export function useAlertHistory() {
+export function useAlertHistory(limit: number = 50) {
     return useQuery({
-        queryKey: ['alerts', 'history'],
-        queryFn: async () => apiClient.get<AlertHistory[]>('/api/v1/alert/history?limit=50'),
+        queryKey: ['alerts', 'history', limit],
+        queryFn: async () => apiClient.get<AlertHistory[]>('/api/v1/alert/history', { limit }),
         refetchInterval: REFETCH_INTERVAL_DEFAULT,
     });
 }
