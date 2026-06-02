@@ -99,10 +99,9 @@ function EditDialogContent({
                     </div>
                 </header>
             </MorphingDialogTitle>
-            <MorphingDialogDescription className="flex-1 min-h-0 overflow-y-auto">
-                <div className="space-y-4 pr-1">
-                    {group.id ? (
-                        <section className="rounded-lg border border-border/25 bg-card p-4">
+            <MorphingDialogDescription className="flex-1 min-h-0 overflow-hidden">
+                {group.id ? (
+                    <section className="rounded-lg border border-border/25 bg-card p-4">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div className="space-y-1">
                                     <h3 className="text-sm font-semibold text-foreground">{t('detail.availability.title')}</h3>
@@ -227,7 +226,6 @@ function EditDialogContent({
                         onCancel={() => setIsOpen(false)}
                         onSubmit={(v) => onSubmit(v, () => setIsOpen(false))}
                     />
-                </div>
             </MorphingDialogDescription>
         </>
     );
