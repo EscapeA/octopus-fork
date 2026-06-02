@@ -1511,7 +1511,8 @@
       },
       "keepPeriod": {
         "label": "日誌保存天數",
-        "placeholder": "請輸入天數"
+        "placeholder": "例如：7",
+        "description": "超過保存天數的日誌將被自動刪除"
       },
       "clear": {
         "label": "清空歷史日誌",
@@ -1519,7 +1520,23 @@
         "clearing": "清空中..."
       },
       "clearSuccess": "日誌已清空",
-      "clearFailed": "清空失敗"
+      "clearFailed": "清空失敗",
+      "keepCount": {
+        "label": "日誌保留條數",
+        "description": "超出設定值時自動刪除最舊的50%日誌，避免頻繁清理影響效能",
+        "placeholder": "例如：1000"
+      },
+      "keepMode": {
+        "label": "保留方式",
+        "count": "按條數",
+        "days": "按天數"
+      },
+      "mode": {
+        "label": "日誌保留模式",
+        "description": "選擇按條數或按天數自動清理歷史日誌",
+        "count": "按條數",
+        "days": "按天數"
+      }
     },
     "navOrder": {
       "title": "頁面順序與顯示",
@@ -2266,5 +2283,10 @@
     "databaseSchemaOutdatedRestart": "資料庫結構已過期，請重啟服務以套用最新遷移",
     "upstreamServiceUnavailable": "上游服務不可用",
     "unexpectedError": "未預期的錯誤"
+  },
+  "system": {
+    "fields": {
+      "logCountUnit": "條"
+    }
   }
 }

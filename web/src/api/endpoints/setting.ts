@@ -20,6 +20,7 @@ export const SettingKey = {
     SyncLLMInterval: 'sync_llm_interval',
     RelayLogKeepEnabled: 'relay_log_keep_enabled',
     RelayLogKeepPeriod: 'relay_log_keep_period',
+    RelayLogKeepCount: 'relay_log_keep_count',
     CORSAllowOrigins: 'cors_allow_origins',
     RelayRetryCount: 'relay_retry_count',
     RelayRouteRetries: 'relay_route_retries',
