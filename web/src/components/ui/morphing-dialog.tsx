@@ -93,7 +93,9 @@ function MorphingDialogProvider({
 
   return (
     <MorphingDialogContext.Provider value={contextValue}>
-      <MotionConfig transition={transition}>{children}</MotionConfig>
+      <MotionConfig transition={transition} reducedMotion='user'>
+        {children}
+      </MotionConfig>
     </MorphingDialogContext.Provider>
   );
 }
@@ -293,7 +295,7 @@ function MorphingDialogContent({
       ref={containerRef}
       layoutId={`dialog-${uniqueId}`}
       className={cn(
-        'relative flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-lg max-w-2xl w-[calc(100vw-2rem)] max-h-[90dvh]',
+        'relative flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-lg w-[calc(100vw-2rem)] sm:max-w-2xl max-h-[85dvh] sm:max-h-[90dvh]',
         className
       )}
       data-slot='morphing-dialog-content'
@@ -336,7 +338,7 @@ function MorphingDialogContainer({ children }: MorphingDialogContainerProps) {
         <>
           <motion.div
             key={`backdrop-${uniqueId}`}
-            className='fixed inset-0 z-50 bg-black/30 '
+            className='fixed inset-0 z-50 bg-black/40 backdrop-blur-sm'
             data-slot='morphing-dialog-layer'
             data-dialog-id={uniqueId}
             initial={{ opacity: 0 }}
@@ -500,7 +502,7 @@ function MorphingDialogClose({
       aria-label={t('close')}
       key={`dialog-close-${uniqueId}`}
       className={cn(
-        'absolute top-4 right-4 rounded-md border border-border bg-card p-1.5 opacity-80 transition-all duration-150 hover:opacity-100 hover:bg-muted',
+        'absolute top-2 right-2 sm:top-4 sm:right-4 flex items-center justify-center rounded-md border border-border bg-card p-2 sm:p-1.5 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 opacity-80 transition-all duration-150 hover:opacity-100 hover:bg-muted',
         className
       )}
       initial='initial'
