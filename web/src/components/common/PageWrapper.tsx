@@ -25,8 +25,9 @@ export function PageWrapper({ children, className = 'space-y-6' }: PageWrapperPr
               exit={{ opacity: 0 }}
               transition={{
                 duration: 0.2,
-                delay: Math.min(index * 0.03, 0.2),
+                delay: Math.min(index * 0.03, 0.15),
               }}
+              style={{ willChange: 'opacity' }}
             >
               {child}
             </motion.div>
