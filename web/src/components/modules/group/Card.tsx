@@ -16,6 +16,7 @@ import { GroupEditor, type GroupEditorValues } from './Editor';
 import { AIRouteButton } from './AIRouteButton';
 import { buildChannelNameByModelKey, modelChannelKey, MODE_LABELS, inferGroupCapabilities, CAPABILITY_LABEL_KEYS, CAPABILITY_COLORS, endpointTypeLabelKey, normalizeEndpointType, supportsGroupTest } from './utils';
 import { GroupMode, type GroupUpdateRequest } from '@/api/endpoints/group';
+import { getModelIcon } from '@/lib/model-icons';
 import {
     MorphingDialog,
     MorphingDialogClose,
