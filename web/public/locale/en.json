@@ -1522,11 +1522,17 @@
       "clearFailed": "Failed to clear logs",
       "keepCount": {
         "label": "Log Retention Count",
-        "description": "Oldest logs are deleted when count exceeds limit",
+        "description": "Automatically deletes oldest 50% of logs when exceeding the limit, avoiding frequent cleanup overhead",
         "placeholder": "e.g. 1000"
       },
       "keepMode": {
         "label": "Retention Mode",
+        "count": "By Count",
+        "days": "By Days"
+      },
+      "mode": {
+        "label": "Log Retention Mode",
+        "description": "Choose to auto-clean logs by count or by days",
         "count": "By Count",
         "days": "By Days"
       }

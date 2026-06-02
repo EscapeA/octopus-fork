@@ -1522,11 +1522,17 @@
       "clearFailed": "清空失败",
       "keepCount": {
         "label": "日志保留条数",
-        "description": "超出条数时自动删除最早的日志",
+        "description": "超出设定值时自动删除最旧的50%日志，避免频繁清理影响性能",
         "placeholder": "例如：1000"
       },
       "keepMode": {
         "label": "保留方式",
+        "count": "按条数",
+        "days": "按天数"
+      },
+      "mode": {
+        "label": "日志保留模式",
+        "description": "选择按条数或按天数自动清理历史日志",
         "count": "按条数",
         "days": "按天数"
       }
