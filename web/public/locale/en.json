@@ -1510,8 +1510,9 @@
         "label": "Enable History Logs"
       },
       "keepPeriod": {
-        "label": "Log Retention (days)",
-        "placeholder": "Enter days"
+        "label": "Log Retention Days",
+        "placeholder": "e.g. 7",
+        "description": "Logs older than the specified days will be automatically deleted"
       },
       "clear": {
         "label": "Clear History Logs",
@@ -1519,7 +1520,23 @@
         "clearing": "Clearing..."
       },
       "clearSuccess": "Logs cleared",
-      "clearFailed": "Failed to clear logs"
+      "clearFailed": "Failed to clear logs",
+      "keepCount": {
+        "label": "Log Retention Count",
+        "description": "Automatically deletes oldest 50% of logs when exceeding the limit, avoiding frequent cleanup overhead",
+        "placeholder": "e.g. 1000"
+      },
+      "keepMode": {
+        "label": "Retention Mode",
+        "count": "By Count",
+        "days": "By Days"
+      },
+      "mode": {
+        "label": "Log Retention Mode",
+        "description": "Choose to auto-clean logs by count or by days",
+        "count": "By Count",
+        "days": "By Days"
+      }
     },
     "navOrder": {
       "title": "Page Order & Visibility",
@@ -2266,5 +2283,10 @@
     "databaseSchemaOutdatedRestart": "Database schema is outdated; restart the service to apply the latest migrations",
     "upstreamServiceUnavailable": "Upstream service unavailable",
     "unexpectedError": "Unexpected error"
+  },
+  "system": {
+    "fields": {
+      "logCountUnit": "entries"
+    }
   }
 }

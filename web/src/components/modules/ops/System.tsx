@@ -86,7 +86,11 @@ export function System() {
                             <InfoRow label={t('system.fields.proxyUrl')} value={data?.proxy_url || '-'} />
                             <InfoRow
                                 label={t('system.fields.relayLogRetention')}
-                                value={data?.relay_log_keep_enabled ? `${data?.relay_log_keep_days}d` : t('system.fields.disabled')}
+                                value={data?.relay_log_keep_enabled
+                                    ? (data?.relay_log_keep_count > 0
+                                        ? `${data.relay_log_keep_count} ${t('system.fields.logCountUnit')}`
+                                        : `${data?.relay_log_keep_days}d`)
+                                    : t('system.fields.disabled')}
                             />
                             <InfoRow
                                 label={t('system.fields.statsSaveInterval')}
