@@ -112,6 +112,7 @@ export function Group() {
                     estimateItemHeight={620}
                     getItemKey={(group, index) => group.id ?? `group-${index}`}
                     renderItem={(group) => <GroupCard group={group} />}
+                    bottomPaddingClassName="md:pb-4"
                 />
             </section>
         </div>

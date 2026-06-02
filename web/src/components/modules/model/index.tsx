@@ -85,6 +85,7 @@ export function Model() {
                             estimateItemHeight={228}
                             getItemKey={(model) => `model-${model.name}`}
                             renderItem={(model) => <ModelItem model={model} layout={layout} />}
+                            bottomPaddingClassName="md:pb-4"
                         />
                     </div>
                 </section>
