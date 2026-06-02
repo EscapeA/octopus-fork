@@ -627,24 +627,24 @@ export function GroupCard({ group }: { group: Group }) {
 
     return (
         <article className="group relative flex flex-col rounded-xl border border-border bg-card p-4 text-card-foreground">
-            <header className="relative mb-4 rounded-lg border border-border bg-card px-4 py-4">
-                <div className="flex items-start justify-between gap-3">
-                <div className="relative mr-2 min-w-0 flex-1 group/title">
-                    <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/10 bg-card px-2.5 py-1 text-[0.64rem] font-semibold text-primary">
-                        <Orbit className="size-3.5" />
+            <header className="relative mb-4 rounded-lg border border-border bg-card px-3 py-3 md:px-4 md:py-4">
+                <div className="flex items-start justify-between gap-2 md:gap-3">
+                <div className="relative min-w-0 flex-1 group/title">
+                    <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-md border border-primary/10 bg-card px-2 py-0.5 text-[0.6rem] font-semibold text-primary md:gap-2 md:rounded-full md:px-2.5 md:py-1 md:text-[0.64rem]">
+                        <Orbit className="size-3 md:size-3.5" />
                         {t('card.endpointType', {
                             value: t(endpointTypeLabelKey(group.endpoint_type) ?? 'form.endpointType.options.all'),
                         })}
                     </div>
                     <Tooltip side="top" sideOffset={10} align="center">
                         <TooltipTrigger asChild>
-                            <h3 className="truncate text-xl font-bold tracking-tight">{group.name}</h3>
+                            <h3 className="truncate text-lg font-bold tracking-tight md:text-xl">{group.name}</h3>
                         </TooltipTrigger>
                         <TooltipContent key={group.name}>{group.name}</TooltipContent>
                     </Tooltip>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-1">
+                <div className="flex shrink-0 items-center gap-0.5 md:gap-1">
                     <MorphingDialog>
                         <MorphingDialogTrigger className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-card hover:text-foreground">
                             <Tooltip side="top" sideOffset={10} align="center">
@@ -736,33 +736,54 @@ export function GroupCard({ group }: { group: Group }) {
                     const capabilities = inferGroupCapabilities(modelNames);
                     const modelCount = modelNames.length;
                     return (
-                        <div className="mt-4 flex flex-wrap items-center gap-2">
-                            {capabilities.map((cap) => (
-                                <span
-                                    key={cap}
-                                    className={cn(
-                                        'inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-medium',
-                                        CAPABILITY_COLORS[cap]
-                                    )}
-                                >
-                                    {t(CAPABILITY_LABEL_KEYS[cap])}
+                        <div className="mt-4 space-y-2">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                {capabilities.map((cap) => (
+                                    <span
+                                        key={cap}
+                                        className={cn(
+                                            'inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium',
+                                            CAPABILITY_COLORS[cap]
+                                        )}
+                                    >
+                                        {t(CAPABILITY_LABEL_KEYS[cap])}
+                                    </span>
+                                ))}
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <Layers className="size-3.5 opacity-60" />
+                                    {t('card.modelCount', { count: modelCount })}
                                 </span>
-                            ))}
-                            <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-border/20 bg-card px-2.5 py-1 text-[10px] text-muted-foreground">
-                                <Layers className="size-3" />
-                                {t('card.modelCount', { count: modelCount })}
-                            </span>
+                                {modelCount > 0 && (
+                                    <div className="flex -space-x-1">
+                                        {modelNames.slice(0, 4).map((name, i) => {
+                                            const { Avatar } = getModelIcon(name);
+                                            return (
+                                                <span key={`${name}-${i}`} className="inline-flex size-5 items-center justify-center rounded-full border border-card bg-card">
+                                                    <Avatar size={12} />
+                                                </span>
+                                            );
+                                        })}
+                                        {modelCount > 4 && (
+                                            <span className="inline-flex size-5 items-center justify-center rounded-full border border-card bg-muted text-[8px] font-medium text-muted-foreground">
+                                                +{modelCount - 4}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     );
                 })()}
             </header>
 
             <section className="relative mb-4 rounded-lg border border-border/25 bg-card p-3">
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-border/25 bg-card px-2.5 py-1 text-[0.64rem] font-semibold text-muted-foreground">
-                    <Waves className="size-3.5" />
+                <div className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-border/25 bg-card px-2 py-0.5 text-[0.6rem] font-semibold text-muted-foreground md:mb-3 md:gap-2 md:rounded-full md:px-2.5 md:py-1 md:text-[0.64rem]">
+                    <Waves className="size-3 md:size-3.5" />
                     {t(`mode.${MODE_LABELS[resolvedMode]}`)}
                 </div>
-                <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 md:grid-cols-5 md:gap-2">
                 {([GroupMode.RoundRobin, GroupMode.Random, GroupMode.Failover, GroupMode.Weighted, GroupMode.Auto] as const).map((m) => (
                     <button
                         key={m}
@@ -774,7 +795,7 @@ export function GroupCard({ group }: { group: Group }) {
                             updateGroup.mutate({ id: group.id!, mode: m }, { onSuccess, onError });
                         }}
                         className={cn(
-                            'rounded-md px-3 py-2 text-xs font-medium transition-[transform,border-color,background-color] duration-300',
+                            'rounded-md px-2 py-1.5 text-[10px] font-medium transition-[transform,border-color,background-color] duration-300 md:px-3 md:py-2 md:text-xs',
                             resolvedMode === m
                                 ? 'border border-primary/20 bg-primary text-primary-foreground'
                                 : 'border border-border/25 bg-card text-foreground hover:-translate-y-0.5 hover:border-primary/16 hover:bg-card',

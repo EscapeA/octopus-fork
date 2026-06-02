@@ -44,14 +44,14 @@ export function Model() {
     const [viewMode, setViewMode] = useState<'market' | 'capabilities'>('market');
 
     return (
-        <section className="relative flex h-full min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain rounded-t-xl pb-24 md:pb-4" aria-label={pageKey}>
+        <section className="relative flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain rounded-t-xl pb-28 sm:gap-4 sm:pb-4 md:pb-4" aria-label={pageKey}>
             {/* View mode toggle */}
-            <div className="flex items-center gap-1 self-start rounded-lg border border-border/35 bg-card p-1">
+            <div className="flex items-center gap-0.5 self-start rounded-lg border border-border/35 bg-card p-0.5 sm:gap-1 sm:p-1">
                 <button
                     type="button"
                     onClick={() => setViewMode('market')}
                     className={cn(
-                        'rounded-md px-4 py-2 text-sm font-medium transition-colors',
+                        'rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:px-4 sm:py-2 sm:text-sm',
                         viewMode === 'market'
                             ? 'bg-primary text-primary-foreground shadow-sm'
                             : 'text-muted-foreground hover:text-foreground',
@@ -63,7 +63,7 @@ export function Model() {
                     type="button"
                     onClick={() => setViewMode('capabilities')}
                     className={cn(
-                        'rounded-md px-4 py-2 text-sm font-medium transition-colors',
+                        'rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:px-4 sm:py-2 sm:text-sm',
                         viewMode === 'capabilities'
                             ? 'bg-primary text-primary-foreground shadow-sm'
                             : 'text-muted-foreground hover:text-foreground',

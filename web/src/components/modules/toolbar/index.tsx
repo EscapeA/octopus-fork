@@ -55,8 +55,8 @@ const COMBINED_SORT_OPTIONS: readonly CombinedSortOption[] = [
 
 const COMMAND_CELL_CLASS = 'rounded-lg border border-border bg-card transition-[color,background-color,border-color] duration-150 hover:border-border/80 hover:bg-muted/50 active:scale-[0.98]';
 const COMMAND_ICON_BUTTON_CLASS = `${COMMAND_CELL_CLASS} h-11 w-11 text-muted-foreground hover:text-foreground`;
-const COMMAND_TEXT_BUTTON_CLASS = `${COMMAND_CELL_CLASS} h-11 px-3.5 text-sm font-medium text-muted-foreground hover:text-foreground`;
-const OPTION_BUTTON_CLASS = 'h-9 rounded-md border px-3 text-xs font-medium transition-[color,background-color,border-color] duration-150 active:scale-[0.98]';
+const COMMAND_TEXT_BUTTON_CLASS = `${COMMAND_CELL_CLASS} min-h-11 px-3.5 text-sm font-medium text-muted-foreground hover:text-foreground`;
+const OPTION_BUTTON_CLASS = 'min-h-9 sm:h-9 rounded-md border px-3 text-xs font-medium transition-[color,background-color,border-color] duration-150 active:scale-[0.98] py-2 sm:py-0';
 const ACTIVE_OPTION_CLASS = 'border-primary/30 bg-primary text-primary-foreground';
 const INACTIVE_OPTION_CLASS = 'border-border bg-card text-foreground hover:border-primary/20 hover:bg-muted/50';
 
@@ -212,13 +212,15 @@ export function Toolbar() {
                 animate={lightweightMotion ? { opacity: 1 } : { opacity: 1, scale: 1 }}
                 exit={lightweightMotion ? { opacity: 0 } : { opacity: 0, scale: 0.9 }}
                 transition={{ duration: lightweightMotion ? 0.12 : 0.2 }}
-                className="flex max-w-full flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-1.5"
+                className="flex max-w-full flex-col items-stretch gap-2 rounded-xl border border-border bg-card p-1.5 sm:flex-row sm:flex-wrap sm:items-center"
             >
                 {/* 搜索按钮/展开框 */}
                 <div
                     className={cn(
-                        'relative h-11 transition-[width] duration-300 ease-out',
-                        searchExpanded ? 'w-[min(18rem,calc(100vw-3rem))] sm:w-72' : 'w-11'
+                        'relative h-11 transition-[width] duration-300 ease-out self-end',
+                        searchExpanded
+                            ? 'w-full sm:w-72 sm:w-[min(18rem,calc(100vw-3rem))]'
+                            : 'w-11 self-auto'
                     )}
                 >
                     {!searchExpanded ? (
@@ -260,7 +262,7 @@ export function Toolbar() {
                                     setSearchTerm(toolbarItem, '');
                                     setExpandedSearchItem(null);
                                 }}
-                                className="grid size-7 shrink-0 place-items-center rounded-full border border-border/30 bg-card text-muted-foreground transition-colors hover:text-foreground"
+                                className="grid size-7 shrink-0 place-items-center rounded-full border border-border/30 bg-card text-muted-foreground transition-colors hover:text-foreground sm:size-7 [-webkit-tap-highlight-color:transparent] before:absolute before:grid before:size-11 before:place-items-center before:rounded-full sm:before:size-7 relative"
                             >
                                 <X className="size-3.5" />
                             </button>
@@ -271,13 +273,13 @@ export function Toolbar() {
                 {toolbarItem === 'group' && (
                     <CCSwitchLinkButton className="hidden sm:inline-flex" />
                 )}
-                <div className="flex h-11 items-center gap-1 rounded-xl border border-border bg-muted/30 p-1">
+                <div className="flex min-h-11 items-center gap-1 rounded-xl border border-border bg-muted/30 p-1 sm:h-11">
                     {toolbarItem === 'model' && (
                         <ModelMarketSummary
                             summary={modelSummary}
                             onRefresh={() => updateModelPrice.mutate()}
                             isRefreshing={updateModelPrice.isPending}
-                            triggerClassName="h-9 rounded-md border border-transparent bg-transparent px-3 text-muted-foreground shadow-none transition-[color,background-color,border-color] duration-150 hover:border-border hover:bg-muted hover:text-foreground hover:shadow-none"
+                            triggerClassName="min-h-11 sm:h-9 rounded-md border border-transparent bg-transparent px-3 text-muted-foreground shadow-none transition-[color,background-color,border-color] duration-150 hover:border-border hover:bg-muted hover:text-foreground hover:shadow-none"
                         />
                     )}
                     <Popover>
@@ -287,7 +289,7 @@ export function Toolbar() {
                                 aria-label={t('popover.ariaLabel')}
                                 className={cn(
                                     buttonVariants({ variant: 'ghost', size: 'default' }),
-                                    "h-9 rounded-md border border-transparent bg-transparent px-3 text-muted-foreground shadow-none transition-[color,background-color,border-color] duration-150 hover:border-border hover:bg-muted hover:text-foreground hover:shadow-none"
+                                    "min-h-11 sm:h-9 rounded-md border border-transparent bg-transparent px-3 text-muted-foreground shadow-none transition-[color,background-color,border-color] duration-150 hover:border-border hover:bg-muted hover:text-foreground hover:shadow-none"
                                 )}
                             >
                                 <SlidersHorizontal className="size-4 transition-colors duration-300" />
@@ -296,9 +298,9 @@ export function Toolbar() {
                         </PopoverTrigger>
                         <PopoverContent
                             align="end"
-                            side="bottom"
-                            sideOffset={12}
-                            className="w-72 rounded-xl border border-border bg-popover p-3 shadow-md"
+                            side={isMobile ? "top" : "bottom"}
+                            sideOffset={isMobile ? 8 : 12}
+                            className="w-72 max-w-[calc(100vw-1rem)] rounded-xl border border-border bg-popover p-3 shadow-md"
                         >
                             <div className="grid gap-3">
                                 {showLayoutOptions && (
@@ -442,7 +444,7 @@ export function Toolbar() {
                                 className={cn(
                                     'grid size-8 place-items-center rounded-md transition-[color,background-color,box-shadow] duration-300',
                                         layout === 'grid'
-                                        ? 'bg-primary text-primary-foreground'
+                                        ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/20'
                                         : 'text-muted-foreground hover:bg-card hover:text-foreground'
                                 )}
                             >
@@ -455,7 +457,7 @@ export function Toolbar() {
                                 className={cn(
                                     'grid size-8 place-items-center rounded-md transition-[color,background-color,box-shadow] duration-300',
                                         layout === 'list'
-                                        ? 'bg-primary text-primary-foreground'
+                                        ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/20'
                                         : 'text-muted-foreground hover:bg-card hover:text-foreground'
                                 )}
                             >

@@ -72,13 +72,13 @@ export function ModelMarketSummary({
                     <span>{t('summary.trigger')}</span>
                 </Button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-[min(100vw-2rem,40rem)] rounded-xl border border-border/35 bg-card p-3 text-card-foreground shadow-lg md:p-4">
+            <PopoverContent align="end" className="w-[min(100vw-1rem,40rem)] rounded-xl border border-border/35 bg-card p-2 text-card-foreground shadow-lg sm:w-[min(100vw-2rem,40rem)] sm:p-3 md:p-4">
                 <section className="relative overflow-hidden">
-                    <div className="relative flex flex-col gap-3">
+                    <div className="relative flex flex-col gap-2 sm:gap-3">
                         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                             <div className="min-w-0">
-                                <div className="text-sm font-semibold text-foreground">{t('summary.title')}</div>
-                                <div className="mt-1 text-xs text-muted-foreground">{t('summary.description')}</div>
+                                <div className="text-xs font-semibold text-foreground sm:text-sm">{t('summary.title')}</div>
+                                <div className="mt-0.5 text-[0.68rem] text-muted-foreground sm:mt-1 sm:text-xs">{t('summary.description')}</div>
                             </div>
                             <Button
                                 type="button"
@@ -86,26 +86,26 @@ export function ModelMarketSummary({
                                 size="sm"
                                 onClick={onRefresh}
                                 disabled={isRefreshing}
-                                className="h-9 rounded-lg border-border/30 bg-card px-3 text-sm sm:h-10 sm:px-3.5"
+                                className="h-8 rounded-lg border-border/30 bg-card px-2.5 text-xs sm:h-9 sm:px-3 sm:text-sm"
                             >
-                                <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                                <RefreshCw className={`mr-1.5 h-3.5 w-3.5 sm:mr-2 sm:h-4 sm:w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                                 {isRefreshing ? t('summary.refreshing') : t('summary.refresh')}
                             </Button>
                         </div>
 
-                        <div className="flex items-center gap-2 rounded-lg border border-border/30 bg-card px-3 py-2 text-[11px] text-muted-foreground sm:text-sm">
-                            <Clock3 className="h-4 w-4 shrink-0 text-primary" />
-                            <span className="truncate">{t('summary.lastUpdate')}: {lastUpdateLabel}</span>
+                        <div className="flex items-center gap-1.5 rounded-lg border border-border/30 bg-card px-2.5 py-1.5 text-[0.65rem] text-muted-foreground sm:gap-2 sm:px-3 sm:py-2 sm:text-[11px]">
+                            <Clock3 className="h-3.5 w-3.5 shrink-0 text-primary sm:h-4 sm:w-4" />
+                            <span className="min-w-0 truncate">{t('summary.lastUpdate')}: {lastUpdateLabel}</span>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                        <div className="grid grid-cols-2 gap-1.5 sm:gap-2 lg:grid-cols-4">
                             {metrics.map((metric) => (
-                                <div key={metric.key} className="group relative min-w-0 overflow-hidden rounded-lg border border-border/30 bg-card px-2.5 py-2 transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-primary/18 md:px-3 md:py-2.5">
-                                    <div className="relative flex min-w-0 items-center gap-1.5 text-[10px] text-muted-foreground md:gap-2 md:text-sm">
-                                        <metric.icon className="h-3.5 w-3.5 shrink-0 text-primary md:h-4 md:w-4" />
-                                        <span className="min-w-0 leading-tight">{metric.label}</span>
+                                <div key={metric.key} className="group relative min-w-0 overflow-hidden rounded-lg border border-border/30 bg-card px-2 py-1.5 transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-primary/18 sm:px-2.5 sm:py-2 md:px-3 md:py-2.5">
+                                    <div className="relative flex min-w-0 items-center gap-1 text-[0.6rem] text-muted-foreground sm:gap-1.5 sm:text-[10px] md:gap-2 md:text-sm">
+                                        <metric.icon className="h-3 w-3 shrink-0 text-primary sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />
+                                        <span className="min-w-0 truncate leading-tight">{metric.label}</span>
                                     </div>
-                                    <div className="relative mt-1 min-w-0 text-[1.45rem] font-semibold leading-none tracking-tight md:mt-2 md:text-[1.75rem]">{metric.value}</div>
+                                    <div className="relative mt-0.5 min-w-0 truncate text-[1.15rem] font-semibold leading-none tracking-tight sm:mt-1 sm:text-[1.45rem] md:mt-2 md:text-[1.75rem]">{metric.value}</div>
                                 </div>
                             ))}
                         </div>
