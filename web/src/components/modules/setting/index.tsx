@@ -102,7 +102,7 @@ export function Setting() {
                             key={item.id}
                             type="button"
                             onClick={() => setOpenId(item.id)}
-                            className="w-full flex items-center gap-3 rounded-xl border border-border/35 bg-card px-4 py-3.5 text-left shadow-sm transition-colors hover:bg-accent/40 active:bg-accent/60"
+                            className="w-full flex items-center gap-3 rounded-xl border border-border/35 bg-card px-4 py-3.5 min-h-[3.25rem] text-left shadow-sm transition-colors hover:bg-accent/40 active:bg-accent/60"
                         >
                             <span className="shrink-0 text-muted-foreground">{item.icon}</span>
                             <span className="flex-1 text-sm font-semibold text-card-foreground truncate">
@@ -115,7 +115,7 @@ export function Setting() {
             </div>
 
             <Dialog open={openId !== null} onOpenChange={(open) => { if (!open) setOpenId(null); }}>
-                <DialogContent className="w-[min(95vw,720px)] max-h-[90vh] overflow-y-auto p-0 gap-0 sm:rounded-2xl">
+                <DialogContent className="w-[100vw] sm:w-[min(95vw,720px)] max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto p-0 gap-0 rounded-none sm:rounded-2xl">
                     {activeItem && activeItem.component}
                 </DialogContent>
             </Dialog>

@@ -71,19 +71,19 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      className="relative min-h-screen flex items-center justify-center px-6 text-foreground overflow-hidden"
+      className="relative min-h-screen min-h-dvh flex items-center justify-center px-4 sm:px-6 py-8 text-foreground overflow-hidden"
     >
       {/* Nature: 粒子背景 */}
       {!isMobile && <ParticleBackground count={40} minOpacity={0.08} maxOpacity={0.25} />}
       
       <div className="relative z-10 w-full max-w-sm">
-        <div className="flex flex-col gap-8 p-8 md:p-10 border-border/35 bg-card rounded-xl">
-          <header className="flex flex-col items-center gap-4">
-            <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-lg border-border/35 bg-card">
-              <Logo size={48} />
+        <div className="flex flex-col gap-6 sm:gap-8 p-5 sm:p-8 md:p-10 border-border/35 bg-card rounded-xl">
+          <header className="flex flex-col items-center gap-3 sm:gap-4">
+            <div className="grid size-14 sm:size-16 shrink-0 place-items-center overflow-hidden rounded-lg border-border/35 bg-card">
+              <Logo size={40} />
             </div>
             <div className="flex flex-col items-center gap-1">
-              <h1 className="text-3xl font-bold tracking-tight">Octopus</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Octopus</h1>
               <p className="text-sm text-muted-foreground/80 font-medium">{t('welcome') || 'Welcome back'}</p>
             </div>
           </header>
@@ -94,19 +94,19 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
                 <TabsHighlightItem value="user" className="flex-1">
                   <TabsTrigger
                     value="user"
-                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium transition-colors data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground"
+                    className="w-full flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-2 sm:px-4 rounded-xl text-xs sm:text-sm font-medium transition-colors data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground"
                   >
-                    <User className="w-4 h-4" />
-                    {t('mode.user')}
+                    <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="truncate">{t('mode.user')}</span>
                   </TabsTrigger>
                 </TabsHighlightItem>
                 <TabsHighlightItem value="apikey" className="flex-1">
                   <TabsTrigger
                     value="apikey"
-                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium transition-colors data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground"
+                    className="w-full flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-2 sm:px-4 rounded-xl text-xs sm:text-sm font-medium transition-colors data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground"
                   >
-                    <KeyRound className="w-4 h-4" />
-                    {t('mode.apikey')}
+                    <KeyRound className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="truncate">{t('mode.apikey')}</span>
                   </TabsTrigger>
                 </TabsHighlightItem>
               </TabsHighlight>

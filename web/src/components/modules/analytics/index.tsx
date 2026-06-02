@@ -27,7 +27,7 @@ export function Analytics() {
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as AnalyticsTab)}>
                 <section className="relative overflow-hidden rounded-xl border border-border/35 bg-card p-4 text-card-foreground md:p-5">
                     <div className="relative flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                        <div className="overflow-x-auto">
+                        <div className="-mx-1 overflow-x-auto overscroll-x-contain scroll-smooth px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                             <TabsList className="flex w-max min-w-max flex-nowrap rounded-lg border-border/30 bg-card p-1 xl:min-w-0 xl:flex-wrap">
                                 <TabsTrigger value="cache">{opsT('tabs.cache')}</TabsTrigger>
                                 <TabsTrigger value="utilization">{t('cards.utilization.title')}</TabsTrigger>
@@ -37,9 +37,9 @@ export function Analytics() {
                             </TabsList>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             <Tabs value={range} onValueChange={(value) => setRange(value as AnalyticsRange)}>
-                                <div className="overflow-x-auto">
+                                <div className="-mx-1 overflow-x-auto overscroll-x-contain scroll-smooth px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                                     <TabsList className="flex w-max min-w-max flex-nowrap rounded-lg border-border/30 bg-card p-1 xl:min-w-0 xl:flex-wrap">
                                         {RANGE_OPTIONS.map((option) => (
                                             <TabsTrigger key={option} value={option}>
