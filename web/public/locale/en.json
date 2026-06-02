@@ -1510,8 +1510,8 @@
         "label": "Enable History Logs"
       },
       "keepPeriod": {
-        "label": "Log Retention (days)",
-        "placeholder": "Enter days"
+        "label": "Log Retention Days",
+        "placeholder": "e.g. 7"
       },
       "clear": {
         "label": "Clear History Logs",
@@ -1524,6 +1524,11 @@
         "label": "Log Retention Count",
         "description": "Oldest logs are deleted when count exceeds limit",
         "placeholder": "e.g. 1000"
+      },
+      "keepMode": {
+        "label": "Retention Mode",
+        "count": "By Count",
+        "days": "By Days"
       }
     },
     "navOrder": {

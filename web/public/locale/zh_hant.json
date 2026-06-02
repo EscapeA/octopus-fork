@@ -1511,7 +1511,7 @@
       },
       "keepPeriod": {
         "label": "日誌保存天數",
-        "placeholder": "請輸入天數"
+        "placeholder": "例如：7"
       },
       "clear": {
         "label": "清空歷史日誌",
@@ -1524,6 +1524,11 @@
         "label": "日誌保留條數",
         "description": "超出條數時自動刪除最早的日誌",
         "placeholder": "例如：1000"
+      },
+      "keepMode": {
+        "label": "保留方式",
+        "count": "按條數",
+        "days": "按天數"
       }
     },
     "navOrder": {

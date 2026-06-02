@@ -252,13 +252,23 @@ func relayLogCleanup(ctx context.Context) error {
 	}
 
 	if keepCount > 0 {
-		// Delete oldest rows exceeding the count limit
+		// Count-based cleanup with batch deletion (50% when over threshold)
+		// Avoids high-frequency small deletes under heavy load
+		var total int64
+		if err := db.GetDB().Model(&model.RelayLog{}).Count(&total).Error; err != nil {
+			return err
+		}
+		if total <= int64(keepCount) {
+			return nil // Under threshold, no cleanup needed
+		}
+		// Delete 50% of current records to create buffer before next cleanup
+		deleteCount := total / 2
 		subQuery := db.GetDB().Model(&model.RelayLog{}).
-			Order("id DESC").
-			Limit(keepCount).
+			Order("id ASC").
+			Limit(int(deleteCount)).
 			Select("id")
 		return db.GetDB().WithContext(ctx).
-			Where("id NOT IN (?)", subQuery).
+			Where("id IN (?)", subQuery).
 			Delete(&model.RelayLog{}).Error
 	}
 
