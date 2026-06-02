@@ -54,7 +54,7 @@ export function Log() {
     }, [hasMore, isLoading, isLoadingMore, logs.length, t]);
 
     return (
-        <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain rounded-t-xl pt-2 pb-24 md:pt-0 md:pb-4">
+        <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden rounded-t-xl pt-2 md:pt-0">
             {isLoading && logs.length === 0 ? (
                 <div className="flex min-h-[18rem] items-center justify-center rounded-xl border border-border/35 bg-card">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -69,7 +69,7 @@ export function Log() {
                         items={logs}
                         layout="list"
                         columns={{ default: 1 }}
-                        estimateItemHeight={80}
+                        estimateItemHeight={180}
                         overscan={8}
                         getItemKey={(log) => `log-${log.id}`}
                         renderItem={(log) => <LogCard log={log} channelNameById={channelNameById} />}
@@ -77,6 +77,7 @@ export function Log() {
                         onReachEnd={handleReachEnd}
                         reachEndEnabled={canLoadMore}
                         reachEndOffset={2}
+                        bottomPaddingClassName="pb-16 md:pb-4"
                     />
                 </div>
             )}

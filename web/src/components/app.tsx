@@ -70,10 +70,10 @@ function HeaderActions({ activeItem }: { activeItem: NavItem }) {
             size="sm"
             onClick={() => void handleRefresh()}
             disabled={isRefreshing}
-            className="h-10 rounded-lg px-4"
+            className="h-9 shrink-0 rounded-lg px-2.5 sm:h-10 sm:px-4"
         >
-            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {t('actions.refresh')}
+            <RefreshCw className={`h-4 w-4 sm:mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span className="sr-only sm:not-sr-only">{t('actions.refresh')}</span>
         </Button>
     );
 }
@@ -432,17 +432,17 @@ export function AppContainer() {
                                     transition={{ duration: lightweightMotion ? 0.18 : 0.4, ease: [0.16, 1, 0.3, 1] }}
                                     className="flex min-w-0 flex-col"
                                 >
-                                    <span className="truncate text-2xl font-bold leading-tight tracking-[-0.04em] text-foreground sm:text-3xl md:text-4xl">
-                                        {t(activeItem)}
-                                    </span>
+                                    <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                                        <span className="min-w-0 truncate text-2xl font-bold leading-tight tracking-[-0.04em] text-foreground sm:text-3xl md:text-4xl">
+                                            {t(activeItem)}
+                                        </span>
+                                        <HeaderActions activeItem={activeItem} />
+                                    </div>
                                 </motion.div>
                             </AnimatePresence>
                         </div>
                     </div>
                     <div className="flex min-w-0 flex-col gap-3 lg:ml-auto lg:items-end">
-                        <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 lg:justify-end">
-                            <HeaderActions activeItem={activeItem} />
-                        </div>
                         <Toolbar />
                     </div>
                 </header>

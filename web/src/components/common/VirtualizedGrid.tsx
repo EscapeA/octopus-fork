@@ -9,6 +9,7 @@ import {
     useState,
 } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { cn } from '@/lib/utils';
 
 const BREAKPOINTS = {
     sm: 640,
@@ -34,6 +35,7 @@ interface VirtualizedGridProps<T> {
     onReachEnd?: () => void;
     reachEndEnabled?: boolean;
     reachEndOffset?: number;
+    bottomPaddingClassName?: string;
 }
 
 function getColumnsForWidth(
@@ -61,6 +63,7 @@ export function VirtualizedGrid<T>({
     onReachEnd,
     reachEndEnabled = false,
     reachEndOffset = 1,
+    bottomPaddingClassName = 'pb-24 md:pb-4',
 }: VirtualizedGridProps<T>) {
     'use no memo';
 
@@ -152,7 +155,7 @@ export function VirtualizedGrid<T>({
         <div className="relative h-full min-h-0 w-full">
             <div
                 ref={containerRef}
-                className="relative h-full w-full overflow-y-auto overscroll-contain rounded-t-3xl touch-pan-y pb-24 md:pb-4"
+                className={cn('relative h-full w-full overflow-y-auto overscroll-contain rounded-t-3xl touch-pan-y', bottomPaddingClassName)}
             >
                 {rowCount === 0 ? null : (
                     <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
