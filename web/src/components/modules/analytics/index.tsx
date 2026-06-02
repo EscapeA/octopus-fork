@@ -11,6 +11,8 @@ import { Evaluation } from './Evaluation';
 import { LatencyDistribution } from './LatencyDistribution';
 import { ShareSnapshot } from './ShareSnapshot';
 import { Cache } from '@/components/modules/ops/Cache';
+import { useAnalyticsOverview, useAnalyticsEvaluationSummary } from '@/api/endpoints/analytics';
+import { formatCount, formatMoney, formatPercent } from '@/lib/utils';
 
 type AnalyticsTab = 'utilization' | 'route-health' | 'cache' | 'evaluation' | 'latency';
 
@@ -21,6 +23,8 @@ export function Analytics() {
     const opsT = useTranslations('ops');
     const [activeTab, setActiveTab] = useState<AnalyticsTab>('cache');
     const [range, setRange] = useState<AnalyticsRange>('7d');
+    const { data: overview } = useAnalyticsOverview(range);
+    const { data: evaluationData } = useAnalyticsEvaluationSummary();
 
     return (
         <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain space-y-6 rounded-t-xl pb-24 md:pb-4">
@@ -53,11 +57,15 @@ export function Analytics() {
                                 data={{
                                     title: t('title'),
                                     subtitle: t('subtitle'),
-                                    stats: [
-                                        { label: t('cards.utilization.title'), value: '-' },
-                                        { label: t('cards.routeHealth.title'), value: '-' },
-                                        { label: t('evaluation.title'), value: '-' },
-                                    ],
+                                    stats: overview
+                                        ? [
+                                            { label: t('metrics.requestCount'), value: formatCount(overview.request_count).formatted.value + formatCount(overview.request_count).formatted.unit },
+                                            { label: t('metrics.totalTokens'), value: formatCount(overview.total_tokens).formatted.value + formatCount(overview.total_tokens).formatted.unit },
+                                            { label: t('metrics.totalCost'), value: formatMoney(overview.total_cost).formatted.value + formatMoney(overview.total_cost).formatted.unit },
+                                            { label: t('metrics.providerCount'), value: `${overview.provider_count}` },
+                                            { label: t('cache.metrics.hitRate'), value: evaluationData?.semantic_cache.enabled ? `${formatPercent(evaluationData.semantic_cache.hit_rate).formatted.value}%` : t('cache.status.configuredOff') },
+                                        ]
+                                        : [],
                                     timestamp: new Date().toLocaleString(),
                                 }}
                             />
