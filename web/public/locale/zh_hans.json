@@ -1511,7 +1511,8 @@
       },
       "keepPeriod": {
         "label": "日志保存天数",
-        "placeholder": "例如：7"
+        "placeholder": "例如：7",
+        "description": "超过保存天数的日志将被自动删除"
       },
       "clear": {
         "label": "清空历史日志",

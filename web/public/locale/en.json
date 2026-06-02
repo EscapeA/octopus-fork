@@ -1511,7 +1511,8 @@
       },
       "keepPeriod": {
         "label": "Log Retention Days",
-        "placeholder": "e.g. 7"
+        "placeholder": "e.g. 7",
+        "description": "Logs older than the specified days will be automatically deleted"
       },
       "clear": {
         "label": "Clear History Logs",
