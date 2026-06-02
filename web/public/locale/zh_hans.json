@@ -1519,7 +1519,12 @@
         "clearing": "清空中..."
       },
       "clearSuccess": "日志已清空",
-      "clearFailed": "清空失败"
+      "clearFailed": "清空失败",
+      "keepCount": {
+        "label": "日志保留条数",
+        "description": "超出条数时自动删除最早的日志",
+        "placeholder": "例如：1000"
+      }
     },
     "navOrder": {
       "title": "页面顺序与显示",
@@ -2266,5 +2271,10 @@
     "databaseSchemaOutdatedRestart": "数据库结构已过期，请重启服务以应用最新迁移",
     "upstreamServiceUnavailable": "上游服务不可用",
     "unexpectedError": "未预期的错误"
+  },
+  "system": {
+    "fields": {
+      "logCountUnit": "条"
+    }
   }
 }

@@ -1519,7 +1519,12 @@
         "clearing": "Clearing..."
       },
       "clearSuccess": "Logs cleared",
-      "clearFailed": "Failed to clear logs"
+      "clearFailed": "Failed to clear logs",
+      "keepCount": {
+        "label": "Log Retention Count",
+        "description": "Oldest logs are deleted when count exceeds limit",
+        "placeholder": "e.g. 1000"
+      }
     },
     "navOrder": {
       "title": "Page Order & Visibility",
@@ -2266,5 +2271,10 @@
     "databaseSchemaOutdatedRestart": "Database schema is outdated; restart the service to apply the latest migrations",
     "upstreamServiceUnavailable": "Upstream service unavailable",
     "unexpectedError": "Unexpected error"
+  },
+  "system": {
+    "fields": {
+      "logCountUnit": "entries"
+    }
   }
 }

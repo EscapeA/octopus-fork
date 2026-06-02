@@ -245,6 +245,24 @@ func RelayLogSaveDBTask(ctx context.Context) error {
 }
 
 func relayLogCleanup(ctx context.Context) error {
+	// Priority: keep count > keep period (days)
+	keepCount, err := setting.GetInt(model.SettingKeyRelayLogKeepCount)
+	if err != nil {
+		return err
+	}
+
+	if keepCount > 0 {
+		// Delete oldest rows exceeding the count limit
+		subQuery := db.GetDB().Model(&model.RelayLog{}).
+			Order("id DESC").
+			Limit(keepCount).
+			Select("id")
+		return db.GetDB().WithContext(ctx).
+			Where("id NOT IN (?)", subQuery).
+			Delete(&model.RelayLog{}).Error
+	}
+
+	// Fallback to days-based cleanup
 	keepPeriod, err := setting.GetInt(model.SettingKeyRelayLogKeepPeriod)
 	if err != nil {
 		return err

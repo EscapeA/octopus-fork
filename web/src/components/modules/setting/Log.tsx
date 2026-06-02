@@ -17,24 +17,27 @@ export function SettingLog() {
     const clearLogs = useClearLogs();
 
     const [enabled, setEnabled] = useState(true);
-    const [keepPeriod, setKeepPeriod] = useState('7');
+    const [keepCount, setKeepCount] = useState('1000');
     const [isClearing, setIsClearing] = useState(false);
 
     const initialEnabled = useRef(true);
-    const initialKeepPeriod = useRef('7');
+    const initialKeepCount = useRef('1000');
 
     useEffect(() => {
         if (settings) {
             const enabledSetting = settings.find(s => s.key === SettingKey.RelayLogKeepEnabled);
-            const periodSetting = settings.find(s => s.key === SettingKey.RelayLogKeepPeriod);
+            const countSetting = settings.find(s => s.key === SettingKey.RelayLogKeepCount);
             if (enabledSetting) {
                 const isEnabled = enabledSetting.value === 'true';
                 queueMicrotask(() => setEnabled(isEnabled));
                 initialEnabled.current = isEnabled;
             }
-            if (periodSetting) {
-                queueMicrotask(() => setKeepPeriod(periodSetting.value));
-                initialKeepPeriod.current = periodSetting.value;
+            if (countSetting) {
+                const val = countSetting.value;
+                // Default to 1000 if 0 or empty (migration from days-based)
+                const displayVal = (!val || val === '0') ? '1000' : val;
+                queueMicrotask(() => setKeepCount(displayVal));
+                initialKeepCount.current = displayVal;
             }
         }
     }, [settings]);
@@ -52,15 +55,15 @@ export function SettingLog() {
         );
     };
 
-    const handleKeepPeriodSave = () => {
-        if (keepPeriod === initialKeepPeriod.current) return;
+    const handleKeepCountSave = () => {
+        if (keepCount === initialKeepCount.current) return;
 
         setSetting.mutate(
-            { key: SettingKey.RelayLogKeepPeriod, value: keepPeriod },
+            { key: SettingKey.RelayLogKeepCount, value: keepCount },
             {
                 onSuccess: () => {
                     toast.success(t('saved'));
-                    initialKeepPeriod.current = keepPeriod;
+                    initialKeepCount.current = keepCount;
                 }
             }
         );
@@ -99,20 +102,24 @@ export function SettingLog() {
                 />
             </div>
 
-            {/* 历史日志保存范围 */}
+            {/* 历史日志保留条数 */}
             <div className="flex flex-col gap-3 rounded-lg border-border/30 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-3">
                     <Calendar className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-sm font-medium">{t('log.keepPeriod.label')}</span>
+                    <div className="flex flex-col">
+                        <span className="text-sm font-medium">{t('log.keepCount.label')}</span>
+                        <span className="text-xs text-muted-foreground">{t('log.keepCount.description')}</span>
+                    </div>
                 </div>
                 <Input
                     type="number"
-                    value={keepPeriod}
-                    onChange={(e) => setKeepPeriod(e.target.value)}
-                    onBlur={handleKeepPeriodSave}
-                    placeholder={t('log.keepPeriod.placeholder')}
+                    value={keepCount}
+                    onChange={(e) => setKeepCount(e.target.value)}
+                    onBlur={handleKeepCountSave}
+                    placeholder={t('log.keepCount.placeholder')}
                     className="w-48 rounded-xl"
                     disabled={!enabled}
+                    min={1}
                 />
             </div>
 
