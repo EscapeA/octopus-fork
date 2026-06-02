@@ -12,7 +12,8 @@ import { LatencyDistribution } from './LatencyDistribution';
 import { ShareSnapshot } from './ShareSnapshot';
 import { Cache } from '@/components/modules/ops/Cache';
 import { useAnalyticsOverview, useAnalyticsEvaluationSummary } from '@/api/endpoints/analytics';
-import { formatCount, formatMoney, formatPercent } from '@/lib/utils';
+import { formatCount, formatMoney } from '@/lib/utils';
+import { formatPercent } from './shared';
 
 type AnalyticsTab = 'utilization' | 'route-health' | 'cache' | 'evaluation' | 'latency';
 
