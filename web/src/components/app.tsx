@@ -341,8 +341,16 @@ export function AppContainer() {
     // 加载页面
     if (isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-background">
+            <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background">
                 <Logo size={120} animate />
+                <motion.span
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: [0.4, 0.7, 0.4] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    className="text-sm text-muted-foreground"
+                >
+                    Loading...
+                </motion.span>
             </div>
         );
     }
@@ -384,7 +392,7 @@ export function AppContainer() {
         >
             <NavBar />
             <main className="relative z-10 flex min-h-0 w-full min-w-0 flex-1 flex-col gap-4 md:gap-5">
-                <header className="relative z-20 flex flex-none flex-col gap-4 overflow-visible rounded-xl border border-border bg-card px-4 py-4 md:px-6 md:py-5 lg:flex-row lg:items-center lg:gap-6">
+                <header className="relative z-20 flex flex-none flex-col gap-4 overflow-visible rounded-xl border border-border bg-card px-4 py-3 md:px-6 md:py-5 lg:flex-row lg:items-center lg:gap-6">
                     <div className="flex min-w-0 flex-1 items-center gap-4">
                         <div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-card">
                             <Logo size={42} />
@@ -424,7 +432,7 @@ export function AppContainer() {
                                     transition={{ duration: lightweightMotion ? 0.18 : 0.4, ease: [0.16, 1, 0.3, 1] }}
                                     className="flex min-w-0 flex-col"
                                 >
-                                    <span className="truncate text-3xl font-bold leading-tight tracking-[-0.04em] text-foreground md:text-4xl">
+                                    <span className="truncate text-2xl font-bold leading-tight tracking-[-0.04em] text-foreground sm:text-3xl md:text-4xl">
                                         {t(activeItem)}
                                     </span>
                                 </motion.div>
@@ -454,7 +462,7 @@ export function AppContainer() {
                             filter: 'blur(4px)',
                         }}
                         transition={{ duration: lightweightMotion ? 0.18 : 0.35, ease: [0.16, 1, 0.3, 1] }}
-                        className="h-full min-h-0 flex-1 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"
+                        className="h-full min-h-0 flex-1 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] md:pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"
                     >
                         <ContentLoader activeRoute={activeItem} />
                     </motion.div>
