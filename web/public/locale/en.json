@@ -1964,7 +1964,8 @@
     },
     "list": {
       "empty": "There are no logs yet",
-      "noMore": "No more logs"
+      "noMore": "No more logs",
+      "loadingMore": "Loading more logs…"
     },
     "card": {
       "error": "Error",

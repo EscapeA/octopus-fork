@@ -1964,7 +1964,8 @@
     },
     "list": {
       "empty": "目前沒有任何日誌",
-      "noMore": "沒有更多日誌了"
+      "noMore": "沒有更多日誌了",
+      "loadingMore": "正在載入更多日誌…"
     },
     "card": {
       "error": "錯誤",
