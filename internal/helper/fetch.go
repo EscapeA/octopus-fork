@@ -22,7 +22,26 @@ func FetchModels(ctx context.Context, request model.Channel) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	return fetchModelsWithClient(client, ctx, request)
+}
+
+// FetchModelsShortTimeout 使用短超时(30s) HTTP 客户端获取模型列表
+// 用于后台同步任务，避免不可达 endpoint 长时间占用连接
+func FetchModelsShortTimeout(ctx context.Context, request model.Channel) ([]string, error) {
+	if conf.IsDevMockSuccess() {
+		return filterDevMockModels(request)
+	}
+
+	client, err := ChannelShortTimeoutHttpClient(&request)
+	if err != nil {
+		return nil, err
+	}
+	return fetchModelsWithClient(client, ctx, request)
+}
+
+func fetchModelsWithClient(client *http.Client, ctx context.Context, request model.Channel) ([]string, error) {
 	fetchModel := make([]string, 0)
+	var err error
 	switch request.Type {
 	case outbound.OutboundTypeAnthropic:
 		fetchModel, err = fetchAnthropicModels(client, ctx, request)
