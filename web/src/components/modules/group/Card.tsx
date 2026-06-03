@@ -99,7 +99,7 @@ function EditDialogContent({
                     </div>
                 </header>
             </MorphingDialogTitle>
-            <MorphingDialogDescription className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
+            <MorphingDialogDescription className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden pr-1">
                 {group.id ? (
                     <section className="shrink-0 rounded-lg border border-border/25 bg-card p-4">
                             <div className="flex flex-wrap items-start justify-between gap-3">

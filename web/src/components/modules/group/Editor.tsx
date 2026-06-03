@@ -599,7 +599,7 @@ export function GroupEditor({
                             </div>
                         </section>
 
-                        <section className="flex min-h-[34rem] flex-col gap-3 rounded-xl border border-border/30 bg-card p-3 md:gap-4 md:p-5 xl:min-h-0">
+                        <section className="flex min-h-[34rem] min-w-0 flex-col gap-3 rounded-xl border border-border/30 bg-card p-3 md:gap-4 md:p-5 xl:min-h-0">
                             <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div className="space-y-1.5 md:space-y-2">
                                     <div className="inline-flex items-center gap-1.5 rounded-md border border-primary/12 bg-card px-2 py-0.5 text-[0.64rem] font-semibold text-primary md:gap-2 md:rounded-full md:px-3 md:py-1 md:text-[0.68rem]">
@@ -613,7 +613,7 @@ export function GroupEditor({
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 gap-3 xl:flex-1 xl:grid-cols-[minmax(18rem,0.92fr)_minmax(20rem,1.18fr)] xl:gap-4 xl:min-h-0">
+                            <div className="grid min-w-0 grid-cols-1 gap-3 xl:flex-1 xl:min-h-0 2xl:grid-cols-[minmax(18rem,0.92fr)_minmax(20rem,1.18fr)] 2xl:gap-4">
                                 <ModelPickerSection
                                     modelChannels={modelChannels}
                                     selectedMembers={selectedMembers}
