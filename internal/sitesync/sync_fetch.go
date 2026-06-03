@@ -249,7 +249,7 @@ func fetchModelsForSiteToken(ctx context.Context, siteRecord *model.Site, accoun
 	)
 
 	for _, baseURL := range buildModelFetchBaseURLs(siteRecord) {
-		channel := model.Channel{Type: platformOutboundType(siteRecord.Platform), BaseUrls: []model.BaseUrl{{URL: baseURL, Delay: 0}}, Keys: []model.ChannelKey{{Enabled: true, ChannelKey: token.Token}}, ProxyMode: proxyMode, ProxyConfigID: proxyConfigID, CustomHeader: siteRecord.CustomHeader}
+		channel := model.Channel{Type: platformOutboundType(siteRecord.Platform), BaseUrls: []model.BaseUrl{{URL: baseURL, Delay: 0, SuffixMode: "custom"}}, Keys: []model.ChannelKey{{Enabled: true, ChannelKey: token.Token}}, ProxyMode: proxyMode, ProxyConfigID: proxyConfigID, CustomHeader: siteRecord.CustomHeader}
 		fetched, err := helper.FetchModels(ctx, channel)
 		if err == nil && len(fetched) > 0 {
 			return normalizeModelNames(fetched), nil
@@ -313,7 +313,6 @@ func fetchManagementModels(
 	if siteRecord.Platform != model.SitePlatformNewAPI {
 		return siteModelFetchResult{source: siteModelSourceSync, authoritative: err == nil, message: "上游当前没有返回可用模型"}, err
 	}
-
 	if sessionFallbackFetcher == nil {
 		return siteModelFetchResult{message: "本次未能确认该分组模型，已保留历史模型"}, err
 	}
@@ -325,14 +324,14 @@ func fetchManagementModels(
 		}
 		return fallbackResult, nil
 	}
-	if err != nil {
-		if strings.TrimSpace(fallbackResult.message) == "" {
-			fallbackResult.message = "本次未能确认该分组模型，已保留历史模型"
-		}
-		return fallbackResult, err
-	}
 	if fallbackErr != nil {
 		return fallbackResult, fallbackErr
+	}
+	if err != nil {
+		if strings.TrimSpace(fallbackResult.message) == "" {
+			fallbackResult.message = firstNonEmptyString(strings.TrimSpace(err.Error()), "本次未能确认该分组模型，已保留历史模型")
+		}
+		return fallbackResult, err
 	}
 	if strings.TrimSpace(fallbackResult.message) == "" {
 		fallbackResult.message = "本次未能确认该分组模型，已保留历史模型"

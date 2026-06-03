@@ -4,9 +4,12 @@ import { persist } from 'zustand/middleware';
 export type ToolbarLayout = 'grid' | 'list';
 export type ToolbarSortOrder = 'asc' | 'desc';
 export type ToolbarSortField = 'name' | 'created';
+export type SiteToolbarSortField = 'default' | 'name' | 'created' | 'balance';
 export type ToolbarCreatedSortablePage = 'channel' | 'group';
+export type ToolbarSortablePage = ToolbarCreatedSortablePage | 'site';
 export const TOOLBAR_PAGES = ['channel', 'group', 'model'] as const;
 export type ToolbarPage = (typeof TOOLBAR_PAGES)[number];
+export type ToolbarSearchablePage = ToolbarPage | 'site';
 export type ChannelFilter = 'all' | 'enabled' | 'disabled';
 export type GroupFilter = 'all' | 'with-members' | 'empty' | 'chat' | 'deepseek' | 'mimo' | 'responses' | 'messages' | 'embeddings' | 'rerank' | 'moderations' | 'image_generation' | 'audio_speech' | 'audio_transcription' | 'video_generation' | 'music_generation' | 'search';
 export type ModelFilter = 'all' | 'priced' | 'free';
@@ -55,8 +58,8 @@ function normalizePersistedToolbarState(
 
 interface ToolbarViewOptionsState {
     layouts: Partial<Record<ToolbarPage, ToolbarLayout>>;
-    sortFields: Partial<Record<ToolbarCreatedSortablePage, ToolbarSortField>>;
-    sortOrders: Partial<Record<ToolbarPage, ToolbarSortOrder>>;
+    sortFields: Partial<Record<ToolbarCreatedSortablePage, ToolbarSortField> & Record<'site', SiteToolbarSortField>>;
+    sortOrders: Partial<Record<ToolbarSearchablePage, ToolbarSortOrder>>;
     channelFilter: ChannelFilter;
     selectedChannelGroupId: number | null;
     groupFilter: GroupFilter;
@@ -66,15 +69,15 @@ interface ToolbarViewOptionsState {
     getLayout: (item: ToolbarPage) => ToolbarLayout;
     setLayout: (item: ToolbarPage, value: ToolbarLayout) => void;
 
-    getSortField: (item: ToolbarCreatedSortablePage) => ToolbarSortField;
+    getSortField: (item: ToolbarSortablePage) => ToolbarSortField | SiteToolbarSortField;
     setSortConfig: (
-        item: ToolbarCreatedSortablePage,
-        field: ToolbarSortField,
+        item: ToolbarSortablePage,
+        field: ToolbarSortField | SiteToolbarSortField,
         order: ToolbarSortOrder
     ) => void;
 
-    getSortOrder: (item: ToolbarPage) => ToolbarSortOrder;
-    setSortOrder: (item: ToolbarPage, value: ToolbarSortOrder) => void;
+    getSortOrder: (item: ToolbarSearchablePage) => ToolbarSortOrder;
+    setSortOrder: (item: ToolbarSearchablePage, value: ToolbarSortOrder) => void;
 
     setChannelFilter: (value: ChannelFilter) => void;
     setSelectedChannelGroupId: (value: number | null) => void;

@@ -6,7 +6,7 @@ import (
 
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
-	"github.com/lingyuins/octopus/internal/op/group"
+	"github.com/lingyuins/octopus/internal/op/channel"
 )
 
 // ChannelEnabledManaged enables/disables a channel bypassing the managed-check guard.
@@ -23,14 +23,10 @@ func ChannelEnabledManaged(id int, enabled bool, ctx context.Context) error {
 
 // ChannelDelManaged deletes a channel bypassing the managed-check guard.
 func ChannelDelManaged(id int, ctx context.Context) error {
-	result := db.GetDB().WithContext(ctx).Delete(&model.Channel{}, id)
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
+	if _, err := channel.Get(id, ctx); err != nil {
 		return fmt.Errorf("channel not found")
 	}
-	return nil
+	return ChannelDel(id, ctx)
 }
 
 // ChannelGetByName finds a channel by name.
@@ -44,5 +40,5 @@ func ChannelGetByName(name string, ctx context.Context) (*model.Channel, error) 
 
 // GroupRefreshCacheByIDs refreshes the group cache for the given IDs.
 func GroupRefreshCacheByIDs(ids []int, ctx context.Context) error {
-	return group.RefreshCacheByIDs(ids, ctx)
+	return groupRefreshCacheByIDs(ids, ctx)
 }

@@ -21,11 +21,12 @@ const BREAKPOINTS = {
 
 type Breakpoint = keyof typeof BREAKPOINTS;
 type ResponsiveColumns = Partial<Record<Breakpoint | 'default', number>>;
+type ColumnConfig = ResponsiveColumns | ((width: number) => number);
 
 interface VirtualizedGridProps<T> {
     items: T[];
     layout?: 'grid' | 'list';
-    columns: ResponsiveColumns;
+    columns: ColumnConfig;
     estimateItemHeight: number;
     gap?: number;
     overscan?: number;
@@ -40,8 +41,9 @@ interface VirtualizedGridProps<T> {
 
 function getColumnsForWidth(
     width: number,
-    columns: ResponsiveColumns,
+    columns: ColumnConfig,
 ): number {
+    if (typeof columns === 'function') return columns(width);
     if (width >= BREAKPOINTS['2xl'] && columns['2xl'] !== undefined) return columns['2xl'];
     if (width >= BREAKPOINTS.xl && columns.xl !== undefined) return columns.xl;
     if (width >= BREAKPOINTS.lg && columns.lg !== undefined) return columns.lg;

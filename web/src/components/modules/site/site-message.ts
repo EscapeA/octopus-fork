@@ -63,9 +63,9 @@ function fallbackTranslate(locale: Locale, key: string, values?: Record<string, 
             switch (locale) {
                 case 'en':
                     return interpolate('Group "{groupKey}" has no available key. Create a key for this group on the site and sync again.', values);
-                case 'zh_hant':
+                case 'zh-Hant':
                     return interpolate('分組「{groupKey}」沒有可用的 Key。請先到站點建立這個分組的 Key，再重新同步。', values);
-                case 'zh_hans':
+                case 'zh-Hans':
                 default:
                     return interpolate('分组「{groupKey}」没有可用的 Key。请先到站点创建这个分组的 Key，再重新同步。', values);
             }
@@ -73,9 +73,9 @@ function fallbackTranslate(locale: Locale, key: string, values?: Record<string, 
             switch (locale) {
                 case 'en':
                     return 'Failed to fetch models: the current group has no available models or key.';
-                case 'zh_hant':
+                case 'zh-Hant':
                     return '獲取模型失敗：當前分組沒有可用模型或可用 Key';
-                case 'zh_hans':
+                case 'zh-Hans':
                 default:
                     return '获取模型失败：当前分组没有可用模型或可用 Key';
             }
@@ -83,9 +83,9 @@ function fallbackTranslate(locale: Locale, key: string, values?: Record<string, 
             switch (locale) {
                 case 'en':
                     return 'The import content is not valid JSON. Check the file format or pasted content.';
-                case 'zh_hant':
+                case 'zh-Hant':
                     return '匯入內容不是有效的 JSON，請檢查檔案格式或貼上的內容。';
-                case 'zh_hans':
+                case 'zh-Hans':
                 default:
                     return '导入内容不是有效的 JSON，请检查文件格式或粘贴内容。';
             }
@@ -93,9 +93,9 @@ function fallbackTranslate(locale: Locale, key: string, values?: Record<string, 
             switch (locale) {
                 case 'en':
                     return 'The import content is empty. Select a JSON file or paste exported content.';
-                case 'zh_hant':
+                case 'zh-Hant':
                     return '匯入內容為空，請選擇 JSON 檔案或貼上匯出內容。';
-                case 'zh_hans':
+                case 'zh-Hans':
                 default:
                     return '导入内容为空，请选择 JSON 文件或粘贴导出内容。';
             }
@@ -103,9 +103,9 @@ function fallbackTranslate(locale: Locale, key: string, values?: Record<string, 
             switch (locale) {
                 case 'en':
                     return 'No All API Hub export data was recognized. Make sure you selected the correct exported JSON.';
-                case 'zh_hant':
+                case 'zh-Hant':
                     return '未識別到 All API Hub 匯出資料，請確認選擇了正確的匯出 JSON。';
-                case 'zh_hans':
+                case 'zh-Hans':
                 default:
                     return '未识别到 All API Hub 导出数据，请确认选择了正确的导出 JSON。';
             }
@@ -113,9 +113,9 @@ function fallbackTranslate(locale: Locale, key: string, values?: Record<string, 
             switch (locale) {
                 case 'en':
                     return 'No Metapi account export data was recognized. Make sure you selected the correct exported JSON.';
-                case 'zh_hant':
+                case 'zh-Hant':
                     return '未識別到 Metapi 帳號匯出資料，請確認選擇了正確的匯出 JSON。';
-                case 'zh_hans':
+                case 'zh-Hans':
                 default:
                     return '未识别到 Metapi 账号导出数据，请确认选择了正确的导出 JSON。';
             }
@@ -123,9 +123,9 @@ function fallbackTranslate(locale: Locale, key: string, values?: Record<string, 
             switch (locale) {
                 case 'en':
                     return 'No importable All API Hub site account data was found.';
-                case 'zh_hant':
+                case 'zh-Hant':
                     return '未找到可匯入的 All API Hub 站點帳號資料。';
-                case 'zh_hans':
+                case 'zh-Hans':
                 default:
                     return '未找到可导入的 All API Hub 站点账号数据。';
             }
@@ -133,9 +133,9 @@ function fallbackTranslate(locale: Locale, key: string, values?: Record<string, 
             switch (locale) {
                 case 'en':
                     return 'No importable Metapi site account data was found.';
-                case 'zh_hant':
+                case 'zh-Hant':
                     return '未找到可匯入的 Metapi 站點帳號資料。';
-                case 'zh_hans':
+                case 'zh-Hans':
                 default:
                     return '未找到可导入的 Metapi 站点账号数据。';
             }

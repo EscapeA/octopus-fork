@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
+	"github.com/dlclark/regexp2"
 	"github.com/lingyuins/octopus/internal/conf"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/transformer/outbound"
-	"github.com/dlclark/regexp2"
 )
 
 func FetchModels(ctx context.Context, request model.Channel) ([]string, error) {
@@ -126,6 +127,14 @@ func fetchOpenAIModels(client *http.Client, ctx context.Context, request model.C
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		message := strings.TrimSpace(string(body))
+		if message == "" {
+			message = resp.Status
+		}
+		return nil, fmt.Errorf("fetch models failed: status %d: %s", resp.StatusCode, message)
+	}
 
 	var result model.OpenAIModelList
 

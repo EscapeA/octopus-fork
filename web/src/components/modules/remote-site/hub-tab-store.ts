@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-type HubTab = 'sites' | 'site-channels';
+export type HubTab = 'sites' | 'site-channels';
 
 interface HubTabState {
     activeTab: HubTab;
