@@ -64,6 +64,9 @@ export const SettingKey = {
     FailureHintTTLRateLimit: 'failure_hint_ttl_rate_limit',
     FailureHintTTLNetwork: 'failure_hint_ttl_network',
     WebDAVConfig: 'webdav_config',
+    SiteSyncInterval: 'site_sync_interval',
+    SiteCheckinInterval: 'site_checkin_interval',
+    ProjectedChannelAutoGroupEnabled: 'projected_channel_auto_group_enabled',
 } as const;
 
 /**

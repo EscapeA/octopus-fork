@@ -105,7 +105,8 @@
       "announcement": "公告",
       "redemption": "兌換",
       "usage": "用量歷史",
-      "credential": "憑證"
+      "credential": "憑證",
+      "siteChannels": "站點渠道"
     },
     "title": "遠端站點",
     "addSite": "新增站點",
@@ -321,6 +322,16 @@
   "analytics": {
     "title": "分析中心",
     "subtitle": "聚合 Octopus 目前的統計、利用率與路由健康視角，一期先復用現有統計與日誌能力完成可用分析頁。",
+    "cache": {
+      "title": "快取",
+      "metrics": {
+        "hitRate": "命中率",
+        "entries": "條目數"
+      },
+      "status": {
+        "configuredOff": "未設定"
+      }
+    },
     "cards": {
       "overview": {
         "title": "概述",
@@ -2284,9 +2295,116 @@
     "upstreamServiceUnavailable": "上游服務不可用",
     "unexpectedError": "未預期的錯誤"
   },
+  "siteChannel": {
+    "card": {
+      "statusEnabled": "已啟用",
+      "statusDisabled": "已禁用",
+      "maskedPending": "{n} 個待處理",
+      "noRouteDistribution": "無模型分佈",
+      "metrics": {
+        "totalRequests": "請求數",
+        "successRequests": "成功",
+        "failedRequests": "失敗",
+        "totalCost": "費用",
+        "lastRequestAt": "最近使用"
+      }
+    },
+    "advanced": {
+      "title": "站點渠道進階設定",
+      "description": "為分組 {group} 下的投影渠道設定參數覆蓋。",
+      "channelList": "投影渠道",
+      "empty": "此分組中沒有投影渠道",
+      "paramOverride": "參數覆蓋 JSON",
+      "paramOverridePlaceholder": "留空清除。非空值必須是有效的 JSON 物件。",
+      "cancel": "取消",
+      "save": "儲存",
+      "saving": "儲存中…",
+      "saved": "進階設定已儲存",
+      "invalidParamOverride": "參數覆蓋必須是有效的 JSON 物件",
+      "saveFailed": "儲存進階設定失敗"
+    }
+  },
   "system": {
     "fields": {
       "logCountUnit": "條"
     }
+  },
+  "proxyPool": {
+    "site": {
+      "inherit": "繼承站點"
+    },
+    "mode": {
+      "label": "代理模式",
+      "direct": "直連",
+      "system": "系統代理",
+      "pool": "代理池",
+      "inherit": "繼承"
+    },
+    "name": "代理",
+    "selectConfig": "選擇代理…",
+    "disabledSuffix": "（已禁用）",
+    "empty": "未設定代理",
+    "noEnabled": "無啟用的代理",
+    "manage": "管理代理",
+    "disabledSelected": "所選代理目前已禁用。",
+    "dialog": {
+      "title": "代理池",
+      "description": "管理站點和渠道的代理配置。",
+      "searchPlaceholder": "搜尋代理…",
+      "loading": "載入中…",
+      "loadFailed": "載入失敗：{message}",
+      "empty": "暫無代理配置。",
+      "enabled": "已啟用",
+      "disabled": "已禁用",
+      "references": "{count} 個引用",
+      "referencesTitle": "引用列表",
+      "referencesDescription": "使用代理 \"{name}\" 的實體。",
+      "referencesEmpty": "沒有實體引用此代理。",
+      "referenceTypes": {
+        "site": "站點",
+        "siteAccount": "帳號",
+        "managedChannel": "託管渠道",
+        "channel": "渠道",
+        "reference": "實體"
+      },
+      "referenceLocations": {
+        "site": "站點",
+        "siteAccount": "站點帳號",
+        "channel": "渠道",
+        "managedChannel": "託管渠道",
+        "managedChannelUnderSite": "站點：{site}",
+        "archivedSite": "已歸檔站點",
+        "siteNamed": "站點：{name}"
+      },
+      "managedChannelTitle": "渠道：{channel}",
+      "edit": "編輯",
+      "delete": "刪除",
+      "deleteBlocked": "無法刪除——存在引用",
+      "deleteReferenced": "無法刪除——仍被其他實體引用。",
+      "test": "測試",
+      "testDraft": "測試草稿 URL",
+      "testUrl": "測試目標 URL",
+      "testSuccess": "測試通過——HTTP {statusCode}，{durationMs}ms",
+      "testFailed": "測試失敗",
+      "formTitleCreate": "建立代理",
+      "formTitleEdit": "編輯代理",
+      "formDescription": "填寫代理資訊並儲存。",
+      "new": "新增",
+      "name": "名稱",
+      "url": "URL",
+      "remark": "備註",
+      "formRequired": "名稱和 URL 為必填項。",
+      "operationFailed": "操作失敗。",
+      "created": "代理已建立。",
+      "updated": "代理已更新。",
+      "deleted": "代理已刪除。",
+      "submitCreate": "建立",
+      "submitEdit": "儲存修改",
+      "collapseReference": "折疊",
+      "expandReference": "展開",
+      "jumpToReference": "跳轉到引用",
+      "derivedReferences": "+{count} 個託管渠道"
+    },
+    "selectRequired": "請選擇代理配置。"
   }
 }

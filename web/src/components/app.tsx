@@ -16,7 +16,6 @@ import { DEFAULT_LOG_PAGE_SIZE, useLogRefresh } from '@/api/endpoints/log';
 import { SettingKey, type Setting } from '@/api/endpoints/setting';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/common/Toast';
-import { ENTRANCE_VARIANTS } from '@/lib/animations/fluid-transitions';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { REFETCH_INTERVAL_DEFAULT } from '@/api/constants';
 import { CONTENT_MAP } from '@/route';
@@ -24,6 +23,7 @@ import { parseNavOrder, parseNavVisible } from '@/components/modules/navbar';
 import { apiClient } from '@/api/client';
 import { logger } from '@/lib/logger';
 import { FirstRunSetup } from '@/components/modules/first-run-setup';
+import { ProxyPoolDialog } from '@/components/modules/proxy-pool/ProxyPoolDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import type { BootstrapStatusResponse } from '@/api/endpoints/bootstrap';
 import type { NavItem } from '@/components/modules/navbar';
@@ -449,25 +449,17 @@ export function AppContainer() {
                 <AnimatePresence mode="wait" initial={false}>
                     <motion.div
                         key={activeItem}
-                        variants={lightweightMotion ? {
-                            initial: { opacity: 0 },
-                            animate: { opacity: 1 },
-                            exit: { opacity: 0 },
-                        } : ENTRANCE_VARIANTS.content}
-                        initial="initial"
-                        animate="animate"
-                        exit={lightweightMotion ? { opacity: 0 } : {
-                            opacity: 0,
-                            scale: 0.97,
-                            filter: 'blur(4px)',
-                        }}
-                        transition={{ duration: lightweightMotion ? 0.18 : 0.35, ease: [0.16, 1, 0.3, 1] }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.12, ease: 'easeOut' }}
                         className="h-full min-h-0 flex-1 md:pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"
                     >
                         <ContentLoader activeRoute={activeItem} />
                     </motion.div>
                 </AnimatePresence>
             </main>
+            <ProxyPoolDialog />
         </motion.div>
     );
 }

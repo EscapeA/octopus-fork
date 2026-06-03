@@ -7,7 +7,7 @@ import {
     ScrollText, Monitor, RefreshCw, ChevronsUpDown,
     Info, Bot, Sparkles, FolderX, Cloud,
 } from 'lucide-react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { SettingAppearance } from './Appearance';
 import { SettingAccount } from './Account';
 import { SettingBackup } from './Backup';
@@ -116,6 +116,7 @@ export function Setting() {
 
             <Dialog open={openId !== null} onOpenChange={(open) => { if (!open) setOpenId(null); }}>
                 <DialogContent className="w-[100vw] sm:w-[min(95vw,720px)] max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto p-0 gap-0 rounded-none sm:rounded-2xl">
+                    <DialogTitle className="sr-only">{activeItem ? t(activeItem.titleKey) : ''}</DialogTitle>
                     {activeItem && activeItem.component}
                 </DialogContent>
             </Dialog>
