@@ -46,7 +46,7 @@ export function Group() {
 
     if (isLoading) {
         return (
-            <div className="flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain rounded-t-xl pb-28 md:pb-4">
+            <div className="flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain rounded-t-xl pb-3 md:pb-4">
                 <section className="relative min-h-0 flex-1">
                     <LoadingState />
                 </section>
@@ -56,7 +56,7 @@ export function Group() {
 
     if (isError) {
         return (
-            <div className="flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain rounded-t-xl pb-28 md:pb-4">
+            <div className="flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain rounded-t-xl pb-3 md:pb-4">
                 <section className="relative min-h-0 flex-1">
                     <ErrorState onRetry={() => refetch()} />
                 </section>
@@ -66,7 +66,7 @@ export function Group() {
 
     if (groups && groups.length === 0) {
         return (
-            <div className="overflow-y-auto overscroll-contain rounded-t-xl px-3 py-4 pb-28 md:px-4 md:py-6 md:pb-6">
+            <div className="overflow-y-auto overscroll-contain rounded-t-xl px-3 py-4 pb-3 md:px-4 md:py-6 md:pb-6">
                 <section className="relative w-full max-w-5xl rounded-xl border border-border bg-card p-5 text-card-foreground md:p-7">
                     <div className="relative flex flex-col gap-5 rounded-xl border border-border bg-card p-5 md:p-6">
                         <div className="space-y-3">
@@ -104,7 +104,7 @@ export function Group() {
     }
 
     return (
-        <div className="flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain rounded-t-xl pb-28 md:pb-4">
+        <div className="flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain rounded-t-xl pb-3 md:pb-4">
             <section className="relative min-h-0 flex-1">
                 <VirtualizedGrid
                     items={visibleGroups}
@@ -112,7 +112,7 @@ export function Group() {
                     estimateItemHeight={620}
                     getItemKey={(group, index) => group.id ?? `group-${index}`}
                     renderItem={(group) => <GroupCard group={group} />}
-                    bottomPaddingClassName="md:pb-4"
+                    bottomPaddingClassName="pb-3 md:pb-4"
                 />
             </section>
         </div>

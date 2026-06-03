@@ -99,9 +99,9 @@ function EditDialogContent({
                     </div>
                 </header>
             </MorphingDialogTitle>
-            <MorphingDialogDescription className="flex-1 min-h-0 overflow-hidden">
+            <MorphingDialogDescription className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
                 {group.id ? (
-                    <section className="rounded-lg border border-border/25 bg-card p-4">
+                    <section className="shrink-0 rounded-lg border border-border/25 bg-card p-4">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div className="space-y-1">
                                     <h3 className="text-sm font-semibold text-foreground">{t('detail.availability.title')}</h3>
@@ -209,6 +209,7 @@ function EditDialogContent({
 
                     <GroupEditor
                         key={`edit-group-${group.id}`}
+                        className="min-h-[52rem] xl:min-h-[38rem]"
                         initial={{
                             name: group.name,
                             endpoint_type: normalizeEndpointType(group.endpoint_type),
@@ -655,7 +656,7 @@ export function GroupCard({ group }: { group: Group }) {
                         </MorphingDialogTrigger>
 
                         <MorphingDialogContainer>
-                            <MorphingDialogContent className="relative flex h-[calc(100dvh-2rem)] w-[min(100vw-2rem,92rem)] max-w-full flex-col overflow-hidden rounded-xl border border-border/35 bg-card px-4 py-4 text-card-foreground shadow-md  md:h-[calc(100dvh-3rem)] md:px-6">
+                            <MorphingDialogContent className="relative flex h-[calc(100dvh-1rem)] w-[min(100vw-1rem,92rem)] max-w-full flex-col overflow-hidden rounded-xl border border-border/35 bg-card px-4 py-4 text-card-foreground shadow-md md:h-[calc(100dvh-3rem)] md:w-[min(100vw-2rem,92rem)] md:px-6">
                                 <EditDialogContent
                                     group={group}
                                     editMembers={members}

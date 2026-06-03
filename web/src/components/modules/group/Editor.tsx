@@ -266,6 +266,7 @@ export function GroupEditor({
     isSubmitting,
     onSubmit,
     onCancel,
+    className,
 }: {
     initial?: Partial<GroupEditorValues>;
     submitText: string;
@@ -273,6 +274,7 @@ export function GroupEditor({
     isSubmitting: boolean;
     onSubmit: (values: GroupEditorValues) => void;
     onCancel?: () => void;
+    className?: string;
 }) {
     const t = useTranslations('group');
     const { data: modelChannels = [] } = useModelChannelList();
@@ -379,7 +381,7 @@ export function GroupEditor({
 
 
     return (
-        <form onSubmit={handleSubmit} className="flex h-full min-h-0 flex-col overflow-hidden">
+        <form onSubmit={handleSubmit} className={cn("flex h-full min-h-0 flex-col overflow-hidden", className)}>
             <div className="flex-1 min-h-0 overflow-y-auto pr-1">
                 <FieldGroup className="flex min-h-full flex-col gap-4 lg:h-full">
                     <div className="grid min-h-full gap-4 2xl:grid-cols-[minmax(21rem,0.9fr)_minmax(0,1.55fr)] 2xl:items-stretch">

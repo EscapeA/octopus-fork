@@ -95,7 +95,7 @@ export function Setting() {
 
     return (
         <div className="h-full min-h-0 overflow-y-auto overscroll-contain rounded-t-xl">
-            <div className="pb-24 md:pb-6 px-4 md:px-6 pt-4">
+            <div className="pb-3 md:pb-6 px-4 md:px-6 pt-4">
                 <div className="space-y-2 max-w-2xl mx-auto">
                     {items.map((item) => (
                         <button

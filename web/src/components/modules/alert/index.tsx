@@ -464,7 +464,7 @@ export function Alert() {
     }
 
     return (
-        <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain rounded-t-xl space-y-4 pb-24 md:pb-6">
+        <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain rounded-t-xl space-y-4 pb-3 md:pb-6">
             <div className="flex items-center gap-2 mb-2 overflow-x-auto scrollbar-none -mx-1 px-1">
                 <TabButton active={tab === 'rules'} onClick={() => setTab('rules')}>{t('tabs.rules')}</TabButton>
                 <TabButton active={tab === 'channels'} onClick={() => setTab('channels')}>{t('tabs.channels')}</TabButton>

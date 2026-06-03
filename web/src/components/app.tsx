@@ -392,9 +392,9 @@ export function AppContainer() {
         >
             <NavBar />
             <main className="relative z-10 flex min-h-0 w-full min-w-0 flex-1 flex-col gap-4 md:gap-5">
-                <header className="relative z-20 flex flex-none flex-col gap-4 overflow-visible rounded-xl border border-border bg-card px-4 py-3 md:px-6 md:py-5 lg:flex-row lg:items-center lg:gap-6">
-                    <div className="flex min-w-0 flex-1 items-center gap-4">
-                        <div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-card">
+                <header className="relative z-20 flex flex-none items-center gap-3 overflow-visible rounded-xl border border-border bg-card px-4 py-3 md:px-6 md:py-5 lg:gap-6">
+                    <div className="flex min-w-0 flex-1 items-center gap-3 md:gap-4">
+                        <div className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-card md:size-14">
                             <Logo size={42} />
                         </div>
                         <div className="min-w-0 flex-1 overflow-hidden">
@@ -442,7 +442,7 @@ export function AppContainer() {
                             </AnimatePresence>
                         </div>
                     </div>
-                    <div className="flex min-w-0 flex-col gap-3 lg:ml-auto lg:items-end">
+                    <div className="ml-auto flex shrink-0 items-center justify-end">
                         <Toolbar />
                     </div>
                 </header>
@@ -462,7 +462,7 @@ export function AppContainer() {
                             filter: 'blur(4px)',
                         }}
                         transition={{ duration: lightweightMotion ? 0.18 : 0.35, ease: [0.16, 1, 0.3, 1] }}
-                        className="h-full min-h-0 flex-1 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] md:pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"
+                        className="h-full min-h-0 flex-1 md:pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"
                     >
                         <ContentLoader activeRoute={activeItem} />
                     </motion.div>

@@ -212,15 +212,15 @@ export function Toolbar() {
                 animate={lightweightMotion ? { opacity: 1 } : { opacity: 1, scale: 1 }}
                 exit={lightweightMotion ? { opacity: 0 } : { opacity: 0, scale: 0.9 }}
                 transition={{ duration: lightweightMotion ? 0.12 : 0.2 }}
-                className="flex max-w-full flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-1.5"
+                className="flex max-w-full items-center gap-1 rounded-xl border border-border bg-card p-1 sm:gap-2 sm:p-1.5"
             >
                 {/* 搜索按钮/展开框 */}
                 <div
                     className={cn(
-                        'relative h-10 transition-[width] duration-300 ease-out sm:h-11',
+                        'relative h-9 transition-[width] duration-300 ease-out sm:h-11',
                         searchExpanded
-                            ? 'w-full sm:w-[min(18rem,calc(100vw-3rem))]'
-                            : 'w-10 sm:w-11'
+                            ? 'w-[min(13rem,calc(100vw-5rem))] sm:w-[min(18rem,calc(100vw-3rem))]'
+                            : 'w-9 sm:w-11'
                     )}
                 >
                     {!searchExpanded ? (
@@ -233,7 +233,7 @@ export function Toolbar() {
                                 buttonVariants({ variant: "ghost", size: "icon" }),
                                 "absolute inset-0 rounded-lg transition-none",
                                 COMMAND_ICON_BUTTON_CLASS,
-                                "h-10 w-10 sm:h-11 sm:w-11"
+                                "h-9 w-9 sm:h-11 sm:w-11"
                             )}
                         >
                             <motion.span layout="position"><Search className="size-4 transition-colors duration-300" /></motion.span>
@@ -274,14 +274,14 @@ export function Toolbar() {
                 {toolbarItem === 'group' && (
                     <CCSwitchLinkButton className="hidden sm:inline-flex" />
                 )}
-                <div className="flex h-10 min-w-0 items-center gap-1 rounded-xl border border-border bg-muted/30 p-0.5 sm:h-11 sm:p-1">
+                <div className="flex h-9 min-w-0 items-center gap-0.5 rounded-xl border border-border bg-muted/30 p-0.5 sm:h-11 sm:gap-1 sm:p-1">
                     {toolbarItem === 'model' && (
                         <ModelMarketSummary
                             summary={modelSummary}
                             onRefresh={() => updateModelPrice.mutate()}
                             isRefreshing={updateModelPrice.isPending}
                             compact
-                            triggerClassName="h-9 min-h-9 rounded-md border border-transparent bg-transparent px-2 text-muted-foreground shadow-none transition-[color,background-color,border-color] duration-150 hover:border-border hover:bg-muted hover:text-foreground hover:shadow-none sm:px-3"
+                            triggerClassName="h-8 min-h-8 rounded-md border border-transparent bg-transparent px-1.5 text-muted-foreground shadow-none transition-[color,background-color,border-color] duration-150 hover:border-border hover:bg-muted hover:text-foreground hover:shadow-none sm:h-9 sm:min-h-9 sm:px-3"
                         />
                     )}
                     <Popover>
@@ -291,7 +291,7 @@ export function Toolbar() {
                                 aria-label={t('popover.ariaLabel')}
                                 className={cn(
                                     buttonVariants({ variant: 'ghost', size: 'default' }),
-                                    "h-9 min-h-9 rounded-md border border-transparent bg-transparent px-2 text-muted-foreground shadow-none transition-[color,background-color,border-color] duration-150 hover:border-border hover:bg-muted hover:text-foreground hover:shadow-none sm:px-3"
+                                    "h-8 min-h-8 rounded-md border border-transparent bg-transparent px-1.5 text-muted-foreground shadow-none transition-[color,background-color,border-color] duration-150 hover:border-border hover:bg-muted hover:text-foreground hover:shadow-none sm:h-9 sm:min-h-9 sm:px-3"
                                 )}
                             >
                                 <SlidersHorizontal className="size-4 transition-colors duration-300" />
@@ -469,7 +469,7 @@ export function Toolbar() {
                     )}
                 </div>
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1 sm:gap-1.5">
                     {toolbarItem === 'channel' ? (
                         <ChannelGroupManagerDialog className={cn(
                             buttonVariants({ variant: "ghost", size: "default" }),
@@ -484,7 +484,7 @@ export function Toolbar() {
                             className={cn(
                                 buttonVariants({ variant: "ghost", size: "default" }),
                                 COMMAND_TEXT_BUTTON_CLASS,
-                                "h-10 min-h-10 bg-primary px-3 text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground sm:h-11 sm:min-h-11 sm:px-3.5"
+                                "h-9 min-h-9 bg-primary px-2.5 text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground sm:h-11 sm:min-h-11 sm:px-3.5"
                             )}
                         >
                             <Plus className="size-4 transition-colors duration-300" />

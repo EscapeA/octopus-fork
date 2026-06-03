@@ -28,7 +28,7 @@ export function Analytics() {
     const { data: evaluationData } = useAnalyticsEvaluationSummary();
 
     return (
-        <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain space-y-6 rounded-t-xl pb-24 md:pb-4">
+        <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain space-y-6 rounded-t-xl pb-3 md:pb-4">
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as AnalyticsTab)}>
                 <section className="relative overflow-hidden rounded-xl border border-border/35 bg-card p-4 text-card-foreground md:p-5">
                     <div className="relative flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">

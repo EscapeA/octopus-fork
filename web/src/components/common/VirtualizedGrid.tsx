@@ -63,7 +63,7 @@ export function VirtualizedGrid<T>({
     onReachEnd,
     reachEndEnabled = false,
     reachEndOffset = 1,
-    bottomPaddingClassName = 'pb-24 md:pb-4',
+    bottomPaddingClassName = 'pb-3 md:pb-4',
 }: VirtualizedGridProps<T>) {
     'use no memo';
 

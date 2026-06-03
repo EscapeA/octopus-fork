@@ -4,7 +4,7 @@ import {
     MorphingDialogContainer,
     MorphingDialogContent,
 } from '@/components/ui/morphing-dialog';
-import { CheckCircle2, DollarSign, Globe, GripVertical, Key, Layers, MessageSquare, XCircle, Eye } from 'lucide-react';
+import { CheckCircle2, DollarSign, Globe, GripVertical, Key, Layers, MessageSquare, XCircle } from 'lucide-react';
 import { type StatsMetricsFormatted } from '@/api/endpoints/stats';
 import { type Channel, useEnableChannel } from '@/api/endpoints/channel';
 import { CardContent } from './CardContent';
@@ -20,7 +20,6 @@ export function Card({ channel, stats, layout = 'grid' }: { channel: Channel; st
     const tForm = useTranslations('channel.form');
     const tSections = useTranslations('channel.detail.sections');
     const tMetrics = useTranslations('channel.detail.metrics');
-    const tDetail = useTranslations('channel.detail');
     const enableChannel = useEnableChannel();
     const isListLayout = layout === 'list';
 
@@ -55,7 +54,7 @@ export function Card({ channel, stats, layout = 'grid' }: { channel: Channel; st
 
     return (
         <MorphingDialog>
-            <article
+            <MorphingDialogTrigger
                 className={`group relative flex w-full rounded-xl border border-border bg-card p-4 text-card-foreground transition-all duration-200 hover:border-border/80 hover:shadow-md hover:bg-muted/20 active:scale-[0.995] md:hover:-translate-y-0.5 md:active:translate-y-0 ${isListLayout ? 'min-h-[12rem]' : 'min-h-[18rem]'}`}
             >
                 <div className="relative flex w-full flex-col gap-3 sm:gap-4">
@@ -91,15 +90,8 @@ export function Card({ channel, stats, layout = 'grid' }: { channel: Channel; st
                                 onCheckedChange={handleEnableChange}
                                 disabled={enableChannel.isPending}
                                 onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => e.stopPropagation()}
                             />
-                            <MorphingDialogTrigger className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-                                <Tooltip side="top" sideOffset={10} align="center">
-                                    <TooltipTrigger asChild>
-                                        <Eye className="size-4" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>{tDetail('title.view')}</TooltipContent>
-                                </Tooltip>
-                            </MorphingDialogTrigger>
                         </div>
                     </header>
 
@@ -220,7 +212,7 @@ export function Card({ channel, stats, layout = 'grid' }: { channel: Channel; st
                             )}
                         </div>
                 </div>
-            </article>
+            </MorphingDialogTrigger>
 
             <MorphingDialogContainer>
                 <MorphingDialogContent className="relative flex max-h-[calc(100dvh-2rem)] min-h-0 w-[min(100vw-1rem,56rem)] max-w-full flex-col overflow-hidden rounded-xl border border-border bg-card px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] text-card-foreground md:px-6 md:py-5">

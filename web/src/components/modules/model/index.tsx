@@ -44,7 +44,7 @@ export function Model() {
     const [viewMode, setViewMode] = useState<'market' | 'capabilities'>('market');
 
     return (
-        <section className="relative flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain rounded-t-xl pb-28 sm:gap-4 sm:pb-4 md:pb-4" aria-label={pageKey}>
+        <section className="relative flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain rounded-t-xl pb-3 sm:gap-4 sm:pb-4 md:pb-4" aria-label={pageKey}>
             {/* View mode toggle */}
             <div className="flex items-center gap-0.5 self-start rounded-lg border border-border/35 bg-card p-0.5 sm:gap-1 sm:p-1">
                 <button
@@ -85,7 +85,7 @@ export function Model() {
                             estimateItemHeight={228}
                             getItemKey={(model) => `model-${model.name}`}
                             renderItem={(model) => <ModelItem model={model} layout={layout} />}
-                            bottomPaddingClassName="md:pb-4"
+                            bottomPaddingClassName="pb-3 md:pb-4"
                         />
                     </div>
                 </section>
