@@ -382,6 +382,7 @@ func (ra *relayAttempt) attempt() attemptResult {
 	if decision.Scope == ScopeNone && !decision.IsError {
 		// ====== 成功 ======
 		ra.collectResponse()
+		ra.collectAndStoreStreamResponse()
 		ra.usedKey.TotalCost += ra.metrics.Stats.InputCost + ra.metrics.Stats.OutputCost
 		ch.KeyUpdate(ra.usedKey)
 
@@ -830,6 +831,20 @@ func (ra *relayAttempt) collectResponse() {
 	}
 
 	ra.metrics.SetInternalResponse(internalResponse, ra.internalRequest.Model)
+}
+
+// collectAndStoreStreamResponse collects streaming response and stores in semantic cache (success path only)
+func (ra *relayAttempt) collectAndStoreStreamResponse() {
+	if ra.internalRequest.Stream == nil || !*ra.internalRequest.Stream {
+		return
+	}
+	internalResponse, err := ra.inAdapter.GetInternalResponse(ra.operationCtx)
+	if err != nil || internalResponse == nil {
+		return
+	}
+	if responseJSON, err := json.Marshal(internalResponse); err == nil {
+		storeSemanticCacheResponse(ra.operationCtx, ra.internalRequest, responseJSON)
+	}
 }
 
 func rewriteConversationRequestByProvider(group dbmodel.Group, req *model.InternalLLMRequest) *model.InternalLLMRequest {
