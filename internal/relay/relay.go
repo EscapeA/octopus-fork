@@ -200,9 +200,8 @@ func Handler(endpointType string, inboundType inbound.InboundType, c *gin.Contex
 	// Initialize semantic cache from settings
 	initSemanticCacheFromSettings()
 
-	if shouldUseRelayStreamSession(internalRequest) {
-		sessionHash := buildRelayStreamSessionHash(endpointType, int(inboundType), apiKeyID, internalRequest.RawRequest)
-		session, created, err := acquireRelayStreamSession(internalRequest.ConversationID, apiKeyID, sessionHash)
+	if conversationID, sessionHash, ok := resolveRelayStreamSessionIdentity(endpointType, int(inboundType), apiKeyID, internalRequest); ok {
+		session, created, err := acquireRelayStreamSession(conversationID, apiKeyID, sessionHash)
 		if err != nil {
 			statusCode := http.StatusConflict
 			if !errors.Is(err, errRelayConversationBusy) {

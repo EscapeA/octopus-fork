@@ -66,6 +66,9 @@ func listSite(c *gin.Context) {
 		resp.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
+	if isViewerRole(c.GetString("user_role")) {
+		redactSiteBaseURLsForViewer(sites)
+	}
 	resp.Success(c, sites)
 }
 
@@ -234,6 +237,9 @@ func listArchivedSites(c *gin.Context) {
 	if err != nil {
 		resp.Error(c, http.StatusInternalServerError, err.Error())
 		return
+	}
+	if isViewerRole(c.GetString("user_role")) {
+		redactSiteBaseURLsForViewer(sites)
 	}
 	resp.Success(c, sites)
 }
