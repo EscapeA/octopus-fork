@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { GroupCard } from './Card';
+import { GroupListItem } from './GroupListItem';
 import { AutoGroupButton } from './AutoGroupButton';
 import { AIRouteButton } from './AIRouteButton';
 import { useGroupList } from '@/api/endpoints/group';
@@ -109,9 +109,9 @@ export function Group() {
                 <VirtualizedGrid
                     items={visibleGroups}
                     columns={{ default: 1, sm: 2, md: 2, lg: 3 }}
-                    estimateItemHeight={620}
+                    estimateItemHeight={72}
                     getItemKey={(group, index) => group.id ?? `group-${index}`}
-                    renderItem={(group) => <GroupCard group={group} />}
+                    renderItem={(group) => <GroupListItem group={group} />}
                     bottomPaddingClassName="pb-3 md:pb-4"
                 />
             </section>
