@@ -58,6 +58,8 @@ func Init(maxEntries int, threshold float64, ttlSec int) {
 }
 
 // ApplyRuntimeConfig creates or reconfigures the global semantic cache from runtime settings.
+// When the cache already exists and the size/threshold/TTL parameters are unchanged,
+// the existing cache is reused so stored entries are not discarded.
 func ApplyRuntimeConfig(cfg RuntimeConfig) {
 	if !cfg.Enabled || cfg.MaxEntries <= 0 {
 		Reset()
@@ -65,6 +67,13 @@ func ApplyRuntimeConfig(cfg RuntimeConfig) {
 	}
 
 	ttl := cfg.TTL
+	if globalCache != nil &&
+		globalCache.maxEntries == cfg.MaxEntries &&
+		globalCache.threshold == cfg.Threshold &&
+		globalCache.ttl == ttl {
+		return
+	}
+
 	globalCache = &SemanticCache{
 		entries:    make([]CacheEntry, 0, cfg.MaxEntries),
 		maxEntries: cfg.MaxEntries,

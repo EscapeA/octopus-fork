@@ -60,3 +60,81 @@ func TestLookup_ReturnsResponseCopy(t *testing.T) {
 		t.Fatalf("Lookup() after caller mutation = %s, want original response", string(gotAgain))
 	}
 }
+
+func TestApplyRuntimeConfig_PreservesEntriesWhenUnchanged(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+
+	cfg := RuntimeConfig{
+		Enabled:    true,
+		MaxEntries: 16,
+		Threshold:  0.95,
+		TTL:        time.Hour,
+	}
+	ApplyRuntimeConfig(cfg)
+
+	embedding := []float64{1, 0}
+	Store("ns", "req-1", []byte(`{"id":"resp-1"}`), embedding)
+	Store("ns", "req-2", []byte(`{"id":"resp-2"}`), []float64{0, 1})
+
+	_, _, sizeBefore := Stats()
+	if sizeBefore != 2 {
+		t.Fatalf("expected 2 entries before re-apply, got %d", sizeBefore)
+	}
+
+	// Re-apply identical config — entries must be preserved.
+	ApplyRuntimeConfig(cfg)
+
+	_, _, sizeAfter := Stats()
+	if sizeAfter != 2 {
+		t.Fatalf("expected 2 entries after re-apply with same config, got %d", sizeAfter)
+	}
+
+	// Verify the stored data is still retrievable.
+	if _, ok := Lookup("ns", embedding); !ok {
+		t.Fatal("expected cache hit after re-apply with same config")
+	}
+}
+
+func TestApplyRuntimeConfig_ClearsEntriesWhenChanged(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+
+	cfg := RuntimeConfig{
+		Enabled:    true,
+		MaxEntries: 16,
+		Threshold:  0.95,
+		TTL:        time.Hour,
+	}
+	ApplyRuntimeConfig(cfg)
+
+	Store("ns", "req-1", []byte(`{"id":"resp-1"}`), []float64{1, 0})
+
+	// Change MaxEntries — should rebuild cache.
+	cfg.MaxEntries = 32
+	ApplyRuntimeConfig(cfg)
+
+	_, _, sizeAfter := Stats()
+	if sizeAfter != 0 {
+		t.Fatalf("expected 0 entries after config change, got %d", sizeAfter)
+	}
+}
+
+func TestApplyRuntimeConfig_DisabledClearsCache(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+
+	ApplyRuntimeConfig(RuntimeConfig{
+		Enabled:    true,
+		MaxEntries: 16,
+		Threshold:  0.95,
+		TTL:        time.Hour,
+	})
+	Store("ns", "req-1", []byte(`{"id":"resp-1"}`), []float64{1, 0})
+
+	ApplyRuntimeConfig(RuntimeConfig{Enabled: false})
+
+	if Enabled() {
+		t.Fatal("expected cache to be disabled after applying Enabled=false")
+	}
+}
