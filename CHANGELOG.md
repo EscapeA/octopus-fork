@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.0.2] - 2026-06
+
+### 🚀 Features
+- Update Hub module workflows for stream-session resilience and viewer-safe management surfaces.
+- Hub-related management data now masks domains for viewer accounts across sites, remote sites, credentials, channels, and URL settings.
+
+### 🐛 Bug Fixes
+- Enable semantic cache for streaming requests, including SSE cache-hit replay and stable stream-session recovery without explicit `conversation_id`.
+- Preserve semantic-cache entries across unchanged runtime config refreshes.
+
+### ⚠️ Upgrade Notes
+- The Hub module has been updated. For security and consistency, please re-enter Hub site domains/Base URLs and related credentials if you need to edit or refresh them after upgrading.
+- Viewer accounts will see masked domains (`***`) and should ask an admin/editor to re-enter or confirm Hub connection details when needed.
+
+**Full Changelog:** https://github.com/lingyuins/octopus/compare/v2.0.1...v2.0.2
+
+---
+
 ## [v2.0.0] - 2026-05
 
 ### 🚀 Features
