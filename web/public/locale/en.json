@@ -681,6 +681,7 @@
         "servicePoolMode": "Service Pool Mode",
         "enabled": "Enabled",
         "disabled": "Disabled",
+        "logCountUnit": "entries",
         "notConfigured": "No AI-route service is configured right now."
       }
     },

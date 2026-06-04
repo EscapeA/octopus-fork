@@ -681,6 +681,7 @@
         "servicePoolMode": "服务池模式",
         "enabled": "启用",
         "disabled": "关闭",
+        "logCountUnit": "条",
         "notConfigured": "当前没有已配置的 AI 路由服务。"
       }
     },
