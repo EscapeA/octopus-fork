@@ -846,13 +846,16 @@ func (ra *relayAttempt) collectResponse() {
 	ra.metrics.SetInternalResponse(internalResponse, ra.internalRequest.Model)
 }
 
-// collectAndStoreStreamResponse collects streaming response and stores in semantic cache (success path only)
+// collectAndStoreStreamResponse stores the already-aggregated stream response
+// in the semantic cache (success path only). It reuses the InternalResponse
+// previously collected by collectResponse() to avoid a second call to
+// GetInternalResponse(), which would return nil after stream chunks are consumed.
 func (ra *relayAttempt) collectAndStoreStreamResponse() {
 	if ra.internalRequest.Stream == nil || !*ra.internalRequest.Stream {
 		return
 	}
-	internalResponse, err := ra.inAdapter.GetInternalResponse(ra.operationCtx)
-	if err != nil || internalResponse == nil {
+	internalResponse := ra.metrics.InternalResponse
+	if internalResponse == nil {
 		return
 	}
 	if responseJSON, err := json.Marshal(internalResponse); err == nil {
