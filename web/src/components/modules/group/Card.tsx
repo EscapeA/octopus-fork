@@ -70,7 +70,7 @@ function EditDialogContent({
     const { setIsOpen } = useMorphingDialog();
     const t = useTranslations('group');
     return (
-        <>
+        <div className="relative flex h-full min-h-0 w-full max-w-full flex-col">
             <MorphingDialogTitle className="shrink-0">
                 <header className="relative mb-4 flex items-start justify-between gap-4">
                     <div className="space-y-3">
@@ -99,7 +99,7 @@ function EditDialogContent({
                     </div>
                 </header>
             </MorphingDialogTitle>
-            <MorphingDialogDescription className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden pr-1">
+            <MorphingDialogDescription className="flex flex-1 min-h-0 flex-col gap-4 overflow-hidden pr-1">
                 {group.id ? (
                     <section className="shrink-0 rounded-lg border border-border/25 bg-card p-4">
                             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -209,7 +209,7 @@ function EditDialogContent({
 
                     <GroupEditor
                         key={`edit-group-${group.id}`}
-                        className="min-h-[52rem] xl:min-h-[38rem]"
+                        className="flex-1 min-h-0"
                         initial={{
                             name: group.name,
                             endpoint_type: normalizeEndpointType(group.endpoint_type),
@@ -228,7 +228,7 @@ function EditDialogContent({
                         onSubmit={(v) => onSubmit(v, () => setIsOpen(false))}
                     />
             </MorphingDialogDescription>
-        </>
+        </div>
     );
 }
 
@@ -656,7 +656,7 @@ export function GroupCard({ group }: { group: Group }) {
                         </MorphingDialogTrigger>
 
                         <MorphingDialogContainer>
-                            <MorphingDialogContent className="h-[calc(100dvh-2.5rem)] w-[min(100vw-2rem,92rem)] max-w-full flex-col overflow-hidden rounded-xl border border-border bg-card px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] text-card-foreground md:h-[calc(100dvh-3rem)] md:px-6 md:py-5">
+                            <MorphingDialogContent className="max-h-[calc(100dvh-2.5rem)] sm:max-h-[calc(100dvh-3rem)] max-w-full sm:max-w-full h-[calc(100dvh-2.5rem)] w-[min(100vw-2rem,92rem)] flex-col overflow-hidden rounded-xl border border-border bg-card px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] text-card-foreground md:h-[calc(100dvh-3rem)] md:px-6 md:py-5">
                                 <EditDialogContent
                                     group={group}
                                     editMembers={members}

@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useMemo, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   CalendarCheck2,
+  ChevronDown,
   ExternalLink,
   FilterX,
   Layers3,
@@ -144,6 +145,8 @@ export function CheckinPanel({
     [sites],
   );
 
+  const [overviewExpanded, setOverviewExpanded] = useState(true);
+
   const openAllManualCheckin = useCallback(() => {
     for (const url of manualCheckinUrls) {
       window.open(url, "_blank", "noopener,noreferrer");
@@ -153,10 +156,20 @@ export function CheckinPanel({
   return (
     <section className="overflow-hidden rounded-[28px] border border-border/70 bg-card shadow-[0_18px_60px_-40px_rgba(15,23,42,0.45)]">
       <div className="border-b border-border/60 bg-gradient-to-br from-background via-card to-muted/10 px-5 py-5">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <button
+          type="button"
+          onClick={() => setOverviewExpanded((prev) => !prev)}
+          className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
+        >
           <div className="flex flex-wrap items-center gap-2 text-base font-semibold">
             <CalendarCheck2 className="size-5 text-primary" />
             <span>总览</span>
+            <ChevronDown
+              className={cn(
+                "size-4 text-muted-foreground transition-transform duration-200",
+                overviewExpanded && "rotate-180",
+              )}
+            />
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -165,31 +178,33 @@ export function CheckinPanel({
               {visibleSiteCount} 站点 / {visibleAccountCount} 账号
             </span>
           </div>
-        </div>
+        </button>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <OverviewMetric
-            icon={<Wallet className="size-4" />}
-            label="当前余额"
-            value={formatCurrency(inventory.totalBalance)}
-          />
-          <OverviewMetric
-            icon={<TrendingUp className="size-4" />}
-            label="累计消耗"
-            value={formatCurrency(inventory.totalBalanceUsed)}
-          />
-          <OverviewMetric
-            icon={<Layers3 className="size-4" />}
-            label="启用账号"
-            value={`${inventory.enabledAccounts} / ${inventory.totalAccounts}`}
-          />
-          <OverviewMetric
-            icon={<AlertTriangle className="size-4" />}
-            label="今日异常"
-            value={`${summary.failed}`}
-            tone={summary.failed > 0 ? "warning" : "default"}
-          />
-        </div>
+        {overviewExpanded && (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <OverviewMetric
+              icon={<Wallet className="size-4" />}
+              label="当前余额"
+              value={formatCurrency(inventory.totalBalance)}
+            />
+            <OverviewMetric
+              icon={<TrendingUp className="size-4" />}
+              label="累计消耗"
+              value={formatCurrency(inventory.totalBalanceUsed)}
+            />
+            <OverviewMetric
+              icon={<Layers3 className="size-4" />}
+              label="启用账号"
+              value={`${inventory.enabledAccounts} / ${inventory.totalAccounts}`}
+            />
+            <OverviewMetric
+              icon={<AlertTriangle className="size-4" />}
+              label="今日异常"
+              value={`${summary.failed}`}
+              tone={summary.failed > 0 ? "warning" : "default"}
+            />
+          </div>
+        )}
 
         {hasActiveFilters && hasContextBadges ? (
           <div className="mt-4 flex flex-wrap gap-2">
