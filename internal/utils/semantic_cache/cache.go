@@ -163,8 +163,9 @@ func Stats() (hits, misses int64, size int) {
 	if globalCache == nil {
 		return 0, 0, 0
 	}
-	globalCache.mu.RLock()
-	defer globalCache.mu.RUnlock()
+	globalCache.mu.Lock()
+	defer globalCache.mu.Unlock()
+	globalCache.pruneExpiredLocked()
 	return globalCache.hits, globalCache.misses, len(globalCache.entries)
 }
 

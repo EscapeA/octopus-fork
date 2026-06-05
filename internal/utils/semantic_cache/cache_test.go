@@ -138,3 +138,24 @@ func TestApplyRuntimeConfig_DisabledClearsCache(t *testing.T) {
 		t.Fatal("expected cache to be disabled after applying Enabled=false")
 	}
 }
+
+func TestStats_PruneExpiredEntries(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+	ApplyRuntimeConfig(RuntimeConfig{Enabled: true, MaxEntries: 16, Threshold: 0.95, TTL: 50 * time.Millisecond})
+
+	Store("ns", "req-1", []byte(`{"id":"resp-1"}`), []float64{1, 0})
+	Store("ns", "req-2", []byte(`{"id":"resp-2"}`), []float64{0, 1})
+
+	_, _, sizeBefore := Stats()
+	if sizeBefore != 2 {
+		t.Fatalf("expected 2 entries before TTL, got %d", sizeBefore)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+
+	_, _, sizeAfter := Stats()
+	if sizeAfter != 0 {
+		t.Fatalf("expected 0 entries after TTL expiry, got %d", sizeAfter)
+	}
+}
