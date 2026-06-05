@@ -275,8 +275,8 @@ func TestHandleStreamResponseStopsImmediatelyWhenClientDisconnectsWithoutSession
 
 	select {
 	case err := <-done:
-		if err != nil {
-			t.Fatalf("handleStreamResponse() err = %v, want nil", err)
+		if !errors.Is(err, errClientDisconnected) {
+			t.Fatalf("handleStreamResponse() err = %v, want errClientDisconnected", err)
 		}
 	case <-time.After(200 * time.Millisecond):
 		t.Fatal("handleStreamResponse() did not stop after client disconnect")

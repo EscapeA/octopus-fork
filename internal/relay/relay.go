@@ -33,6 +33,8 @@ import (
 	"github.com/tmaxmax/go-sse"
 )
 
+var errClientDisconnected = errors.New("client disconnected")
+
 func resolveRequestedUpstreamModel(requestModel string) (string, bool) {
 	trimmed := strings.TrimSpace(requestModel)
 	if trimmed == "" {
@@ -368,6 +370,18 @@ func (ra *relayAttempt) attempt() attemptResult {
 	// 转发请求
 	statusCode, fwdErr := ra.forward()
 
+	// Client disconnected — do not record failure stats, circuit-breaker
+	// counts, or retry hints. The client chose to stop, not the channel.
+	if errors.Is(fwdErr, errClientDisconnected) {
+		span.End(dbmodel.AttemptFailed, statusCode, "client disconnected")
+		return attemptResult{
+			Success:  false,
+			Written:  ra.c.Writer.Written(),
+			Err:      fwdErr,
+			Decision: RetryDecision{Scope: ScopeAbortAll, Reason: "client disconnected", Code: statusCode},
+		}
+	}
+
 	// 检查是否已写入流式响应
 	written := ra.c.Writer.Written()
 
@@ -678,7 +692,7 @@ func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http
 		case <-clientDone:
 			if ra.streamSession == nil {
 				log.Infof("client disconnected, stopping stream")
-				return nil
+				return errClientDisconnected
 			}
 			markClientDisconnected()
 		case <-firstTokenC:
@@ -896,6 +910,24 @@ func rewriteConversationRequestByProvider(group dbmodel.Group, req *model.Intern
 	return &cloned
 }
 
+// isClientDisconnected reports whether the client has disconnected.
+func isClientDisconnected(clientCtx context.Context) bool {
+	select {
+	case <-clientCtx.Done():
+		return true
+	default:
+		return false
+	}
+}
+
+// handleClientDisconnect is a shared handler for client-disconnect checks
+// inside the executeRelay retry loops. It saves metrics and returns the error.
+func handleClientDisconnect(req *relayRequest, allAttempts []dbmodel.ChannelAttempt) error {
+	log.Infof("client disconnected, stopping relay retry loop")
+	req.metrics.Save(false, errClientDisconnected, allAttempts)
+	return errClientDisconnected
+}
+
 func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, maxKeyRetriesPerRoute int, maxRouteRetries int, ratelimitCooldown int, maxTotalAttempts int) (*inflightRelayResult, error) {
 	var allAttempts []dbmodel.ChannelAttempt
 	var lastErr error
@@ -904,6 +936,9 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 	requestModel = modelmapping.Resolve(req.operationCtx, requestModel, group.ID)
 
 	for routeRound := 1; routeRound <= maxRouteRetries; routeRound++ {
+		if isClientDisconnected(req.clientCtx) {
+			return nil, handleClientDisconnect(req, allAttempts)
+		}
 		if err := req.operationCtx.Err(); err != nil {
 			lastErr = err
 			logRelayErrorfByContext(err, "relay operation ended before request completed: %v", err)
@@ -918,6 +953,9 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 			if maxTotalAttempts > 0 && len(allAttempts) >= maxTotalAttempts {
 				lastErr = fmt.Errorf("reached relay max total attempts: %d", maxTotalAttempts)
 				goto exhausted
+			}
+			if isClientDisconnected(req.clientCtx) {
+				return nil, handleClientDisconnect(req, allAttempts)
 			}
 			if err := req.operationCtx.Err(); err != nil {
 				lastErr = err
@@ -972,6 +1010,9 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 					lastErr = fmt.Errorf("reached relay max total attempts: %d", maxTotalAttempts)
 					goto exhausted
 				}
+				if isClientDisconnected(req.clientCtx) {
+					return nil, handleClientDisconnect(req, allAttempts)
+				}
 				if err := req.operationCtx.Err(); err != nil {
 					lastErr = err
 					logRelayErrorfByContext(err, "relay operation ended: %v", err)
@@ -1020,6 +1061,13 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 					namespace, requestText, _ := semanticCacheStoreMetadata(req.internalRequest)
 					req.metrics.Save(true, nil, currentAttempts)
 					return &inflightRelayResult{internalResp: cloneInternalResponse(req.metrics.InternalResponse), actualModel: req.internalRequest.Model, namespace: namespace, requestText: requestText}, nil
+				}
+
+				// Client disconnected — stop all retries immediately without
+				// recording failure hints or attempting further channels.
+				if errors.Is(result.Err, errClientDisconnected) {
+					req.metrics.Save(false, result.Err, currentAttempts)
+					return nil, result.Err
 				}
 
 				recordFailureHint(channel.ID, usedKey.ID, resolvedModelName, result.Decision, result.Err, ratelimitCooldown)
