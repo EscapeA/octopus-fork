@@ -355,10 +355,9 @@ func Handler(endpointType string, inboundType inbound.InboundType, c *gin.Contex
 					if resp := cloneInternalResponse(outcome.internalResp); resp != nil {
 						metrics.SetInternalResponse(resp, outcome.actualModel)
 					}
-					metrics.Save(true, nil, nil)
+					metrics.Save(true, nil, outcome.attempts)
 					return
 				}
-				metrics.Save(true, nil, nil)
 				return
 			}
 		}
@@ -1142,7 +1141,7 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 				if result.Success {
 					namespace, requestText, _ := semanticCacheStoreMetadata(req.internalRequest)
 					req.metrics.Save(true, nil, currentAttempts)
-					return &inflightRelayResult{internalResp: cloneInternalResponse(req.metrics.InternalResponse), actualModel: req.internalRequest.Model, namespace: namespace, requestText: requestText}, nil
+					return newInflightRelayResult(cloneInternalResponse(req.metrics.InternalResponse), req.internalRequest.Model, currentAttempts, namespace, requestText), nil
 				}
 
 				// Client disconnected — stop all retries immediately without

@@ -53,3 +53,14 @@ func TestRouteIteratorAttemptsCarrySuccessfulChannel(t *testing.T) {
 		t.Fatalf("finalChannel(iter.Attempts()) = (%d, %q), want (%d, %q)", channelID, channelName, 23, "mimo-channel")
 	}
 }
+
+func TestInflightRelayResultCarriesAttemptsSnapshot(t *testing.T) {
+	attempts := []model.ChannelAttempt{{ChannelID: 23, ChannelName: "mimo-channel", Status: model.AttemptSuccess}}
+	result := newInflightRelayResult(nil, "mimo-v2.5", attempts, "", "")
+	attempts[0].ChannelName = "mutated"
+
+	channelID, channelName := finalChannel(result.attempts)
+	if channelID != 23 || channelName != "mimo-channel" {
+		t.Fatalf("finalChannel(result.attempts) = (%d, %q), want (%d, %q)", channelID, channelName, 23, "mimo-channel")
+	}
+}

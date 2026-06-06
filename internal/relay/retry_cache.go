@@ -97,8 +97,19 @@ func (c *retryRequestCache) getEmbedding(cacheKey string, compute func() ([]floa
 type inflightRelayResult struct {
 	internalResp *transmodel.InternalLLMResponse
 	actualModel  string
+	attempts     []dbmodel.ChannelAttempt
 	namespace    string
 	requestText  string
+}
+
+func newInflightRelayResult(resp *transmodel.InternalLLMResponse, actualModel string, attempts []dbmodel.ChannelAttempt, namespace string, requestText string) *inflightRelayResult {
+	return &inflightRelayResult{
+		internalResp: resp,
+		actualModel:  actualModel,
+		attempts:     append([]dbmodel.ChannelAttempt(nil), attempts...),
+		namespace:    namespace,
+		requestText:  requestText,
+	}
 }
 
 var relayInflightGroup singleflight.Group
