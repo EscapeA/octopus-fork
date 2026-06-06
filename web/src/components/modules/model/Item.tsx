@@ -12,13 +12,15 @@ import { ModelDeleteOverlay, ModelEditOverlay } from './ItemOverlays';
 import { cn } from '@/lib/utils';
 import { createPortal } from 'react-dom';
 import { CopyIconButton } from '@/components/common/CopyButton';
+import { formatAverageLatency, type LatencyUnitMode } from './latency-format';
 
 interface ModelItemProps {
     model: ModelMarketItem;
     layout?: 'grid' | 'list';
+    latencyUnit?: LatencyUnitMode;
 }
 
-export const ModelItem = memo(function ModelItem({ model, layout = 'grid' }: ModelItemProps) {
+export const ModelItem = memo(function ModelItem({ model, layout = 'grid', latencyUnit = 'auto' }: ModelItemProps) {
     const t = useTranslations('model');
     const isListLayout = layout === 'list';
     const [isEditOpen, setIsEditOpen] = useState(false);
@@ -46,7 +48,7 @@ export const ModelItem = memo(function ModelItem({ model, layout = 'grid' }: Mod
     const visibleChannelTags = useMemo(() => model.channels.slice(0, isListLayout ? 4 : 3), [isListLayout, model.channels]);
     const hiddenChannelTagCount = Math.max(0, model.channels.length - visibleChannelTags.length);
     const successRateLabel = requestCount > 0 ? `${(model.success_rate * 100).toFixed(2)}%` : '—';
-    const latencyLabel = requestCount > 0 && model.average_latency_ms > 0 ? `${model.average_latency_ms}ms` : '—';
+    const latencyLabel = formatAverageLatency(model.average_latency_ms, requestCount, latencyUnit);
     const specimenMetricClassName = cn(
         'inline-flex items-center gap-1.5 rounded-lg border border-border/25 bg-card px-2 py-1.5 text-xs sm:gap-2 sm:px-3 sm:py-2 sm:text-sm',
         isListLayout ? 'min-w-[10rem] flex-1' : '',
@@ -250,7 +252,7 @@ export const ModelItem = memo(function ModelItem({ model, layout = 'grid' }: Mod
                             </div>
                             <div className={specimenMetricClassName}>
                                 <Gauge className="size-3.5 sm:size-4" style={{ color: brandColor }} />
-                                <span className="truncate">{t('card.latency')}</span>
+                                <span className="truncate">{t('card.averageLatency')}</span>
                                 <span className="ml-auto tabular-nums text-foreground">{latencyLabel}</span>
                             </div>
                             <div className={specimenMetricClassName}>
@@ -324,7 +326,7 @@ export const ModelItem = memo(function ModelItem({ model, layout = 'grid' }: Mod
                                                 <div className="mt-1 tabular-nums text-sm font-medium text-foreground sm:text-base">{model.request_failed.toLocaleString()}</div>
                                             </div>
                                             <div className="rounded-lg bg-card px-2.5 py-2 sm:px-3">
-                                                <div className="text-xs sm:text-sm">{t('card.latency')}</div>
+                                                <div className="text-xs sm:text-sm">{t('card.averageLatency')}</div>
                                                 <div className="mt-1 tabular-nums text-sm font-medium text-foreground sm:text-base">{latencyLabel}</div>
                                             </div>
                                             <div className="rounded-lg bg-card px-2.5 py-2 sm:px-3">

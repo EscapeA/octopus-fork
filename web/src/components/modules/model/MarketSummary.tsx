@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { formatDateTime } from '@/lib/time';
+import { formatAverageLatency, type LatencyUnitMode } from './latency-format';
 
 type MarketSummaryValue = {
     model_count: number;
@@ -29,15 +30,18 @@ export function ModelMarketSummary({
     isRefreshing,
     triggerClassName,
     compact = false,
+    latencyUnit = 'auto',
 }: {
     summary: MarketSummaryValue;
     onRefresh: () => void;
     isRefreshing: boolean;
     triggerClassName?: string;
     compact?: boolean;
+    latencyUnit?: LatencyUnitMode;
 }) {
     const t = useTranslations('model');
     const lastUpdateLabel = formatLastUpdate(summary.last_update_time, t('summary.neverUpdated'));
+    const requestCount = summary.model_count > 0 ? 1 : 0;
 
     const metrics = [
         {
@@ -62,7 +66,7 @@ export function ModelMarketSummary({
             key: 'latency',
             icon: Clock3,
             label: t('summary.averageLatency'),
-            value: summary.average_latency_ms > 0 ? `${summary.average_latency_ms}ms` : '—',
+            value: formatAverageLatency(summary.average_latency_ms, requestCount, latencyUnit),
         },
     ];
 

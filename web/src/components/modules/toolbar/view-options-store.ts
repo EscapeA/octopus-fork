@@ -14,6 +14,7 @@ export type ChannelFilter = 'all' | 'enabled' | 'disabled';
 export type GroupFilter = 'all' | 'with-members' | 'empty' | 'chat' | 'deepseek' | 'mimo' | 'responses' | 'messages' | 'embeddings' | 'rerank' | 'moderations' | 'image_generation' | 'audio_speech' | 'audio_transcription' | 'video_generation' | 'music_generation' | 'search';
 export type ModelFilter = 'all' | 'priced' | 'free';
 export type ModelSortMode = 'success-rate' | 'request-count';
+export type ModelLatencyUnit = 'auto' | 'ms' | 's' | 'h';
 
 export function normalizeGroupFilterValue(value?: string | null): GroupFilter {
     switch (value) {
@@ -65,6 +66,7 @@ interface ToolbarViewOptionsState {
     groupFilter: GroupFilter;
     modelFilter: ModelFilter;
     modelSortMode: ModelSortMode;
+    modelLatencyUnit: ModelLatencyUnit;
 
     getLayout: (item: ToolbarPage) => ToolbarLayout;
     setLayout: (item: ToolbarPage, value: ToolbarLayout) => void;
@@ -84,6 +86,7 @@ interface ToolbarViewOptionsState {
     setGroupFilter: (value: GroupFilter) => void;
     setModelFilter: (value: ModelFilter) => void;
     setModelSortMode: (value: ModelSortMode) => void;
+    setModelLatencyUnit: (value: ModelLatencyUnit) => void;
 }
 
 export const useToolbarViewOptionsStore = create<ToolbarViewOptionsState>()(
@@ -97,6 +100,7 @@ export const useToolbarViewOptionsStore = create<ToolbarViewOptionsState>()(
             groupFilter: 'all',
             modelFilter: 'all',
             modelSortMode: 'success-rate',
+            modelLatencyUnit: 'auto',
 
             getLayout: (item) => get().layouts[item] || 'grid',
             setLayout: (item, value) => {
@@ -121,6 +125,7 @@ export const useToolbarViewOptionsStore = create<ToolbarViewOptionsState>()(
             setGroupFilter: (value) => set({ groupFilter: normalizeGroupFilterValue(value) }),
             setModelFilter: (value) => set({ modelFilter: value }),
             setModelSortMode: (value) => set({ modelSortMode: value }),
+            setModelLatencyUnit: (value) => set({ modelLatencyUnit: value }),
         }),
         {
             name: 'toolbar-view-options-storage',
@@ -133,6 +138,7 @@ export const useToolbarViewOptionsStore = create<ToolbarViewOptionsState>()(
                 groupFilter: state.groupFilter,
                 modelFilter: state.modelFilter,
                 modelSortMode: state.modelSortMode,
+                modelLatencyUnit: state.modelLatencyUnit,
             }),
             merge: (persistedState, currentState) => ({
                 ...currentState,

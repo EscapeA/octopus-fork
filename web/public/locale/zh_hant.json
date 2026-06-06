@@ -942,6 +942,13 @@
             "title": "排序方式",
             "successRate": "按成功率",
             "requestCount": "按呼叫次數"
+          },
+          "latencyUnit": {
+            "title": "平均延遲單位",
+            "auto": "自動",
+            "ms": "ms",
+            "s": "s",
+            "h": "h"
           }
         }
       }
@@ -1960,7 +1967,8 @@
       "requests": "請求數",
       "channels": "渠道",
       "keys": "Key 數",
-      "latency": "延遲",
+      "latency": "平均延遲",
+      "averageLatency": "平均延遲",
       "successRate": "成功率",
       "expand": "展開詳情",
       "collapse": "收起詳情"

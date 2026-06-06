@@ -942,6 +942,13 @@
             "title": "Ranking",
             "successRate": "By success rate",
             "requestCount": "By call count"
+          },
+          "latencyUnit": {
+            "title": "Average latency unit",
+            "auto": "Auto",
+            "ms": "ms",
+            "s": "s",
+            "h": "h"
           }
         }
       }
@@ -1960,7 +1967,8 @@
       "requests": "Requests",
       "channels": "Channels",
       "keys": "Keys",
-      "latency": "Latency",
+      "latency": "Average Latency",
+      "averageLatency": "Average Latency",
       "successRate": "Success Rate",
       "expand": "Expand details",
       "collapse": "Collapse details"

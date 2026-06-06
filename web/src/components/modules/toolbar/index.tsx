@@ -32,6 +32,7 @@ import {
     type GroupFilter,
     type ModelFilter,
     type ModelSortMode,
+    type ModelLatencyUnit,
     type ToolbarSortField,
     type ToolbarSortOrder,
 } from './view-options-store';
@@ -40,6 +41,7 @@ const CHANNEL_FILTER_OPTIONS: ChannelFilter[] = ['all', 'enabled', 'disabled'];
 const GROUP_FILTER_OPTIONS: GroupFilter[] = ['all', 'with-members', 'empty', 'chat', 'deepseek', 'mimo', 'embeddings', 'rerank', 'moderations', 'image_generation', 'audio_speech', 'audio_transcription', 'video_generation', 'music_generation', 'search'];
 const MODEL_FILTER_OPTIONS: ModelFilter[] = ['all', 'priced', 'free'];
 const MODEL_SORT_OPTIONS: ModelSortMode[] = ['success-rate', 'request-count'];
+const MODEL_LATENCY_UNIT_OPTIONS: ModelLatencyUnit[] = ['auto', 'ms', 's', 'h'];
 type CombinedSortOption = {
     value: `${ToolbarSortField}-${ToolbarSortOrder}`;
     field: ToolbarSortField;
@@ -109,10 +111,12 @@ export function Toolbar() {
     const groupFilter = useToolbarViewOptionsStore((s) => normalizeGroupFilterValue(s.groupFilter));
     const modelFilter = useToolbarViewOptionsStore((s) => s.modelFilter);
     const modelSortMode = useToolbarViewOptionsStore((s) => s.modelSortMode);
+    const modelLatencyUnit = useToolbarViewOptionsStore((s) => s.modelLatencyUnit);
     const setChannelFilter = useToolbarViewOptionsStore((s) => s.setChannelFilter);
     const setGroupFilter = useToolbarViewOptionsStore((s) => s.setGroupFilter);
     const setModelFilter = useToolbarViewOptionsStore((s) => s.setModelFilter);
     const setModelSortMode = useToolbarViewOptionsStore((s) => s.setModelSortMode);
+    const setModelLatencyUnit = useToolbarViewOptionsStore((s) => s.setModelLatencyUnit);
     const [expandedSearchItem, setExpandedSearchItem] = useState<ToolbarPage | null>(null);
     const searchExpanded = expandedSearchItem === toolbarItem;
     const { data: modelMarket } = useModelMarket();
@@ -162,6 +166,12 @@ export function Toolbar() {
     const modelSortLabelKeys: Record<ModelSortMode, string> = {
         'success-rate': 'popover.filter.model.sort.successRate',
         'request-count': 'popover.filter.model.sort.requestCount',
+    };
+    const modelLatencyUnitLabelKeys: Record<ModelLatencyUnit, string> = {
+        auto: 'popover.filter.model.latencyUnit.auto',
+        ms: 'popover.filter.model.latencyUnit.ms',
+        s: 'popover.filter.model.latencyUnit.s',
+        h: 'popover.filter.model.latencyUnit.h',
     };
 
     const filterOptions = toolbarItem === 'channel'
@@ -399,23 +409,44 @@ export function Toolbar() {
                                     <p className="text-xs font-semibold text-muted-foreground">{t('popover.filter.title')}</p>
                                     <div className="grid max-h-72 gap-2 overflow-y-auto pr-1">
                                         {toolbarItem === 'model' && (
-                                            <div className="grid gap-2 rounded-lg border border-border bg-muted/14 p-2">
-                                                <p className="text-[11px] font-semibold text-muted-foreground">{t('popover.filter.model.sort.title')}</p>
-                                                {MODEL_SORT_OPTIONS.map((option) => (
-                                                    <button
-                                                        key={option}
-                                                        type="button"
-                                                        onClick={() => setModelSortMode(option)}
-                                                        className={cn(
-                                                            OPTION_BUTTON_CLASS,
-                                                            'text-left',
-                                                            modelSortMode === option ? ACTIVE_OPTION_CLASS : INACTIVE_OPTION_CLASS
-                                                        )}
-                                                    >
-                                                        {t(modelSortLabelKeys[option])}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                            <>
+                                                <div className="grid gap-2 rounded-lg border border-border bg-muted/14 p-2">
+                                                    <p className="text-[11px] font-semibold text-muted-foreground">{t('popover.filter.model.sort.title')}</p>
+                                                    {MODEL_SORT_OPTIONS.map((option) => (
+                                                        <button
+                                                            key={option}
+                                                            type="button"
+                                                            onClick={() => setModelSortMode(option)}
+                                                            className={cn(
+                                                                OPTION_BUTTON_CLASS,
+                                                                'text-left',
+                                                                modelSortMode === option ? ACTIVE_OPTION_CLASS : INACTIVE_OPTION_CLASS
+                                                            )}
+                                                        >
+                                                            {t(modelSortLabelKeys[option])}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                <div className="grid gap-2 rounded-lg border border-border bg-muted/14 p-2">
+                                                    <p className="text-[11px] font-semibold text-muted-foreground">{t('popover.filter.model.latencyUnit.title')}</p>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        {MODEL_LATENCY_UNIT_OPTIONS.map((option) => (
+                                                            <button
+                                                                key={option}
+                                                                type="button"
+                                                                onClick={() => setModelLatencyUnit(option)}
+                                                                className={cn(
+                                                                    OPTION_BUTTON_CLASS,
+                                                                    'text-center',
+                                                                    modelLatencyUnit === option ? ACTIVE_OPTION_CLASS : INACTIVE_OPTION_CLASS
+                                                                )}
+                                                            >
+                                                                {t(modelLatencyUnitLabelKeys[option])}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </>
                                         )}
                                         {filterOptions.map((option) => (
                                             <button

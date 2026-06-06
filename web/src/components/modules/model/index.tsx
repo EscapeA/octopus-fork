@@ -18,6 +18,7 @@ export function Model() {
     const layout = useToolbarViewOptionsStore((s) => s.getLayout(pageKey));
     const filter = useToolbarViewOptionsStore((s) => s.modelFilter);
     const modelSortMode = useToolbarViewOptionsStore((s) => s.modelSortMode);
+    const modelLatencyUnit = useToolbarViewOptionsStore((s) => s.modelLatencyUnit);
 
     const sortedModels = useMemo(() => {
         const items = market?.items ?? [];
@@ -84,7 +85,7 @@ export function Model() {
                             columns={{ default: 1, sm: 2, md: 2, lg: 3 }}
                             estimateItemHeight={228}
                             getItemKey={(model) => `model-${model.name}`}
-                            renderItem={(model) => <ModelItem model={model} layout={layout} />}
+                            renderItem={(model) => <ModelItem model={model} layout={layout} latencyUnit={modelLatencyUnit} />}
                             bottomPaddingClassName="pb-3 md:pb-4"
                         />
                     </div>
