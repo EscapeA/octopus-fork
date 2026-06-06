@@ -2287,6 +2287,7 @@
         "hint": "會批次測試所有已填寫的端點與 Key 組合，HTTP 200 和 429 都視為通過。",
         "removeFailedKeys": "移除失敗的 Key"
       },
+      "typeOpenAI": "OpenAI",
       "typeOpenAIChat": "OpenAI Chat",
       "typeOpenAIResponse": "OpenAI Response",
       "typeOpenAIEmbedding": "OpenAI Embedding",
