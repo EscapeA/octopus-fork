@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.0.3] - 2026-06
+
+### 🚀 Features
+- Add zashboard-style collapsible group list view for the group management page.
+- Inject channel `param_override` into outbound relay requests for per-channel parameter customization.
+
+### 🐛 Bug Fixes
+- Write stream responses to semantic cache for streaming SSE replay support.
+- Prune expired semantic-cache entries in `Stats()` for accurate size reporting.
+- Cancel upstream request on client stream disconnect to avoid wasted resources.
+- Stop injecting default `max_completion_tokens` for reasoning models in the outbound transformer.
+- Fix group edit dialog sizing and horizontal overflow issues.
+- Fix group edit dialog and site management overview display issues.
+- Improve mobile API key form layout.
+
+**Full Changelog:** https://github.com/lingyuins/octopus/compare/v2.0.2...v2.0.3
+
+---
+
 ## [v2.0.2] - 2026-06
 
 ### 🚀 Features
