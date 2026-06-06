@@ -89,7 +89,7 @@ func detectZenPreferredChannelTypes(requestModel string, isEmbeddingRequest bool
 }
 
 func outboundAttemptTypes(channelType outbound.OutboundType, request *model.InternalLLMRequest) []outbound.OutboundType {
-	if request != nil && request.RawAPIFormat == model.APIFormatOpenAIChatCompletion && channelType == outbound.OutboundTypeOpenAIChat {
+	if request != nil && request.RawAPIFormat == model.APIFormatOpenAIChatCompletion && (channelType == outbound.OutboundTypeOpenAIChat || channelType == outbound.OutboundTypeOpenAIResponse) {
 		return []outbound.OutboundType{outbound.OutboundTypeOpenAIResponse, outbound.OutboundTypeOpenAIChat}
 	}
 	return []outbound.OutboundType{channelType}

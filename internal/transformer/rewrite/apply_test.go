@@ -44,12 +44,28 @@ func TestResolve_OpenAIChatCompatDefaults(t *testing.T) {
 }
 
 func TestResolve_RejectsUnsupportedChannelType(t *testing.T) {
-	_, _, err := Resolve(outbound.OutboundTypeOpenAIResponse, &appmodel.RequestRewriteConfig{
+	_, _, err := Resolve(outbound.OutboundTypeAnthropic, &appmodel.RequestRewriteConfig{
 		Enabled: true,
 		Profile: appmodel.RequestRewriteProfileOpenAIChatCompat,
 	})
 	if err == nil {
 		t.Fatal("Resolve() error = nil, want non-nil")
+	}
+}
+
+func TestResolve_AcceptsOpenAIResponseChannelType(t *testing.T) {
+	got, enabled, err := Resolve(outbound.OutboundTypeOpenAIResponse, &appmodel.RequestRewriteConfig{
+		Enabled: true,
+		Profile: appmodel.RequestRewriteProfileOpenAIChatCompat,
+	})
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	if !enabled {
+		t.Fatal("Resolve() enabled = false, want true")
+	}
+	if got == nil {
+		t.Fatal("Resolve() config = nil, want non-nil")
 	}
 }
 

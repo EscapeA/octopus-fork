@@ -23,6 +23,22 @@ func TestOutboundAttemptTypesForChatPrefersResponsesThenChat(t *testing.T) {
 	}
 }
 
+func TestOutboundAttemptTypesForResponseChannelFallsBackToChat(t *testing.T) {
+	req := &model.InternalLLMRequest{RawAPIFormat: model.APIFormatOpenAIChatCompletion}
+
+	got := outboundAttemptTypes(outbound.OutboundTypeOpenAIResponse, req)
+	want := []outbound.OutboundType{outbound.OutboundTypeOpenAIResponse, outbound.OutboundTypeOpenAIChat}
+
+	if len(got) != len(want) {
+		t.Fatalf("attempt types len = %d, want %d: %#v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("attempt types = %#v, want %#v", got, want)
+		}
+	}
+}
+
 func TestOutboundAttemptTypesLeavesResponsesRequestsOnResponses(t *testing.T) {
 	req := &model.InternalLLMRequest{RawAPIFormat: model.APIFormatOpenAIResponse}
 

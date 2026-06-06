@@ -187,7 +187,7 @@ func (c *RequestRewriteConfig) Validate(channelType outbound.OutboundType) error
 	case RequestRewriteProfilePreserve:
 		// preserve means no body rewrite
 	case RequestRewriteProfileOpenAIChatCompat:
-		if channelType != outbound.OutboundTypeOpenAIChat && channelType != outbound.OutboundTypeMimo {
+		if channelType != outbound.OutboundTypeOpenAIChat && channelType != outbound.OutboundTypeOpenAIResponse && channelType != outbound.OutboundTypeMimo {
 			return fmt.Errorf("request rewrite profile %s is not supported for channel type %d", c.Profile, channelType)
 		}
 	case RequestRewriteProfileCodexHeaders:

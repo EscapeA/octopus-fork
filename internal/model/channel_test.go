@@ -48,8 +48,8 @@ func TestRequestRewriteConfigValidate(t *testing.T) {
 				Enabled: true,
 				Profile: RequestRewriteProfileOpenAIChatCompat,
 			},
-			channelType: outbound.OutboundTypeOpenAIResponse,
-			wantErr:     "request rewrite profile openai_chat_compat is not supported for channel type 1",
+			channelType: outbound.OutboundTypeAnthropic,
+			wantErr:     "request rewrite profile openai_chat_compat is not supported for channel type 2",
 		},
 		{
 			name: "unsupported tool role strategy",
@@ -91,13 +91,13 @@ func TestRequestRewriteConfigValidate(t *testing.T) {
 			channelType: outbound.OutboundTypeOpenAIChat,
 		},
 		{
-			name: "valid codex headers on responses channel",
+			name: "valid openai chat compat config on responses channel",
 			cfg: &RequestRewriteConfig{
 				Enabled:       true,
 				Profile:       RequestRewriteProfileOpenAIChatCompat,
 				HeaderProfile: "codex",
 			},
-			channelType: outbound.OutboundTypeOpenAIChat,
+			channelType: outbound.OutboundTypeOpenAIResponse,
 		},
 		{
 			name: "valid mimo chat compat config",
