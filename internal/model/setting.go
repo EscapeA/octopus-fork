@@ -65,6 +65,10 @@ const (
 	SettingKeySiteCheckinInterval                  SettingKey = "site_checkin_interval"                    // 站点自动签到间隔（小时）
 	SettingKeyStatsSiteModelBackfilled             SettingKey = "stats_site_model_backfilled"              // 站点模型统计回填标记
 	SettingKeyProjectedChannelAutoGroupEnabled     SettingKey = "projected_channel_auto_group_enabled"     // 站点投影渠道自动分组全局开关
+	SettingKeyResponseFilterEnabled                SettingKey = "response_filter_enabled"                  // 输出结果关键词拦截开关
+	SettingKeyResponseFilterKeywords               SettingKey = "response_filter_keywords"                 // 拦截关键词列表(JSON 数组)
+	SettingKeyResponseFilterAction                 SettingKey = "response_filter_action"                   // 拦截动作: block(阻断) / replace(替换为*)
+	SettingKeyResponseFilterErrorMessage           SettingKey = "response_filter_error_message"            // 阻断时返回的错误信息
 )
 
 type Setting struct {
@@ -128,6 +132,10 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeySiteSyncInterval, Value: "12"},
 		{Key: SettingKeySiteCheckinInterval, Value: "24"},
 		{Key: SettingKeyStatsSiteModelBackfilled, Value: "false"},
+		{Key: SettingKeyResponseFilterEnabled, Value: "false"},
+		{Key: SettingKeyResponseFilterKeywords, Value: "[]"},
+		{Key: SettingKeyResponseFilterAction, Value: "block"},
+		{Key: SettingKeyResponseFilterErrorMessage, Value: "The response contains blocked keywords and has been intercepted."},
 	}
 }
 
@@ -287,6 +295,26 @@ func (s *Setting) Validate() error {
 		if err := json.Unmarshal([]byte(s.Value), &cfg); err != nil {
 			return fmt.Errorf("webdav config must be a valid JSON object")
 		}
+		return nil
+	case SettingKeyResponseFilterEnabled:
+		if s.Value != "true" && s.Value != "false" {
+			return fmt.Errorf("setting value must be true or false")
+		}
+		return nil
+	case SettingKeyResponseFilterKeywords:
+		var keywords []string
+		if err := json.Unmarshal([]byte(s.Value), &keywords); err != nil {
+			return fmt.Errorf("response filter keywords must be a valid JSON array of strings")
+		}
+		return nil
+	case SettingKeyResponseFilterAction:
+		switch s.Value {
+		case "block", "replace":
+			return nil
+		default:
+			return fmt.Errorf("response filter action must be block or replace")
+		}
+	case SettingKeyResponseFilterErrorMessage:
 		return nil
 	}
 

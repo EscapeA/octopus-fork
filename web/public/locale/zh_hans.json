@@ -1149,6 +1149,33 @@
       },
       "hint": "当渠道连续失败达到阈值后触发熔断，冷却时间按指数退避增长，上限为最大冷却时间"
     },
+    "responseFilter": {
+      "title": "输出关键词拦截",
+      "description": "对模型输出结果进行关键词拦截检查，支持阻断或替换两种动作模式。",
+      "enabled": {
+        "label": "启用输出关键词拦截"
+      },
+      "action": {
+        "label": "拦截动作",
+        "block": "阻断",
+        "replace": "替换",
+        "blockHint": "检测到关键词后立即终止响应，返回错误信息。",
+        "replaceHint": "将匹配到的关键词替换为等长度的星号（*），响应继续正常返回。"
+      },
+      "keywords": {
+        "label": "拦截关键词",
+        "placeholder": "输入关键词后按 Enter 添加",
+        "add": "添加",
+        "empty": "暂无关键词，请添加需要拦截的关键词。",
+        "duplicate": "该关键词已存在",
+        "removeHint": "点击移除"
+      },
+      "errorMessage": {
+        "label": "阻断错误信息",
+        "placeholder": "请输入拦截时返回的错误信息",
+        "hint": "当动作设为"阻断"且检测到关键词时，返回给客户端的错误提示文字。"
+      }
+    },
     "retry": {
       "title": "重试配置",
       "count": {

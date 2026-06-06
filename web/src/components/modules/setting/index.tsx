@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import {
     Sun, User, Database, RotateCcw, Zap,
     ScrollText, Monitor, RefreshCw, ChevronsUpDown,
-    Info, Bot, Sparkles, FolderX, Cloud,
+    Info, Bot, Sparkles, FolderX, Cloud, ShieldAlert,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { SettingAppearance } from './Appearance';
@@ -22,6 +22,7 @@ import { SettingAIRoute } from './AIRoute';
 import { SettingSemanticCache } from './SemanticCache';
 import { SettingWebDAV } from './WebDAV';
 import { SettingRouteGroupDanger } from './RouteGroupDanger';
+import { SettingResponseFilter } from './ResponseFilter';
 import { DEFAULT_SETTING_ORDER } from './SettingOrder';
 
 type SettingItemDef = {
@@ -43,6 +44,7 @@ const SETTING_ITEM_DEFS: SettingItemDef[] = [
     { id: 'system',            icon: <Monitor className="h-5 w-5" />,           titleKey: 'system',               component: <SettingSystem /> },
     { id: 'llmsync',           icon: <RefreshCw className="h-5 w-5" />,        titleKey: 'llmSync.title',        component: <SettingLLMSync /> },
     { id: 'circuit-breaker',   icon: <Zap className="h-5 w-5" />,              titleKey: 'circuitBreaker.title', component: <SettingCircuitBreaker /> },
+    { id: 'response-filter',   icon: <ShieldAlert className="h-5 w-5" />,      titleKey: 'responseFilter.title', component: <SettingResponseFilter /> },
     { id: 'backup',            icon: <Database className="h-5 w-5" />,          titleKey: 'backup.title',         component: <SettingBackup /> },
     { id: 'webdav',            icon: <Cloud className="h-5 w-5" />,             titleKey: 'webdav.title',         component: <SettingWebDAV /> },
     { id: 'route-group-danger',icon: <FolderX className="h-5 w-5" />,          titleKey: 'routeGroups.title',    component: <SettingRouteGroupDanger /> },

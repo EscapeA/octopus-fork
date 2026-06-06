@@ -67,6 +67,10 @@ export const SettingKey = {
     SiteSyncInterval: 'site_sync_interval',
     SiteCheckinInterval: 'site_checkin_interval',
     ProjectedChannelAutoGroupEnabled: 'projected_channel_auto_group_enabled',
+    ResponseFilterEnabled: 'response_filter_enabled',
+    ResponseFilterKeywords: 'response_filter_keywords',
+    ResponseFilterAction: 'response_filter_action',
+    ResponseFilterErrorMessage: 'response_filter_error_message',
 } as const;
 
 /**

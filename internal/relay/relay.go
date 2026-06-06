@@ -34,6 +34,7 @@ import (
 )
 
 var errClientDisconnected = errors.New("client disconnected")
+var errResponseFilterBlocked = errors.New("response filter blocked by keyword")
 
 func resolveRequestedUpstreamModel(requestModel string) (string, bool) {
 	trimmed := strings.TrimSpace(requestModel)
@@ -382,6 +383,17 @@ func (ra *relayAttempt) attempt() attemptResult {
 		}
 	}
 
+	// 输出结果关键词拦截 — 不重试，不记录渠道失败统计
+	if errors.Is(fwdErr, errResponseFilterBlocked) {
+		span.End(dbmodel.AttemptFailed, statusCode, "response filter blocked")
+		return attemptResult{
+			Success:  false,
+			Written:  ra.c.Writer.Written(),
+			Err:      fwdErr,
+			Decision: RetryDecision{Scope: ScopeAbortAll, Reason: "response filter blocked by keyword", Code: statusCode},
+		}
+	}
+
 	// 检查是否已写入流式响应
 	written := ra.c.Writer.Written()
 
@@ -718,7 +730,32 @@ func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http
 			}
 
 			data, err := ra.transformStreamData(ctx, r.data)
-			if err != nil || len(data) == 0 {
+			if err != nil {
+				if errors.Is(err, errResponseFilterBlocked) {
+					// 关键词拦截：发送错误 SSE 事件并终止流
+					filterCfg := loadResponseFilterConfig()
+					if ra.streamSession != nil {
+						errPayload, _ := json.Marshal(map[string]any{
+							"error": map[string]any{
+								"message": filterCfg.ErrorMessage,
+								"type":    "content_filter",
+								"code":    "content_blocked",
+							},
+						})
+						ra.streamSession.AddPayload(errPayload)
+						ra.streamSession.Finish(nil)
+					} else if !clientDisconnected {
+						writeSSEErrorEvent(ra.c.Writer, filterCfg.ErrorMessage)
+						ra.c.Writer.Flush()
+					}
+					if closeErr := response.Body.Close(); closeErr != nil {
+						log.Warnf("failed to close response body on response filter block: %v", closeErr)
+					}
+					return fmt.Errorf("response filter blocked streaming output")
+				}
+				continue
+			}
+			if len(data) == 0 {
 				continue
 			}
 			if firstToken {
@@ -778,6 +815,13 @@ func (ra *relayAttempt) transformStreamData(ctx context.Context, data string) ([
 		return nil, nil
 	}
 
+	// 输出结果关键词拦截（流式）
+	filterCfg := loadResponseFilterConfig()
+	if blocked, keyword := applyResponseFilter(internalStream, filterCfg); blocked {
+		log.Infof("response filter blocked streaming chunk with keyword %q", keyword)
+		return nil, errResponseFilterBlocked
+	}
+
 	inStream, err := ra.inAdapter.TransformStream(ctx, internalStream)
 	if err != nil {
 		logRelayErrorfByContext(err, "failed to transform stream: %v", err)
@@ -794,6 +838,24 @@ func (ra *relayAttempt) handleResponse(ctx context.Context, response *http.Respo
 		logRelayErrorfByContext(err, "failed to transform response: %v", err)
 		return fmt.Errorf("failed to transform outbound response: %w", err)
 	}
+
+	// 输出结果关键词拦截
+	filterCfg := loadResponseFilterConfig()
+	if blocked, keyword := applyResponseFilter(internalResponse, filterCfg); blocked {
+		log.Infof("response filter blocked keyword %q", keyword)
+		errMsg := filterCfg.ErrorMessage
+		errorResp := map[string]any{
+			"error": map[string]any{
+				"message": errMsg,
+				"type":    "content_filter",
+				"code":    "content_blocked",
+			},
+		}
+		data, _ := json.Marshal(errorResp)
+		ra.c.Data(http.StatusOK, "application/json", data)
+		return nil
+	}
+
 	applyReasoningExhaustedHeader(ra.c, internalResponse)
 
 	inResponse, err := ra.inAdapter.TransformResponse(ctx, internalResponse)

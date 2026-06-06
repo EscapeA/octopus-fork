@@ -1149,6 +1149,33 @@
       },
       "hint": "When a channel fails consecutively up to the threshold, circuit breaker trips. Cooldown grows exponentially up to the max cooldown"
     },
+    "responseFilter": {
+      "title": "Response Keyword Filter",
+      "description": "Intercept model output based on keywords. Supports blocking or replacing matched content.",
+      "enabled": {
+        "label": "Enable response keyword filter"
+      },
+      "action": {
+        "label": "Filter action",
+        "block": "Block",
+        "replace": "Replace",
+        "blockHint": "Immediately stop the response and return an error when a keyword is detected.",
+        "replaceHint": "Replace matched keywords with asterisks (*), the response continues normally."
+      },
+      "keywords": {
+        "label": "Blocked keywords",
+        "placeholder": "Type a keyword and press Enter to add",
+        "add": "Add",
+        "empty": "No keywords yet. Add keywords to block.",
+        "duplicate": "This keyword already exists",
+        "removeHint": "Click to remove"
+      },
+      "errorMessage": {
+        "label": "Block error message",
+        "placeholder": "Enter the error message returned when blocked",
+        "hint": "The error message text returned to the client when a keyword is detected in block mode."
+      }
+    },
     "retry": {
       "title": "Retry Settings",
       "count": {

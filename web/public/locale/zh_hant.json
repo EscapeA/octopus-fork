@@ -1149,6 +1149,33 @@
       },
       "hint": "當渠道連續失敗達到閾值後觸發熔斷，冷卻時間按指數退避增長，上限為最大冷卻時間"
     },
+    "responseFilter": {
+      "title": "輸出關鍵詞攔截",
+      "description": "對模型輸出結果進行關鍵詞攔截檢查，支持阻斷或替換兩種動作模式。",
+      "enabled": {
+        "label": "啟用輸出關鍵詞攔截"
+      },
+      "action": {
+        "label": "攔截動作",
+        "block": "阻斷",
+        "replace": "替換",
+        "blockHint": "檢測到關鍵詞後立即終止響應，返回錯誤信息。",
+        "replaceHint": "將匹配到的關鍵詞替換為等長度的星號（*），響應繼續正常返回。"
+      },
+      "keywords": {
+        "label": "攔截關鍵詞",
+        "placeholder": "輸入關鍵詞後按 Enter 添加",
+        "add": "添加",
+        "empty": "暫無關鍵詞，請添加需要攔截的關鍵詞。",
+        "duplicate": "該關鍵詞已存在",
+        "removeHint": "點擊移除"
+      },
+      "errorMessage": {
+        "label": "阻斷錯誤信息",
+        "placeholder": "請輸入攔截時返回的錯誤信息",
+        "hint": "當動作設為「阻斷」且檢測到關鍵詞時，返回給客戶端的錯誤提示文字。"
+      }
+    },
     "retry": {
       "title": "重試配置",
       "count": {
