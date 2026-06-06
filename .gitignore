@@ -6,6 +6,7 @@ static/out/*
 docs/superpowers
 .workbuddy/memory
 AGENTS.md
+CLAUDE.md
 .learnings/
 *.dev.err.log
 *.dev.out.log
