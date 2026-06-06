@@ -30,7 +30,7 @@ export function CreateDialogContent() {
     const [formData, setFormData] = useState<ChannelFormData>({
         name: '',
         group_id: 0,
-        type: ChannelType.OpenAIChat,
+        type: ChannelType.OpenAIResponse,
         base_urls: [{ url: '', delay: 0, suffix_mode: 'auto' }],
         custom_header: [],
         channel_proxy: '',
@@ -52,7 +52,7 @@ export function CreateDialogContent() {
         setFormData({
             name: '',
             group_id: 0,
-            type: ChannelType.OpenAIChat,
+            type: ChannelType.OpenAIResponse,
             base_urls: [{ url: '', delay: 0, suffix_mode: 'auto' }],
             custom_header: [],
             channel_proxy: '',

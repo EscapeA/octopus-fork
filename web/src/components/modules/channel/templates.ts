@@ -33,7 +33,7 @@ export const channelTemplates: ChannelTemplate[] = [
         descriptionKey: 'template.descriptions.openai',
         apply: (current) => createTemplatePatch(current, {
             name: current.name || 'OpenAI',
-            type: ChannelType.OpenAIChat,
+            type: ChannelType.OpenAIResponse,
             base_urls: [{ url: 'https://api.openai.com', delay: 0, suffix_mode: 'auto' }],
             custom_header: [],
             channel_proxy: '',

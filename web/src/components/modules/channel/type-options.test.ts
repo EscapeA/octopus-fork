@@ -12,6 +12,6 @@ test("channel type options merge OpenAI chat and response into one OpenAI option
   );
 
   assert.deepEqual(openaiOptions, [
-    { value: OpenAIChat, labelKey: "typeOpenAI" },
+    { value: OpenAIResponse, labelKey: "typeOpenAI" },
   ]);
 });
