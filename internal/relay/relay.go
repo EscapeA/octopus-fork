@@ -461,12 +461,8 @@ func (ra *relayAttempt) attempt() attemptResult {
 		RequestFailed: 1,
 	})
 
-	// 熔断器和 Auto 策略：只在换候选或停止时记录失败
-	// 换 Key 重试不触发熔断计数，避免误熔断
-	if decision.Scope == ScopeNextChannel || decision.Scope == ScopeAbortAll {
-		balancer.RecordFailure(ra.channel.ID, ra.usedKey.ID, ra.internalRequest.Model)
-		balancer.RecordAutoFailure(ra.channel.ID, ra.internalRequest.Model)
-	}
+	// 熔断器和 Auto 策略的记录由调用方（adapter fallback loop）控制，
+	// 避免在 adapter 降级场景（如 Responses→Chat）中误触发熔断。
 
 	if written {
 		ra.collectResponse()
@@ -621,9 +617,17 @@ func (ra *relayAttempt) sendRequest(req *http.Request) (*http.Response, error) {
 }
 
 // handleStreamResponse 处理流式响应
-func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http.Response) error {
+func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http.Response) (retErr error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
+	// 安全网：确保 stream session 在所有退出路径上都被关闭，
+	// 避免外层 defer 产生 "relay stream ended without a terminal result"。
+	defer func() {
+		if ra.streamSession != nil && !ra.streamSession.IsDone() {
+			ra.streamSession.Finish(retErr)
+		}
+	}()
 
 	if ct := response.Header.Get("Content-Type"); ct != "" && !strings.Contains(strings.ToLower(ct), "text/event-stream") {
 		body, _ := io.ReadAll(io.LimitReader(response.Body, 16*1024))
@@ -1142,6 +1146,13 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 					namespace, requestText, _ := semanticCacheStoreMetadata(req.internalRequest)
 					req.metrics.Save(true, nil, currentAttempts)
 					return newInflightRelayResult(cloneInternalResponse(req.metrics.InternalResponse), req.internalRequest.Model, currentAttempts, namespace, requestText), nil
+				}
+
+				// 熔断器和 Auto 策略：在所有 adapter 类型（如 Responses→Chat）均失败后才记录，
+				// 避免 Response adapter 降级到 Chat 的过程中误触发熔断。
+				if result.Decision.Scope == ScopeNextChannel || result.Decision.Scope == ScopeAbortAll {
+					balancer.RecordFailure(channel.ID, usedKey.ID, resolvedModelName)
+					balancer.RecordAutoFailure(channel.ID, resolvedModelName)
 				}
 
 				// Client disconnected — stop all retries immediately without
