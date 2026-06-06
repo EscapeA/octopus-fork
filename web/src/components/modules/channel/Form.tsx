@@ -14,6 +14,7 @@ import {
 } from '@/api/endpoints/channel';
 import { channelTemplates } from './templates';
 import { CHANNEL_TYPE_OPTIONS } from './type-options';
+import { isOpenAICompatBaseUrlSuffixMode } from './base-url-suffix';
 import {
     Select,
     SelectContent,
@@ -769,7 +770,7 @@ export function ChannelForm({
                                 />
                                 <div className="flex items-center gap-2 sm:shrink-0">
                                     <Select
-                                        value={u.suffix_mode === 'custom' ? 'custom' : 'openai_compat'}
+                                        value={isOpenAICompatBaseUrlSuffixMode(u.suffix_mode) ? 'openai_compat' : 'custom'}
                                         onValueChange={(value) => handleUpdateBaseUrl(idx, { suffix_mode: value as Channel['base_urls'][number]['suffix_mode'] })}
                                     >
                                         <SelectTrigger className="h-10 min-w-0 flex-1 rounded-lg sm:w-44 sm:flex-none">
@@ -795,9 +796,9 @@ export function ChannelForm({
                             </div>
                             <p className={cn(
                                 'px-1 text-xs leading-5',
-                                u.suffix_mode === 'openai_compat' && hasManualVersionSuffix(u.url) ? 'text-destructive' : 'text-muted-foreground'
+                                isOpenAICompatBaseUrlSuffixMode(u.suffix_mode) && hasManualVersionSuffix(u.url) ? 'text-destructive' : 'text-muted-foreground'
                             )}>
-                                {u.suffix_mode === 'openai_compat'
+                                {isOpenAICompatBaseUrlSuffixMode(u.suffix_mode)
                                     ? (hasManualVersionSuffix(u.url) ? t('baseUrlOpenAIWarning') : t('baseUrlOpenAIHint'))
                                     : t('baseUrlCustomHint')}
                             </p>
