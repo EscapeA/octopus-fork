@@ -72,7 +72,7 @@ export function SiteDialog({ open, onOpenChange, editingSite }: SiteDialogProps)
         }
     }, [open, editingSite]);
 
-    const isOctopusType = siteType === 'octopus';
+    const usesPasswordAuth = siteType === 'octopus' || siteType === 'sapi';
 
     const handleDetect = () => {
         if (!baseUrl) return;
@@ -178,7 +178,7 @@ export function SiteDialog({ open, onOpenChange, editingSite }: SiteDialogProps)
                             </SelectContent>
                         </Select>
                     </div>
-                    {isOctopusType ? (
+                    {usesPasswordAuth ? (
                         <>
                             <div className="grid gap-2">
                                 <Label>{t('form.username')}</Label>

@@ -88,6 +88,12 @@ func detectZenPreferredChannelTypes(requestModel string, isEmbeddingRequest bool
 	}
 }
 
+func outboundAttemptTypes(channelType outbound.OutboundType, request *model.InternalLLMRequest) []outbound.OutboundType {
+	if request != nil && request.RawAPIFormat == model.APIFormatOpenAIChatCompletion && channelType == outbound.OutboundTypeOpenAIChat {
+		return []outbound.OutboundType{outbound.OutboundTypeOpenAIResponse, outbound.OutboundTypeOpenAIChat}
+	}
+	return []outbound.OutboundType{channelType}
+}
 func isZenCandidateChannelAllowed(requestModel string, channelType outbound.OutboundType, isEmbeddingRequest bool) bool {
 	preferred := detectZenPreferredChannelTypes(requestModel, isEmbeddingRequest)
 	if len(preferred) == 0 {
@@ -1050,8 +1056,8 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 				continue
 			}
 
-			outAdapter := outbound.Get(channel.Type)
-			if outAdapter == nil {
+			attemptTypes := outboundAttemptTypes(channel.Type, req.internalRequest)
+			if len(attemptTypes) == 0 || outbound.Get(attemptTypes[0]) == nil {
 				routeIter.Skip(channel.ID, 0, channel.Name, fmt.Sprintf("unsupported channel type: %d", channel.Type))
 				continue
 			}
@@ -1110,17 +1116,28 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 					requestModel, group.Mode, channel.Name, resolvedModelName, usedKey.ID,
 					routeRound, keyRound, maxKeyRetriesPerRoute, routeIter.IsSticky())
 
-				ra := &relayAttempt{
-					relayRequest:         req,
-					outAdapter:           outAdapter,
-					channel:              channel,
-					usedKey:              usedKey,
-					firstTokenTimeOutSec: group.FirstTokenTimeOut,
-					tryIndex:             keyRound,
-					tryTotal:             maxKeyRetriesPerRoute,
-				}
+				var result attemptResult
+				for adapterIndex, attemptType := range attemptTypes {
+					outAdapter := outbound.Get(attemptType)
+					if outAdapter == nil {
+						continue
+					}
+					ra := &relayAttempt{
+						relayRequest:         req,
+						outAdapter:           outAdapter,
+						channel:              channel,
+						usedKey:              usedKey,
+						firstTokenTimeOutSec: group.FirstTokenTimeOut,
+						tryIndex:             keyRound,
+						tryTotal:             maxKeyRetriesPerRoute,
+					}
 
-				result := ra.attempt()
+					result = ra.attempt()
+					if result.Success || result.Written || result.Decision.Scope == ScopeAbortAll || adapterIndex == len(attemptTypes)-1 {
+						break
+					}
+					log.Infof("chat request responses attempt failed on channel %s, falling back to chat/completions: %v", channel.Name, result.Err)
+				}
 				currentAttempts := append(allAttempts, req.iter.Attempts()...)
 				if result.Success {
 					namespace, requestText, _ := semanticCacheStoreMetadata(req.internalRequest)

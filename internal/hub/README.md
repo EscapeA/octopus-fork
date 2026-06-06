@@ -15,6 +15,7 @@ internal/hub/
 ├── aihubmix/adapter.go     # AIHubMix 适配器
 ├── axonhub/adapter.go      # AxonHub 适配器
 ├── claudecodehub/adapter.go # ClaudeCodeHub 适配器
+├── sapi/adapter.go         # SAPI 适配器（用户账号/密码登录）
 └── sub2api/adapter.go      # Sub2API 适配器
 
 internal/op/remotesite/
@@ -45,6 +46,7 @@ internal/op/credential/
 | `aihubmix` | aihubmix | AIHubMix 专用适配器 |
 | `axonhub` | axonhub | AxonHub 专用适配器 |
 | `claude-code-hub` | claudecodehub | ClaudeCodeHub 专用适配器 |
+| `sapi` | sapi | SAPI 站点（用户账号/密码登录，刷新后同步 API Key） |
 | `unknown` | common | 自动检测失败时的兜底 |
 
 ## SiteAdapter 接口
