@@ -325,6 +325,7 @@ func Handler(endpointType string, inboundType inbound.InboundType, c *gin.Contex
 			log.Warnf("semantic cache lookup failed: %v", cacheErr)
 		}
 		if served {
+			log.Infof("semantic cache hit: model=%s endpoint=%s", requestModel, endpointFamily)
 			if normalizedPayload := semanticCacheHitPayload(payload, internalRequest); len(normalizedPayload) > 0 {
 				if internalResponse, parseErr := buildSemanticCacheHitInternalResponse(internalRequest, normalizedPayload); parseErr == nil {
 					metrics.SetInternalResponse(internalResponse, internalRequest.Model)
@@ -486,14 +487,14 @@ func (ra *relayAttempt) attempt() attemptResult {
 
 	// 记录决策日志
 	if decision.IsError {
-		logRelayErrorfByContext(fwdErr, "channel %s failed on attempt %d/%d: %s (decision: %s)",
-			ra.channel.Name, ra.tryIndex, ra.tryTotal, fwdErr, decision.Scope.String())
+		logRelayErrorfByContext(fwdErr, "[%s] channel %s adapter=%s attempt %d/%d failed: %s (decision: %s)",
+			ra.internalRequest.RawAPIFormat, ra.channel.Name, ra.adapterType, ra.tryIndex, ra.tryTotal, fwdErr, decision.Scope.String())
 	}
 
 	return attemptResult{
 		Success:  false,
 		Written:  written,
-		Err:      fmt.Errorf("channel %s failed on attempt %d/%d: %v", ra.channel.Name, ra.tryIndex, ra.tryTotal, fwdErr),
+		Err:      fmt.Errorf("channel %s adapter=%s attempt %d/%d: %v", ra.channel.Name, ra.adapterType, ra.tryIndex, ra.tryTotal, fwdErr),
 		Decision: decision,
 	}
 }
@@ -1139,8 +1140,8 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 					continue
 				}
 
-				log.Infof("request model %s, mode: %d, channel: %s model: %s key_id: %d (route R%d, key %d/%d, sticky=%t)",
-					requestModel, group.Mode, channel.Name, resolvedModelName, usedKey.ID,
+				log.Infof("request model %s, mode: %d, channel: %s (%s) model: %s key_id: %d (route R%d, key %d/%d, sticky=%t)",
+					requestModel, group.Mode, channel.Name, channel.Type, resolvedModelName, usedKey.ID,
 					routeRound, keyRound, maxKeyRetriesPerRoute, routeIter.IsSticky())
 
 				var result attemptResult
@@ -1152,6 +1153,7 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 					ra := &relayAttempt{
 						relayRequest:         req,
 						outAdapter:           outAdapter,
+						adapterType:          attemptType,
 						channel:              channel,
 						usedKey:              usedKey,
 						firstTokenTimeOutSec: group.FirstTokenTimeOut,
@@ -1160,10 +1162,18 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 					}
 
 					result = ra.attempt()
-					if result.Success || result.Written || result.Decision.Scope == ScopeAbortAll || adapterIndex == len(attemptTypes)-1 {
+					if result.Success {
+						if adapterIndex > 0 {
+							log.Infof("[%s] adapter fallback succeeded on channel %s: %s → %s",
+								req.internalRequest.RawAPIFormat, channel.Name, attemptTypes[0], attemptType)
+						}
 						break
 					}
-					log.Infof("chat request responses attempt failed on channel %s, falling back to chat/completions: %v", channel.Name, result.Err)
+					if result.Written || result.Decision.Scope == ScopeAbortAll || adapterIndex == len(attemptTypes)-1 {
+						break
+					}
+					log.Infof("[%s] %s adapter failed on channel %s, falling back to %s: %v",
+						req.internalRequest.RawAPIFormat, attemptType, channel.Name, attemptTypes[adapterIndex+1], result.Err)
 				}
 				currentAttempts := append(allAttempts, req.iter.Attempts()...)
 				if result.Success {
@@ -1217,6 +1227,8 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 
 exhausted:
 	req.metrics.Save(false, lastErr, allAttempts)
+	log.Warnf("[%s] all channels exhausted: model=%s, attempts=%d, last_error=%v",
+		req.internalRequest.RawAPIFormat, requestModel, len(allAttempts), lastErr)
 	if lastErr != nil {
 		resp.Error(req.c, http.StatusBadGateway, fmt.Sprintf("all channels failed: %v", lastErr))
 		return nil, lastErr

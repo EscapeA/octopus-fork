@@ -15,6 +15,7 @@ import (
 	"github.com/lingyuins/octopus/internal/op/setting"
 	"github.com/lingyuins/octopus/internal/relay/balancer"
 	"github.com/lingyuins/octopus/internal/transformer/model"
+	"github.com/lingyuins/octopus/internal/transformer/outbound"
 )
 
 // maxSSEEventSize 定义 SSE 事件的最大大小。
@@ -122,6 +123,7 @@ type relayAttempt struct {
 	*relayRequest // 嵌入请求级上下文
 
 	outAdapter           model.Outbound
+	adapterType          outbound.OutboundType
 	channel              *dbmodel.Channel
 	usedKey              dbmodel.ChannelKey
 	firstTokenTimeOutSec int
