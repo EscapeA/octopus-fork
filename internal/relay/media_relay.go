@@ -126,12 +126,13 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 		if err := operationCtx.Err(); err != nil {
 			lastErr = err
 			log.Infof("relay operation ended before media request completed: %v", err)
-			return
+			goto mediaExhausted
 		}
 		select {
 		case <-c.Request.Context().Done():
+			lastErr = c.Request.Context().Err()
 			log.Infof("request context canceled, stopping media retry")
-			return
+			goto mediaExhausted
 		default:
 		}
 
@@ -149,8 +150,9 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 			}
 			select {
 			case <-c.Request.Context().Done():
+				lastErr = c.Request.Context().Err()
 				log.Infof("request context canceled, stopping media retry")
-				return
+				goto mediaExhausted
 			default:
 			}
 
@@ -187,7 +189,9 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 				}
 				select {
 				case <-c.Request.Context().Done():
-					return
+					lastErr = c.Request.Context().Err()
+					log.Infof("request context canceled, stopping media key retry")
+					goto mediaExhausted
 				default:
 				}
 
@@ -230,6 +234,7 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 					})
 					balancer.RecordSuccess(channel.ID, usedKey.ID, resolvedModel)
 					balancer.RecordAutoSuccess(channel.ID, resolvedModel)
+					balancer.RecordAutoLatency(channel.ID, resolvedModel, span.Duration().Milliseconds())
 					balancer.SetSticky(apiKeyID, requestModel, channel.ID, usedKey.ID)
 
 					allAttempts = append(allAttempts, routeIter.Attempts()...)
@@ -290,9 +295,13 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 
 mediaExhausted:
 	// Only reached via goto from within the relay loop (context canceled / max attempts)
-	allAttempts = append(allAttempts, routeIter.Attempts()...)
+	if routeIter != nil {
+		allAttempts = append(allAttempts, routeIter.Attempts()...)
+	}
 	recordMediaRelayLog(apiKeyID, requestModel, logEndpointType, bodyBytes, 0, "", "", time.Since(startTime), allAttempts, lastErr, clientIP)
-	resp.Error(c, http.StatusBadGateway, fmt.Sprintf("all channels failed: %v", lastErr))
+	if lastErr != nil {
+		resp.Error(c, http.StatusBadGateway, fmt.Sprintf("all channels failed: %v", lastErr))
+	}
 }
 
 // recordMediaRelayLog creates a RelayLog entry and updates global stats for media endpoints.
@@ -519,6 +528,7 @@ func forwardMediaRequestMultipart(
 	// Create upstream request
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, upstreamURL, bodyReader)
 	if err != nil {
+		bodyReader.Close() // 关闭 pipe reader 以释放 writer goroutine
 		return 0, fmt.Errorf("failed to create request: %w", err)
 	}
 

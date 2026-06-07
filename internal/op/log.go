@@ -7,8 +7,6 @@ import (
 	"github.com/lingyuins/octopus/internal/op/relaylog"
 )
 
-var relayLogCache, relayLogCacheLock = relaylog.GetCacheAndLock()
-
 // relayLogCacheReadTokens is kept lowercase for backward compatibility with tests.
 func relayLogCacheReadTokens(responseContent string) int {
 	return relaylog.RelayLogCacheReadTokens(responseContent)

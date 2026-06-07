@@ -205,6 +205,24 @@ func (c *failureHintCache) get(channelID, keyID int, modelName string) (failureH
 	return entry, true
 }
 
+// purgeExpired 主动清理所有已过期的条目，防止 map 无限增长。
+// 由定时任务周期性调用。
+func (c *failureHintCache) purgeExpired() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	now := time.Now()
+	for key, entry := range c.entries {
+		if now.After(entry.expiresAt) {
+			delete(c.entries, key)
+		}
+	}
+}
+
+// PurgeFailureHintCache 导出接口供定时任务调用，清理过期的失败提示缓存条目。
+func PurgeFailureHintCache() {
+	globalFailureHintCache.purgeExpired()
+}
+
 func resetFailureHintCache() {
 	globalFailureHintCache.mu.Lock()
 	defer globalFailureHintCache.mu.Unlock()

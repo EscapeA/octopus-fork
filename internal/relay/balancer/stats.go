@@ -206,3 +206,15 @@ func GetAutoStats(channelID int, modelName string) (successRate float64, totalSa
 	}
 	return stats.GetStats(getTimeWindow())
 }
+
+// RemoveChannelStats deletes all auto-strategy statistics entries for the given channel.
+// Called when a channel is deleted to prevent globalAutoStats from growing unbounded.
+func RemoveChannelStats(channelID int) {
+	prefix := fmt.Sprintf("%d:", channelID)
+	globalAutoStats.Range(func(key, _ any) bool {
+		if k, ok := key.(string); ok && len(k) > 0 && strings.HasPrefix(k, prefix) {
+			globalAutoStats.Delete(key)
+		}
+		return true
+	})
+}

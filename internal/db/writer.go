@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/lingyuins/octopus/internal/utils/log"
 )
@@ -44,6 +45,9 @@ func StartSerialWriter(ctx context.Context) {
 	})
 }
 
+// EnqueueWrite submits a job to the serial writer. If the queue is full,
+// it waits up to 5 seconds; if still full, it executes synchronously as
+// a fallback to avoid data loss.
 func EnqueueWrite(job WriteJob) {
 	if writeQueue == nil {
 		job.Fn(context.Background())
@@ -51,7 +55,10 @@ func EnqueueWrite(job WriteJob) {
 	}
 	select {
 	case writeQueue <- job:
-	default:
-		log.Warnf("serial DB write queue full, dropping job %q", job.Name)
+	case <-time.After(5 * time.Second):
+		log.Warnf("serial DB write queue full (timeout), executing job %q synchronously", job.Name)
+		if err := job.Fn(context.Background()); err != nil {
+			log.Warnf("sync fallback DB write job %q failed: %v", job.Name, err)
+		}
 	}
 }

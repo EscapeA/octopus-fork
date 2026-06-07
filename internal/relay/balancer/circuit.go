@@ -2,6 +2,7 @@ package balancer
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -185,4 +186,16 @@ func RecordFailure(channelID, keyID int, modelName string) {
 		// 理论上不应该在 Open 状态下接收到失败记录（请求应被拒绝），
 		// 但为安全起见仍更新失败时间
 	}
+}
+
+// RemoveChannelEntries 删除指定渠道的所有熔断器条目。
+// 在渠道被删除时调用，防止 globalBreaker map 无限增长。
+func RemoveChannelEntries(channelID int) {
+	prefix := fmt.Sprintf("%d:", channelID)
+	globalBreaker.Range(func(key, _ any) bool {
+		if k, ok := key.(string); ok && len(k) > 0 && strings.HasPrefix(k, prefix) {
+			globalBreaker.Delete(key)
+		}
+		return true
+	})
 }

@@ -114,7 +114,10 @@ func RelayLogSubscribe() chan model.RelayLog {
 
 func RelayLogUnsubscribe(ch chan model.RelayLog) {
 	relayLogSubscribersLock.Lock()
-	delete(relayLogSubscribers, ch)
+	if _, ok := relayLogSubscribers[ch]; ok {
+		delete(relayLogSubscribers, ch)
+		close(ch)
+	}
 	relayLogSubscribersLock.Unlock()
 }
 

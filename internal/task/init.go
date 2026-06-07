@@ -12,6 +12,7 @@ import (
 	"github.com/lingyuins/octopus/internal/op/setting"
 	"github.com/lingyuins/octopus/internal/op/stats"
 	"github.com/lingyuins/octopus/internal/price"
+	"github.com/lingyuins/octopus/internal/relay"
 	"github.com/lingyuins/octopus/internal/relay/balancer"
 	"github.com/lingyuins/octopus/internal/utils/log"
 )
@@ -83,6 +84,9 @@ func Init() {
 	}
 
 	Register(TaskRelayLogSave, 10*time.Minute, false, func() {
+		// 清理过期的失败提示缓存条目
+		relay.PurgeFailureHintCache()
+
 		if db.IsSQLite() {
 			db.EnqueueWrite(db.WriteJob{Name: "relay_log_save", Fn: func(_ context.Context) error {
 				return relaylog.RelayLogSaveDBTask(context.Background())

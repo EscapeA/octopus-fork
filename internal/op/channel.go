@@ -13,6 +13,10 @@ var channelCache = channel.GetCache()
 var channelKeyCache = channel.GetKeyCache()
 var channelKeyCacheNeedUpdate, channelKeyCacheNeedUpdateLock = channel.GetKeyCacheNeedUpdate()
 
+// OnChannelDeletedHooks holds optional callbacks invoked after a channel is deleted.
+// External packages (e.g. relay/balancer) register cleanup hooks here at init time.
+var OnChannelDeletedHooks []func(channelID int)
+
 func init() {
 	channel.GroupDefaultID = func(ctx context.Context) (int, error) {
 		return ChannelGroupDefaultID(ctx)
@@ -62,6 +66,11 @@ func ChannelDel(id int, ctx context.Context) error {
 
 	stats.OnChannelDeleted(id)
 
+	// Invoke registered cleanup hooks (e.g. balancer circuit breaker / auto stats)
+	for _, hook := range OnChannelDeletedHooks {
+		hook(id)
+	}
+
 	// Refresh affected group caches (in op package, from group.go)
 	for _, groupID := range getAffectedGroupIDs(id, ctx) {
 		if err := groupRefreshCacheByID(groupID, ctx); err != nil {
@@ -94,6 +103,8 @@ func ChannelGet(id int, ctx context.Context) (*model.Channel, error) { return ch
 func channelRefreshCache(ctx context.Context) error { return channel.RefreshCache(ctx) }
 
 // channelRefreshCacheByID is called by group.go and ChannelDel (same package)
-func channelRefreshCacheByID(id int, ctx context.Context) error { return channel.RefreshCacheByID(id, ctx) }
+func channelRefreshCacheByID(id int, ctx context.Context) error {
+	return channel.RefreshCacheByID(id, ctx)
+}
 
 // ChannelGroup functions are still in channel_group.go (not yet extracted)
