@@ -533,7 +533,7 @@ Groups aggregate multiple channels into a unified external model name.
 - **First Token Timeout**: unit in seconds, only effective for streaming responses, `0` means no limit
 - **Session Keep Time**: unit in seconds, keeps using the same channel for the same API key + model within the configured session window, `0` means disabled
 - **Condition (JSON)**: optional AND rules currently evaluated in the main LLM relay path; the built-in request context currently includes `model`, `api_key_id`, and `hour`
-- **Endpoint Provider**: provider-aware request rewriting (`openai`, `deepseek`, `mimo`, `siliconflow`, `newapi`) that strips incompatible reasoning fields (e.g., `reasoning_content`, `reasoning_signature`) from messages for upstream compatibility
+- **Endpoint Provider**: provider-aware request rewriting that adapts requests for upstream compatibility per endpoint type. Chat providers (`openai`, `deepseek`, `mimo`, `siliconflow`, `newapi`) strip incompatible reasoning fields; music providers (`newapi`, `minimax`) rewrite the request body and path; video provider (`agnes`) rewrites the upstream path; audio speech provider (`mimo`) converts the request format and path
 
 **Load Balancing Modes:**
 

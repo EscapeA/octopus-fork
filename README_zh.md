@@ -534,7 +534,7 @@ Octopus 提供多层模型可见性：
 - **首字超时**：单位秒，仅对流式响应生效，`0` 表示不限制
 - **会话保持**：单位秒，在设定时间窗口内，同一 API Key + 模型会优先复用上次成功的渠道，`0` 表示禁用
 - **Condition (JSON)**：可选的 AND 条件规则，当前只在主 LLM relay 路径里生效；内置请求上下文目前包含 `model`、`api_key_id`、`hour`
-- **端点供应商（Endpoint Provider）**：供应商感知的请求改写（`openai`、`deepseek`、`mimo`、`siliconflow`、`newapi`），会从消息中剥离不兼容的推理字段（如 `reasoning_content`、`reasoning_signature`），确保上游兼容性
+- **端点供应商（Endpoint Provider）**：按端点类型进行供应商感知的请求改写。对话供应商（`openai`、`deepseek`、`mimo`、`siliconflow`、`newapi`）会剥离不兼容的推理字段；音乐供应商（`newapi`、`minimax`）改写请求体和路径；视频供应商（`agnes`）改写上流路径；语音合成供应商（`mimo`）转换请求格式和路径
 
 **负载均衡模式：**
 

@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.0.5] - 2026-06
+
+### 🚀 Features
+- Add Agnes video generation type support with provider-specific path rewrite (`/v1/videos`).
+- Add MiMo TTS provider support for audio speech — converts OpenAI TTS requests to MiMo Chat Completions format and extracts base64 audio from JSON responses.
+- Display adapter type and request type in frontend log detail and tooltips.
+- Improve relay log readability: adapter type names, fallback path logging, and semantic cache hit indicators.
+
+### 🐛 Bug Fixes
+- Adapter fallback now always prefers Response adapter first to leverage upstream prompt caching.
+- Add Chat adapter fallback for Responses API requests that previously failed with `convert_request_failed`.
+- Fix circuit breaker integer overflow, sticky session memory leak, and streaming protocol violations.
+- Fix Responses channel migration: circuit breaker false-positive trigger and unclosed stream sessions.
+- Preserve relay log channel info on inflight request reuse.
+- Restore chat fallback for response channels.
+- Fix streaming disconnect falsely reported as success, missing media relay condition evaluation, and context inconsistency.
+- Fix last-channel info loss when all media relay attempts fail with `ScopeAbortAll`.
+- Hub adapters: replace `http.DefaultClient` with 30s timeout client and clean up token caches.
+- Server handlers: add missing permission middleware, restructure error handling, and add WebDAV timeout.
+- Transformer modules: fix nil-panic in function_call_output, content_block_stop ordering, and response.completed event ordering.
+- Semantic cache: fix global cache pointer race condition with RWMutex.
+- Rate limiter: fix division by zero in ResetAt.
+- Task shutdown: wait for in-flight tasks with WaitGroup.
+
+### ⚠️ Upgrade Notes
+- Agnes video generation and MiMo TTS require the group's Endpoint Provider to be set to `agnes` or `mimo` respectively. Standard video/audio_speech endpoints continue to work without changes.
+
+**Full Changelog:** https://github.com/lingyuins/octopus/compare/v2.0.4...v2.0.5
+
+---
+
 ## [v2.0.4] - 2026-06
 
 ### 🐛 Bug Fixes
