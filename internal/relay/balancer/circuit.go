@@ -2,6 +2,7 @@ package balancer
 
 import (
 	"fmt"
+	"math/bits"
 	"strings"
 	"sync"
 	"time"
@@ -76,10 +77,16 @@ func GetCooldown(tripCount int) time.Duration {
 	cooldown := base
 	if tripCount > 1 {
 		shift := tripCount - 1
-		if shift > 20 { // 防止溢出
+		if shift > 20 { // 防止过大的位移
 			shift = 20
 		}
-		cooldown = base << shift
+		// 防止 base << shift 溢出 int：若 base 的二进制位数加上 shift
+		// 超过 int 的位宽，左移会溢出产生负值，直接使用最大冷却时间。
+		if base > 0 && shift >= bits.Len(uint(base)) {
+			cooldown = maxCooldown
+		} else {
+			cooldown = base << shift
+		}
 	}
 	if cooldown > maxCooldown {
 		cooldown = maxCooldown

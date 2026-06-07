@@ -2,6 +2,7 @@ package relay
 
 import (
 	"github.com/lingyuins/octopus/internal/op"
+	"github.com/lingyuins/octopus/internal/op/apikey"
 	"github.com/lingyuins/octopus/internal/relay/balancer"
 )
 
@@ -12,4 +13,10 @@ func init() {
 		balancer.RemoveChannelEntries(channelID)
 		balancer.RemoveChannelStats(channelID)
 	})
+
+	// 注册 API Key 删除时的清理钩子：清除粘性会话条目，
+	// 防止 globalSession 无限增长。
+	apikey.DeleteSessionFunc = func(id int) {
+		balancer.RemoveAPIKeySticky(id)
+	}
 }

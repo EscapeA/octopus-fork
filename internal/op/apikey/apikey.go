@@ -68,6 +68,10 @@ func GetByKey(apiKey string, ctx context.Context) (model.APIKey, error) {
 // Set by the op package to handle cross-package stats cache references.
 var DeleteStatsFunc func(id int)
 
+// DeleteSessionFunc is a callback to delete sticky session entries for an API key.
+// Set by the relay package to handle cross-package balancer session cleanup.
+var DeleteSessionFunc func(id int)
+
 func Delete(id int, ctx context.Context) error {
 	apiKey, err := Get(id, ctx)
 	if err != nil {
@@ -99,6 +103,10 @@ func Delete(id int, ctx context.Context) error {
 
 	if DeleteStatsFunc != nil {
 		DeleteStatsFunc(id)
+	}
+
+	if DeleteSessionFunc != nil {
+		DeleteSessionFunc(id)
 	}
 
 	keyCache.Del(id)

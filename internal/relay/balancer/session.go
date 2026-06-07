@@ -2,6 +2,7 @@ package balancer
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
@@ -50,6 +51,18 @@ func SetSticky(apiKeyID int, requestModel string, channelID, keyID int) {
 		ChannelID:    channelID,
 		ChannelKeyID: keyID,
 		Timestamp:    time.Now(),
+	})
+}
+
+// RemoveAPIKeySticky deletes all sticky session entries for the given API key.
+// Called when an API key is deleted to prevent globalSession from growing unbounded.
+func RemoveAPIKeySticky(apiKeyID int) {
+	prefix := fmt.Sprintf("%d:", apiKeyID)
+	globalSession.Range(func(key, _ any) bool {
+		if k, ok := key.(string); ok && len(k) > 0 && strings.HasPrefix(k, prefix) {
+			globalSession.Delete(key)
+		}
+		return true
 	})
 }
 

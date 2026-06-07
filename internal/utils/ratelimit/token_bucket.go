@@ -74,5 +74,10 @@ func (tb *TokenBucket) TokensRemaining() int {
 func (tb *TokenBucket) ResetAt() time.Time {
 	tb.mu.Lock()
 	defer tb.mu.Unlock()
+	// Guard against division by zero when rate is 0
+	if tb.rate <= 0 {
+		// If rate is 0, tokens never refill, so return "now" as a safe fallback
+		return tb.lastUpdate
+	}
 	return tb.lastUpdate.Add(time.Duration(tb.burst/tb.rate) * time.Second)
 }

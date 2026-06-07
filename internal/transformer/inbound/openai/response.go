@@ -168,10 +168,12 @@ func (i *ResponseInbound) TransformStream(ctx context.Context, stream *model.Int
 		}
 	}
 
-	// Handle final usage chunk and complete response
-	if stream.Usage != nil && i.hasFinished && !i.responseCompleted {
+	// Handle response completion once both finish_reason has arrived and we have
+	// not yet emitted the completed event. Usage may arrive before or after the
+	// finish_reason, so we check here independently of the current chunk's Usage
+	// field (usage was already captured into i.usage on line 114).
+	if i.hasFinished && !i.responseCompleted {
 		i.responseCompleted = true
-		i.usage = stream.Usage
 
 		status := "completed"
 		response := &ResponsesResponse{
@@ -1113,10 +1115,14 @@ func convertItemToMessage(item *ResponsesItem) (*model.Message, error) {
 		}, nil
 
 	case "function_call_output":
+		var outputContent model.MessageContent
+		if item.Output != nil {
+			outputContent = convertInputToMessageContent(*item.Output)
+		}
 		return &model.Message{
 			Role:       "tool",
 			ToolCallID: lo.ToPtr(item.CallID),
-			Content:    convertInputToMessageContent(*item.Output),
+			Content:    outputContent,
 		}, nil
 
 	case "reasoning":

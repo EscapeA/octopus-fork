@@ -793,15 +793,18 @@ func (i *MessagesInbound) TransformStream(ctx context.Context, stream *model.Int
 		if choice.FinishReason != nil && !i.hasFinished {
 			i.hasFinished = true
 
-			stopEvent := StreamEvent{
-				Type:  "content_block_stop",
-				Index: &i.contentIndex,
+			// Only emit content_block_stop if a content block is currently open
+			if i.hasTextContentStarted || i.hasThinkingContentStarted || i.hasToolContentStarted {
+				stopEvent := StreamEvent{
+					Type:  "content_block_stop",
+					Index: &i.contentIndex,
+				}
+				data, err := json.Marshal(stopEvent)
+				if err != nil {
+					return nil, fmt.Errorf("failed to marshal content_block_stop event: %w", err)
+				}
+				events = append(events, formatSSEEvent("content_block_stop", data))
 			}
-			data, err := json.Marshal(stopEvent)
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal content_block_stop event: %w", err)
-			}
-			events = append(events, formatSSEEvent("content_block_stop", data))
 
 			// Convert finish reason to Anthropic format
 			var stopReason string

@@ -28,6 +28,9 @@ type SemanticCache struct {
 	misses     int64
 }
 
+// globalCacheMu protects the globalCache pointer itself from concurrent read/write.
+// The individual cache operations use their own internal mutex (SemanticCache.mu).
+var globalCacheMu sync.RWMutex
 var globalCache *SemanticCache
 
 type RuntimeConfig struct {
@@ -44,9 +47,13 @@ type RuntimeConfig struct {
 // Init creates or reconfigures the global semantic cache.
 func Init(maxEntries int, threshold float64, ttlSec int) {
 	if maxEntries <= 0 {
+		globalCacheMu.Lock()
 		globalCache = nil
+		globalCacheMu.Unlock()
 		return
 	}
+	globalCacheMu.Lock()
+	defer globalCacheMu.Unlock()
 	if globalCache == nil || globalCache.maxEntries != maxEntries || globalCache.threshold != threshold || globalCache.ttl != time.Duration(ttlSec)*time.Second {
 		globalCache = &SemanticCache{
 			entries:    make([]CacheEntry, 0, maxEntries),
@@ -67,6 +74,8 @@ func ApplyRuntimeConfig(cfg RuntimeConfig) {
 	}
 
 	ttl := cfg.TTL
+	globalCacheMu.Lock()
+	defer globalCacheMu.Unlock()
 	if globalCache != nil &&
 		globalCache.maxEntries == cfg.MaxEntries &&
 		globalCache.threshold == cfg.Threshold &&
@@ -84,28 +93,33 @@ func ApplyRuntimeConfig(cfg RuntimeConfig) {
 
 // Reset clears the cache and runtime configuration.
 func Reset() {
+	globalCacheMu.Lock()
 	globalCache = nil
+	globalCacheMu.Unlock()
 }
 
 // Lookup finds the best matching cache entry for the given embedding.
 // Returns the response JSON and true if a match above threshold is found.
 func Lookup(namespace string, embedding []float64) (responseJSON []byte, found bool) {
-	if globalCache == nil {
+	globalCacheMu.RLock()
+	cache := globalCache
+	globalCacheMu.RUnlock()
+	if cache == nil {
 		return nil, false
 	}
-	globalCache.mu.Lock()
-	defer globalCache.mu.Unlock()
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
 
-	globalCache.pruneExpiredLocked()
+	cache.pruneExpiredLocked()
 
-	if len(globalCache.entries) == 0 {
-		globalCache.misses++
+	if len(cache.entries) == 0 {
+		cache.misses++
 		return nil, false
 	}
 
 	bestIdx := -1
 	bestSim := -1.0
-	for i, entry := range globalCache.entries {
+	for i, entry := range cache.entries {
 		if entry.Namespace != namespace {
 			continue
 		}
@@ -116,24 +130,27 @@ func Lookup(namespace string, embedding []float64) (responseJSON []byte, found b
 		}
 	}
 
-	if bestIdx >= 0 && bestSim >= globalCache.threshold {
-		globalCache.entries[bestIdx].HitCount++
-		globalCache.entries[bestIdx].LastAccessAt = time.Now()
-		globalCache.hits++
-		return append([]byte(nil), globalCache.entries[bestIdx].ResponseJSON...), true
+	if bestIdx >= 0 && bestSim >= cache.threshold {
+		cache.entries[bestIdx].HitCount++
+		cache.entries[bestIdx].LastAccessAt = time.Now()
+		cache.hits++
+		return append([]byte(nil), cache.entries[bestIdx].ResponseJSON...), true
 	}
 
-	globalCache.misses++
+	cache.misses++
 	return nil, false
 }
 
 // Store adds a new entry to the cache. If the cache is full, the oldest entry is evicted.
 func Store(namespace, requestKey string, responseJSON []byte, embedding []float64) {
-	if globalCache == nil {
+	globalCacheMu.RLock()
+	cache := globalCache
+	globalCacheMu.RUnlock()
+	if cache == nil {
 		return
 	}
-	globalCache.mu.Lock()
-	defer globalCache.mu.Unlock()
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
 
 	entry := CacheEntry{
 		Namespace:    namespace,
@@ -144,46 +161,55 @@ func Store(namespace, requestKey string, responseJSON []byte, embedding []float6
 		LastAccessAt: time.Now(),
 	}
 
-	if len(globalCache.entries) >= globalCache.maxEntries {
+	if len(cache.entries) >= cache.maxEntries {
 		// Evict the oldest entry
 		oldestIdx := 0
-		for i, e := range globalCache.entries {
-			if e.LastAccessAt.Before(globalCache.entries[oldestIdx].LastAccessAt) {
+		for i, e := range cache.entries {
+			if e.LastAccessAt.Before(cache.entries[oldestIdx].LastAccessAt) {
 				oldestIdx = i
 			}
 		}
-		globalCache.entries[oldestIdx] = entry
+		cache.entries[oldestIdx] = entry
 	} else {
-		globalCache.entries = append(globalCache.entries, entry)
+		cache.entries = append(cache.entries, entry)
 	}
 }
 
 // Stats returns hit/miss counts and current cache size.
 func Stats() (hits, misses int64, size int) {
-	if globalCache == nil {
+	globalCacheMu.RLock()
+	cache := globalCache
+	globalCacheMu.RUnlock()
+	if cache == nil {
 		return 0, 0, 0
 	}
-	globalCache.mu.Lock()
-	defer globalCache.mu.Unlock()
-	globalCache.pruneExpiredLocked()
-	return globalCache.hits, globalCache.misses, len(globalCache.entries)
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	cache.pruneExpiredLocked()
+	return cache.hits, cache.misses, len(cache.entries)
 }
 
 // Clear empties the cache.
 func Clear() {
-	if globalCache == nil {
+	globalCacheMu.RLock()
+	cache := globalCache
+	globalCacheMu.RUnlock()
+	if cache == nil {
 		return
 	}
-	globalCache.mu.Lock()
-	defer globalCache.mu.Unlock()
-	globalCache.entries = make([]CacheEntry, 0, globalCache.maxEntries)
-	globalCache.hits = 0
-	globalCache.misses = 0
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	cache.entries = make([]CacheEntry, 0, cache.maxEntries)
+	cache.hits = 0
+	cache.misses = 0
 }
 
 // Enabled returns true if the semantic cache is initialized and active.
 func Enabled() bool {
-	return globalCache != nil
+	globalCacheMu.RLock()
+	cache := globalCache
+	globalCacheMu.RUnlock()
+	return cache != nil
 }
 
 func (sc *SemanticCache) pruneExpiredLocked() {
