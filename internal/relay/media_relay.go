@@ -502,6 +502,12 @@ func forwardMediaRequestJSON(
 	// Apply provider-specific body + path rewrite for audio speech
 	modifiedBody, cfg = rewriteAudioSpeechRequestByProvider(group, cfg, modifiedBody)
 
+	// Apply provider-specific body + path rewrite for music generation
+	modifiedBody, cfg.UpstreamPath, err = rewriteMusicRequestByProvider(group, cfg, modifiedBody, resolvedModel)
+	if err != nil {
+		return 0, fmt.Errorf("failed to rewrite music request: %w", err)
+	}
+
 	// Build upstream URL
 	upstreamURL, err := buildMediaUpstreamURL(channel.GetBaseUrl(), cfg.UpstreamPath)
 	if err != nil {
