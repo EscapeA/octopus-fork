@@ -2,6 +2,7 @@ package relay
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -165,6 +166,7 @@ func TestForwardMediaRequestMultipartRewritesModelAndStreamsFiles(t *testing.T) 
 		"whisper-1",
 		"whisper-1-rewritten",
 		false,
+		context.Background(),
 	)
 	if err != nil {
 		t.Fatalf("forwardMediaRequestMultipart() error = %v", err)

@@ -725,6 +725,14 @@ func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http
 			return fmt.Errorf("first token timeout (%ds)", ra.firstTokenTimeOutSec)
 		case r, ok := <-results:
 			if !ok {
+				// results channel 被 SSE reader goroutine 关闭。
+				// 需要区分正常结束（上游 EOF）和异常中断（ctx 取消/超时）。
+				if ctxErr := ctx.Err(); ctxErr != nil {
+					if ra.streamSession != nil {
+						ra.streamSession.Finish(ctxErr)
+					}
+					return fmt.Errorf("stream interrupted: %w", ctxErr)
+				}
 				logClientDisconnected()
 				if ra.streamSession != nil {
 					ra.streamSession.Finish(nil)

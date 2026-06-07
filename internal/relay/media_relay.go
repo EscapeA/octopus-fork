@@ -3,6 +3,7 @@ package relay
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,6 +23,7 @@ import (
 	"github.com/lingyuins/octopus/internal/op/relaylog"
 	st "github.com/lingyuins/octopus/internal/op/stats"
 	"github.com/lingyuins/octopus/internal/relay/balancer"
+	"github.com/lingyuins/octopus/internal/relay/condition"
 	"github.com/lingyuins/octopus/internal/server/resp"
 	"github.com/lingyuins/octopus/internal/utils/log"
 	"github.com/lingyuins/octopus/internal/utils/telemetry"
@@ -101,6 +103,20 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 			return
 		}
 		group = narrowed
+	}
+
+	// 检查条件路由：条件不匹配则跳过（与 LLM relay 保持一致）
+	if group.Condition != "" {
+		condCtx := condition.RequestContext{
+			Model:    requestModel,
+			APIKeyID: apiKeyID,
+			Hour:     time.Now().UTC().Hour(),
+		}
+		if match, condErr := condition.Evaluate(group.Condition, condCtx); condErr != nil || !match {
+			log.Infof("media relay: condition not met for group %s", group.Name)
+			resp.Error(c, http.StatusNotFound, "model not found")
+			return
+		}
 	}
 
 	// 3. Create load balancer iterator
@@ -222,7 +238,7 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 					routeRound, keyRound, maxKeyRetriesPerRoute)
 
 				span := routeIter.StartAttempt(channel.ID, usedKey.ID, channel.Name, resolvedModel)
-				statusCode, fwdErr := forwardMediaRequest(c, cfg, group, channel, usedKey.ChannelKey, bodyBytes, requestModel, resolvedModel, streamRequested)
+				statusCode, fwdErr := forwardMediaRequest(c, cfg, group, channel, usedKey.ChannelKey, bodyBytes, requestModel, resolvedModel, streamRequested, operationCtx)
 
 				// 记录最后一次实际转发的通道信息
 				lastChannelID = channel.ID
@@ -312,6 +328,8 @@ mediaExhausted:
 	recordMediaRelayLog(apiKeyID, requestModel, logEndpointType, bodyBytes, lastChannelID, lastChannelName, lastResolvedModel, time.Since(startTime), allAttempts, lastErr, clientIP)
 	if lastErr != nil {
 		resp.Error(c, http.StatusBadGateway, fmt.Sprintf("all channels failed: %v", lastErr))
+	} else {
+		resp.Error(c, http.StatusBadGateway, "all channels failed")
 	}
 }
 
@@ -448,11 +466,12 @@ func forwardMediaRequest(
 	requestModel string,
 	resolvedModel string,
 	streamRequested bool,
+	operationCtx context.Context,
 ) (int, error) {
 	if cfg.MultipartInput {
-		return forwardMediaRequestMultipart(c, cfg, channel, key, requestModel, resolvedModel, streamRequested)
+		return forwardMediaRequestMultipart(c, cfg, channel, key, requestModel, resolvedModel, streamRequested, operationCtx)
 	}
-	return forwardMediaRequestJSON(c, cfg, group, channel, key, bodyBytes, requestModel, resolvedModel, streamRequested)
+	return forwardMediaRequestJSON(c, cfg, group, channel, key, bodyBytes, requestModel, resolvedModel, streamRequested, operationCtx)
 }
 
 // forwardMediaRequestJSON handles JSON-based media endpoint forwarding.
@@ -466,8 +485,9 @@ func forwardMediaRequestJSON(
 	requestModel string,
 	resolvedModel string,
 	streamRequested bool,
+	operationCtx context.Context,
 ) (int, error) {
-	ctx := c.Request.Context()
+	ctx := operationCtx
 
 	// Replace model name in the JSON body
 	modifiedBody, err := replaceModelInJSON(bodyBytes, requestModel, resolvedModel)
@@ -525,8 +545,9 @@ func forwardMediaRequestMultipart(
 	requestModel string,
 	resolvedModel string,
 	streamRequested bool,
+	operationCtx context.Context,
 ) (int, error) {
-	ctx := c.Request.Context()
+	ctx := operationCtx
 
 	// Build upstream URL
 	upstreamURL, err := buildMediaUpstreamURL(channel.GetBaseUrl(), cfg.UpstreamPath)
