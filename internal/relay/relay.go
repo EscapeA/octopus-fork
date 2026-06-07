@@ -89,10 +89,27 @@ func detectZenPreferredChannelTypes(requestModel string, isEmbeddingRequest bool
 }
 
 func outboundAttemptTypes(channelType outbound.OutboundType, request *model.InternalLLMRequest) []outbound.OutboundType {
-	if request != nil && request.RawAPIFormat == model.APIFormatOpenAIChatCompletion && (channelType == outbound.OutboundTypeOpenAIChat || channelType == outbound.OutboundTypeOpenAIResponse) {
+	// For LLM requests (both ChatCompletion and Responses API formats), provide
+	// adapter fallback between Response ↔ Chat when the upstream doesn't support
+	// the primary format. The internal request/response format abstracts over both
+	// API formats, so the inAdapter handles the final output conversion regardless
+	// of which outbound adapter is used.
+	if request != nil && isLLMRequestFormat(request) && (channelType == outbound.OutboundTypeOpenAIChat || channelType == outbound.OutboundTypeOpenAIResponse) {
+		if channelType == outbound.OutboundTypeOpenAIChat {
+			return []outbound.OutboundType{outbound.OutboundTypeOpenAIChat, outbound.OutboundTypeOpenAIResponse}
+		}
 		return []outbound.OutboundType{outbound.OutboundTypeOpenAIResponse, outbound.OutboundTypeOpenAIChat}
 	}
 	return []outbound.OutboundType{channelType}
+}
+
+func isLLMRequestFormat(request *model.InternalLLMRequest) bool {
+	switch request.RawAPIFormat {
+	case model.APIFormatOpenAIChatCompletion, model.APIFormatOpenAIResponse:
+		return true
+	default:
+		return false
+	}
 }
 func isZenCandidateChannelAllowed(requestModel string, channelType outbound.OutboundType, isEmbeddingRequest bool) bool {
 	preferred := detectZenPreferredChannelTypes(requestModel, isEmbeddingRequest)
