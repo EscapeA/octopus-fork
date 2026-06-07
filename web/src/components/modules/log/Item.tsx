@@ -212,8 +212,8 @@ export function LogCard({ log, channelNameById }: { log: RelayLog; channelNameBy
     const displayEndpointType = useMemo(() => {
         const reqTypeKey = displayFields.requestTypeKey;
         if (reqTypeKey) {
-            const label = t(`card.requestTypeLabels.${reqTypeKey}`);
-            if (label && label !== `card.requestTypeLabels.${reqTypeKey}`) return label;
+            const label = t(`requestTypeLabels.${reqTypeKey}`);
+            if (label && label !== `requestTypeLabels.${reqTypeKey}`) return label;
         }
         const rawEndpointType = displayFields.endpointType;
         if (!rawEndpointType) return '-';
