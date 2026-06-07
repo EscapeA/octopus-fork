@@ -72,7 +72,8 @@ func modelNameHintsEndpoint(modelName string, endpointType string) bool {
 			strings.Contains(lower, "veo") ||
 			strings.Contains(lower, "kling") ||
 			strings.Contains(lower, "wan") ||
-			strings.Contains(lower, "sora")
+			strings.Contains(lower, "sora") ||
+			strings.Contains(lower, "agnes")
 	case dbmodel.EndpointTypeMusicGeneration:
 		return strings.Contains(lower, "music") ||
 			strings.Contains(lower, "suno") ||

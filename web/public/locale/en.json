@@ -1870,7 +1870,9 @@
         "musicLabel": "Music API Type",
         "musicHint": "Select the backend music API type. The backend will automatically rewrite the passthrough JSON after saving.",
         "chatLabel": "Chat API Type",
-        "chatHint": "Select the backend chat API type. The backend will automatically rewrite the chat passthrough JSON after saving."
+        "chatHint": "Select the backend chat API type. The backend will automatically rewrite the chat passthrough JSON after saving.",
+        "videoLabel": "Video API Type",
+        "videoHint": "Select the video API type. The backend will automatically rewrite the video passthrough request path after saving."
       }
     },
     "mode": {

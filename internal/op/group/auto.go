@@ -281,7 +281,7 @@ func InferEndpointTypeFromModelName(raw string, cleaned string) string {
 	if containsAny(s, "deepsearch", "deep-research", "deepresearch", "sonar", "search") {
 		return model.EndpointTypeSearch
 	}
-	if containsAny(s, "video-generation", "seendance", "kling", "vidu", "paiwo", "ttv", "itv", "i2v", "t2v", "r2v", "hailuo") {
+	if containsAny(s, "video-generation", "seendance", "kling", "vidu", "paiwo", "ttv", "itv", "i2v", "t2v", "r2v", "hailuo", "agnes") {
 		return model.EndpointTypeVideoGeneration
 	}
 	if containsAny(s, "gpt-image", "dall-e", "qwen-image", "imagen", "seedream") ||

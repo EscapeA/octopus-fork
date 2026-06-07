@@ -115,7 +115,8 @@ export function inferCapabilities(modelName: string): CapabilityType[] {
         m.includes('sora') ||
         m.includes('kling') ||
         m.includes('luma') ||
-        m.includes('runway')
+        m.includes('runway') ||
+        m.includes('agnes')
     ) {
         caps.push('video_generation');
     }

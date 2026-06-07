@@ -495,6 +495,9 @@ func forwardMediaRequestJSON(
 		return 0, fmt.Errorf("failed to replace model in request: %w", err)
 	}
 
+	// Apply provider-specific path rewrite for video generation
+	cfg = rewriteVideoRequestByProvider(group, cfg)
+
 	// Build upstream URL
 	upstreamURL, err := buildMediaUpstreamURL(channel.GetBaseUrl(), cfg.UpstreamPath)
 	if err != nil {
@@ -822,4 +825,19 @@ func rewriteMusicRequestByProvider(group dbmodel.Group, cfg mediaEndpointConfig,
 		return nil, "", err
 	}
 	return converted, "/v1/music_generation", nil
+}
+
+// rewriteVideoRequestByProvider adjusts the upstream path for video generation
+// based on the group's EndpointProvider setting.
+// Agnes Video V2.0 uses POST /v1/videos instead of the standard /v1/videos/generations.
+func rewriteVideoRequestByProvider(group dbmodel.Group, cfg mediaEndpointConfig) mediaEndpointConfig {
+	if cfg.UpstreamPath != "/v1/videos/generations" {
+		return cfg
+	}
+	provider := strings.ToLower(strings.TrimSpace(group.EndpointProvider))
+	switch provider {
+	case "agnes":
+		cfg.UpstreamPath = "/v1/videos"
+	}
+	return cfg
 }

@@ -302,3 +302,30 @@ func TestRewriteMusicRequestByProvider_NewAPI(t *testing.T) {
 		t.Fatalf("messages = %#v, want 1 message", raw["messages"])
 	}
 }
+
+func TestRewriteVideoRequestByProvider_Agnes(t *testing.T) {
+	group := dbmodel.Group{EndpointProvider: "agnes"}
+	cfg := mediaEndpointConfig{UpstreamPath: "/v1/videos/generations"}
+	got := rewriteVideoRequestByProvider(group, cfg)
+	if got.UpstreamPath != "/v1/videos" {
+		t.Fatalf("UpstreamPath = %q, want %q", got.UpstreamPath, "/v1/videos")
+	}
+}
+
+func TestRewriteVideoRequestByProvider_Auto(t *testing.T) {
+	group := dbmodel.Group{EndpointProvider: ""}
+	cfg := mediaEndpointConfig{UpstreamPath: "/v1/videos/generations"}
+	got := rewriteVideoRequestByProvider(group, cfg)
+	if got.UpstreamPath != "/v1/videos/generations" {
+		t.Fatalf("UpstreamPath = %q, want %q", got.UpstreamPath, "/v1/videos/generations")
+	}
+}
+
+func TestRewriteVideoRequestByProvider_NonVideoPath(t *testing.T) {
+	group := dbmodel.Group{EndpointProvider: "agnes"}
+	cfg := mediaEndpointConfig{UpstreamPath: "/v1/images/generations"}
+	got := rewriteVideoRequestByProvider(group, cfg)
+	if got.UpstreamPath != "/v1/images/generations" {
+		t.Fatalf("UpstreamPath = %q, want %q", got.UpstreamPath, "/v1/images/generations")
+	}
+}

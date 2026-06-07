@@ -40,6 +40,11 @@ export const MUSIC_ENDPOINT_PROVIDER_OPTIONS = [
     { label: 'MiniMax', value: 'minimax' },
 ] as const;
 
+export const VIDEO_ENDPOINT_PROVIDER_OPTIONS = [
+    { label: 'Auto', value: '' },
+    { label: 'Agnes', value: 'agnes' },
+] as const;
+
 export const CHAT_ENDPOINT_PROVIDER_OPTIONS = [
     { label: 'Auto', value: '' },
     { label: 'OpenAI', value: 'openai' },
