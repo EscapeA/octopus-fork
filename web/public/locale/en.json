@@ -1872,7 +1872,9 @@
         "chatLabel": "Chat API Type",
         "chatHint": "Select the backend chat API type. The backend will automatically rewrite the chat passthrough JSON after saving.",
         "videoLabel": "Video API Type",
-        "videoHint": "Select the video API type. The backend will automatically rewrite the video passthrough request path after saving."
+        "videoHint": "Select the video API type. The backend will automatically rewrite the video passthrough request path after saving.",
+        "audioSpeechLabel": "TTS API Type",
+        "audioSpeechHint": "Select the TTS API type. The backend will automatically rewrite the TTS request format and path after saving."
       }
     },
     "mode": {

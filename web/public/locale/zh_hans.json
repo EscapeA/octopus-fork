@@ -1872,7 +1872,9 @@
         "chatLabel": "对话接口类型",
         "chatHint": "选择对话接口类型，保存后由后端自动改写对话透传 JSON。",
         "videoLabel": "视频接口类型",
-        "videoHint": "选择视频接口类型，保存后由后端自动改写视频透传请求路径。"
+        "videoHint": "选择视频接口类型，保存后由后端自动改写视频透传请求路径。",
+        "audioSpeechLabel": "语音合成接口类型",
+        "audioSpeechHint": "选择语音合成接口类型，保存后由后端自动改写 TTS 请求格式和路径。"
       }
     },
     "mode": {

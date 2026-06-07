@@ -45,6 +45,11 @@ export const VIDEO_ENDPOINT_PROVIDER_OPTIONS = [
     { label: 'Agnes', value: 'agnes' },
 ] as const;
 
+export const AUDIO_SPEECH_ENDPOINT_PROVIDER_OPTIONS = [
+    { label: 'Auto', value: '' },
+    { label: 'MiMo', value: 'mimo' },
+] as const;
+
 export const CHAT_ENDPOINT_PROVIDER_OPTIONS = [
     { label: 'Auto', value: '' },
     { label: 'OpenAI', value: 'openai' },

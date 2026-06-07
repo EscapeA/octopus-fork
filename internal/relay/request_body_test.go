@@ -329,3 +329,73 @@ func TestRewriteVideoRequestByProvider_NonVideoPath(t *testing.T) {
 		t.Fatalf("UpstreamPath = %q, want %q", got.UpstreamPath, "/v1/images/generations")
 	}
 }
+
+func TestRewriteAudioSpeechRequestByProvider_MiMo(t *testing.T) {
+	group := dbmodel.Group{EndpointProvider: "mimo"}
+	body := []byte(`{"model":"mimo-v2.5-tts","input":"Hello world","voice":"Chloe","response_format":"wav"}`)
+	cfg := mediaEndpointConfig{UpstreamPath: "/v1/audio/speech", BinaryResponse: true}
+
+	gotBody, gotCfg := rewriteAudioSpeechRequestByProvider(group, cfg, body)
+	if gotCfg.UpstreamPath != "/v1/chat/completions" {
+		t.Fatalf("UpstreamPath = %q, want %q", gotCfg.UpstreamPath, "/v1/chat/completions")
+	}
+
+	var raw map[string]any
+	if err := json.Unmarshal(gotBody, &raw); err != nil {
+		t.Fatalf("unmarshal body: %v", err)
+	}
+	if raw["model"] != "mimo-v2.5-tts" {
+		t.Fatalf("model = %v, want mimo-v2.5-tts", raw["model"])
+	}
+	messages, ok := raw["messages"].([]any)
+	if !ok || len(messages) != 1 {
+		t.Fatalf("messages = %#v, want 1 message", raw["messages"])
+	}
+	msg := messages[0].(map[string]any)
+	if msg["role"] != "assistant" {
+		t.Fatalf("role = %v, want assistant", msg["role"])
+	}
+	if msg["content"] != "Hello world" {
+		t.Fatalf("content = %v, want Hello world", msg["content"])
+	}
+	audio := raw["audio"].(map[string]any)
+	if audio["format"] != "wav" {
+		t.Fatalf("audio.format = %v, want wav", audio["format"])
+	}
+	if audio["voice"] != "Chloe" {
+		t.Fatalf("audio.voice = %v, want Chloe", audio["voice"])
+	}
+}
+
+func TestRewriteAudioSpeechRequestByProvider_Auto(t *testing.T) {
+	group := dbmodel.Group{EndpointProvider: ""}
+	body := []byte(`{"model":"tts-1","input":"Hello","voice":"alloy"}`)
+	cfg := mediaEndpointConfig{UpstreamPath: "/v1/audio/speech", BinaryResponse: true}
+
+	gotBody, gotCfg := rewriteAudioSpeechRequestByProvider(group, cfg, body)
+	if gotCfg.UpstreamPath != "/v1/audio/speech" {
+		t.Fatalf("UpstreamPath = %q, want unchanged", gotCfg.UpstreamPath)
+	}
+	if string(gotBody) != string(body) {
+		t.Fatalf("body changed when provider is auto")
+	}
+}
+
+func TestRewriteAudioSpeechRequestByProvider_Defaults(t *testing.T) {
+	group := dbmodel.Group{EndpointProvider: "mimo"}
+	body := []byte(`{"model":"mimo-v2.5-tts","input":"Hello","voice":"","response_format":""}`)
+	cfg := mediaEndpointConfig{UpstreamPath: "/v1/audio/speech", BinaryResponse: true}
+
+	gotBody, _ := rewriteAudioSpeechRequestByProvider(group, cfg, body)
+	var raw map[string]any
+	if err := json.Unmarshal(gotBody, &raw); err != nil {
+		t.Fatalf("unmarshal body: %v", err)
+	}
+	audio := raw["audio"].(map[string]any)
+	if audio["format"] != "wav" {
+		t.Fatalf("audio.format = %v, want default wav", audio["format"])
+	}
+	if audio["voice"] != "mimo_default" {
+		t.Fatalf("audio.voice = %v, want default mimo_default", audio["voice"])
+	}
+}

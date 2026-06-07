@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -498,6 +499,9 @@ func forwardMediaRequestJSON(
 	// Apply provider-specific path rewrite for video generation
 	cfg = rewriteVideoRequestByProvider(group, cfg)
 
+	// Apply provider-specific body + path rewrite for audio speech
+	modifiedBody, cfg = rewriteAudioSpeechRequestByProvider(group, cfg, modifiedBody)
+
 	// Build upstream URL
 	upstreamURL, err := buildMediaUpstreamURL(channel.GetBaseUrl(), cfg.UpstreamPath)
 	if err != nil {
@@ -531,6 +535,10 @@ func forwardMediaRequestJSON(
 
 	// Stream response back to client
 	if cfg.BinaryResponse {
+		provider := strings.ToLower(strings.TrimSpace(group.EndpointProvider))
+		if provider == "mimo" && cfg.UpstreamPath == "/v1/chat/completions" {
+			return handleMimoTTSResponse(c, response)
+		}
 		return handleBinaryResponse(c, response)
 	}
 	if isMediaSSEResponse(response) {
@@ -840,4 +848,95 @@ func rewriteVideoRequestByProvider(group dbmodel.Group, cfg mediaEndpointConfig)
 		cfg.UpstreamPath = "/v1/videos"
 	}
 	return cfg
+}
+
+// rewriteAudioSpeechRequestByProvider converts the request body and path for
+// provider-specific TTS implementations. MiMo TTS uses the Chat Completions API
+// format (POST /v1/chat/completions) instead of the standard /v1/audio/speech.
+func rewriteAudioSpeechRequestByProvider(group dbmodel.Group, cfg mediaEndpointConfig, body []byte) ([]byte, mediaEndpointConfig) {
+	if cfg.UpstreamPath != "/v1/audio/speech" {
+		return body, cfg
+	}
+	provider := strings.ToLower(strings.TrimSpace(group.EndpointProvider))
+	if provider != "mimo" {
+		return body, cfg
+	}
+
+	var raw map[string]any
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return body, cfg
+	}
+
+	input, _ := raw["input"].(string)
+	voice, _ := raw["voice"].(string)
+	format, _ := raw["response_format"].(string)
+	model, _ := raw["model"].(string)
+
+	if format == "" {
+		format = "wav"
+	}
+	if voice == "" {
+		voice = "mimo_default"
+	}
+
+	mimoReq := map[string]any{
+		"model": model,
+		"messages": []map[string]string{
+			{"role": "assistant", "content": input},
+		},
+		"audio": map[string]string{
+			"format": format,
+			"voice":  voice,
+		},
+	}
+
+	converted, err := json.Marshal(mimoReq)
+	if err != nil {
+		return body, cfg
+	}
+	cfg.UpstreamPath = "/v1/chat/completions"
+	return converted, cfg
+}
+
+// mimoTTSChatResponse represents the relevant fields of a MiMo TTS chat completion response.
+type mimoTTSChatResponse struct {
+	Choices []struct {
+		Message struct {
+			Audio *struct {
+				Data string `json:"data"`
+			} `json:"audio"`
+		} `json:"message"`
+	} `json:"choices"`
+}
+
+// handleMimoTTSResponse extracts the base64-encoded audio from a MiMo chat
+// completion JSON response and sends it as binary audio to the client.
+func handleMimoTTSResponse(c *gin.Context, response *http.Response) (int, error) {
+	respBody, err := io.ReadAll(response.Body)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read MiMo TTS response: %w", err)
+	}
+
+	var mimoResp mimoTTSChatResponse
+	if err := json.Unmarshal(respBody, &mimoResp); err != nil {
+		return response.StatusCode, fmt.Errorf("failed to parse MiMo TTS response: %w", err)
+	}
+
+	if len(mimoResp.Choices) == 0 || mimoResp.Choices[0].Message.Audio == nil {
+		return response.StatusCode, fmt.Errorf("MiMo TTS response contains no audio data")
+	}
+
+	audioData, err := base64.StdEncoding.DecodeString(mimoResp.Choices[0].Message.Audio.Data)
+	if err != nil {
+		return response.StatusCode, fmt.Errorf("failed to decode MiMo TTS audio: %w", err)
+	}
+
+	// Determine audio content type from the response format
+	c.Header("Content-Type", "audio/wav")
+	_, err = c.Writer.Write(audioData)
+	if err != nil {
+		return 0, fmt.Errorf("failed to write MiMo TTS audio: %w", err)
+	}
+
+	return response.StatusCode, nil
 }
