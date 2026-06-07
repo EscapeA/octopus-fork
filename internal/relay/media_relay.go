@@ -122,6 +122,11 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 	var lastErr error
 	var routeIter *balancer.Iterator
 
+	// 追踪最后一次实际转发的通道信息，用于全部失败时的日志记录
+	var lastChannelID int
+	var lastChannelName string
+	var lastResolvedModel string
+
 	for routeRound := 1; routeRound <= maxRouteRetries; routeRound++ {
 		if err := operationCtx.Err(); err != nil {
 			lastErr = err
@@ -219,6 +224,11 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 				span := routeIter.StartAttempt(channel.ID, usedKey.ID, channel.Name, resolvedModel)
 				statusCode, fwdErr := forwardMediaRequest(c, cfg, group, channel, usedKey.ChannelKey, bodyBytes, requestModel, resolvedModel, streamRequested)
 
+				// 记录最后一次实际转发的通道信息
+				lastChannelID = channel.ID
+				lastChannelName = channel.Name
+				lastResolvedModel = resolvedModel
+
 				written := c.Writer.Written()
 				decision := ClassifyRelayError(statusCode, fwdErr, written)
 
@@ -267,8 +277,9 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 					resp.Error(c, http.StatusBadGateway, lastErr.Error())
 					return
 				case ScopeAbortAll:
+					lastErr = fwdErr
 					allAttempts = append(allAttempts, routeIter.Attempts()...)
-					recordMediaRelayLog(apiKeyID, requestModel, logEndpointType, bodyBytes, channel.ID, channel.Name, resolvedModel, time.Since(startTime), allAttempts, lastErr, clientIP)
+					recordMediaRelayLog(apiKeyID, requestModel, logEndpointType, bodyBytes, channel.ID, channel.Name, resolvedModel, time.Since(startTime), allAttempts, fwdErr, clientIP)
 					return
 				case ScopeSameChannel:
 					lastErr = fwdErr
@@ -289,7 +300,7 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 		allAttempts = append(allAttempts, routeIter.Attempts()...)
 	}
 	// All route rounds exhausted
-	recordMediaRelayLog(apiKeyID, requestModel, logEndpointType, bodyBytes, 0, "", "", time.Since(startTime), allAttempts, lastErr, clientIP)
+	recordMediaRelayLog(apiKeyID, requestModel, logEndpointType, bodyBytes, lastChannelID, lastChannelName, lastResolvedModel, time.Since(startTime), allAttempts, lastErr, clientIP)
 	resp.Error(c, http.StatusBadGateway, fmt.Sprintf("all channels failed: %v", lastErr))
 	return
 
@@ -298,7 +309,7 @@ mediaExhausted:
 	if routeIter != nil {
 		allAttempts = append(allAttempts, routeIter.Attempts()...)
 	}
-	recordMediaRelayLog(apiKeyID, requestModel, logEndpointType, bodyBytes, 0, "", "", time.Since(startTime), allAttempts, lastErr, clientIP)
+	recordMediaRelayLog(apiKeyID, requestModel, logEndpointType, bodyBytes, lastChannelID, lastChannelName, lastResolvedModel, time.Since(startTime), allAttempts, lastErr, clientIP)
 	if lastErr != nil {
 		resp.Error(c, http.StatusBadGateway, fmt.Sprintf("all channels failed: %v", lastErr))
 	}
