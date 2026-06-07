@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lingyuins/octopus/internal/op"
@@ -149,9 +150,11 @@ func testWebDAVConnection(c *gin.Context) {
 }
 
 func triggerWebDAVBackup(c *gin.Context) {
-	// Run backup in background with a detached context
+	// Run backup in background with a detached context and a timeout
+	// to prevent goroutine leaks if the WebDAV server is unreachable.
 	go func() {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer cancel()
 		if err := backup.PerformWebDAVBackup(ctx); err != nil {
 			log.Errorf("manual webdav backup failed: %v", err)
 		}

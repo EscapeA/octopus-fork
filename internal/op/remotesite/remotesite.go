@@ -243,7 +243,8 @@ func Refresh(ctx context.Context, id int) (*hub.RefreshResult, error) {
 	}
 
 	go func() {
-		bgCtx := context.Background()
+		bgCtx, bgCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer bgCancel()
 		if _, err := SyncTokens(bgCtx, id); err != nil {
 			log.Warnf("sync tokens during refresh for site %d: %v", id, err)
 		}

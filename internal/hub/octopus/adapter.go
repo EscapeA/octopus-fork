@@ -37,6 +37,17 @@ var (
 	tokenCache = make(map[string]*cachedToken) // key: "baseURL:username"
 )
 
+// cleanupTokenCache removes expired entries to prevent unbounded growth.
+// Must be called with tokenMu held.
+func cleanupTokenCache() {
+	now := time.Now()
+	for k, v := range tokenCache {
+		if now.After(v.expiresAt) {
+			delete(tokenCache, k)
+		}
+	}
+}
+
 type loginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -83,7 +94,7 @@ func getValidToken(ctx context.Context, site *model.RemoteSite) (string, error) 
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := hub.AdapterHTTPClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("login request: %w", err)
 	}
@@ -119,6 +130,7 @@ func getValidToken(ctx context.Context, site *model.RemoteSite) (string, error) 
 		token:     envelope.Data.Token,
 		expiresAt: expiresAt,
 	}
+	cleanupTokenCache()
 	return envelope.Data.Token, nil
 }
 
@@ -160,7 +172,7 @@ func octopusFetch[T any](ctx context.Context, site *model.RemoteSite, method, en
 		req.Header.Set(k, v)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := hub.AdapterHTTPClient.Do(req)
 	if err != nil {
 		return zero, fmt.Errorf("request %s: %w", endpoint, err)
 	}

@@ -35,7 +35,10 @@ func FetchAndStoreAnnouncement(ctx context.Context, siteID int) error {
 	}
 
 	tx := db.GetDB().WithContext(ctx).Begin()
-	tx.Where("remote_site_id = ?", siteID).Delete(&model.SiteAnnouncement{})
+	if err := tx.Where("remote_site_id = ?", siteID).Delete(&model.SiteAnnouncement{}).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("delete old announcements: %w", err)
+	}
 	record := model.SiteAnnouncement{
 		RemoteSiteID: siteID,
 		Content:      content,

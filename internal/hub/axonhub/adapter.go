@@ -36,6 +36,17 @@ var (
 	tokenCache = make(map[string]*cachedToken) // key: "baseURL|email"
 )
 
+// cleanupTokenCache removes expired entries to prevent unbounded growth.
+// Must be called with tokenMu held.
+func cleanupTokenCache() {
+	now := time.Now()
+	for k, v := range tokenCache {
+		if now.After(v.expiresAt) {
+			delete(tokenCache, k)
+		}
+	}
+}
+
 func cacheKey(site *model.RemoteSite) string {
 	return strings.TrimRight(site.BaseURL, "/") + "|" + site.Username
 }
@@ -69,7 +80,7 @@ func getValidToken(ctx context.Context, site *model.RemoteSite) (string, error) 
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := hub.AdapterHTTPClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("signin request: %w", err)
 	}
@@ -98,6 +109,7 @@ func getValidToken(ctx context.Context, site *model.RemoteSite) (string, error) 
 		token:     result.Token,
 		expiresAt: time.Now().Add(15 * time.Minute),
 	}
+	cleanupTokenCache()
 	return result.Token, nil
 }
 
@@ -123,7 +135,7 @@ func graphqlRequest[T any](ctx context.Context, site *model.RemoteSite, query st
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := hub.AdapterHTTPClient.Do(req)
 	if err != nil {
 		return zero, fmt.Errorf("graphql request: %w", err)
 	}
@@ -149,7 +161,7 @@ func graphqlRequest[T any](ctx context.Context, site *model.RemoteSite, query st
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 
-		resp, err = http.DefaultClient.Do(req)
+		resp, err = hub.AdapterHTTPClient.Do(req)
 		if err != nil {
 			return zero, fmt.Errorf("graphql retry request: %w", err)
 		}

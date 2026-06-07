@@ -12,6 +12,7 @@ import (
 	"github.com/lingyuins/octopus/internal/apperror"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op"
+	"github.com/lingyuins/octopus/internal/server/auth"
 	"github.com/lingyuins/octopus/internal/server/middleware"
 	"github.com/lingyuins/octopus/internal/server/resp"
 	"github.com/lingyuins/octopus/internal/server/router"
@@ -30,18 +31,32 @@ func refreshAccountRandomCheckinScheduleBestEffort(ctx context.Context, accountI
 func init() {
 	router.NewGroupRouter("/api/v1/site").
 		Use(middleware.Auth()).
+		Use(middleware.RequirePermission(auth.PermSitesRead)).
 		AddRoute(router.NewRoute("/list", http.MethodGet).Handle(listSite)).
 		AddRoute(router.NewRoute("/archived", http.MethodGet).Handle(listArchivedSites)).
-		AddRoute(router.NewRoute("/import/all-api-hub", http.MethodPost).Handle(importAllAPIHub)).
-		AddRoute(router.NewRoute("/import/metapi", http.MethodPost).Handle(importMetAPI)).
-		AddRoute(router.NewRoute("/account/sync/:id", http.MethodPost).Handle(syncSiteAccount)).
-		AddRoute(router.NewRoute("/account/checkin/:id", http.MethodPost).Handle(checkinSiteAccount)).
-		AddRoute(router.NewRoute("/sync-all", http.MethodPost).Handle(syncAllSiteAccounts)).
-		AddRoute(router.NewRoute("/checkin-all", http.MethodPost).Handle(checkinAllSiteAccounts)).
+		AddRoute(router.NewRoute("/import/all-api-hub", http.MethodPost).
+			Use(middleware.RequirePermission(auth.PermSitesWrite)).
+			Handle(importAllAPIHub)).
+		AddRoute(router.NewRoute("/import/metapi", http.MethodPost).
+			Use(middleware.RequirePermission(auth.PermSitesWrite)).
+			Handle(importMetAPI)).
+		AddRoute(router.NewRoute("/account/sync/:id", http.MethodPost).
+			Use(middleware.RequirePermission(auth.PermSitesWrite)).
+			Handle(syncSiteAccount)).
+		AddRoute(router.NewRoute("/account/checkin/:id", http.MethodPost).
+			Use(middleware.RequirePermission(auth.PermSitesWrite)).
+			Handle(checkinSiteAccount)).
+		AddRoute(router.NewRoute("/sync-all", http.MethodPost).
+			Use(middleware.RequirePermission(auth.PermSitesWrite)).
+			Handle(syncAllSiteAccounts)).
+		AddRoute(router.NewRoute("/checkin-all", http.MethodPost).
+			Use(middleware.RequirePermission(auth.PermSitesWrite)).
+			Handle(checkinAllSiteAccounts)).
 		AddRoute(router.NewRoute("/:id/available-models", http.MethodGet).Handle(getSiteAvailableModels))
 
 	router.NewGroupRouter("/api/v1/site").
 		Use(middleware.Auth()).
+		Use(middleware.RequirePermission(auth.PermSitesWrite)).
 		Use(middleware.RequireJSON()).
 		AddRoute(router.NewRoute("/create", http.MethodPost).Handle(createSite)).
 		AddRoute(router.NewRoute("/update", http.MethodPost).Handle(updateSite)).
@@ -54,6 +69,7 @@ func init() {
 
 	router.NewGroupRouter("/api/v1/site").
 		Use(middleware.Auth()).
+		Use(middleware.RequirePermission(auth.PermSitesWrite)).
 		AddRoute(router.NewRoute("/delete/:id", http.MethodDelete).Handle(deleteSite)).
 		AddRoute(router.NewRoute("/archive/:id", http.MethodPost).Handle(archiveSite)).
 		AddRoute(router.NewRoute("/restore/:id", http.MethodPost).Handle(restoreSite)).

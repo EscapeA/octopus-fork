@@ -34,6 +34,17 @@ var (
 	tokenCache = make(map[string]*cachedToken)
 )
 
+// cleanupTokenCache removes expired entries to prevent unbounded growth.
+// Must be called with tokenMu held.
+func cleanupTokenCache() {
+	now := time.Now()
+	for k, v := range tokenCache {
+		if now.After(v.expiresAt) {
+			delete(tokenCache, k)
+		}
+	}
+}
+
 type loginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -187,7 +198,7 @@ func fetchJSONWithHeaders[T any](ctx context.Context, site *model.RemoteSite, me
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := hub.AdapterHTTPClient.Do(req)
 	if err != nil {
 		return zero, fmt.Errorf("request %s %s: %w", method, endpoint, err)
 	}
@@ -231,6 +242,7 @@ func getValidToken(ctx context.Context, site *model.RemoteSite) (string, error) 
 		return "", fmt.Errorf("login response missing token")
 	}
 	tokenCache[key] = &cachedToken{token: login.Token, expiresAt: time.Now().Add(12 * time.Hour)}
+	cleanupTokenCache()
 	return login.Token, nil
 }
 

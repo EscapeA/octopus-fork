@@ -32,7 +32,10 @@ func SyncTokens(ctx context.Context, siteID int) (int, error) {
 	}
 
 	tx := db.GetDB().WithContext(ctx).Begin()
-	tx.Where("remote_site_id = ?", siteID).Delete(&model.RemoteSiteToken{})
+	if err := tx.Where("remote_site_id = ?", siteID).Delete(&model.RemoteSiteToken{}).Error; err != nil {
+		tx.Rollback()
+		return 0, fmt.Errorf("delete old tokens: %w", err)
+	}
 
 	now := time.Now()
 	count := 0

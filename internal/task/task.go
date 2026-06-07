@@ -17,6 +17,7 @@ type taskEntry struct {
 	stopCh     chan struct{}
 	updateCh   chan time.Duration
 	running    atomic.Bool
+	wg         sync.WaitGroup // tracks in-flight goroutine executions
 }
 
 var (
@@ -36,6 +37,10 @@ func Shutdown() {
 		default:
 			close(entry.stopCh)
 		}
+	}
+	// Wait for all in-flight task executions to complete before returning.
+	for _, entry := range tasks {
+		entry.wg.Wait()
 	}
 	log.Infof("all background tasks have been stopped")
 }
@@ -113,7 +118,9 @@ func runTask(entry *taskEntry) {
 			log.Warnf("task %s is still running, skipping overlapping run", entry.name)
 			return
 		}
+		entry.wg.Add(1)
 		go func() {
+			defer entry.wg.Done()
 			defer func() {
 				if r := recover(); r != nil {
 					log.Errorf("task %s panic recovered: %v", entry.name, r)

@@ -50,7 +50,7 @@ func EvaluateAlertRules() {
 		}
 
 		currentState := alert.StateGet(rule.ID)
-		firing := evaluateRule(&rule)
+		firing := evaluateRule(ctx, &rule)
 		prevState := currentState.State
 
 		switch {
@@ -85,7 +85,7 @@ func EvaluateAlertRules() {
 	telemetry.Global().SetQuotaAlerts(quotaFiringCount)
 }
 
-func evaluateRule(rule *model.AlertRule) bool {
+func evaluateRule(ctx context.Context, rule *model.AlertRule) bool {
 	// For now, check error rate using recent stats
 	switch rule.ConditionType {
 	case model.AlertConditionErrorRate:
@@ -94,7 +94,7 @@ func evaluateRule(rule *model.AlertRule) bool {
 	case model.AlertConditionCostThreshold:
 		return evaluateCostThreshold(rule)
 	case model.AlertConditionChannelDown:
-		return evaluateChannelDown(rule)
+		return evaluateChannelDown(ctx, rule)
 	case model.AlertConditionQuotaExceeded:
 		return evaluateQuotaExceeded(rule)
 	default:
@@ -117,11 +117,11 @@ func evaluateCostThreshold(rule *model.AlertRule) bool {
 	return totalCost >= rule.Threshold
 }
 
-func evaluateChannelDown(rule *model.AlertRule) bool {
+func evaluateChannelDown(ctx context.Context, rule *model.AlertRule) bool {
 	if rule.ScopeChannelID == 0 {
 		return false
 	}
-	channels, err := channel.List(context.Background())
+	channels, err := channel.List(ctx)
 	if err != nil {
 		return false
 	}

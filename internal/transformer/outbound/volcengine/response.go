@@ -141,9 +141,11 @@ func convertToResponsesInput(input openai.ResponsesInput) ResponsesInput {
 		result.Items = append(result.Items, ResponsesItem{ResponsesItem: item})
 	}
 	// If the role of the last message is the assistant, needs set partial.
-	idx := len(input.Items) - 1
-	if result.Items[idx].Role == "assistant" {
-		result.Items[idx].Partial = true
+	if len(input.Items) > 0 && len(result.Items) > 0 {
+		idx := len(input.Items) - 1
+		if result.Items[idx].Role == "assistant" {
+			result.Items[idx].Partial = true
+		}
 	}
 	return result
 }

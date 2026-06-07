@@ -20,6 +20,10 @@ import (
 type MessagesOutbound struct{}
 
 func (o *MessagesOutbound) TransformRequest(ctx context.Context, request *model.InternalLLMRequest, baseUrl, key string) (*http.Request, error) {
+	if request == nil {
+		return nil, fmt.Errorf("request is nil")
+	}
+
 	// Convert internal request to Gemini format
 	geminiReq := convertLLMToGeminiRequest(request)
 
@@ -68,6 +72,10 @@ func (o *MessagesOutbound) TransformRequest(ctx context.Context, request *model.
 }
 
 func (o *MessagesOutbound) TransformResponse(ctx context.Context, response *http.Response) (*model.InternalLLMResponse, error) {
+	if response == nil {
+		return nil, fmt.Errorf("response is nil")
+	}
+
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
@@ -75,6 +83,28 @@ func (o *MessagesOutbound) TransformResponse(ctx context.Context, response *http
 
 	if len(body) == 0 {
 		return nil, fmt.Errorf("response body is empty")
+	}
+
+	// Check for error response
+	if response.StatusCode >= 400 {
+		var errResp struct {
+			Error struct {
+				Message string `json:"message"`
+				Code    int    `json:"code"`
+				Status  string `json:"status"`
+			} `json:"error"`
+		}
+		if err := json.Unmarshal(body, &errResp); err == nil && errResp.Error.Message != "" {
+			return nil, &model.ResponseError{
+				StatusCode: response.StatusCode,
+				Detail: model.ErrorDetail{
+					Message: errResp.Error.Message,
+					Code:    fmt.Sprintf("%d", errResp.Error.Code),
+					Type:    errResp.Error.Status,
+				},
+			}
+		}
+		return nil, fmt.Errorf("HTTP error %d: %s", response.StatusCode, string(body))
 	}
 
 	var geminiResp model.GeminiGenerateContentResponse
@@ -473,14 +503,14 @@ func convertGeminiToLLMResponse(geminiResp *model.GeminiGenerateContentResponse,
 			var textParts []string
 			var contentParts []model.MessageContentPart
 			var toolCalls []model.ToolCall
-			var reasoningContent *string
+			var reasoningParts []string
 			var hasInlineData bool
 
 			for idx, part := range candidate.Content.Parts {
 				if part.Thought {
-					// Handle thinking/reasoning content
-					if part.Text != "" && reasoningContent == nil {
-						reasoningContent = &part.Text
+					// Handle thinking/reasoning content - collect all thought parts
+					if part.Text != "" {
+						reasoningParts = append(reasoningParts, part.Text)
 					}
 				} else if part.Text != "" {
 					textParts = append(textParts, part.Text)
@@ -531,8 +561,9 @@ func convertGeminiToLLMResponse(geminiResp *model.GeminiGenerateContentResponse,
 			}
 
 			// Set reasoning content
-			if reasoningContent != nil {
-				msg.ReasoningContent = reasoningContent
+			if len(reasoningParts) > 0 {
+				joined := strings.Join(reasoningParts, "")
+				msg.ReasoningContent = &joined
 			}
 
 			// Set tool calls

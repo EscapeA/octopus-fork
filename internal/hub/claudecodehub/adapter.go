@@ -45,7 +45,7 @@ func cchFetch[T any](ctx context.Context, site *model.RemoteSite, method, endpoi
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := hub.AdapterHTTPClient.Do(req)
 	if err != nil {
 		return zero, fmt.Errorf("request %s: %w", endpoint, err)
 	}

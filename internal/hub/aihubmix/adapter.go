@@ -48,7 +48,7 @@ func aihubmixFetch[T any](ctx context.Context, site *model.RemoteSite, method, e
 	// AIHubMix uses raw token, NOT "Bearer <token>"
 	req.Header.Set("Authorization", token)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := hub.AdapterHTTPClient.Do(req)
 	if err != nil {
 		return zero, fmt.Errorf("request %s: %w", endpoint, err)
 	}

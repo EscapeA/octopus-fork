@@ -23,6 +23,7 @@ import (
 	"github.com/lingyuins/octopus/internal/server/resp"
 	"github.com/lingyuins/octopus/internal/server/router"
 	"github.com/lingyuins/octopus/internal/task"
+	"github.com/lingyuins/octopus/internal/utils/log"
 )
 
 var (
@@ -94,18 +95,20 @@ func setSetting(c *gin.Context) {
 		resp.InternalError(c)
 		return
 	}
+	// Setting is now persisted. All downstream effects are best-effort:
+	// log failures but do not return an error status to the client,
+	// which would misleadingly suggest the setting was NOT saved.
 	if shouldRefreshSemanticCacheRuntime(setting.Key) {
 		if err := ops.RefreshSemanticCacheRuntime(); err != nil {
-			resp.InternalError(c)
-			return
+			log.Warnf("semantic cache refresh failed after setting %s: %v", setting.Key, err)
 		}
 	}
 	switch setting.Key {
 	case model.SettingKeyStatsSaveInterval:
 		minutes, err := strconv.Atoi(setting.Value)
 		if err != nil {
-			resp.Error(c, http.StatusBadRequest, err.Error())
-			return
+			log.Warnf("invalid stats_save_interval value %q after persist: %v", setting.Value, err)
+			break
 		}
 		interval := time.Duration(minutes) * time.Minute
 		task.Update(task.TaskStatsSave, interval)
@@ -113,15 +116,15 @@ func setSetting(c *gin.Context) {
 	case model.SettingKeyModelInfoUpdateInterval:
 		hours, err := strconv.Atoi(setting.Value)
 		if err != nil {
-			resp.Error(c, http.StatusBadRequest, err.Error())
-			return
+			log.Warnf("invalid model_info_update_interval value %q after persist: %v", setting.Value, err)
+			break
 		}
 		task.Update(string(setting.Key), time.Duration(hours)*time.Hour)
 	case model.SettingKeySyncLLMInterval:
 		hours, err := strconv.Atoi(setting.Value)
 		if err != nil {
-			resp.Error(c, http.StatusBadRequest, err.Error())
-			return
+			log.Warnf("invalid sync_llm_interval value %q after persist: %v", setting.Value, err)
+			break
 		}
 		task.Update(string(setting.Key), time.Duration(hours)*time.Hour)
 	}

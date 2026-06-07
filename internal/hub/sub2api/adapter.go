@@ -37,6 +37,17 @@ var (
 	tokenCache = make(map[string]*cachedToken) // key: "baseURL:username"
 )
 
+// cleanupTokenCache removes expired entries to prevent unbounded growth.
+// Must be called with tokenMu held.
+func cleanupTokenCache() {
+	now := time.Now()
+	for k, v := range tokenCache {
+		if now.After(v.expiresAt) {
+			delete(tokenCache, k)
+		}
+	}
+}
+
 // sub2apiEnvelope is the response envelope used by Sub2API: {code: 0, message, data}.
 type sub2apiEnvelope struct {
 	Code    int             `json:"code"`
@@ -65,6 +76,7 @@ func getValidToken(ctx context.Context, site *model.RemoteSite) (string, error) 
 		newToken, err := refreshToken(ctx, site, cached.refreshToken)
 		if err == nil {
 			tokenCache[key] = newToken
+			cleanupTokenCache()
 			return newToken.accessToken, nil
 		}
 		// Refresh failed, fall through to try stored token
@@ -82,6 +94,7 @@ func getValidToken(ctx context.Context, site *model.RemoteSite) (string, error) 
 		newToken, err := refreshToken(ctx, site, refreshTokenStr)
 		if err == nil {
 			tokenCache[key] = newToken
+			cleanupTokenCache()
 			return newToken.accessToken, nil
 		}
 	}
@@ -92,6 +105,7 @@ func getValidToken(ctx context.Context, site *model.RemoteSite) (string, error) 
 		refreshToken: refreshTokenStr,
 		expiresAt:    time.Now().Add(5 * time.Minute), // assume 5 min validity
 	}
+	cleanupTokenCache()
 	return accessToken, nil
 }
 
@@ -113,7 +127,7 @@ func refreshToken(ctx context.Context, site *model.RemoteSite, refreshTokenStr s
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := hub.AdapterHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("refresh request: %w", err)
 	}
@@ -172,7 +186,7 @@ func sub2apiFetch[T any](ctx context.Context, site *model.RemoteSite, method, en
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := hub.AdapterHTTPClient.Do(req)
 	if err != nil {
 		return zero, fmt.Errorf("request %s: %w", endpoint, err)
 	}

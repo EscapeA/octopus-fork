@@ -17,6 +17,9 @@ type ChatOutbound struct{}
 
 func (o *ChatOutbound) TransformRequest(ctx context.Context, request *model.InternalLLMRequest, baseUrl, key string) (*http.Request, error) {
 	compatRequest := CloneRequestForOpenAICompat(request)
+	if compatRequest == nil {
+		return nil, fmt.Errorf("request is nil")
+	}
 	isMimoChannel := strings.Contains(strings.ToLower(strings.TrimSpace(baseUrl)), "xiaomimimo")
 	SanitizeRequestForOpenAICompat(compatRequest, baseUrl, isMimoChannel)
 
@@ -147,12 +150,14 @@ func sanitizeMessageForOpenAICompat(msg *model.Message, preserveDeepSeekReasonin
 	}
 
 	reasoningContent := msg.GetReasoningContent()
+	reasoningSignature := msg.ReasoningSignature
 	shouldKeepReasoning := shouldKeepDeepSeekReasoningContent(msg, preserveDeepSeekReasoning, reasoningContent)
 
 	msg.ClearHelpFields()
 
 	if shouldKeepReasoning {
 		msg.ReasoningContent = &reasoningContent
+		msg.ReasoningSignature = reasoningSignature
 	}
 }
 
@@ -283,6 +288,10 @@ func flattenTextContent(parts []model.MessageContentPart) string {
 }
 
 func (o *ChatOutbound) TransformResponse(ctx context.Context, response *http.Response) (*model.InternalLLMResponse, error) {
+	if response == nil {
+		return nil, fmt.Errorf("response is nil")
+	}
+
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
@@ -290,6 +299,20 @@ func (o *ChatOutbound) TransformResponse(ctx context.Context, response *http.Res
 
 	if len(body) == 0 {
 		return nil, fmt.Errorf("response body is empty")
+	}
+
+	// Check for error response
+	if response.StatusCode >= 400 {
+		var errResp struct {
+			Error model.ErrorDetail `json:"error"`
+		}
+		if err := json.Unmarshal(body, &errResp); err == nil && errResp.Error.Message != "" {
+			return nil, &model.ResponseError{
+				StatusCode: response.StatusCode,
+				Detail:     errResp.Error,
+			}
+		}
+		return nil, fmt.Errorf("HTTP error %d: %s", response.StatusCode, string(body))
 	}
 
 	var resp model.InternalLLMResponse

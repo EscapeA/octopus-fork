@@ -58,7 +58,14 @@ func executeCheckIn(c *gin.Context) {
 		return
 	}
 	record, err := remotesite.ExecuteCheckIn(c.Request.Context(), siteID)
-	if err != nil && record == nil {
+	if err != nil {
+		if record != nil {
+			// Partial result: checkin failed but a record was created (e.g. already checked in today).
+			// Return the record with a warning header so the client sees both the data and the error.
+			c.Header("X-Checkin-Warning", err.Error())
+			resp.Success(c, record)
+			return
+		}
 		resp.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}

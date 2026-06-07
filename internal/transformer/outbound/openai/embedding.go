@@ -88,6 +88,10 @@ func (o *EmbeddingOutbound) TransformRequest(ctx context.Context, request *model
 }
 
 func (o *EmbeddingOutbound) TransformResponse(ctx context.Context, response *http.Response) (*model.InternalLLMResponse, error) {
+	if response == nil {
+		return nil, fmt.Errorf("response is nil")
+	}
+
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
@@ -95,6 +99,20 @@ func (o *EmbeddingOutbound) TransformResponse(ctx context.Context, response *htt
 
 	if len(body) == 0 {
 		return nil, fmt.Errorf("response body is empty")
+	}
+
+	// Check for error response
+	if response.StatusCode >= 400 {
+		var errResp struct {
+			Error model.ErrorDetail `json:"error"`
+		}
+		if err := json.Unmarshal(body, &errResp); err == nil && errResp.Error.Message != "" {
+			return nil, &model.ResponseError{
+				StatusCode: response.StatusCode,
+				Detail:     errResp.Error,
+			}
+		}
+		return nil, fmt.Errorf("HTTP error %d: %s", response.StatusCode, string(body))
 	}
 
 	// 先解析为 OpenAI 标准格式
