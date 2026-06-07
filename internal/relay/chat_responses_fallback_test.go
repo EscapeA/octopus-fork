@@ -7,11 +7,11 @@ import (
 	"github.com/lingyuins/octopus/internal/transformer/outbound"
 )
 
-func TestOutboundAttemptTypesChatOnChatChannelPrefersChatThenResponse(t *testing.T) {
+func TestOutboundAttemptTypesChatOnChatChannelPrefersResponseThenChat(t *testing.T) {
 	req := &model.InternalLLMRequest{RawAPIFormat: model.APIFormatOpenAIChatCompletion}
 
 	got := outboundAttemptTypes(outbound.OutboundTypeOpenAIChat, req)
-	want := []outbound.OutboundType{outbound.OutboundTypeOpenAIChat, outbound.OutboundTypeOpenAIResponse}
+	want := []outbound.OutboundType{outbound.OutboundTypeOpenAIResponse, outbound.OutboundTypeOpenAIChat}
 
 	if len(got) != len(want) {
 		t.Fatalf("attempt types len = %d, want %d: %#v", len(got), len(want), got)
@@ -39,11 +39,11 @@ func TestOutboundAttemptTypesChatOnResponseChannelFallsBackToChat(t *testing.T) 
 	}
 }
 
-func TestOutboundAttemptTypesResponsesOnChatChannelFallsBackToResponse(t *testing.T) {
+func TestOutboundAttemptTypesResponsesOnChatChannelPrefersResponseThenChat(t *testing.T) {
 	req := &model.InternalLLMRequest{RawAPIFormat: model.APIFormatOpenAIResponse}
 
 	got := outboundAttemptTypes(outbound.OutboundTypeOpenAIChat, req)
-	want := []outbound.OutboundType{outbound.OutboundTypeOpenAIChat, outbound.OutboundTypeOpenAIResponse}
+	want := []outbound.OutboundType{outbound.OutboundTypeOpenAIResponse, outbound.OutboundTypeOpenAIChat}
 
 	if len(got) != len(want) {
 		t.Fatalf("attempt types len = %d, want %d: %#v", len(got), len(want), got)

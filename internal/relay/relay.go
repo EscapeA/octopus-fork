@@ -90,14 +90,13 @@ func detectZenPreferredChannelTypes(requestModel string, isEmbeddingRequest bool
 
 func outboundAttemptTypes(channelType outbound.OutboundType, request *model.InternalLLMRequest) []outbound.OutboundType {
 	// For LLM requests (both ChatCompletion and Responses API formats), provide
-	// adapter fallback between Response ↔ Chat when the upstream doesn't support
-	// the primary format. The internal request/response format abstracts over both
-	// API formats, so the inAdapter handles the final output conversion regardless
-	// of which outbound adapter is used.
+	// adapter fallback: always try Response first then Chat.
+	// Response is preferred because upstream providers (e.g. New API) generally
+	// enable prompt caching only for the Responses API, not Chat Completions.
+	// The internal request/response format abstracts over both API formats, so
+	// the inAdapter handles the final output conversion regardless of which
+	// outbound adapter is used.
 	if request != nil && isLLMRequestFormat(request) && (channelType == outbound.OutboundTypeOpenAIChat || channelType == outbound.OutboundTypeOpenAIResponse) {
-		if channelType == outbound.OutboundTypeOpenAIChat {
-			return []outbound.OutboundType{outbound.OutboundTypeOpenAIChat, outbound.OutboundTypeOpenAIResponse}
-		}
 		return []outbound.OutboundType{outbound.OutboundTypeOpenAIResponse, outbound.OutboundTypeOpenAIChat}
 	}
 	return []outbound.OutboundType{channelType}
