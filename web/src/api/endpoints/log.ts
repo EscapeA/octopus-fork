@@ -18,6 +18,7 @@ export interface ChannelAttempt {
     channel_key_id?: number;
     channel_name: string;
     model_name: string;
+    adapter_type?: string;   // 适配器类型: response, chat, anthropic, gemini 等
     attempt_num: number;    // 第几次尝试
     status: AttemptStatus;
     duration: number;       // 耗时(毫秒)

@@ -16,6 +16,7 @@ type ChannelAttempt struct {
 	ChannelKeyID int           `json:"channel_key_id,omitempty"`
 	ChannelName  string        `json:"channel_name"`
 	ModelName    string        `json:"model_name"`
+	AdapterType  string        `json:"adapter_type,omitempty"` // 适配器类型: response, chat, anthropic, gemini 等
 	AttemptNum   int           `json:"attempt_num"`
 	Status       AttemptStatus `json:"status"`
 	Duration     int           `json:"duration"`
@@ -37,15 +38,15 @@ type RelayLog struct {
 	InputTokens       int              `json:"input_tokens" gorm:"column:input_tokens"`                 // 输入Token
 	OutputTokens      int              `json:"output_tokens" gorm:"column:output_tokens"`               // 输出 Token
 	SemanticCacheHit  bool             `json:"semantic_cache_hit" gorm:"-"`
-	CacheReadTokens   int              `json:"cache_read_tokens" gorm:"-"`                              // 提供方提示缓存命中 Token
-	Ftut              int              `json:"ftut" gorm:"column:ftut"`                                 // 首字时间(毫秒)
-	UseTime           int              `json:"use_time" gorm:"column:use_time"`                         // 总用时(毫秒)
-	Cost              float64          `json:"cost" gorm:"column:cost"`                                 // 消耗费用
-	RequestContent    string           `json:"request_content" gorm:"column:request_content"`           // 请求内容
-	ResponseContent   string           `json:"response_content" gorm:"column:response_content"`         // 响应内容
-	Error             string           `json:"error" gorm:"column:error"`                               // 错误信息
-	Attempts          []ChannelAttempt `json:"attempts" gorm:"column:attempts;serializer:json"`         // 所有尝试记录
-	TotalAttempts     int              `json:"total_attempts" gorm:"column:total_attempts"`             // 总尝试次数
+	CacheReadTokens   int              `json:"cache_read_tokens" gorm:"-"`                      // 提供方提示缓存命中 Token
+	Ftut              int              `json:"ftut" gorm:"column:ftut"`                         // 首字时间(毫秒)
+	UseTime           int              `json:"use_time" gorm:"column:use_time"`                 // 总用时(毫秒)
+	Cost              float64          `json:"cost" gorm:"column:cost"`                         // 消耗费用
+	RequestContent    string           `json:"request_content" gorm:"column:request_content"`   // 请求内容
+	ResponseContent   string           `json:"response_content" gorm:"column:response_content"` // 响应内容
+	Error             string           `json:"error" gorm:"column:error"`                       // 错误信息
+	Attempts          []ChannelAttempt `json:"attempts" gorm:"column:attempts;serializer:json"` // 所有尝试记录
+	TotalAttempts     int              `json:"total_attempts" gorm:"column:total_attempts"`     // 总尝试次数
 }
 
 // RelayLogListItem 日志列表轻量条目，排除了 RequestContent 和 ResponseContent 大字段

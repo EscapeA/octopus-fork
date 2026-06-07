@@ -84,7 +84,7 @@ function RetryBadgeWithTooltip({ channelName, brandColor, attempts, channelNameB
                                     {attempt.channel_name?.trim() || channelNameById?.get(attempt.channel_id) || `Channel #${attempt.channel_id}`}
                                 </span>
                                 <span className="text-[10px] text-muted-foreground">
-                                    {attempt.model_name} • {formatDuration(attempt.duration)}
+                                    {attempt.model_name}{attempt.adapter_type ? ` • ${attempt.adapter_type}` : ''} • {formatDuration(attempt.duration)}
                                 </span>
                             </div>
                         </div>
@@ -210,12 +210,16 @@ export function LogCard({ log, channelNameById }: { log: RelayLog; channelNameBy
     const inputLabel = cacheReadTokens > 0 ? t('realInput') : t('input');
     const displayChannelName = displayFields.channelName || '-';
     const displayEndpointType = useMemo(() => {
+        const reqTypeKey = displayFields.requestTypeKey;
+        if (reqTypeKey) {
+            const label = t(`card.requestTypeLabels.${reqTypeKey}`);
+            if (label && label !== `card.requestTypeLabels.${reqTypeKey}`) return label;
+        }
         const rawEndpointType = displayFields.endpointType;
         if (!rawEndpointType) return '-';
-
         const labelKey = endpointTypeLabelKey(rawEndpointType);
         return labelKey ? tGroup(labelKey) : rawEndpointType;
-    }, [displayFields.endpointType, tGroup]);
+    }, [displayFields.endpointType, displayFields.requestTypeKey, t, tGroup]);
     const displayActualModelName = displayFields.actualModelName || '-';
     const displayRequestModelName = displayFields.requestModelName || log.request_model_name;
 
@@ -490,6 +494,11 @@ export function LogCard({ log, channelNameById }: { log: RelayLog; channelNameBy
                                                                             <span className="text-muted-foreground">
                                                                                 ({attempt.model_name})
                                                                             </span>
+                                                                            {attempt.adapter_type && (
+                                                                                <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground font-medium">
+                                                                                    {attempt.adapter_type}
+                                                                                </span>
+                                                                            )}
                                                                             <span className="ml-auto text-muted-foreground tabular-nums font-mono">
                                                                                 {formatDuration(attempt.duration)}
                                                                             </span>

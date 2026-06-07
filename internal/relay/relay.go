@@ -389,6 +389,7 @@ func Handler(endpointType string, inboundType inbound.InboundType, c *gin.Contex
 // attempt 统一管理一次通道尝试的完整生命周期
 func (ra *relayAttempt) attempt() attemptResult {
 	span := ra.iter.StartAttempt(ra.channel.ID, ra.usedKey.ID, ra.channel.Name, ra.internalRequest.Model)
+	span.SetAdapterType(ra.adapterType.String())
 
 	// 转发请求
 	statusCode, fwdErr := ra.forward()
