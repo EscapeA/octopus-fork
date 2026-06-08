@@ -15,6 +15,7 @@ type Group struct {
 	Name              string      `json:"name" gorm:"unique;not null"`
 	EndpointType      string      `json:"endpoint_type" gorm:"not null;default:*;index"`
 	EndpointProvider  string      `json:"endpoint_provider,omitempty" gorm:"not null;default:''"`
+	OutboundFormat    string      `json:"outbound_format,omitempty" gorm:"not null;default:''"` // 出站格式: "" (auto), "chat", "responses"
 	Mode              GroupMode   `json:"mode" gorm:"not null"`
 	MatchRegex        string      `json:"match_regex"`
 	FirstTokenTimeOut int         `json:"first_token_time_out"` // 单个渠道首个Token响应超时时间(秒)
@@ -38,6 +39,7 @@ type GroupUpdateRequest struct {
 	Name              *string                  `json:"name,omitempty"`                 // 仅在名称变更时发送
 	EndpointType      *string                  `json:"endpoint_type,omitempty"`        // 仅在 API 分类变更时发送
 	EndpointProvider  *string                  `json:"endpoint_provider,omitempty"`    // 仅在端点提供方变更时发送
+	OutboundFormat    *string                  `json:"outbound_format,omitempty"`      // 仅在出站格式变更时发送
 	Mode              *GroupMode               `json:"mode,omitempty"`                 // 仅在模式变更时发送
 	MatchRegex        *string                  `json:"match_regex,omitempty"`          // 仅在匹配正则变更时发送
 	Condition         *string                  `json:"condition,omitempty"`            // 仅在条件变更时发送
@@ -70,7 +72,7 @@ type GroupIDAndLLMName struct {
 }
 
 // TableName explicitly returns "-" for DTO structs to prevent GORM auto-mapping.
-func (GroupIDAndLLMName) TableName() string { return "-" }
-func (GroupUpdateRequest) TableName() string { return "-" }
-func (GroupItemAddRequest) TableName() string { return "-" }
+func (GroupIDAndLLMName) TableName() string      { return "-" }
+func (GroupUpdateRequest) TableName() string     { return "-" }
+func (GroupItemAddRequest) TableName() string    { return "-" }
 func (GroupItemUpdateRequest) TableName() string { return "-" }

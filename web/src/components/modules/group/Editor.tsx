@@ -14,7 +14,7 @@ import { getModelIcon } from '@/lib/model-icons';
 import { GroupMode } from '@/api/endpoints/group';
 import type { SelectedMember } from './ItemList';
 import { MemberList } from './ItemList';
-import { CHAT_ENDPOINT_PROVIDER_OPTIONS, matchesGroupName, memberKey, MODE_LABELS, MUSIC_ENDPOINT_PROVIDER_OPTIONS, VIDEO_ENDPOINT_PROVIDER_OPTIONS, AUDIO_SPEECH_ENDPOINT_PROVIDER_OPTIONS, ENDPOINT_TYPE_OPTIONS, normalizeEndpointProvider, normalizeEndpointType, normalizeKey } from './utils';
+import { CHAT_ENDPOINT_PROVIDER_OPTIONS, OUTBOUND_FORMAT_OPTIONS, matchesGroupName, memberKey, MODE_LABELS, MUSIC_ENDPOINT_PROVIDER_OPTIONS, VIDEO_ENDPOINT_PROVIDER_OPTIONS, AUDIO_SPEECH_ENDPOINT_PROVIDER_OPTIONS, ENDPOINT_TYPE_OPTIONS, normalizeEndpointProvider, normalizeEndpointType, normalizeOutboundFormat, normalizeKey } from './utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/animate-ui/components/animate/tooltip';
 import { HelpCircle } from 'lucide-react';
 
@@ -24,6 +24,7 @@ export type GroupEditorValues = {
     name: string;
     endpoint_type: string;
     endpoint_provider?: string;
+    outbound_format?: string;
     match_regex: string;
     condition: string;
     mode: GroupMode;
@@ -283,6 +284,7 @@ export function GroupEditor({
     const [groupName, setGroupName] = useState(initial?.name ?? '');
     const [endpointType, setEndpointType] = useState(normalizeEndpointType(initial?.endpoint_type));
     const [endpointProvider, setEndpointProvider] = useState(normalizeEndpointProvider(initial?.endpoint_provider));
+    const [outboundFormat, setOutboundFormat] = useState(normalizeOutboundFormat(initial?.outbound_format));
     const [matchRegex, setMatchRegex] = useState(initial?.match_regex ?? '');
     const [mode, setMode] = useState<GroupMode>((initial?.mode ?? GroupMode.Auto) as GroupMode);
     const [firstTokenTimeOut, setFirstTokenTimeOut] = useState<number>(initial?.first_token_time_out ?? 0);
@@ -361,6 +363,7 @@ export function GroupEditor({
     }, []);
 
     const supportsProviderSelection = endpointType !== '*' && (endpointType === 'music_generation' || endpointType === 'chat' || endpointType === 'responses' || endpointType === 'video_generation' || endpointType === 'audio_speech');
+    const supportsOutboundFormat = endpointType === 'chat' || endpointType === 'responses';
     const isValid = groupKey.length > 0 && selectedMembers.length > 0 && !regexError;
 
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -370,6 +373,7 @@ export function GroupEditor({
             name: groupName,
             endpoint_type: endpointType,
             endpoint_provider: supportsProviderSelection ? endpointProvider : '',
+            outbound_format: supportsOutboundFormat ? outboundFormat : '',
             match_regex: regexKey,
             mode,
             first_token_time_out: firstTokenTimeOut,
@@ -485,6 +489,26 @@ export function GroupEditor({
                                         </select>
                                         <p className="mt-1 text-xs text-muted-foreground">
                                             {t('form.endpointProvider.responsesHint')}
+                                        </p>
+                                    </Field>
+                                ) : null}
+                                {supportsOutboundFormat ? (
+                                    <Field>
+                                        <FieldLabel htmlFor="group-outbound-format">{t('form.outboundFormat.label')}</FieldLabel>
+                                        <select
+                                            id="group-outbound-format"
+                                            value={outboundFormat}
+                                            onChange={(e) => setOutboundFormat(normalizeOutboundFormat(e.target.value))}
+                                            className="h-10 w-full rounded-lg border border-border/40 bg-card px-3 text-sm shadow-sm transition-[border-color,box-shadow,background-color] duration-300 outline-none hover:border-primary/15 focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/20 md:h-11"
+                                        >
+                                            {OUTBOUND_FORMAT_OPTIONS.map((option) => (
+                                                <option key={option.value || 'auto'} value={option.value}>
+                                                    {t(option.labelKey)}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            {t('form.outboundFormat.hint')}
                                         </p>
                                     </Field>
                                 ) : null}

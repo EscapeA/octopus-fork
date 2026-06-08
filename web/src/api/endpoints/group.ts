@@ -36,6 +36,7 @@ export interface Group {
     name: string;
     endpoint_type: string;
     endpoint_provider?: string;
+    outbound_format?: string;
     mode: GroupMode;
     match_regex: string;
     condition?: string;
@@ -350,6 +351,7 @@ export interface GroupUpdateRequest {
     name?: string;
     endpoint_type?: string;
     endpoint_provider?: string;
+    outbound_format?: string;
     mode?: GroupMode;
     match_regex?: string;
     condition?: string;

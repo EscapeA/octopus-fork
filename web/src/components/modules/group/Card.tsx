@@ -214,6 +214,7 @@ function EditDialogContent({
                             name: group.name,
                             endpoint_type: normalizeEndpointType(group.endpoint_type),
             endpoint_provider: group.endpoint_provider ?? '',
+            outbound_format: group.outbound_format ?? '',
                             match_regex: group.match_regex ?? '',
                             condition: group.condition ?? '',
                             mode: group.mode,
@@ -462,6 +463,7 @@ export function GroupCard({ group }: { group: Group }) {
         const nextEndpointType = normalizeEndpointType(values.endpoint_type);
         const nextRegex = (values.match_regex ?? '').trim();
         const nextEndpointProvider = (values.endpoint_provider ?? '').trim().toLowerCase();
+        const nextOutboundFormat = (values.outbound_format ?? '').trim().toLowerCase();
         const nextCondition = values.condition.trim();
         const nextFirstTokenTimeOut = values.first_token_time_out ?? 0;
         const nextSessionKeepTime = values.session_keep_time ?? 0;
@@ -469,6 +471,7 @@ export function GroupCard({ group }: { group: Group }) {
         if (nextName && nextName !== group.name) payload.name = nextName;
         if (nextEndpointType !== normalizeEndpointType(group.endpoint_type)) payload.endpoint_type = nextEndpointType;
         if (nextEndpointProvider !== ((group.endpoint_provider ?? '').trim().toLowerCase())) payload.endpoint_provider = nextEndpointProvider;
+        if (nextOutboundFormat !== ((group.outbound_format ?? '').trim().toLowerCase())) payload.outbound_format = nextOutboundFormat;
         if (values.mode !== group.mode) payload.mode = values.mode;
         if (nextRegex !== (group.match_regex ?? '')) payload.match_regex = nextRegex;
         if (nextCondition !== (group.condition ?? '')) payload.condition = nextCondition;
@@ -490,7 +493,7 @@ export function GroupCard({ group }: { group: Group }) {
             },
             onError,
         });
-    }, [group.condition, group.endpoint_provider, group.endpoint_type, group.first_token_time_out, group.session_keep_time, group.id, group.items, group.match_regex, group.mode, group.name, onSuccess, onError, updateGroup]);
+    }, [group.condition, group.outbound_format, group.endpoint_provider, group.endpoint_type, group.first_token_time_out, group.session_keep_time, group.id, group.items, group.match_regex, group.mode, group.name, onSuccess, onError, updateGroup]);
 
     const resolvedMode = MODE_LABELS[group.mode] ? group.mode : GroupMode.Auto;
 
@@ -534,6 +537,7 @@ export function GroupCard({ group }: { group: Group }) {
             name: group.name,
             endpoint_type: normalizeEndpointType(group.endpoint_type),
             endpoint_provider: group.endpoint_provider ?? '',
+            outbound_format: group.outbound_format ?? '',
             match_regex: group.match_regex ?? '',
             condition: group.condition ?? '',
             mode: group.mode,
@@ -548,7 +552,7 @@ export function GroupCard({ group }: { group: Group }) {
             handledTestCompletionRef.current = null;
             toast.success(t('toast.removedFailedModels'));
         });
-    }, [group.condition, group.endpoint_provider, group.endpoint_type, group.first_token_time_out, group.id, group.match_regex, group.mode, group.name, group.session_keep_time, handleSubmitEdit, members, t, testProgress?.results]);
+    }, [group.condition, group.outbound_format, group.endpoint_provider, group.endpoint_type, group.first_token_time_out, group.id, group.match_regex, group.mode, group.name, group.session_keep_time, handleSubmitEdit, members, t, testProgress?.results]);
 
     const failedTestResults = useMemo(
         () => (testProgress?.done ? (testProgress.results ?? []).filter((result) => !result.passed) : []),

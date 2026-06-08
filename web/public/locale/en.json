@@ -1879,6 +1879,15 @@
         "videoHint": "Select the video API type. The backend will automatically rewrite the video passthrough request path after saving.",
         "audioSpeechLabel": "TTS API Type",
         "audioSpeechHint": "Select the TTS API type. The backend will automatically rewrite the TTS request format and path after saving."
+      },
+      "outboundFormat": {
+        "label": "Outbound Format",
+        "hint": "Select the preferred outbound API format. Auto will try Responses first then fall back to Chat Completions.",
+        "options": {
+          "auto": "Auto",
+          "chat": "Chat Completions",
+          "responses": "Responses"
+        }
       }
     },
     "mode": {

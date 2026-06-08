@@ -1879,6 +1879,15 @@
         "videoHint": "选择视频接口类型，保存后由后端自动改写视频透传请求路径。",
         "audioSpeechLabel": "语音合成接口类型",
         "audioSpeechHint": "选择语音合成接口类型，保存后由后端自动改写 TTS 请求格式和路径。"
+      },
+      "outboundFormat": {
+        "label": "出站请求格式",
+        "hint": "选择首选的出站 API 格式。自动模式将优先尝试 Responses，失败后回退到 Chat Completions。",
+        "options": {
+          "auto": "自动",
+          "chat": "Chat Completions",
+          "responses": "Responses"
+        }
       }
     },
     "mode": {

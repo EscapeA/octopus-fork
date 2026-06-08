@@ -56,9 +56,19 @@ export const CHAT_ENDPOINT_PROVIDER_OPTIONS = [
     { label: 'OpenAI', value: 'openai' },
     { label: 'DeepSeek', value: 'deepseek' },
     { label: 'Mimo', value: 'mimo' },
-    { label: 'SiliconFlow', value: 'siliconflow' },
-    { label: 'New API', value: 'newapi' },
 ] as const;
+
+export const OUTBOUND_FORMAT_OPTIONS = [
+    { labelKey: 'form.outboundFormat.options.auto', value: '' },
+    { labelKey: 'form.outboundFormat.options.chat', value: 'chat' },
+    { labelKey: 'form.outboundFormat.options.responses', value: 'responses' },
+] as const;
+
+export function normalizeOutboundFormat(value?: string | null) {
+    const normalized = value?.trim().toLowerCase();
+    if (normalized === 'chat' || normalized === 'responses') return normalized;
+    return '';
+}
 
 export function normalizeEndpointProvider(value?: string | null) {
     return value?.trim().toLowerCase() || '';

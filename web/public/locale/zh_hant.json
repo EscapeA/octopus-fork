@@ -1879,6 +1879,15 @@
         "videoHint": "選擇視頻接口類型，保存後由後端自動改寫視頻透傳請求救徑。",
         "audioSpeechLabel": "語音合成接口類型",
         "audioSpeechHint": "選擇語音合成接口類型，保存後由後端自動改寫 TTS 請求格式和路徑。"
+      },
+      "outboundFormat": {
+        "label": "出站請求格式",
+        "hint": "選擇首選的出站 API 格式。自動模式將優先嘗試 Responses，失敗後回退到 Chat Completions。",
+        "options": {
+          "auto": "自動",
+          "chat": "Chat Completions",
+          "responses": "Responses"
+        }
       }
     },
     "mode": {

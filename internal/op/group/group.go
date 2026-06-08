@@ -481,8 +481,8 @@ func groupMatchesRequestedEndpoint(group model.Group, requestedEndpoint string) 
 }
 
 // GroupListModelByEndpoint returns distinct model names for groups that:
-//   1. Have at least one valid item (channel exists + enabled)
-//   2. Match the requested endpoint type (or all if endpointType is empty/"*")
+//  1. Have at least one valid item (channel exists + enabled)
+//  2. Match the requested endpoint type (or all if endpointType is empty/"*")
 //
 // This is the endpoint-aware variant of GroupListModel.
 func GroupListModelByEndpoint(endpointType string, ctx context.Context) ([]string, error) {
@@ -658,6 +658,10 @@ func GroupUpdate(req *model.GroupUpdateRequest, ctx context.Context) (*model.Gro
 	if req.EndpointProvider != nil {
 		selectFields = append(selectFields, "endpoint_provider")
 		updates.EndpointProvider = strings.ToLower(strings.TrimSpace(*req.EndpointProvider))
+	}
+	if req.OutboundFormat != nil {
+		selectFields = append(selectFields, "outbound_format")
+		updates.OutboundFormat = strings.ToLower(strings.TrimSpace(*req.OutboundFormat))
 	}
 	if req.Mode != nil {
 		selectFields = append(selectFields, "mode")
@@ -1017,4 +1021,3 @@ func RefreshCacheByIDs(ids []int, ctx context.Context) error {
 	RebuildIndexes()
 	return nil
 }
-
