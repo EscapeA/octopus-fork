@@ -22,6 +22,7 @@ export const MODE_LABELS: Record<GroupMode, string> = {
 export const ENDPOINT_TYPE_OPTIONS = [
     { labelKey: 'form.endpointType.options.all', value: '*' },
     { labelKey: 'form.endpointType.options.chat', value: 'chat' },
+    { labelKey: 'form.endpointType.options.responses', value: 'responses' },
     { labelKey: 'form.endpointType.options.embeddings', value: 'embeddings' },
     { labelKey: 'form.endpointType.options.rerank', value: 'rerank' },
     { labelKey: 'form.endpointType.options.moderations', value: 'moderations' },
@@ -65,7 +66,7 @@ export function normalizeEndpointProvider(value?: string | null) {
 
 export function normalizeEndpointType(value?: string | null) {
     const normalized = value?.trim().toLowerCase();
-    if (normalized === 'responses' || normalized === 'messages' || normalized === 'deepseek' || normalized === 'mimo') {
+    if (normalized === 'messages' || normalized === 'deepseek' || normalized === 'mimo') {
         return 'chat';
     }
     return normalized || '*';
