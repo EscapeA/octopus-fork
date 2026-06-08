@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react';
 import { useModelMarket } from '@/api/endpoints/model';
 import { useTranslations } from 'next-intl';
 import { ModelItem } from './Item';
+import { MobileModelItem } from './MobileModelItem';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useSearchStore, useToolbarViewOptionsStore } from '@/components/modules/toolbar';
 import { VirtualizedGrid } from '@/components/common/VirtualizedGrid';
 import { sortModelMarketItems } from './sort';
@@ -13,6 +15,7 @@ import { cn } from '@/lib/utils';
 export function Model() {
     const t = useTranslations('model');
     const { data: market } = useModelMarket();
+    const isMobile = useIsMobile();
     const pageKey = 'model' as const;
     const searchTerm = useSearchStore((s) => s.getSearchTerm(pageKey));
     const layout = useToolbarViewOptionsStore((s) => s.getLayout(pageKey));
@@ -79,15 +82,23 @@ export function Model() {
                     {visibleModels.length > 0 ? (
                 <section className="relative flex min-h-0 flex-1 flex-col rounded-xl border border-border/35 bg-card p-3 text-card-foreground md:p-4">
                     <div className="relative min-h-0 flex-1">
-                        <VirtualizedGrid
-                            items={visibleModels}
-                            layout={layout}
-                            columns={{ default: 1, sm: 2, md: 2, lg: 3 }}
-                            estimateItemHeight={228}
-                            getItemKey={(model) => `model-${model.name}`}
-                            renderItem={(model) => <ModelItem model={model} layout={layout} latencyUnit={modelLatencyUnit} />}
-                            bottomPaddingClassName="pb-3 md:pb-4"
-                        />
+                        {isMobile ? (
+                            <div className="flex flex-col">
+                                {visibleModels.map((model) => (
+                                    <MobileModelItem key={`m-model-${model.name}`} model={model} latencyUnit={modelLatencyUnit} />
+                                ))}
+                            </div>
+                        ) : (
+                            <VirtualizedGrid
+                                items={visibleModels}
+                                layout={layout}
+                                columns={{ default: 1, sm: 2, md: 2, lg: 3 }}
+                                estimateItemHeight={228}
+                                getItemKey={(model) => `model-${model.name}`}
+                                renderItem={(model) => <ModelItem model={model} layout={layout} latencyUnit={modelLatencyUnit} />}
+                                bottomPaddingClassName="pb-3 md:pb-4"
+                            />
+                        )}
                     </div>
                 </section>
             ) : (
