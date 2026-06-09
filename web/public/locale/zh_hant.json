@@ -1882,7 +1882,7 @@
       },
       "outboundFormat": {
         "label": "出站請求格式",
-        "hint": "選擇首選的出站 API 格式。自動模式將優先嘗試 Responses，失敗後回退到 Chat Completions。",
+        "hint": "選擇首選的出站 API 格式。自動模式將優先嘗試 Chat Completions，失敗後回退到 Responses。",
         "options": {
           "auto": "自動",
           "chat": "Chat Completions",

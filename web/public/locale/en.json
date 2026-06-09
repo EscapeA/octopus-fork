@@ -1882,7 +1882,7 @@
       },
       "outboundFormat": {
         "label": "Outbound Format",
-        "hint": "Select the preferred outbound API format. Auto will try Responses first then fall back to Chat Completions.",
+        "hint": "Select the preferred outbound API format. Auto will try Chat Completions first then fall back to Responses.",
         "options": {
           "auto": "Auto",
           "chat": "Chat Completions",
