@@ -306,6 +306,7 @@ function EditDialogContent({
                         name: group.name,
                         endpoint_type: normalizeEndpointType(group.endpoint_type),
                         endpoint_provider: group.endpoint_provider ?? '',
+                        outbound_format: group.outbound_format ?? '',
                         match_regex: group.match_regex ?? '',
                         condition: group.condition ?? '',
                         mode: group.mode,
@@ -658,6 +659,11 @@ export function GroupListItem({ group }: { group: Group }) {
             )
                 .trim()
                 .toLowerCase();
+            const nextOutboundFormat = (
+                values.outbound_format ?? ''
+            )
+                .trim()
+                .toLowerCase();
             const nextCondition = values.condition.trim();
             const nextFirstTokenTimeOut =
                 values.first_token_time_out ?? 0;
@@ -676,6 +682,11 @@ export function GroupListItem({ group }: { group: Group }) {
                 (group.endpoint_provider ?? '').trim().toLowerCase()
             )
                 payload.endpoint_provider = nextEndpointProvider;
+            if (
+                nextOutboundFormat !==
+                (group.outbound_format ?? '').trim().toLowerCase()
+            )
+                payload.outbound_format = nextOutboundFormat;
             if (values.mode !== group.mode) payload.mode = values.mode;
             if (nextRegex !== (group.match_regex ?? ''))
                 payload.match_regex = nextRegex;
@@ -721,6 +732,7 @@ export function GroupListItem({ group }: { group: Group }) {
             group.match_regex,
             group.mode,
             group.name,
+            group.outbound_format,
             onSuccess,
             onError,
             updateGroup,
@@ -778,6 +790,7 @@ export function GroupListItem({ group }: { group: Group }) {
             name: group.name,
             endpoint_type: normalizeEndpointType(group.endpoint_type),
             endpoint_provider: group.endpoint_provider ?? '',
+            outbound_format: group.outbound_format ?? '',
             match_regex: group.match_regex ?? '',
             condition: group.condition ?? '',
             mode: group.mode,
@@ -801,6 +814,7 @@ export function GroupListItem({ group }: { group: Group }) {
         group.match_regex,
         group.mode,
         group.name,
+        group.outbound_format,
         group.session_keep_time,
         handleSubmitEdit,
         members,

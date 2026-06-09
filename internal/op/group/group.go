@@ -287,6 +287,7 @@ func normalizeGroup(group model.Group) model.Group {
 	group.Name = strings.TrimSpace(group.Name)
 	group.EndpointType = model.NormalizeEndpointType(group.EndpointType)
 	group.EndpointProvider = strings.ToLower(strings.TrimSpace(group.EndpointProvider))
+	group.OutboundFormat = strings.ToLower(strings.TrimSpace(group.OutboundFormat))
 	group.MatchRegex = strings.TrimSpace(group.MatchRegex)
 	for i := range group.Items {
 		group.Items[i].ModelName = strings.TrimSpace(group.Items[i].ModelName)
@@ -617,6 +618,7 @@ func GroupCreate(group *model.Group, ctx context.Context) error {
 	}
 	group.EndpointType = model.NormalizeEndpointType(group.EndpointType)
 	group.EndpointProvider = strings.ToLower(strings.TrimSpace(group.EndpointProvider))
+	group.OutboundFormat = strings.ToLower(strings.TrimSpace(group.OutboundFormat))
 	group.MatchRegex = strings.TrimSpace(group.MatchRegex)
 	group.Items = NormalizeItems(group.Items)
 	if err := db.GetDB().WithContext(ctx).Create(group).Error; err != nil {

@@ -123,6 +123,10 @@ func updateGroup(c *gin.Context) {
 		normalizedProvider := strings.ToLower(strings.TrimSpace(*req.EndpointProvider))
 		req.EndpointProvider = &normalizedProvider
 	}
+	if req.OutboundFormat != nil {
+		normalizedFormat := strings.ToLower(strings.TrimSpace(*req.OutboundFormat))
+		req.OutboundFormat = &normalizedFormat
+	}
 	if req.MatchRegex != nil {
 		_, err := regexp2.Compile(*req.MatchRegex, regexp2.ECMAScript)
 		if err != nil {
