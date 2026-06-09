@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op/apikey"
@@ -16,6 +18,10 @@ import (
 	"github.com/lingyuins/octopus/internal/utils/log"
 	"github.com/lingyuins/octopus/internal/utils/telemetry"
 )
+
+const relayLogTextFieldMaxBytes = 4096
+
+const relayLogJSONFieldMaxBytes = 16384
 
 // RelayMetrics 负责最终的日志收集与持久化
 type RelayMetrics struct {
@@ -359,11 +365,36 @@ func filterMessageForLog(msg *transformerModel.Message) *transformerModel.Messag
 		return nil
 	}
 	c := *msg
+	if c.Content.Content != nil {
+		content := truncateRelayLogString(*c.Content.Content, relayLogTextFieldMaxBytes)
+		c.Content.Content = &content
+	}
+	if c.ReasoningContent != nil {
+		reasoningContent := truncateRelayLogString(*c.ReasoningContent, relayLogTextFieldMaxBytes)
+		c.ReasoningContent = &reasoningContent
+	}
+	if c.Reasoning != nil {
+		reasoning := truncateRelayLogString(*c.Reasoning, relayLogTextFieldMaxBytes)
+		c.Reasoning = &reasoning
+	}
+	if len(c.ToolCalls) > 0 {
+		c.ToolCalls = make([]transformerModel.ToolCall, len(msg.ToolCalls))
+		for i, toolCall := range msg.ToolCalls {
+			c.ToolCalls[i] = toolCall
+			c.ToolCalls[i].Function.Arguments = truncateRelayLogString(toolCall.Function.Arguments, relayLogTextFieldMaxBytes)
+		}
+	}
 	c.Images = nil
 	if len(c.Content.MultipleContent) > 0 {
 		parts := make([]transformerModel.MessageContentPart, 0, len(c.Content.MultipleContent))
 		for _, p := range c.Content.MultipleContent {
 			switch {
+			case p.Type == "text" && p.Text != nil:
+				text := truncateRelayLogString(*p.Text, relayLogTextFieldMaxBytes)
+				parts = append(parts, transformerModel.MessageContentPart{
+					Type: p.Type,
+					Text: &text,
+				})
 			case p.Type == "image_url" && p.ImageURL != nil:
 				parts = append(parts, transformerModel.MessageContentPart{
 					Type:     "image_url",
@@ -397,21 +428,50 @@ func filterMessageForLog(msg *transformerModel.Message) *transformerModel.Messag
 	return &c
 }
 
+func truncateRelayLogString(value string, maxBytes int) string {
+	if maxBytes <= 0 || len(value) <= maxBytes {
+		return value
+	}
+
+	truncated := value[:maxBytes]
+	for !utf8.ValidString(truncated) && len(truncated) > 0 {
+		truncated = truncated[:len(truncated)-1]
+	}
+	return fmt.Sprintf("%s...[truncated %d bytes for storage]", truncated, len(value)-len(truncated))
+}
+
 func filterEmbeddingInputForLog(input *transformerModel.EmbeddingInput) *transformerModel.EmbeddingInput {
 	if input == nil {
 		return nil
 	}
 	cloned := *input
-	for i, value := range cloned.Multiple {
-		if len(value) > 4096 {
-			cloned.Multiple[i] = value[:4096] + "...[truncated for storage]"
-		}
+	if len(input.Multiple) > 0 {
+		cloned.Multiple = make([]string, len(input.Multiple))
+		copy(cloned.Multiple, input.Multiple)
 	}
-	if cloned.Single != nil && len(*cloned.Single) > 4096 {
-		truncated := (*cloned.Single)[:4096] + "...[truncated for storage]"
+	for i, value := range cloned.Multiple {
+		cloned.Multiple[i] = truncateRelayLogString(value, relayLogTextFieldMaxBytes)
+	}
+	if cloned.Single != nil {
+		truncated := truncateRelayLogString(*cloned.Single, relayLogTextFieldMaxBytes)
 		cloned.Single = &truncated
 	}
 	return &cloned
+}
+
+func filterToolsForLog(tools []transformerModel.Tool) []transformerModel.Tool {
+	if len(tools) == 0 {
+		return nil
+	}
+	filtered := make([]transformerModel.Tool, len(tools))
+	for i, tool := range tools {
+		filtered[i] = tool
+		filtered[i].Function.Description = truncateRelayLogString(tool.Function.Description, relayLogTextFieldMaxBytes)
+		if len(tool.Function.Parameters) > relayLogJSONFieldMaxBytes {
+			filtered[i].Function.Parameters = json.RawMessage(strconv.Quote(truncateRelayLogString(string(tool.Function.Parameters), relayLogJSONFieldMaxBytes)))
+		}
+	}
+	return filtered
 }
 
 func (m *RelayMetrics) filterRequestForLog(req *transformerModel.InternalLLMRequest) *transformerModel.InternalLLMRequest {
@@ -430,6 +490,9 @@ func (m *RelayMetrics) filterRequestForLog(req *transformerModel.InternalLLMRequ
 		}
 	}
 	filtered.EmbeddingInput = filterEmbeddingInputForLog(req.EmbeddingInput)
+	filtered.Tools = filterToolsForLog(req.Tools)
+	filtered.ExtraBody = nil
+	filtered.RawRequest = nil
 	return &filtered
 }
 

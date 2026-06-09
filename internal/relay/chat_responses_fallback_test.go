@@ -118,3 +118,27 @@ func TestOutboundAttemptTypesResponsesFormatPrefersResponseFirst(t *testing.T) {
 		}
 	}
 }
+
+func TestShouldTryAdapterFallbackSkipsSameChannelFailures(t *testing.T) {
+	result := attemptResult{
+		Success:  false,
+		Written:  false,
+		Decision: RetryDecision{Scope: ScopeSameChannel, Reason: "unauthorized", Code: 401, IsError: true},
+	}
+
+	if shouldTryAdapterFallback(result, 0, 2) {
+		t.Fatal("expected key-scoped failure to skip adapter fallback")
+	}
+}
+
+func TestShouldTryAdapterFallbackAllowsNextChannelFailures(t *testing.T) {
+	result := attemptResult{
+		Success:  false,
+		Written:  false,
+		Decision: RetryDecision{Scope: ScopeNextChannel, Reason: "gateway error", Code: 503, IsError: true},
+	}
+
+	if !shouldTryAdapterFallback(result, 0, 2) {
+		t.Fatal("expected route-scoped failure to allow adapter fallback")
+	}
+}
