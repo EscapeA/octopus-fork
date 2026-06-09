@@ -15,6 +15,7 @@ import (
 	"github.com/lingyuins/octopus/internal/utils/log"
 	"github.com/lingyuins/octopus/internal/utils/snowflake"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const relayLogMaxSize = 200
@@ -158,7 +159,7 @@ func relayLogFlushToDB(ctx context.Context) error {
 	lastFlushedID := batch[len(batch)-1].ID
 	relayLogCacheLock.Unlock()
 
-	result := db.GetDB().WithContext(ctx).Create(&batch)
+	result := db.GetDB().WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(&batch)
 	if result.Error != nil {
 		return result.Error
 	}
