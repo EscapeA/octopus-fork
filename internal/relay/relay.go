@@ -116,6 +116,18 @@ func isLLMRequestFormat(request *model.InternalLLMRequest) bool {
 		return false
 	}
 }
+
+func shouldTryAdapterFallback(result attemptResult, adapterIndex, attemptCount int) bool {
+	if result.Success || result.Written || result.Decision.Scope == ScopeAbortAll || adapterIndex >= attemptCount-1 {
+		return false
+	}
+	// Key-scoped failures use the same credential across adapter formats, so
+	// trying another adapter only adds latency before the normal key retry path.
+	if result.Decision.Scope == ScopeSameChannel {
+		return false
+	}
+	return true
+}
 func isZenCandidateChannelAllowed(requestModel string, channelType outbound.OutboundType, isEmbeddingRequest bool) bool {
 	preferred := detectZenPreferredChannelTypes(requestModel, isEmbeddingRequest)
 	if len(preferred) == 0 {
@@ -1176,7 +1188,7 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 						}
 						break
 					}
-					if result.Written || result.Decision.Scope == ScopeAbortAll || adapterIndex == len(attemptTypes)-1 {
+					if !shouldTryAdapterFallback(result, adapterIndex, len(attemptTypes)) {
 						break
 					}
 					log.Infof("[%s] %s adapter failed on channel %s, falling back to %s: %v",
