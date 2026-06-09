@@ -132,7 +132,7 @@ func TestBuildRelayStreamSessionHash_IgnoresResumeControlFields(t *testing.T) {
 	}
 }
 
-func TestResolveRelayStreamSessionIdentity_GeneratesImplicitConversationID(t *testing.T) {
+func TestResolveRelayStreamSessionIdentityRequiresExplicitConversationID(t *testing.T) {
 	stream := true
 	req := &transmodel.InternalLLMRequest{
 		Model:      "gpt-4o",
@@ -141,23 +141,36 @@ func TestResolveRelayStreamSessionIdentity_GeneratesImplicitConversationID(t *te
 	}
 
 	conversationID, requestHash, ok := resolveRelayStreamSessionIdentity("chat", 0, 7, req)
-	if !ok {
-		t.Fatal("resolveRelayStreamSessionIdentity() should enable stream session for stream requests without conversation_id")
+	if ok || conversationID != "" || requestHash != 0 {
+		t.Fatalf("resolveRelayStreamSessionIdentity() = (%q, %d, %t), want disabled", conversationID, requestHash, ok)
 	}
-	if !strings.HasPrefix(conversationID, "implicit:") {
-		t.Fatalf("conversationID = %q, want implicit prefix", conversationID)
+}
+
+func TestResolveRelayStreamSessionIdentityUsesExplicitConversationID(t *testing.T) {
+	stream := true
+	req := &transmodel.InternalLLMRequest{
+		Model:          "gpt-4o",
+		Stream:         &stream,
+		ConversationID: "conv-1",
+		RawRequest:     []byte(`{"conversation_id":"conv-1","model":"gpt-4o","stream":true,"messages":[{"role":"user","content":"hello"}]}`),
+	}
+
+	conversationID, requestHash, ok := resolveRelayStreamSessionIdentity("chat", 0, 7, req)
+	if !ok {
+		t.Fatal("resolveRelayStreamSessionIdentity() should enable explicit stream session")
+	}
+	if conversationID != "conv-1" {
+		t.Fatalf("conversationID = %q, want conv-1", conversationID)
 	}
 	if requestHash == 0 {
 		t.Fatal("requestHash should be non-zero")
 	}
-	if req.ConversationID != conversationID {
-		t.Fatalf("req.ConversationID = %q, want %q", req.ConversationID, conversationID)
-	}
 
 	retry := &transmodel.InternalLLMRequest{
-		Model:      "gpt-4o",
-		Stream:     &stream,
-		RawRequest: []byte(`{"model":"gpt-4o","stream":true,"messages":[{"role":"user","content":"hello"}],"last_event_id":2}`),
+		Model:          "gpt-4o",
+		Stream:         &stream,
+		ConversationID: "conv-1",
+		RawRequest:     []byte(`{"conversation_id":"conv-1","model":"gpt-4o","stream":true,"messages":[{"role":"user","content":"hello"}],"last_event_id":2}`),
 	}
 	retryConversationID, retryHash, ok := resolveRelayStreamSessionIdentity("chat", 0, 7, retry)
 	if !ok {
