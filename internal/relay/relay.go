@@ -989,11 +989,9 @@ func rewriteConversationRequestByProvider(group dbmodel.Group, req *model.Intern
 		stripReasoningSignature bool
 	}
 	providers := map[string]providerRewrite{
-		"openai":      {stripReasoning: true, stripReasoningSignature: true},
-		"deepseek":    {stripReasoning: true, stripReasoningSignature: false},
-		"mimo":        {stripReasoning: false, stripReasoningSignature: true},
-		"siliconflow": {stripReasoning: false, stripReasoningSignature: true},
-		"newapi":      {stripReasoning: true, stripReasoningSignature: true},
+		"openai":   {stripReasoning: true, stripReasoningSignature: true},
+		"deepseek": {stripReasoning: true, stripReasoningSignature: false},
+		"mimo":     {stripReasoning: false, stripReasoningSignature: true},
 	}
 	cfg, ok := providers[provider]
 	if !ok {

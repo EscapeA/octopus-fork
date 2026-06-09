@@ -48,38 +48,81 @@ func modelNameHintsEndpoint(modelName string, endpointType string) bool {
 
 	switch endpointType {
 	case dbmodel.EndpointTypeEmbeddings:
-		return strings.Contains(lower, "embedding")
+		return strings.Contains(lower, "embedding") ||
+			strings.Contains(lower, "bge") ||
+			strings.Contains(lower, "gte") ||
+			strings.Contains(lower, "e5") ||
+			strings.Contains(lower, "jina-clip")
 	case dbmodel.EndpointTypeRerank:
-		return strings.Contains(lower, "rerank")
+		return strings.Contains(lower, "rerank") ||
+			strings.Contains(lower, "re-rank") ||
+			strings.Contains(lower, "colbert") ||
+			strings.Contains(lower, "cohere-rerank")
 	case dbmodel.EndpointTypeModerations:
-		return strings.Contains(lower, "moderation")
+		return strings.Contains(lower, "moderation") ||
+			strings.Contains(lower, "moderat") ||
+			strings.Contains(lower, "omni-moderation")
 	case dbmodel.EndpointTypeImageGeneration:
 		return strings.Contains(lower, "image") ||
 			strings.Contains(lower, "flux") ||
+			strings.Contains(lower, "stable-diffusion") ||
+			strings.Contains(lower, "sd3") ||
 			strings.Contains(lower, "sd-") ||
 			strings.Contains(lower, "gpt-image") ||
 			strings.Contains(lower, "dall-e") ||
-			strings.Contains(lower, "midjourney")
+			strings.Contains(lower, "dalle") ||
+			strings.Contains(lower, "qwen-image") ||
+			strings.Contains(lower, "imagen") ||
+			strings.Contains(lower, "seedream") ||
+			strings.Contains(lower, "agnes-image") ||
+			strings.Contains(lower, "midjourney") ||
+			strings.Contains(lower, "ideogram") ||
+			strings.Contains(lower, "playground")
 	case dbmodel.EndpointTypeAudioSpeech:
 		return strings.Contains(lower, "tts") ||
 			strings.Contains(lower, "speech") ||
-			strings.Contains(lower, "audio-speech")
+			strings.Contains(lower, "voice") ||
+			strings.Contains(lower, "audio-speech") ||
+			strings.Contains(lower, "playht") ||
+			strings.Contains(lower, "elevenlabs") ||
+			strings.Contains(lower, "cartesia")
 	case dbmodel.EndpointTypeAudioTranscription:
 		return strings.Contains(lower, "whisper") ||
-			strings.Contains(lower, "transcription")
+			strings.Contains(lower, "transcription") ||
+			strings.Contains(lower, "transcribe") ||
+			strings.Contains(lower, "audio-transcri") ||
+			strings.Contains(lower, "deepgram")
 	case dbmodel.EndpointTypeVideoGeneration:
 		return strings.Contains(lower, "video") ||
 			strings.Contains(lower, "veo") ||
 			strings.Contains(lower, "kling") ||
 			strings.Contains(lower, "wan") ||
 			strings.Contains(lower, "sora") ||
-			strings.Contains(lower, "agnes")
+			strings.Contains(lower, "agnes") ||
+			strings.Contains(lower, "luma") ||
+			strings.Contains(lower, "runway") ||
+			strings.Contains(lower, "animate") ||
+			strings.Contains(lower, "svd") ||
+			strings.Contains(lower, "seendance") ||
+			strings.Contains(lower, "vidu") ||
+			strings.Contains(lower, "paiwo") ||
+			strings.Contains(lower, "hailuo")
 	case dbmodel.EndpointTypeMusicGeneration:
 		return strings.Contains(lower, "music") ||
 			strings.Contains(lower, "suno") ||
-			strings.Contains(lower, "udio")
+			strings.Contains(lower, "udio") ||
+			strings.Contains(lower, "stable-audio") ||
+			strings.Contains(lower, "audio-craft")
 	case dbmodel.EndpointTypeSearch:
-		return strings.Contains(lower, "search")
+		return strings.Contains(lower, "search") ||
+			strings.Contains(lower, "serper") ||
+			strings.Contains(lower, "brave-search") ||
+			strings.Contains(lower, "exa") ||
+			strings.Contains(lower, "tavily") ||
+			strings.Contains(lower, "sonar") ||
+			strings.Contains(lower, "deepsearch") ||
+			strings.Contains(lower, "deep-research") ||
+			strings.Contains(lower, "deepresearch")
 	default:
 		return false
 	}

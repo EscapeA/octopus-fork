@@ -54,7 +54,7 @@ export const CHAT_ENDPOINT_PROVIDER_OPTIONS = [
     { label: 'Auto', value: '' },
     { label: 'OpenAI', value: 'openai' },
     { label: 'DeepSeek', value: 'deepseek' },
-    { label: 'Mimo', value: 'mimo' },
+    { label: 'MiMo', value: 'mimo' },
 ] as const;
 
 export const OUTBOUND_FORMAT_OPTIONS = [

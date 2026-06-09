@@ -265,29 +265,32 @@ func cleanModelSegment(segment string) string {
 
 func InferEndpointTypeFromModelName(raw string, cleaned string) string {
 	s := strings.ToLower(raw + " " + cleaned)
-	if containsAny(s, "rerank", "reranker", "colbert") {
+	if containsAny(s, "rerank", "reranker", "colbert", "cohere-rerank", "re-rank") {
 		return model.EndpointTypeRerank
 	}
-	if containsAny(s, "embedding", "embeddings", "bge-m3", "jina-clip") {
+	if containsAny(s, "embedding", "embeddings", "bge-m3", "jina-clip", "voyage-embedding", "bge", "gte", "e5") {
 		return model.EndpointTypeEmbeddings
 	}
-	if containsAny(s, "tts", "speech", "voice") {
+	if containsAny(s, "tts", "speech", "voice", "audio-speech", "playht", "elevenlabs", "cartesia") {
 		return model.EndpointTypeAudioSpeech
 	}
-	if containsAny(s, "transcribe", "transcription", "whisper") {
+	if containsAny(s, "transcribe", "transcription", "whisper", "audio-transcri", "deepgram") {
 		return model.EndpointTypeAudioTranscription
 	}
-	if containsAny(s, "deepsearch", "deep-research", "deepresearch", "sonar", "search") {
+	if containsAny(s, "deepsearch", "deep-research", "deepresearch", "sonar", "search", "serper", "brave-search", "exa", "tavily") {
 		return model.EndpointTypeSearch
 	}
-	if containsAny(s, "video-generation", "seendance", "kling", "vidu", "paiwo", "ttv", "itv", "i2v", "t2v", "r2v", "hailuo") {
-		return model.EndpointTypeVideoGeneration
-	}
-	if containsAny(s, "gpt-image", "dall-e", "qwen-image", "imagen", "seedream") ||
+	if containsAny(s, "gpt-image", "dall-e", "dalle", "qwen-image", "imagen", "seedream", "agnes-image", "flux", "stable-diffusion", "sd3", "ideogram", "playground", "midjourney") ||
 		regexp.MustCompile(`wan.*(?:image|t2i)`).MatchString(s) || strings.Contains(s, "sd-wan") {
 		return model.EndpointTypeImageGeneration
 	}
-	if containsAny(s, "moderation", "moderations") {
+	if containsAny(s, "video-generation", "seendance", "kling", "vidu", "paiwo", "ttv", "itv", "i2v", "t2v", "r2v", "hailuo", "agnes", "veo", "sora", "luma", "runway", "animate", "svd") {
+		return model.EndpointTypeVideoGeneration
+	}
+	if containsAny(s, "music", "suno", "udio", "stable-audio", "audio-craft") {
+		return model.EndpointTypeMusicGeneration
+	}
+	if containsAny(s, "moderation", "moderations", "moderat", "omni-moderation") {
 		return model.EndpointTypeModerations
 	}
 	return model.EndpointTypeChat

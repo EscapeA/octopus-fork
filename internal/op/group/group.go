@@ -232,6 +232,7 @@ func conversationEndpointLookupOrder(endpointType string, requestModel string) [
 	case model.EndpointTypeChat:
 		order = []string{
 			model.EndpointTypeChat,
+			model.EndpointTypeDeepSeek,
 			model.EndpointTypeMimo,
 			model.EndpointTypeResponses,
 			model.EndpointTypeMessages,
@@ -240,6 +241,7 @@ func conversationEndpointLookupOrder(endpointType string, requestModel string) [
 		order = []string{
 			model.EndpointTypeMimo,
 			model.EndpointTypeChat,
+			model.EndpointTypeDeepSeek,
 			model.EndpointTypeResponses,
 			model.EndpointTypeMessages,
 		}
@@ -247,6 +249,7 @@ func conversationEndpointLookupOrder(endpointType string, requestModel string) [
 		order = []string{
 			model.EndpointTypeResponses,
 			model.EndpointTypeChat,
+			model.EndpointTypeDeepSeek,
 			model.EndpointTypeMimo,
 			model.EndpointTypeMessages,
 		}
@@ -254,6 +257,7 @@ func conversationEndpointLookupOrder(endpointType string, requestModel string) [
 		order = []string{
 			model.EndpointTypeMessages,
 			model.EndpointTypeChat,
+			model.EndpointTypeDeepSeek,
 			model.EndpointTypeMimo,
 			model.EndpointTypeResponses,
 		}

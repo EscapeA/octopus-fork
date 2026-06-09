@@ -89,6 +89,7 @@ func createGroup(c *gin.Context) {
 	}
 	group.EndpointType = model.NormalizeEndpointType(group.EndpointType)
 	group.EndpointProvider = strings.ToLower(strings.TrimSpace(group.EndpointProvider))
+	group.OutboundFormat = strings.ToLower(strings.TrimSpace(group.OutboundFormat))
 	if group.MatchRegex != "" {
 		_, err := regexp2.Compile(group.MatchRegex, regexp2.ECMAScript)
 		if err != nil {
@@ -310,6 +311,7 @@ type groupListResponseItem struct {
 	Name              string            `json:"name"`
 	EndpointType      string            `json:"endpoint_type"`
 	EndpointProvider  string            `json:"endpoint_provider,omitempty"`
+	OutboundFormat    string            `json:"outbound_format,omitempty"`
 	Mode              model.GroupMode   `json:"mode"`
 	MatchRegex        string            `json:"match_regex"`
 	FirstTokenTimeOut int               `json:"first_token_time_out"`
@@ -334,6 +336,7 @@ func normalizeGroupListResponse(groups []model.Group) []groupListResponseItem {
 			Name:              group.Name,
 			EndpointType:      group.EndpointType,
 			EndpointProvider:  group.EndpointProvider,
+			OutboundFormat:    group.OutboundFormat,
 			Mode:              group.Mode,
 			MatchRegex:        group.MatchRegex,
 			FirstTokenTimeOut: group.FirstTokenTimeOut,

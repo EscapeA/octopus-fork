@@ -23,7 +23,7 @@ export const ALL_CAPABILITIES: CapabilityType[] = [
     'search',
 ];
 
-const CONVERSATION_ENDPOINT_TYPES = new Set<string>(['chat', 'deepseek', 'mimo', 'responses', 'messages']);
+const CONVERSATION_ENDPOINT_TYPES = new Set<string>(['chat', 'deepseek', 'mimo', 'responses', 'messages', '*']);
 
 const FILTER_CAPABILITY_MAP = {
     chat: 'chat',
@@ -124,7 +124,9 @@ export function inferCapabilities(modelName: string): CapabilityType[] {
     if (
         m.includes('music') ||
         m.includes('stable-audio') ||
-        m.includes('audio-craft')
+        m.includes('audio-craft') ||
+        m.includes('suno') ||
+        m.includes('udio')
     ) {
         caps.push('music_generation');
     }
