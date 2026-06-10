@@ -237,7 +237,11 @@ func RelayLogSaveDBTask(ctx context.Context) error {
 		return relayLogCleanup(ctx)
 	}
 
-	// 如果未启用日志保存，检查缓存大小，如果超过限制则清理旧日志
+	// 日志关闭：清空数据库中所有历史日志以释放磁盘空间
+	if err := relayLogCleanupAll(ctx); err != nil {
+		log.Warnf("failed to cleanup all logs from DB: %v", err)
+	}
+
 	relayLogCacheLock.Lock()
 	if len(relayLogCache) > relayLogMaxSizeNoDB {
 		keepSize := relayLogMaxSizeNoDB / 2
@@ -288,6 +292,11 @@ func relayLogCleanup(ctx context.Context) error {
 
 	cutoffTime := time.Now().Add(-time.Duration(keepPeriod) * 24 * time.Hour).Unix()
 	return db.GetDB().WithContext(ctx).Where("time < ?", cutoffTime).Delete(&model.RelayLog{}).Error
+}
+
+// relayLogCleanupAll 删除数据库中所有日志记录，用于日志关闭时释放磁盘空间。
+func relayLogCleanupAll(ctx context.Context) error {
+	return db.GetDB().WithContext(ctx).Where("1 = 1").Delete(&model.RelayLog{}).Error
 }
 
 // RelayLogList 查询日志列表，支持可选的时间范围过滤

@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op/modelmapping"
+	"github.com/lingyuins/octopus/internal/op/setting"
+	"github.com/lingyuins/octopus/internal/utils/log"
 )
 
 // CacheInitFunc is a function that initializes a sub-package's in-memory cache.
@@ -62,6 +65,10 @@ func init() {
 	RegisterCacheInit(func(ctx context.Context) error {
 		if err := settingRefreshCache(ctx); err != nil {
 			return fmt.Errorf("setting refresh cache error: %v", err)
+		}
+		// 设置加载后应用日志级别
+		if level, err := setting.GetString(model.SettingKeyLogLevel); err == nil {
+			log.SetLevel(level)
 		}
 		return nil
 	})

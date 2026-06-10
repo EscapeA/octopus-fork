@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { ScrollText, Calendar, Hash, Trash2 } from 'lucide-react';
+import { ScrollText, Calendar, Hash, Trash2, Terminal } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,9 @@ import { useClearLogs } from '@/api/endpoints/log';
 import { toast } from '@/components/common/Toast';
 
 type KeepMode = 'count' | 'days';
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+const LOG_LEVELS: LogLevel[] = ['debug', 'info', 'warn', 'error'];
 
 export function SettingLog() {
     const t = useTranslations('setting');
@@ -19,6 +22,7 @@ export function SettingLog() {
     const clearLogs = useClearLogs();
 
     const [enabled, setEnabled] = useState(true);
+    const [logLevel, setLogLevel] = useState<LogLevel>('info');
     const [mode, setMode] = useState<KeepMode>('count');
     const [keepCount, setKeepCount] = useState('1000');
     const [keepDays, setKeepDays] = useState('7');
@@ -39,6 +43,11 @@ export function SettingLog() {
                 const isEnabled = enabledSetting.value === 'true';
                 queueMicrotask(() => setEnabled(isEnabled));
                 initialEnabled.current = isEnabled;
+            }
+
+            const logLevelSetting = settings.find(s => s.key === SettingKey.LogLevel);
+            if (logLevelSetting && LOG_LEVELS.includes(logLevelSetting.value as LogLevel)) {
+                queueMicrotask(() => setLogLevel(logLevelSetting.value as LogLevel));
             }
 
             // Determine mode: if keepCount > 0 → count mode, else days mode
@@ -75,6 +84,18 @@ export function SettingLog() {
                 onSuccess: () => {
                     toast.success(t('saved'));
                     initialEnabled.current = checked;
+                }
+            }
+        );
+    };
+
+    const handleLogLevelChange = (level: LogLevel) => {
+        setLogLevel(level);
+        setSetting.mutate(
+            { key: SettingKey.LogLevel, value: level },
+            {
+                onSuccess: () => {
+                    toast.success(t('saved'));
                 }
             }
         );
@@ -152,12 +173,39 @@ export function SettingLog() {
             <div className="flex items-center justify-between gap-4 rounded-lg border-border/30 bg-card p-4 shadow-sm">
                 <div className="flex items-center gap-3">
                     <ScrollText className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-sm font-medium">{t('log.enabled.label')}</span>
+                    <div className="flex flex-col">
+                        <span className="text-sm font-medium">{t('log.enabled.label')}</span>
+                        <span className="text-xs text-muted-foreground">{t('log.enabled.description')}</span>
+                    </div>
                 </div>
                 <Switch
                     checked={enabled}
                     onCheckedChange={handleEnabledChange}
                 />
+            </div>
+
+            {/* 应用日志级别 */}
+            <div className="flex flex-col gap-3 rounded-lg border-border/30 bg-card p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                    <Terminal className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex flex-col">
+                        <span className="text-sm font-medium">{t('log.logLevel.label')}</span>
+                        <span className="text-xs text-muted-foreground">{t('log.logLevel.description')}</span>
+                    </div>
+                </div>
+                <div className="flex gap-2 mt-1">
+                    {LOG_LEVELS.map((level) => (
+                        <Button
+                            key={level}
+                            variant={logLevel === level ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => handleLogLevelChange(level)}
+                            className="rounded-xl flex-1 md:flex-none"
+                        >
+                            {t(`log.logLevel.${level}`)}
+                        </Button>
+                    ))}
+                </div>
             </div>
 
             {/* 保留模式切换 */}

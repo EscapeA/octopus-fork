@@ -71,6 +71,7 @@ export const SettingKey = {
     ResponseFilterKeywords: 'response_filter_keywords',
     ResponseFilterAction: 'response_filter_action',
     ResponseFilterErrorMessage: 'response_filter_error_message',
+    LogLevel: 'log_level',
 } as const;
 
 /**

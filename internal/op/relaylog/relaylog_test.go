@@ -56,3 +56,38 @@ func TestRelayLogFlushToDBSkipsDuplicateIDsAndTruncatesCache(t *testing.T) {
 		t.Fatalf("relay log cache len = %d, want 0", cacheLen)
 	}
 }
+
+func TestRelayLogCleanupAll(t *testing.T) {
+	dsn := filepath.Join(t.TempDir(), "relaylog-cleanup.db")
+	if err := db.InitDB("sqlite", dsn, false); err != nil {
+		t.Fatalf("InitDB failed: %v", err)
+	}
+
+	// Seed DB with a mix of success and error logs
+	seed := []model.RelayLog{
+		{ID: 401, Time: 1, RequestModelName: "model-a", Error: ""},
+		{ID: 402, Time: 2, RequestModelName: "model-b", Error: "timeout"},
+		{ID: 403, Time: 3, RequestModelName: "model-c", Error: ""},
+	}
+	if err := db.GetDB().Create(&seed).Error; err != nil {
+		t.Fatalf("seed relay logs failed: %v", err)
+	}
+
+	var before int64
+	db.GetDB().Model(&model.RelayLog{}).Count(&before)
+	if before != 3 {
+		t.Fatalf("expected 3 seeded logs, got %d", before)
+	}
+
+	if err := relayLogCleanupAll(context.Background()); err != nil {
+		t.Fatalf("relayLogCleanupAll returned error: %v", err)
+	}
+
+	var after int64
+	if err := db.GetDB().Model(&model.RelayLog{}).Count(&after).Error; err != nil {
+		t.Fatalf("count after cleanup failed: %v", err)
+	}
+	if after != 0 {
+		t.Fatalf("relay log count = %d, want 0 (all logs should be deleted)", after)
+	}
+}

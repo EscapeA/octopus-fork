@@ -1551,7 +1551,8 @@
     "log": {
       "title": "日誌設定",
       "enabled": {
-        "label": "啟用歷史日誌"
+        "label": "啟用歷史日誌",
+        "description": "關閉後將不再保存日誌，並自動清理已有的歷史日誌"
       },
       "keepPeriod": {
         "label": "日誌保存天數",
@@ -1580,6 +1581,14 @@
         "description": "選擇按條數或按天數自動清理歷史日誌",
         "count": "按條數",
         "days": "按天數"
+      },
+      "logLevel": {
+        "label": "應用日誌級別",
+        "description": "控制後端控制台輸出的詳細程度",
+        "debug": "除錯",
+        "info": "資訊",
+        "warn": "警告",
+        "error": "錯誤"
       }
     },
     "navOrder": {

@@ -69,6 +69,7 @@ const (
 	SettingKeyResponseFilterKeywords               SettingKey = "response_filter_keywords"                 // 拦截关键词列表(JSON 数组)
 	SettingKeyResponseFilterAction                 SettingKey = "response_filter_action"                   // 拦截动作: block(阻断) / replace(替换为*)
 	SettingKeyResponseFilterErrorMessage           SettingKey = "response_filter_error_message"            // 阻断时返回的错误信息
+	SettingKeyLogLevel                             SettingKey = "log_level"                                // 应用日志级别: debug, info, warn, error
 )
 
 type Setting struct {
@@ -136,6 +137,7 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyResponseFilterKeywords, Value: "[]"},
 		{Key: SettingKeyResponseFilterAction, Value: "block"},
 		{Key: SettingKeyResponseFilterErrorMessage, Value: "The response contains blocked keywords and has been intercepted."},
+		{Key: SettingKeyLogLevel, Value: "info"},
 	}
 }
 
@@ -316,6 +318,13 @@ func (s *Setting) Validate() error {
 		}
 	case SettingKeyResponseFilterErrorMessage:
 		return nil
+	case SettingKeyLogLevel:
+		switch s.Value {
+		case "debug", "info", "warn", "error":
+			return nil
+		default:
+			return fmt.Errorf("log level must be one of: debug, info, warn, error")
+		}
 	}
 
 	return nil

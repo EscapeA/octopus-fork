@@ -127,6 +127,8 @@ func setSetting(c *gin.Context) {
 			break
 		}
 		task.Update(string(setting.Key), time.Duration(hours)*time.Hour)
+	case model.SettingKeyLogLevel:
+		log.SetLevel(setting.Value)
 	}
 	resp.Success(c, setting)
 }

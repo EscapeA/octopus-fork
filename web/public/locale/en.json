@@ -1551,7 +1551,8 @@
     "log": {
       "title": "Log Settings",
       "enabled": {
-        "label": "Enable History Logs"
+        "label": "Enable History Logs",
+        "description": "When disabled, logs will not be saved and existing logs will be cleaned up"
       },
       "keepPeriod": {
         "label": "Log Retention Days",
@@ -1580,6 +1581,14 @@
         "description": "Choose to auto-clean logs by count or by days",
         "count": "By Count",
         "days": "By Days"
+      },
+      "logLevel": {
+        "label": "Application Log Level",
+        "description": "Control the verbosity of backend console output",
+        "debug": "Debug",
+        "info": "Info",
+        "warn": "Warn",
+        "error": "Error"
       }
     },
     "navOrder": {
