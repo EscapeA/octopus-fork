@@ -134,4 +134,10 @@ func init() {
 		}
 		return nil
 	})
+	RegisterCacheSave(func(ctx context.Context) error {
+		if err := StatsSiteModelHourlySaveDB(ctx); err != nil {
+			return err
+		}
+		return nil
+	})
 }

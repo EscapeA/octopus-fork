@@ -14,14 +14,20 @@ type WriteJob struct {
 }
 
 var (
-	writeQueue chan WriteJob
-	writerOnce sync.Once
+	writeQueue         chan WriteJob
+	writerOnce         sync.Once
+	serialWriterDone   chan struct{}
+	serialWriterCancel context.CancelFunc
 )
 
-func StartSerialWriter(ctx context.Context) {
+func StartSerialWriter(parentCtx context.Context) {
 	writerOnce.Do(func() {
 		writeQueue = make(chan WriteJob, 32)
+		serialWriterDone = make(chan struct{})
+		ctx, cancel := context.WithCancel(parentCtx)
+		serialWriterCancel = cancel
 		go func() {
+			defer close(serialWriterDone)
 			for {
 				select {
 				case job := <-writeQueue:
@@ -59,6 +65,22 @@ func EnqueueWrite(job WriteJob) {
 		log.Warnf("serial DB write queue full (timeout), executing job %q synchronously", job.Name)
 		if err := job.Fn(context.Background()); err != nil {
 			log.Warnf("sync fallback DB write job %q failed: %v", job.Name, err)
+		}
+	}
+}
+
+// StopSerialWriter cancels the serial writer context and waits for remaining
+// jobs to drain. It should be called during shutdown after all producers have stopped.
+func StopSerialWriter() {
+	if serialWriterCancel != nil {
+		serialWriterCancel()
+	}
+	if serialWriterDone != nil {
+		select {
+		case <-serialWriterDone:
+			log.Infof("serial DB writer stopped")
+		case <-time.After(10 * time.Second):
+			log.Warnf("serial DB writer stop timed out")
 		}
 	}
 }

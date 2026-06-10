@@ -62,24 +62,14 @@ func runStart() error {
 		shutdown.Shutdown()
 		return fmt.Errorf("cache init error: %w", err)
 	}
-	shutdown.Register(op.SaveCache)
 
 	telemetry.Global().StartBackground()
-	shutdown.Register(func() error {
-		telemetry.Global().StopBackground()
-		return nil
-	})
 
 	restoreCtx, restoreCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	if err := balancer.LoadRuntimeState(restoreCtx); err != nil {
 		log.Warnf("balancer runtime state load error: %v", err)
 	}
 	restoreCancel()
-	shutdown.Register(func() error {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		return balancer.SaveRuntimeState(ctx)
-	})
 
 	if err := op.UserInit(); err != nil {
 		shutdown.Shutdown()
@@ -102,9 +92,20 @@ func runStart() error {
 
 	shutdown.Register(server.Close)
 	shutdown.Register(func() error {
-		task.Shutdown()
+		telemetry.Global().StopBackground()
 		return nil
 	})
+	shutdown.Register(func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		return balancer.SaveRuntimeState(ctx)
+	})
+	shutdown.Register(func() error {
+		task.Shutdown()
+		db.StopSerialWriter()
+		return nil
+	})
+	shutdown.Register(op.SaveCache)
 	shutdown.Register(func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
