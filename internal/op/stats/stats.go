@@ -60,8 +60,8 @@ var channelCacheNeedUpdate = make(map[int]struct{})
 var channelCacheNeedUpdateLock sync.Mutex
 var channelMutationLock sync.Mutex
 
-var modelCache = cache.New[int, model.StatsModel](16)
-var modelCacheNeedUpdate = make(map[int]struct{})
+var modelCache = cache.New[int64, model.StatsModel](16)
+var modelCacheNeedUpdate = make(map[int64]struct{})
 var modelCacheNeedUpdateLock sync.Mutex
 var modelMutationLock sync.Mutex
 
@@ -124,11 +124,11 @@ func SaveDB(ctx context.Context) error {
 	channelCacheNeedUpdateLock.Unlock()
 
 	modelCacheNeedUpdateLock.Lock()
-	modelIDs := make([]int, 0, len(modelCacheNeedUpdate))
+	modelIDs := make([]int64, 0, len(modelCacheNeedUpdate))
 	for id := range modelCacheNeedUpdate {
 		modelIDs = append(modelIDs, id)
 	}
-	modelCacheNeedUpdate = make(map[int]struct{})
+	modelCacheNeedUpdate = make(map[int64]struct{})
 	modelCacheNeedUpdateLock.Unlock()
 
 	apiKeyCacheNeedUpdateLock.Lock()
@@ -152,7 +152,7 @@ func persistSnapshots(
 	dailySnap model.StatsDaily,
 	hourlyAll [24]model.StatsHourly,
 	channelIDs []int,
-	modelIDs []int,
+	modelIDs []int64,
 	apiKeyIDs []int,
 ) error {
 	todayDate := today()
@@ -295,11 +295,11 @@ func saveDBWithDailyOverride(ctx context.Context, dailyOverride model.StatsDaily
 	channelCacheNeedUpdateLock.Unlock()
 
 	modelCacheNeedUpdateLock.Lock()
-	modelIDs := make([]int, 0, len(modelCacheNeedUpdate))
+	modelIDs := make([]int64, 0, len(modelCacheNeedUpdate))
 	for id := range modelCacheNeedUpdate {
 		modelIDs = append(modelIDs, id)
 	}
-	modelCacheNeedUpdate = make(map[int]struct{})
+	modelCacheNeedUpdate = make(map[int64]struct{})
 	modelCacheNeedUpdateLock.Unlock()
 
 	apiKeyCacheNeedUpdateLock.Lock()
@@ -317,7 +317,7 @@ func saveDBWithDailyOverride(ctx context.Context, dailyOverride model.StatsDaily
 	return nil
 }
 
-func requeueDirtyIDs(channelIDs []int, modelIDs []int, apiKeyIDs []int) {
+func requeueDirtyIDs(channelIDs []int, modelIDs []int64, apiKeyIDs []int) {
 	channelCacheNeedUpdateLock.Lock()
 	for _, id := range channelIDs {
 		channelCacheNeedUpdate[id] = struct{}{}
@@ -471,10 +471,10 @@ func ModelRecord(channelID int, modelName string, metrics model.StatsMetrics) er
 	})
 }
 
-func buildModelID(channelID int, modelName string) int {
+func buildModelID(channelID int, modelName string) int64 {
 	hash := fnv.New64a()
 	_, _ = hash.Write([]byte(fmt.Sprintf("%d:%s", channelID, strings.ToLower(strings.TrimSpace(modelName)))))
-	return int(hash.Sum64() & 0x7fffffffffffffff)
+	return int64(hash.Sum64() & 0x7fffffffffffffff)
 }
 
 // APIKeyUpdate adds metrics to a specific API key's statistics.
@@ -700,7 +700,7 @@ func ClearAllCachesForTest() {
 
 	modelCache.Clear()
 	modelCacheNeedUpdateLock.Lock()
-	modelCacheNeedUpdate = make(map[int]struct{})
+	modelCacheNeedUpdate = make(map[int64]struct{})
 	modelCacheNeedUpdateLock.Unlock()
 
 	apiKeyCache.Clear()
@@ -710,8 +710,8 @@ func ClearAllCachesForTest() {
 }
 
 // ResetCachesForTest resets all stats caches to a known state for testing.
-// channelID/modelID/apiKeyID set to 0 means skip that cache.
-func ResetCachesForTest(total model.StatsTotal, daily model.StatsDaily, channelID, modelID, apiKeyID int) {
+// channelID/apiKeyID set to 0 means skip that cache. modelID set to 0 means skip model cache.
+func ResetCachesForTest(total model.StatsTotal, daily model.StatsDaily, channelID int, modelID int64, apiKeyID int) {
 	totalCacheLock.Lock()
 	totalCache = total
 	totalCacheLock.Unlock()
@@ -752,10 +752,10 @@ func GetChannelDirtyIDs() []int {
 }
 
 // GetModelDirtyIDs returns the set of model IDs marked as dirty.
-func GetModelDirtyIDs() []int {
+func GetModelDirtyIDs() []int64 {
 	modelCacheNeedUpdateLock.Lock()
 	defer modelCacheNeedUpdateLock.Unlock()
-	ids := make([]int, 0, len(modelCacheNeedUpdate))
+	ids := make([]int64, 0, len(modelCacheNeedUpdate))
 	for id := range modelCacheNeedUpdate {
 		ids = append(ids, id)
 	}

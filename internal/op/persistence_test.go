@@ -77,7 +77,7 @@ func TestStatsSaveDB_RequeuesDirtyIDsOnWriteFailure(t *testing.T) {
 	}
 
 	modelDirtyIDs := st.GetModelDirtyIDs()
-	if !containsInt(modelDirtyIDs, 22) {
+	if !containsInt64(modelDirtyIDs, 22) {
 		t.Fatal("model dirty id 22 was not requeued after write failure")
 	}
 
@@ -122,6 +122,15 @@ func containsInt(slice []int, target int) bool {
 	return false
 }
 
+func containsInt64(slice []int64, target int64) bool {
+	for _, v := range slice {
+		if v == target {
+			return true
+		}
+	}
+	return false
+}
+
 func snapshotStatsPersistenceState() func() {
 	oldTotal := st.TotalGet()
 	oldDaily := st.TodayGet()
@@ -131,6 +140,3 @@ func snapshotStatsPersistenceState() func() {
 		st.ResetCachesForTest(oldTotal, oldDaily, 0, 0, 0)
 	}
 }
-
-
-

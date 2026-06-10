@@ -71,7 +71,7 @@ func RefreshCache(ctx context.Context) error {
 
 	modelCache.Clear()
 	modelCacheNeedUpdateLock.Lock()
-	modelCacheNeedUpdate = make(map[int]struct{})
+	modelCacheNeedUpdate = make(map[int64]struct{})
 	modelCacheNeedUpdateLock.Unlock()
 	for _, v := range loadedModels {
 		modelCache.Set(v.ID, v)
@@ -102,4 +102,3 @@ func RefreshCache(ctx context.Context) error {
 
 	return nil
 }
-
