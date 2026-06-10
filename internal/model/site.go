@@ -611,6 +611,20 @@ func ShouldSplitSiteChannelRoutes(platform SitePlatform) bool {
 	}
 }
 
+// IsOpenAIOnlyPlatform reports whether the given aggregation platform only
+// supports OpenAI-compatible API formats. For these platforms, models like
+// gemini-* or claude-* must still use the OpenAI Chat adapter because the
+// upstream aggregation site does not expose native Gemini/Anthropic endpoints.
+func IsOpenAIOnlyPlatform(platform SitePlatform) bool {
+	switch platform {
+	case SitePlatformNewAPI, SitePlatformOneAPI, SitePlatformOneHub,
+		SitePlatformDoneHub, SitePlatformAnyRouter, SitePlatformSub2API:
+		return true
+	default:
+		return false
+	}
+}
+
 func (t SiteModelRouteType) ToOutboundType() outbound.OutboundType {
 	switch NormalizeSiteModelRouteType(t) {
 	case SiteModelRouteTypeOpenAIResponse:

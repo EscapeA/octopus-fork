@@ -67,25 +67,27 @@ func TestProjectAccountSplitsManagedChannelsByOutboundType(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ProjectAccount returned error: %v", err)
 	}
-	if len(channelIDs) != 3 {
-		t.Fatalf("expected 3 managed channels for mixed models, got %d", len(channelIDs))
+	// new-api is an OpenAI-compatible aggregation platform.
+	// All models (gpt-4o-mini, claude-3-5-sonnet, gemini-2.0-flash) should
+	// be projected as OpenAIChat channels because aggregation sites do not
+	// expose native Anthropic / Gemini endpoints.
+	if len(channelIDs) != 1 {
+		t.Fatalf("expected 1 managed channel for aggregation platform, got %d", len(channelIDs))
 	}
 
 	channelsByGroup := loadProjectedChannelsByGroupKey(t, ctx, account.ID)
-	if len(channelsByGroup) != 3 {
-		t.Fatalf("expected 3 bindings, got %d", len(channelsByGroup))
+	if len(channelsByGroup) != 1 {
+		t.Fatalf("expected 1 binding, got %d", len(channelsByGroup))
 	}
 
-	assertProjectedChannel(t, channelsByGroup, "default", outbound.OutboundTypeOpenAIChat, "gpt-4o-mini", false)
-	assertProjectedChannel(t, channelsByGroup, "default::anthropic", outbound.OutboundTypeAnthropic, "claude-3-5-sonnet", true)
-	assertProjectedChannel(t, channelsByGroup, "default::gemini", outbound.OutboundTypeGemini, "gemini-2.0-flash", true)
+	assertProjectedChannel(t, channelsByGroup, "default", outbound.OutboundTypeOpenAIChat, "claude-3-5-sonnet,gemini-2.0-flash,gpt-4o-mini", false)
 
 	secondRunIDs, err := ProjectAccount(ctx, account.ID)
 	if err != nil {
 		t.Fatalf("second ProjectAccount returned error: %v", err)
 	}
-	if len(secondRunIDs) != 3 {
-		t.Fatalf("expected 3 managed channels on second projection, got %d", len(secondRunIDs))
+	if len(secondRunIDs) != 1 {
+		t.Fatalf("expected 1 managed channel on second projection, got %d", len(secondRunIDs))
 	}
 
 	channelsAfterSecondRun := loadProjectedChannelsByGroupKey(t, ctx, account.ID)
@@ -116,25 +118,38 @@ func TestProjectAccountSupportsAllConfiguredRouteBuckets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ProjectAccount returned error: %v", err)
 	}
-	if len(channelIDs) != 5 {
-		t.Fatalf("expected 5 managed channels for 5 route buckets, got %d", len(channelIDs))
+	// new-api is OpenAI-only: Anthropic, Gemini, Volcengine models are
+	// collapsed into the OpenAIChat bucket.  Embeddings remain separate.
+	// Expected: OpenAIChat (gpt-4o-mini + claude + gemini + doubao) + OpenAIEmbedding
+	if len(channelIDs) != 2 {
+		t.Fatalf("expected 2 managed channels for aggregation platform, got %d", len(channelIDs))
 	}
 
 	channelsByGroup := loadProjectedChannelsByGroupKey(t, ctx, account.ID)
-	if len(channelsByGroup) != 5 {
-		t.Fatalf("expected 5 bindings, got %d", len(channelsByGroup))
+	if len(channelsByGroup) != 2 {
+		t.Fatalf("expected 2 bindings, got %d", len(channelsByGroup))
 	}
 
-	assertProjectedChannel(t, channelsByGroup, "default", outbound.OutboundTypeOpenAIChat, "gpt-4o-mini", false)
-	assertProjectedChannel(t, channelsByGroup, "default::anthropic", outbound.OutboundTypeAnthropic, "claude-3-5-sonnet", true)
-	assertProjectedChannel(t, channelsByGroup, "default::gemini", outbound.OutboundTypeGemini, "gemini-2.0-flash", true)
-	assertProjectedChannel(t, channelsByGroup, "default::volcengine", outbound.OutboundTypeVolcengine, "doubao-seed-1-6", true)
+	assertProjectedChannel(t, channelsByGroup, "default", outbound.OutboundTypeOpenAIChat, "claude-3-5-sonnet,doubao-seed-1-6,gemini-2.0-flash,gpt-4o-mini", false)
 	assertProjectedChannel(t, channelsByGroup, "default::openai-embedding", outbound.OutboundTypeOpenAIEmbedding, "text-embedding-3-large", true)
 }
 
 func TestProjectAccountRewritesGroupItemsBeforeRemovingStaleManagedBindings(t *testing.T) {
 	ctx := setupProjectTestDB(t)
 	_, account := createProjectionFixture(t, ctx)
+
+	// Add an embedding model so we get a separate embedding channel
+	// (embeddings are NOT overridden to OpenAIChat on aggregation platforms).
+	embeddingModel := model.SiteModel{
+		SiteAccountID: account.ID,
+		GroupKey:      model.SiteDefaultGroupKey,
+		ModelName:     "text-embedding-3-large",
+		Source:        "sync",
+		RouteType:     model.SiteModelRouteTypeOpenAIEmbedding,
+	}
+	if err := dbpkg.GetDB().WithContext(ctx).Create(&embeddingModel).Error; err != nil {
+		t.Fatalf("create embedding site model failed: %v", err)
+	}
 
 	if _, err := ProjectAccount(ctx, account.ID); err != nil {
 		t.Fatalf("initial ProjectAccount returned error: %v", err)
@@ -145,9 +160,9 @@ func TestProjectAccountRewritesGroupItemsBeforeRemovingStaleManagedBindings(t *t
 	if !ok {
 		t.Fatalf("expected default projected channel to exist")
 	}
-	anthropicChannel, ok := channelsByGroup["default::anthropic"]
+	embeddingChannel, ok := channelsByGroup["default::openai-embedding"]
 	if !ok {
-		t.Fatalf("expected anthropic projected channel to exist")
+		t.Fatalf("expected embedding projected channel to exist")
 	}
 
 	group := &model.Group{Name: "rewrite-managed-items", Mode: model.GroupModeFailover}
@@ -156,17 +171,18 @@ func TestProjectAccountRewritesGroupItemsBeforeRemovingStaleManagedBindings(t *t
 	}
 	if err := op.GroupItemAdd(&model.GroupItem{
 		GroupID:   group.ID,
-		ChannelID: anthropicChannel.ID,
-		ModelName: "claude-3-5-sonnet",
+		ChannelID: embeddingChannel.ID,
+		ModelName: "text-embedding-3-large",
 		Priority:  1,
 		Weight:    1,
 	}, ctx); err != nil {
 		t.Fatalf("GroupItemAdd failed: %v", err)
 	}
 
+	// Change the embedding model's route_type to OpenAIChat
 	if err := dbpkg.GetDB().WithContext(ctx).
 		Model(&model.SiteModel{}).
-		Where("site_account_id = ? AND group_key = ? AND model_name = ?", account.ID, model.SiteDefaultGroupKey, "claude-3-5-sonnet").
+		Where("site_account_id = ? AND group_key = ? AND model_name = ?", account.ID, model.SiteDefaultGroupKey, "text-embedding-3-large").
 		Update("route_type", model.SiteModelRouteTypeOpenAIChat).Error; err != nil {
 		t.Fatalf("updating site model route_type failed: %v", err)
 	}
@@ -187,8 +203,8 @@ func TestProjectAccountRewritesGroupItemsBeforeRemovingStaleManagedBindings(t *t
 	}
 
 	bindings := loadProjectedChannelsByGroupKey(t, ctx, account.ID)
-	if _, ok := bindings["default::anthropic"]; ok {
-		t.Fatalf("expected stale anthropic binding to be removed after route rewrite")
+	if _, ok := bindings["default::openai-embedding"]; ok {
+		t.Fatalf("expected stale embedding binding to be removed after route rewrite")
 	}
 }
 
@@ -217,8 +233,8 @@ func TestProjectAccountRemovesUnsupportedModelsFromProjectedChannels(t *testing.
 	if !ok {
 		t.Fatalf("expected default projected channel to exist")
 	}
-	if openAIChannel.Model != "gpt-4o-mini,vendor-embedding-x" {
-		t.Fatalf("expected default channel to include vendor model before it becomes unsupported, got %q", openAIChannel.Model)
+	if openAIChannel.Model != "claude-3-5-sonnet,gemini-2.0-flash,gpt-4o-mini,vendor-embedding-x" {
+		t.Fatalf("expected default channel to include all models before vendor becomes unsupported, got %q", openAIChannel.Model)
 	}
 
 	group := &model.Group{Name: "remove-unsupported-managed-items", Mode: model.GroupModeFailover}
@@ -261,7 +277,7 @@ func TestProjectAccountRemovesUnsupportedModelsFromProjectedChannels(t *testing.
 	if !ok {
 		t.Fatalf("expected default projected channel to remain after unsupported model removal")
 	}
-	if reloadedOpenAIChannel.Model != "gpt-4o-mini" {
+	if reloadedOpenAIChannel.Model != "claude-3-5-sonnet,gemini-2.0-flash,gpt-4o-mini" {
 		t.Fatalf("expected unsupported model to be removed from default channel, got %q", reloadedOpenAIChannel.Model)
 	}
 

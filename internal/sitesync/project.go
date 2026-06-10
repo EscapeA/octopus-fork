@@ -77,6 +77,18 @@ func ProjectAccount(ctx context.Context, accountID int) ([]int, error) {
 		} else {
 			item.RouteType = model.NormalizeSiteModelRouteType(item.RouteType)
 		}
+		// Aggregation platforms (new-api, one-api, etc.) only expose
+		// OpenAI-compatible endpoints.  Even when the pricing API or model
+		// name hints at a native Gemini / Anthropic / Volcengine route, the
+		// actual upstream request must use the OpenAI Chat adapter.
+		if model.IsOpenAIOnlyPlatform(siteRecord.Platform) {
+			switch item.RouteType {
+			case model.SiteModelRouteTypeAnthropic,
+				model.SiteModelRouteTypeGemini,
+				model.SiteModelRouteTypeVolcengine:
+				item.RouteType = model.SiteModelRouteTypeOpenAIChat
+			}
+		}
 		modelsByGroup[groupKey] = append(modelsByGroup[groupKey], item)
 	}
 	for groupKey, items := range modelsByGroup {
