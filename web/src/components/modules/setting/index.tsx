@@ -117,7 +117,7 @@ export function Setting() {
             </div>
 
             <Dialog open={openId !== null} onOpenChange={(open) => { if (!open) setOpenId(null); }}>
-                <DialogContent className="w-[100vw] sm:w-[min(95vw,720px)] max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto p-0 gap-0 rounded-none sm:rounded-2xl">
+                <DialogContent aria-describedby={undefined} className="w-[100vw] sm:w-[min(95vw,720px)] max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto p-0 gap-0 rounded-none sm:rounded-2xl">
                     <DialogTitle className="sr-only">{activeItem ? t(activeItem.titleKey) : ''}</DialogTitle>
                     {activeItem && activeItem.component}
                 </DialogContent>

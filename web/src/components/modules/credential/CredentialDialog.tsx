@@ -90,7 +90,7 @@ export function CredentialDialog({ open, onOpenChange, editing }: CredentialDial
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent aria-describedby={undefined} className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>{isEditing ? t('edit') : t('add')}</DialogTitle>
                 </DialogHeader>

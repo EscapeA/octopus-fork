@@ -398,7 +398,7 @@ export function AccountEditDialog({ open, onOpenChange, site, account }: Account
     if (!accountForm) {
         return (
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="max-w-md rounded-3xl">
+                <DialogContent aria-describedby={undefined} className="max-w-md rounded-3xl">
                     <DialogTitle className="sr-only">错误</DialogTitle>
                     <p className="text-sm text-muted-foreground">站点上下文不存在。</p>
                 </DialogContent>
@@ -409,6 +409,7 @@ export function AccountEditDialog({ open, onOpenChange, site, account }: Account
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
+                aria-describedby={undefined}
                 showCloseButton={false}
                 className="w-screen max-w-full md:max-w-xl bg-card text-card-foreground px-6 py-4 rounded-3xl flex flex-col gap-0 border-0 sm:max-w-xl max-h-[min(calc(100vh-2rem),52rem)] overflow-hidden"
             >
