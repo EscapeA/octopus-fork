@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"sync"
 	"time"
@@ -325,6 +326,50 @@ func relayLogCleanupAll(ctx context.Context) error {
 	return db.GetDB().WithContext(ctx).Where("1 = 1").Delete(&model.RelayLog{}).Error
 }
 
+// loadExcludedGroupSet 读取被屏蔽分组的设置（JSON 字符串数组），返回以分组
+// 名称为键的集合。配置缺失或解析失败时返回空集合（即不屏蔽任何分组）。
+//
+// 设计说明：本系统中分组的 Name 即客户端请求时使用的“模型名”，日志的
+// request_model_name 正是这个值（见 internal/relay/metrics.go 与
+// op/group.GroupGetEnabledMapByEndpoint 的解析逻辑）。因此按分组名屏蔽日志
+// 只需匹配 request_model_name，无需把分组解析为渠道集合，也不会因渠道被多个
+// 分组共享而误伤其它分组的日志。
+func loadExcludedGroupSet() map[string]struct{} {
+	raw, err := setting.GetString(model.SettingKeyLogExcludedGroups)
+	if err != nil || raw == "" {
+		return nil
+	}
+	var names []string
+	if err := json.Unmarshal([]byte(raw), &names); err != nil {
+		return nil
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	set := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		if name == "" {
+			continue
+		}
+		set[name] = struct{}{}
+	}
+	if len(set) == 0 {
+		return nil
+	}
+	return set
+}
+
+// RelayLogStreamExcluded 判断某条实时日志是否应在 SSE 流中被屏蔽。
+// 供 streamLog 处理器在广播前过滤被屏蔽分组的日志。
+func RelayLogStreamExcluded(requestModelName string) bool {
+	excluded := loadExcludedGroupSet()
+	if excluded == nil {
+		return false
+	}
+	_, ok := excluded[requestModelName]
+	return ok
+}
+
 // RelayLogList 查询日志列表，支持可选的时间范围过滤
 // startTime 和 endTime 为 nil 时表示不限制时间范围
 // 返回轻量条目，不包含 request_content 和 response_content 大字段
@@ -334,13 +379,19 @@ func RelayLogList(ctx context.Context, startTime, endTime *int, page, pageSize i
 		return nil, err
 	}
 	hasTimeFilter := startTime != nil || endTime != nil
+	excludedGroups := loadExcludedGroupSet()
 
-	matchesTime := func(log model.RelayLog) bool {
+	matchesFilter := func(log model.RelayLog) bool {
 		if startTime != nil && log.Time < int64(*startTime) {
 			return false
 		}
 		if endTime != nil && log.Time > int64(*endTime) {
 			return false
+		}
+		if excludedGroups != nil {
+			if _, ok := excludedGroups[log.RequestModelName]; ok {
+				return false
+			}
 		}
 		return true
 	}
@@ -354,10 +405,10 @@ func RelayLogList(ctx context.Context, startTime, endTime *int, page, pageSize i
 
 	// 在锁外按条件过滤（保持原始顺序：旧 -> 新）
 	var cachedLogs []model.RelayLog
-	if hasTimeFilter {
+	if hasTimeFilter || excludedGroups != nil {
 		cachedLogs = make([]model.RelayLog, 0, len(snapshot))
 		for _, log := range snapshot {
-			if !matchesTime(log) {
+			if !matchesFilter(log) {
 				continue
 			}
 			cachedLogs = append(cachedLogs, log)
@@ -404,6 +455,13 @@ func RelayLogList(ctx context.Context, startTime, endTime *int, page, pageSize i
 			}
 			if endTime != nil {
 				query = query.Where("time <= ?", *endTime)
+			}
+			if len(excludedGroups) > 0 {
+				names := make([]string, 0, len(excludedGroups))
+				for name := range excludedGroups {
+					names = append(names, name)
+				}
+				query = query.Where("request_model_name NOT IN ?", names)
 			}
 
 			var dbLogs []model.RelayLogListItem

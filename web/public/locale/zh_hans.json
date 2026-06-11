@@ -1589,6 +1589,13 @@
         "info": "信息",
         "warn": "警告",
         "error": "错误"
+      },
+      "excludedGroups": {
+        "label": "屏蔽分组",
+        "description": "选中的分组不在日志列表与实时流中显示或加载",
+        "empty": "暂无分组可供选择",
+        "addHint": "点击屏蔽该分组的日志",
+        "removeHint": "点击取消屏蔽"
       }
     },
     "navOrder": {

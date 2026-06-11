@@ -136,6 +136,9 @@ func streamLog(c *gin.Context) {
 			if !ok {
 				return
 			}
+			if relaylog.RelayLogStreamExcluded(log.RequestModelName) {
+				continue
+			}
 			data, err := json.Marshal(log)
 			if err != nil {
 				continue

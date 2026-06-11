@@ -1589,6 +1589,13 @@
         "info": "Info",
         "warn": "Warn",
         "error": "Error"
+      },
+      "excludedGroups": {
+        "label": "Hidden Groups",
+        "description": "Logs from selected groups will not be shown or loaded in the log list and live stream",
+        "empty": "No groups available",
+        "addHint": "Click to hide this group's logs",
+        "removeHint": "Click to stop hiding this group's logs"
       }
     },
     "navOrder": {

@@ -1589,6 +1589,13 @@
         "info": "資訊",
         "warn": "警告",
         "error": "錯誤"
+      },
+      "excludedGroups": {
+        "label": "屏蔽分組",
+        "description": "選中的分組日誌不會在日誌列表與即時流中顯示或載入",
+        "empty": "暫無分組",
+        "addHint": "點擊屏蔽此分組的日誌",
+        "removeHint": "點擊取消屏蔽"
       }
     },
     "navOrder": {

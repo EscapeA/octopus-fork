@@ -70,6 +70,7 @@ const (
 	SettingKeyResponseFilterAction                 SettingKey = "response_filter_action"                   // 拦截动作: block(阻断) / replace(替换为*)
 	SettingKeyResponseFilterErrorMessage           SettingKey = "response_filter_error_message"            // 阻断时返回的错误信息
 	SettingKeyLogLevel                             SettingKey = "log_level"                                // 应用日志级别: debug, info, warn, error
+	SettingKeyLogExcludedGroups                    SettingKey = "log_excluded_groups"                      // 在日志列表/实时流中屏蔽的分组名称列表(JSON 数组)
 )
 
 type Setting struct {
@@ -138,6 +139,7 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyResponseFilterAction, Value: "block"},
 		{Key: SettingKeyResponseFilterErrorMessage, Value: "The response contains blocked keywords and has been intercepted."},
 		{Key: SettingKeyLogLevel, Value: "info"},
+		{Key: SettingKeyLogExcludedGroups, Value: "[]"},
 	}
 }
 
@@ -307,6 +309,12 @@ func (s *Setting) Validate() error {
 		var keywords []string
 		if err := json.Unmarshal([]byte(s.Value), &keywords); err != nil {
 			return fmt.Errorf("response filter keywords must be a valid JSON array of strings")
+		}
+		return nil
+	case SettingKeyLogExcludedGroups:
+		var groups []string
+		if err := json.Unmarshal([]byte(s.Value), &groups); err != nil {
+			return fmt.Errorf("log excluded groups must be a valid JSON array of strings")
 		}
 		return nil
 	case SettingKeyResponseFilterAction:

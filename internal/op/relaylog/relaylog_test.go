@@ -7,6 +7,7 @@ import (
 
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
+	"github.com/lingyuins/octopus/internal/op/setting"
 )
 
 func TestRelayLogFlushToDBSkipsDuplicateIDsAndTruncatesCache(t *testing.T) {
@@ -89,5 +90,78 @@ func TestRelayLogCleanupAll(t *testing.T) {
 	}
 	if after != 0 {
 		t.Fatalf("relay log count = %d, want 0 (all logs should be deleted)", after)
+	}
+}
+
+func TestRelayLogListExcludesConfiguredGroups(t *testing.T) {
+	dsn := filepath.Join(t.TempDir(), "relaylog-exclude.db")
+	if err := db.InitDB("sqlite", dsn, false); err != nil {
+		t.Fatalf("InitDB failed: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := setting.RefreshCache(context.Background()); err != nil {
+		t.Fatalf("RefreshCache failed: %v", err)
+	}
+
+	// 日志保存关闭：RelayLogList 只读内存缓存，便于断言过滤行为。
+	if err := setting.SetString(model.SettingKeyRelayLogKeepEnabled, "false"); err != nil {
+		t.Fatalf("disable relay log keep failed: %v", err)
+	}
+	if err := setting.SetString(model.SettingKeyLogExcludedGroups, `["stress-test"]`); err != nil {
+		t.Fatalf("set excluded groups failed: %v", err)
+	}
+
+	restore := SetCacheForTest([]model.RelayLog{
+		{ID: 1, Time: 1, RequestModelName: "gpt-4"},
+		{ID: 2, Time: 2, RequestModelName: "stress-test"},
+		{ID: 3, Time: 3, RequestModelName: "claude"},
+		{ID: 4, Time: 4, RequestModelName: "stress-test"},
+	})
+	t.Cleanup(restore)
+
+	logs, err := RelayLogList(context.Background(), nil, nil, 1, 50)
+	if err != nil {
+		t.Fatalf("RelayLogList returned error: %v", err)
+	}
+	if len(logs) != 2 {
+		t.Fatalf("RelayLogList returned %d logs, want 2 (stress-test excluded)", len(logs))
+	}
+	for _, l := range logs {
+		if l.RequestModelName == "stress-test" {
+			t.Fatalf("excluded group log leaked into result: id=%d", l.ID)
+		}
+	}
+
+	// 清空屏蔽配置后，全部日志都应返回。
+	if err := setting.SetString(model.SettingKeyLogExcludedGroups, "[]"); err != nil {
+		t.Fatalf("clear excluded groups failed: %v", err)
+	}
+	logs, err = RelayLogList(context.Background(), nil, nil, 1, 50)
+	if err != nil {
+		t.Fatalf("RelayLogList returned error: %v", err)
+	}
+	if len(logs) != 4 {
+		t.Fatalf("RelayLogList returned %d logs, want 4 (no exclusion)", len(logs))
+	}
+}
+
+func TestRelayLogStreamExcluded(t *testing.T) {
+	dsn := filepath.Join(t.TempDir(), "relaylog-stream-exclude.db")
+	if err := db.InitDB("sqlite", dsn, false); err != nil {
+		t.Fatalf("InitDB failed: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := setting.RefreshCache(context.Background()); err != nil {
+		t.Fatalf("RefreshCache failed: %v", err)
+	}
+	if err := setting.SetString(model.SettingKeyLogExcludedGroups, `["stress-test"]`); err != nil {
+		t.Fatalf("set excluded groups failed: %v", err)
+	}
+
+	if !RelayLogStreamExcluded("stress-test") {
+		t.Fatalf("expected stress-test to be excluded from stream")
+	}
+	if RelayLogStreamExcluded("gpt-4") {
+		t.Fatalf("expected gpt-4 to NOT be excluded from stream")
 	}
 }
