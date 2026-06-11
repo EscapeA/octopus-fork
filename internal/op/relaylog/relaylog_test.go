@@ -15,6 +15,7 @@ func TestRelayLogFlushToDBSkipsDuplicateIDsAndTruncatesCache(t *testing.T) {
 	if err := db.InitDB("sqlite", dsn, false); err != nil {
 		t.Fatalf("InitDB failed: %v", err)
 	}
+	t.Cleanup(func() { _ = db.Close() })
 
 	existing := model.RelayLog{ID: 101, Time: 1, RequestModelName: "existing"}
 	if err := db.GetDB().Create(&existing).Error; err != nil {
@@ -63,6 +64,7 @@ func TestRelayLogCleanupAll(t *testing.T) {
 	if err := db.InitDB("sqlite", dsn, false); err != nil {
 		t.Fatalf("InitDB failed: %v", err)
 	}
+	t.Cleanup(func() { _ = db.Close() })
 
 	// Seed DB with a mix of success and error logs
 	seed := []model.RelayLog{
@@ -163,5 +165,47 @@ func TestRelayLogStreamExcluded(t *testing.T) {
 	}
 	if RelayLogStreamExcluded("gpt-4") {
 		t.Fatalf("expected gpt-4 to NOT be excluded from stream")
+	}
+}
+
+func TestRelayLogCleanupAllFastClearAllowsReinsert(t *testing.T) {
+	dsn := filepath.Join(t.TempDir(), "relaylog-fastclear.db")
+	if err := db.InitDB("sqlite", dsn, false); err != nil {
+		t.Fatalf("InitDB failed: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	seed := []model.RelayLog{
+		{ID: 1, Time: 1, RequestModelName: "a"},
+		{ID: 2, Time: 2, RequestModelName: "b"},
+		{ID: 3, Time: 3, RequestModelName: "c"},
+	}
+	if err := db.GetDB().Create(&seed).Error; err != nil {
+		t.Fatalf("seed relay logs failed: %v", err)
+	}
+
+	// FastClearTable 走 DROP + AutoMigrate 重建（SQLite）。
+	if err := relayLogCleanupAll(context.Background()); err != nil {
+		t.Fatalf("relayLogCleanupAll returned error: %v", err)
+	}
+
+	var count int64
+	if err := db.GetDB().Model(&model.RelayLog{}).Count(&count).Error; err != nil {
+		t.Fatalf("count after fast clear failed: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("relay log count = %d, want 0 after fast clear", count)
+	}
+
+	// 重建后表与索引应可正常工作：再次写入并按时间范围查询。
+	if err := db.GetDB().Create(&model.RelayLog{ID: 10, Time: 100, RequestModelName: "reinsert"}).Error; err != nil {
+		t.Fatalf("reinsert after fast clear failed: %v", err)
+	}
+	var got model.RelayLog
+	if err := db.GetDB().Where("time >= ?", 50).First(&got).Error; err != nil {
+		t.Fatalf("query by time index after rebuild failed: %v", err)
+	}
+	if got.ID != 10 {
+		t.Fatalf("reinserted row id = %d, want 10", got.ID)
 	}
 }

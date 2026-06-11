@@ -296,14 +296,24 @@ func relayLogCleanup(ctx context.Context) error {
 		if total <= int64(keepCount) {
 			return nil // Under threshold, no cleanup needed
 		}
-		// Delete 50% of current records to create buffer before next cleanup
+		// Delete 50% of current records to create buffer before next cleanup.
+		// 先取出待删区间的边界 id（按 id 升序第 deleteCount 个），再以
+		// `id < threshold` 做范围删除——走主键范围扫描，避免 `id IN (子查询)`
+		// 在大表上重复扫描子查询结果集，显著加快清理速度。
 		deleteCount := total / 2
-		subQuery := db.GetDB().Model(&model.RelayLog{}).
+		var thresholdID int64
+		if err := db.GetDB().WithContext(ctx).Model(&model.RelayLog{}).
 			Order("id ASC").
-			Limit(int(deleteCount)).
-			Select("id")
+			Offset(int(deleteCount)).
+			Limit(1).
+			Pluck("id", &thresholdID).Error; err != nil {
+			return err
+		}
+		if thresholdID == 0 {
+			return nil
+		}
 		return db.GetDB().WithContext(ctx).
-			Where("id IN (?)", subQuery).
+			Where("id < ?", thresholdID).
 			Delete(&model.RelayLog{}).Error
 	}
 
@@ -322,8 +332,11 @@ func relayLogCleanup(ctx context.Context) error {
 }
 
 // relayLogCleanupAll 删除数据库中所有日志记录，用于日志关闭时释放磁盘空间。
+//
+// 使用 db.FastClearTable（TRUNCATE / DROP+重建）而非逐行 DELETE：百万级日志在
+// SQLite + WAL + 单连接下逐行删可能耗时数十分钟，整表清空近乎瞬时。
 func relayLogCleanupAll(ctx context.Context) error {
-	return db.GetDB().WithContext(ctx).Where("1 = 1").Delete(&model.RelayLog{}).Error
+	return db.FastClearTable(db.GetDB().WithContext(ctx), &model.RelayLog{}, "relay_logs")
 }
 
 // loadExcludedGroupSet 读取被屏蔽分组的设置（JSON 字符串数组），返回以分组
@@ -514,7 +527,8 @@ func RelayLogClear(ctx context.Context) error {
 	relayLogCacheLock.Lock()
 	relayLogCache = make([]model.RelayLog, 0, relayLogMaxSize)
 	relayLogCacheLock.Unlock()
-	return db.GetDB().WithContext(ctx).Where("1 = 1").Delete(&model.RelayLog{}).Error
+	// 整表清空走 FastClearTable，避免百万级逐行 DELETE 卡住数十分钟。
+	return db.FastClearTable(db.GetDB().WithContext(ctx), &model.RelayLog{}, "relay_logs")
 }
 
 // RelayLogGetByID 根据ID获取完整日志详情（包含 request_content 和 response_content）

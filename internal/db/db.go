@@ -194,6 +194,37 @@ func GetDB() *gorm.DB {
 	return db
 }
 
+// FastClearTable 以方言最快的方式清空整张表，并重建表结构与索引。
+//
+// 相比逐行 DELETE（百万级数据在 SQLite + WAL + 单连接下可能耗时数十分钟），
+// 本函数对各方言采用近乎瞬时的清空策略：
+//   - MySQL/Postgres：TRUNCATE TABLE，瞬时清空并回收空间；
+//   - SQLite：DROP TABLE + AutoMigrate 重建（pure-Go 驱动下 TRUNCATE 不可用），
+//     直接丢弃整张表的数据页，并通过 struct tag 完整恢复索引。
+//
+// 参数 model 用于 AutoMigrate 重建（SQLite），tableName 用于 TRUNCATE 拼接。
+// 重建依赖 model 的 struct tag 完整声明索引；relay_logs 的 time 索引即来自
+// model.RelayLog 的字段 tag，因此可被正确恢复。
+func FastClearTable(conn *gorm.DB, model any, tableName string) error {
+	switch currentDBType {
+	case "mysql":
+		// MySQL TRUNCATE 是 DDL，瞬时清空并重置自增；不需要重建。
+		return conn.Exec("TRUNCATE TABLE `" + tableName + "`").Error
+	case "postgres", "postgresql":
+		return conn.Exec(`TRUNCATE TABLE "` + tableName + `"`).Error
+	default:
+		// SQLite：DROP + 重建。pure-Go 驱动无 TRUNCATE，DROP 直接释放数据页，
+		// 再由 AutoMigrate 依据 struct tag 重建表与索引。
+		if err := conn.Migrator().DropTable(model); err != nil {
+			return fmt.Errorf("drop table %s: %w", tableName, err)
+		}
+		if err := conn.AutoMigrate(model); err != nil {
+			return fmt.Errorf("recreate table %s: %w", tableName, err)
+		}
+		return nil
+	}
+}
+
 func sqliteDSN(path string) (string, error) {
 	dsn := strings.TrimSpace(path)
 	if dsn == "" {
