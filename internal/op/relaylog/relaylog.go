@@ -31,6 +31,26 @@ var relayLogFlushLock sync.Mutex
 
 var flushCh = make(chan struct{}, 1)
 
+// notifyCh 缓冲待广播给实时订阅者的日志。RelayLogAdd 在每条日志写入时把日志
+// 非阻塞地推入该 channel，由单个常驻分发 goroutine（见 startNotifyWorker）
+// 顺序广播给订阅者。这样避免了每条日志都启动一个短命 goroutine（高 QPS 下的
+// goroutine 风暴），并保证订阅者按写入顺序收到日志。channel 满时丢弃最新日志，
+// 与 notifySubscribers 对慢订阅者的丢弃语义一致。
+var notifyCh = make(chan model.RelayLog, 1024)
+
+func startNotifyWorker(ctx context.Context) {
+	go func() {
+		for {
+			select {
+			case relayLog := <-notifyCh:
+				notifySubscribers(relayLog)
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
 func triggerFlush() {
 	select {
 	case flushCh <- struct{}{}:
@@ -39,6 +59,7 @@ func triggerFlush() {
 }
 
 func StartFlushWorker(ctx context.Context) {
+	startNotifyWorker(ctx)
 	go func() {
 		for {
 			select {
@@ -198,7 +219,12 @@ func RelayLogAdd(ctx context.Context, relayLog model.RelayLog) error {
 		maxSize = relayLogMaxSizeNoDB
 	}
 	relayLog.ID = snowflake.GenerateID()
-	go notifySubscribers(relayLog)
+	// 非阻塞地推入通知 channel，由常驻分发 goroutine 顺序广播给订阅者。
+	// 避免每条日志启动一个短命 goroutine；channel 满时丢弃。
+	select {
+	case notifyCh <- relayLog:
+	default:
+	}
 
 	relayLogCacheLock.Lock()
 	relayLogCache = append(relayLogCache, relayLog)
@@ -319,16 +345,26 @@ func RelayLogList(ctx context.Context, startTime, endTime *int, page, pageSize i
 		return true
 	}
 
-	// 获取缓存中符合条件的日志（保持原始顺序：旧 -> 新）
+	// 锁内只做一次预分配的整体拷贝（单次 memmove，无分支、无扩容），尽量缩短
+	// 与热路径 RelayLogAdd 争用同一把 Mutex 的时间；时间过滤移到锁外执行。
 	relayLogCacheLock.Lock()
-	var cachedLogs []model.RelayLog
-	for _, log := range relayLogCache {
-		if hasTimeFilter && !matchesTime(log) {
-			continue
-		}
-		cachedLogs = append(cachedLogs, log)
-	}
+	snapshot := make([]model.RelayLog, len(relayLogCache))
+	copy(snapshot, relayLogCache)
 	relayLogCacheLock.Unlock()
+
+	// 在锁外按条件过滤（保持原始顺序：旧 -> 新）
+	var cachedLogs []model.RelayLog
+	if hasTimeFilter {
+		cachedLogs = make([]model.RelayLog, 0, len(snapshot))
+		for _, log := range snapshot {
+			if !matchesTime(log) {
+				continue
+			}
+			cachedLogs = append(cachedLogs, log)
+		}
+	} else {
+		cachedLogs = snapshot
+	}
 
 	cacheCount := len(cachedLogs)
 	offset := (page - 1) * pageSize

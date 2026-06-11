@@ -3,6 +3,7 @@ package remotesite
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/lingyuins/octopus/internal/db"
@@ -71,16 +72,26 @@ func ExecuteCheckInAll(ctx context.Context) []model.CheckInRecord {
 		return nil
 	}
 
-	var records []model.CheckInRecord
+	names := make(map[int]string, len(sites))
+	siteIDs := make([]int, 0, len(sites))
 	for _, site := range sites {
-		record, err := ExecuteCheckIn(ctx, site.ID)
+		siteIDs = append(siteIDs, site.ID)
+		names[site.ID] = site.Name
+	}
+
+	var mu sync.Mutex
+	var records []model.CheckInRecord
+	forEachSiteConcurrent(ctx, siteIDs, func(ctx context.Context, siteID int) {
+		record, err := ExecuteCheckIn(ctx, siteID)
 		if err != nil {
-			log.Warnf("check-in site %d (%s): %v", site.ID, site.Name, err)
+			log.Warnf("check-in site %d (%s): %v", siteID, names[siteID], err)
 		}
 		if record != nil {
+			mu.Lock()
 			records = append(records, *record)
+			mu.Unlock()
 		}
-	}
+	})
 	return records
 }
 

@@ -1,7 +1,6 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { toPng } from 'html-to-image';
 import { Share2, Download, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,6 +37,7 @@ export function ShareSnapshot({ data }: ShareSnapshotProps) {
 
     setLoading(true);
     try {
+      const { toPng } = await import('html-to-image');
       const dataUrl = await toPng(snapshotRef.current, {
         backgroundColor: '#ffffff',
         pixelRatio: 2,
@@ -65,6 +65,7 @@ export function ShareSnapshot({ data }: ShareSnapshotProps) {
 
     setLoading(true);
     try {
+      const { toPng } = await import('html-to-image');
       const dataUrl = await toPng(snapshotRef.current, {
         backgroundColor: '#ffffff',
         pixelRatio: 2,
@@ -100,7 +101,7 @@ export function ShareSnapshot({ data }: ShareSnapshotProps) {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Share2 className="h-5 w-5" />

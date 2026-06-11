@@ -144,6 +144,10 @@ func acquireRelayStreamSession(conversationID string, apiKeyID int, requestHash 
 }
 
 func (s *relayStreamSessionStore) cleanupLocked(now time.Time) {
+	// TTL 在循环外读取一次，避免在持有 store 写锁期间对每个 session 重复
+	// 读取 setting（map 查找 + Atoi）。清理可能遍历大量 session，每次循环都
+	// 读 setting 会线性放大写锁的持有时间，阻塞所有新流式会话获取。
+	ttl := getStreamSessionTTL()
 	for key, session := range s.byKey {
 		session.mu.RLock()
 		done := session.done
@@ -155,7 +159,7 @@ func (s *relayStreamSessionStore) cleanupLocked(now time.Time) {
 		if !done {
 			continue
 		}
-		if now.Sub(updatedAt) < getStreamSessionTTL() {
+		if now.Sub(updatedAt) < ttl {
 			continue
 		}
 
@@ -250,9 +254,13 @@ func (s *relayStreamSession) AddPayload(payload []byte) []relayStreamEvent {
 }
 
 func (s *relayStreamSession) trimEventsLocked() {
+	// maxEvents / maxBytes 在循环外读取一次：trimEventsLocked 由每个流式帧的
+	// AddPayload 调用，循环内重复读 setting 会在热路径上放大开销。
+	maxEvents := getStreamSessionMaxEvents()
+	maxBytes := getStreamSessionMaxBytes()
 	for len(s.events) > 0 {
-		tooManyEvents := getStreamSessionMaxEvents() > 0 && len(s.events) > getStreamSessionMaxEvents()
-		tooManyBytes := getStreamSessionMaxBytes() > 0 && s.bufferBytes > getStreamSessionMaxBytes() && len(s.events) > 1
+		tooManyEvents := maxEvents > 0 && len(s.events) > maxEvents
+		tooManyBytes := maxBytes > 0 && s.bufferBytes > maxBytes && len(s.events) > 1
 		if !tooManyEvents && !tooManyBytes {
 			return
 		}

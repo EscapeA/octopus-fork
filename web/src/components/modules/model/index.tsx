@@ -83,11 +83,15 @@ export function Model() {
                 <section className="relative flex min-h-0 flex-1 flex-col rounded-xl border border-border/35 bg-card p-3 text-card-foreground md:p-4">
                     <div className="relative min-h-0 flex-1">
                         {isMobile ? (
-                            <div className="flex flex-col">
-                                {visibleModels.map((model) => (
-                                    <MobileModelItem key={`m-model-${model.name}`} model={model} latencyUnit={modelLatencyUnit} />
-                                ))}
-                            </div>
+                            <VirtualizedGrid
+                                items={visibleModels}
+                                layout="list"
+                                columns={{ default: 1 }}
+                                estimateItemHeight={132}
+                                getItemKey={(model) => `m-model-${model.name}`}
+                                renderItem={(model) => <MobileModelItem model={model} latencyUnit={modelLatencyUnit} />}
+                                bottomPaddingClassName="pb-3 md:pb-4"
+                            />
                         ) : (
                             <VirtualizedGrid
                                 items={visibleModels}

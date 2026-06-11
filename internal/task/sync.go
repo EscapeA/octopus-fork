@@ -2,8 +2,12 @@ package task
 
 import (
 	"context"
+	"runtime"
 	"strings"
+	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/lingyuins/octopus/internal/helper"
 	"github.com/lingyuins/octopus/internal/model"
@@ -15,6 +19,17 @@ import (
 	"github.com/lingyuins/octopus/internal/utils/log"
 	"github.com/lingyuins/octopus/internal/utils/xstrings"
 )
+
+// syncFetchConcurrency bounds how many channels are probed for their model
+// list in parallel during SyncModelsTask. Each probe is a network request with
+// a short timeout, so a bounded pool keeps the batch wall-clock near the
+// slowest single probe without opening an unbounded number of connections.
+func syncFetchConcurrency() int {
+	if n := runtime.GOMAXPROCS(0) * 2; n > 8 {
+		return n
+	}
+	return 8
+}
 
 var lastSyncModelsTime = time.Now()
 
@@ -38,7 +53,22 @@ func SyncModelsTask() {
 	}
 	totalNewModels := make([]string, 0, 128)
 	seenTotalNewModels := make(map[string]struct{}, 128)
+
+	// 阶段一：并发抓取各 channel 的模型列表（网络 IO）。抓取彼此独立，
+	// 串行执行会让单轮耗时随 channel 数线性累加；用有界 worker pool 并发抓取，
+	// 单轮耗时接近最慢的单个 channel。FailureTracker 自身用 mutex 保护，可安全并发。
+	type fetchResult struct {
+		ch          model.Channel
+		fetchModels []string
+	}
+	var (
+		fetchMu      sync.Mutex
+		fetchResults = make([]fetchResult, 0, len(channels))
+	)
+	fg, fgctx := errgroup.WithContext(ctx)
+	fg.SetLimit(syncFetchConcurrency())
 	for _, ch := range channels {
+		ch := ch
 		if !ch.Enabled || !ch.AutoSync {
 			continue
 		}
@@ -46,13 +76,27 @@ func SyncModelsTask() {
 			log.Debugf("skipping channel %s (id=%d) — in cooldown", ch.Name, ch.ID)
 			continue
 		}
-		fetchModels, err := helper.FetchModelsShortTimeout(ctx, ch)
-		if err != nil {
-			log.Warnf("failed to fetch models for channel %s: %v", ch.Name, err)
-			syncFailureTracker.RecordFailure(ch.ID, ch.Name)
-			continue
-		}
-		syncFailureTracker.RecordSuccess(ch.ID)
+		fg.Go(func() error {
+			fetchModels, err := helper.FetchModelsShortTimeout(fgctx, ch)
+			if err != nil {
+				log.Warnf("failed to fetch models for channel %s: %v", ch.Name, err)
+				syncFailureTracker.RecordFailure(ch.ID, ch.Name)
+				return nil
+			}
+			syncFailureTracker.RecordSuccess(ch.ID)
+			fetchMu.Lock()
+			fetchResults = append(fetchResults, fetchResult{ch: ch, fetchModels: fetchModels})
+			fetchMu.Unlock()
+			return nil
+		})
+	}
+	_ = fg.Wait()
+
+	// 阶段二：串行处理抓取结果（DB 更新、自动分组、totalNewModels 累加），
+	// 避免对共享状态的并发写。
+	for _, fr := range fetchResults {
+		ch := fr.ch
+		fetchModels := fr.fetchModels
 		oldModels := xstrings.SplitTrimCompact(",", ch.Model)
 		newModels := xstrings.TrimCompact(fetchModels)
 		for _, m := range newModels {

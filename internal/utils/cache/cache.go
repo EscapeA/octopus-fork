@@ -3,12 +3,43 @@ package cache
 
 import (
 	"fmt"
+	"unsafe"
 
 	"github.com/cespare/xxhash/v2"
 )
 
-func keyToString[K comparable](key K) string {
-	return fmt.Sprintf("%v", key)
+// hashKey computes a 64-bit hash for a cache key. The hot paths in this
+// codebase key caches by int / int64 / string (channel IDs, group IDs, API
+// key IDs, setting names), so those are handled without the reflection and
+// allocation cost of fmt.Sprintf. Other comparable types fall back to the
+// generic formatting path.
+func hashKey[K comparable](key K) uint64 {
+	switch k := any(key).(type) {
+	case string:
+		return xxhash.Sum64String(k)
+	case int:
+		return hashUint64(uint64(k))
+	case int64:
+		return hashUint64(uint64(k))
+	case int32:
+		return hashUint64(uint64(uint32(k)))
+	case uint:
+		return hashUint64(uint64(k))
+	case uint64:
+		return hashUint64(k)
+	case uint32:
+		return hashUint64(uint64(k))
+	default:
+		return xxhash.Sum64String(fmt.Sprintf("%v", key))
+	}
+}
+
+// hashUint64 hashes an 8-byte integer without allocating an intermediate
+// string. The bytes are read directly from the value via an unsafe slice
+// header; this never escapes hashKey and is purely read-only.
+func hashUint64(v uint64) uint64 {
+	b := (*[8]byte)(unsafe.Pointer(&v))
+	return xxhash.Sum64(b[:])
 }
 
 type Cache[K comparable, V any] interface {
@@ -43,14 +74,12 @@ type cache[K comparable, V any] struct {
 }
 
 func (c *cache[K, V]) Set(k K, v V) {
-	hashedKey := xxhash.Sum64String(keyToString(k))
-	shard := c.getShard(hashedKey)
+	shard := c.getShard(hashKey(k))
 	shard.set(k, v)
 }
 
 func (c *cache[K, V]) Get(k K) (V, bool) {
-	hashedKey := xxhash.Sum64String(keyToString(k))
-	shard := c.getShard(hashedKey)
+	shard := c.getShard(hashKey(k))
 	return shard.get(k)
 }
 
@@ -68,8 +97,7 @@ func (c *cache[K, V]) GetAll() map[K]V {
 func (c *cache[K, V]) Del(ks ...K) int {
 	var count int
 	for _, k := range ks {
-		hashedKey := xxhash.Sum64String(keyToString(k))
-		shard := c.getShard(hashedKey)
+		shard := c.getShard(hashKey(k))
 		count += shard.del(k)
 	}
 	return count

@@ -3,6 +3,7 @@ package remotesite
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/lingyuins/octopus/internal/db"
@@ -58,15 +59,20 @@ func FetchAllAnnouncements(ctx context.Context) int {
 		log.Warnf("list sites for announcement fetch: %v", err)
 		return 0
 	}
-	count := 0
+	siteIDs := make([]int, 0, len(sites))
 	for _, site := range sites {
-		if err := FetchAndStoreAnnouncement(ctx, site.ID); err != nil {
-			log.Warnf("fetch announcement for site %d: %v", site.ID, err)
-			continue
-		}
-		count++
+		siteIDs = append(siteIDs, site.ID)
 	}
-	return count
+
+	var count atomic.Int64
+	forEachSiteConcurrent(ctx, siteIDs, func(ctx context.Context, siteID int) {
+		if err := FetchAndStoreAnnouncement(ctx, siteID); err != nil {
+			log.Warnf("fetch announcement for site %d: %v", siteID, err)
+			return
+		}
+		count.Add(1)
+	})
+	return int(count.Load())
 }
 
 // ListAnnouncements returns all cached announcements, newest first.

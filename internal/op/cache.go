@@ -9,6 +9,7 @@ import (
 	"github.com/lingyuins/octopus/internal/op/modelmapping"
 	"github.com/lingyuins/octopus/internal/op/setting"
 	"github.com/lingyuins/octopus/internal/utils/log"
+	"golang.org/x/sync/errgroup"
 )
 
 // CacheInitFunc is a function that initializes a sub-package's in-memory cache.
@@ -33,17 +34,40 @@ func RegisterCacheSave(fn CacheSaveFunc) {
 }
 
 // InitCache initializes all registered sub-package caches.
-// The order of registration (set in init() below) follows dependency order:
-// setting → channelGroup → channel → group → apikey → llm → stats
+//
+// The first registered function (settingRefreshCache, see init() below) is run
+// first and on its own: other caches read the setting cache during load (stats
+// reads the timezone offset) and the log level is applied from settings right
+// after. The remaining caches only read their own DB table during refresh and
+// are mutually independent, so they are loaded concurrently. This keeps startup
+// wall-clock time close to the slowest single cache rather than the sum of all
+// of them, and avoids one large table blocking the shared init timeout.
 func InitCache() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	for _, fn := range cacheInitFuncs {
-		if err := fn(ctx); err != nil {
-			return err
-		}
+
+	if len(cacheInitFuncs) == 0 {
+		return nil
 	}
-	return nil
+
+	// Stage 1: setting cache (gates log level and is read by later caches).
+	if err := cacheInitFuncs[0](ctx); err != nil {
+		return err
+	}
+
+	// Stage 2: remaining independent caches in parallel.
+	rest := cacheInitFuncs[1:]
+	if len(rest) == 0 {
+		return nil
+	}
+	g, gctx := errgroup.WithContext(ctx)
+	for _, fn := range rest {
+		fn := fn
+		g.Go(func() error {
+			return fn(gctx)
+		})
+	}
+	return g.Wait()
 }
 
 // SaveCache persists all registered sub-package caches.

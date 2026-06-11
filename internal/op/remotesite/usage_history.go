@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/md5"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/lingyuins/octopus/internal/db"
@@ -146,16 +147,23 @@ func SyncAllUsageHistory(ctx context.Context) int {
 		return 0
 	}
 
-	total := 0
+	names := make(map[int]string, len(sites))
+	siteIDs := make([]int, 0, len(sites))
 	for _, site := range sites {
-		n, err := SyncUsageHistory(ctx, site.ID)
-		if err != nil {
-			log.Warnf("sync usage for site %d (%s): %v", site.ID, site.Name, err)
-			continue
-		}
-		total += n
+		siteIDs = append(siteIDs, site.ID)
+		names[site.ID] = site.Name
 	}
-	return total
+
+	var total atomic.Int64
+	forEachSiteConcurrent(ctx, siteIDs, func(ctx context.Context, siteID int) {
+		n, err := SyncUsageHistory(ctx, siteID)
+		if err != nil {
+			log.Warnf("sync usage for site %d (%s): %v", siteID, names[siteID], err)
+			return
+		}
+		total.Add(int64(n))
+	})
+	return int(total.Load())
 }
 
 // QueryUsageHistory returns usage records matching the query filters.

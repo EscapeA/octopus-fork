@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -85,12 +86,11 @@ func maybeServeSemanticCacheHit(c *gin.Context, req *relayRequest, endpointFamil
 		return false, nil, nil
 	}
 
-	cfg, ok := loadSemanticCacheRuntimeConfig()
+	cfg, ok := semanticCacheRuntimeConfig()
 	if !ok {
 		semantic_cache.RecordBypass()
 		return false, nil, nil
 	}
-	ensureSemanticCacheInitialized(cfg)
 
 	embedding, _, err := lookupSemanticEmbeddingWithCache(req.operationCtx, req, cfg, namespace, text)
 	if err != nil {
@@ -253,11 +253,10 @@ func storeSemanticCacheResponse(ctx context.Context, req *transmodel.InternalLLM
 		return
 	}
 
-	cfg, ok := loadSemanticCacheRuntimeConfig()
+	cfg, ok := semanticCacheRuntimeConfig()
 	if !ok {
 		return
 	}
-	ensureSemanticCacheInitialized(cfg)
 
 	embedding, err := semantic_cache.NewEmbeddingClient(cfg).CreateEmbedding(ctx, text)
 	if err != nil {
@@ -330,9 +329,9 @@ func buildSemanticCacheHitInternalResponse(req *transmodel.InternalLLMRequest, p
 			CreatedAt int64  `json:"created_at"`
 			Model     string `json:"model"`
 			Usage     *struct {
-				InputTokens  int64 `json:"input_tokens"`
-				OutputTokens int64 `json:"output_tokens"`
-				TotalTokens  int64 `json:"total_tokens"`
+				InputTokens       int64 `json:"input_tokens"`
+				OutputTokens      int64 `json:"output_tokens"`
+				TotalTokens       int64 `json:"total_tokens"`
 				InputTokenDetails *struct {
 					CachedTokens int64 `json:"cached_tokens"`
 				} `json:"input_token_details"`
@@ -379,6 +378,50 @@ func semanticCacheStoreMetadata(req *transmodel.InternalLLMRequest) (string, str
 	return namespace, text, true
 }
 
+// semanticCacheConfigCache 缓存基于设置派生的语义缓存运行时配置。每请求都会
+// 调用 semanticCacheRuntimeConfig，但只有当设置代际（setting.Generation）发生
+// 变化时才重新读取设置、重建配置并调用 ApplyRuntimeConfig。这样消除了热路径上
+// 每请求多次 setting 读取以及对 globalCacheMu 写锁的反复争用。
+var semanticCacheConfigCache struct {
+	mu         sync.RWMutex
+	generation uint64
+	loaded     bool
+	cfg        semantic_cache.RuntimeConfig
+	ok         bool
+}
+
+// semanticCacheRuntimeConfig 返回当前语义缓存运行时配置，并确保全局缓存已按该
+// 配置初始化。配置在设置代际不变时复用缓存值，仅在变更时重新加载并 Apply。
+func semanticCacheRuntimeConfig() (semantic_cache.RuntimeConfig, bool) {
+	gen := setting.Generation()
+
+	semanticCacheConfigCache.mu.RLock()
+	if semanticCacheConfigCache.loaded && semanticCacheConfigCache.generation == gen {
+		cfg, ok := semanticCacheConfigCache.cfg, semanticCacheConfigCache.ok
+		semanticCacheConfigCache.mu.RUnlock()
+		return cfg, ok
+	}
+	semanticCacheConfigCache.mu.RUnlock()
+
+	semanticCacheConfigCache.mu.Lock()
+	defer semanticCacheConfigCache.mu.Unlock()
+	// 双重检查：可能在等待写锁期间已被其他 goroutine 刷新。
+	if semanticCacheConfigCache.loaded && semanticCacheConfigCache.generation == gen {
+		return semanticCacheConfigCache.cfg, semanticCacheConfigCache.ok
+	}
+
+	cfg, ok := loadSemanticCacheRuntimeConfig()
+	// ApplyRuntimeConfig 在 disabled 时 Reset，在参数不变时复用既有缓存，
+	// 因此仅在代际变化时调用一次即可同步全局缓存状态。
+	semantic_cache.ApplyRuntimeConfig(cfg)
+
+	semanticCacheConfigCache.generation = gen
+	semanticCacheConfigCache.loaded = true
+	semanticCacheConfigCache.cfg = cfg
+	semanticCacheConfigCache.ok = ok
+	return cfg, ok
+}
+
 func loadSemanticCacheRuntimeConfig() (semantic_cache.RuntimeConfig, bool) {
 	enabled, err := setting.GetBool(dbmodel.SettingKeySemanticCacheEnabled)
 	if err != nil || !enabled {
@@ -418,8 +461,4 @@ func loadSemanticCacheRuntimeConfig() (semantic_cache.RuntimeConfig, bool) {
 		EmbeddingModel:   strings.TrimSpace(embeddingModel),
 		EmbeddingTimeout: time.Duration(timeoutSeconds) * time.Second,
 	}, true
-}
-
-func ensureSemanticCacheInitialized(cfg semantic_cache.RuntimeConfig) {
-	semantic_cache.ApplyRuntimeConfig(cfg)
 }

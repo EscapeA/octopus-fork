@@ -3,29 +3,37 @@ package semantic_cache
 import (
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 // CacheEntry holds a cached request/response pair with its embedding.
+//
+// Entries are stored behind pointers (see SemanticCache.entries) and the
+// mutable hit metadata (lastAccessNs / HitCount) is accessed atomically so
+// that Lookup can scan and record hits under a read lock without serializing
+// concurrent lookups. The immutable fields (Namespace, ResponseJSON,
+// Embedding, CreatedAt) are written once at Store time and never mutated in
+// place afterwards, so they are safe to read after releasing the read lock.
 type CacheEntry struct {
 	Namespace    string
 	RequestKey   string
 	ResponseJSON []byte
 	Embedding    []float64
 	CreatedAt    time.Time
-	LastAccessAt time.Time
-	HitCount     int64
+	lastAccessNs atomic.Int64 // unix nanoseconds of last access; updated on hit
+	HitCount     atomic.Int64
 }
 
 // SemanticCache is an in-memory vector store with cosine similarity lookup.
 type SemanticCache struct {
 	mu         sync.RWMutex
-	entries    []CacheEntry
+	entries    []*CacheEntry
 	maxEntries int
 	threshold  float64
 	ttl        time.Duration
-	hits       int64
-	misses     int64
+	hits       atomic.Int64
+	misses     atomic.Int64
 }
 
 // globalCacheMu protects the globalCache pointer itself from concurrent read/write.
@@ -56,7 +64,7 @@ func Init(maxEntries int, threshold float64, ttlSec int) {
 	defer globalCacheMu.Unlock()
 	if globalCache == nil || globalCache.maxEntries != maxEntries || globalCache.threshold != threshold || globalCache.ttl != time.Duration(ttlSec)*time.Second {
 		globalCache = &SemanticCache{
-			entries:    make([]CacheEntry, 0, maxEntries),
+			entries:    make([]*CacheEntry, 0, maxEntries),
 			maxEntries: maxEntries,
 			threshold:  threshold,
 			ttl:        time.Duration(ttlSec) * time.Second,
@@ -84,7 +92,7 @@ func ApplyRuntimeConfig(cfg RuntimeConfig) {
 	}
 
 	globalCache = &SemanticCache{
-		entries:    make([]CacheEntry, 0, cfg.MaxEntries),
+		entries:    make([]*CacheEntry, 0, cfg.MaxEntries),
 		maxEntries: cfg.MaxEntries,
 		threshold:  cfg.Threshold,
 		ttl:        ttl,
@@ -100,6 +108,12 @@ func Reset() {
 
 // Lookup finds the best matching cache entry for the given embedding.
 // Returns the response JSON and true if a match above threshold is found.
+//
+// The cosine-similarity scan runs under a read lock so that concurrent
+// lookups proceed in parallel rather than serializing on a single mutex.
+// Expired entries are skipped inline; structural removal of expired entries
+// is deferred to Store/Stats (which hold the write lock). Hit metadata is
+// updated atomically, so recording a hit does not require the write lock.
 func Lookup(namespace string, embedding []float64) (responseJSON []byte, found bool) {
 	globalCacheMu.RLock()
 	cache := globalCache
@@ -107,37 +121,38 @@ func Lookup(namespace string, embedding []float64) (responseJSON []byte, found b
 	if cache == nil {
 		return nil, false
 	}
-	cache.mu.Lock()
-	defer cache.mu.Unlock()
 
-	cache.pruneExpiredLocked()
-
-	if len(cache.entries) == 0 {
-		cache.misses++
-		return nil, false
-	}
-
-	bestIdx := -1
+	cache.mu.RLock()
+	var best *CacheEntry
 	bestSim := -1.0
-	for i, entry := range cache.entries {
+	nowNs := time.Now().UnixNano()
+	ttl := int64(cache.ttl)
+	for _, entry := range cache.entries {
 		if entry.Namespace != namespace {
 			continue
+		}
+		if ttl > 0 && nowNs-entry.lastAccessNs.Load() >= ttl {
+			continue // expired; skip without mutating the slice under RLock
 		}
 		sim := cosineSimilarity(embedding, entry.Embedding)
 		if sim > bestSim {
 			bestSim = sim
-			bestIdx = i
+			best = entry
 		}
 	}
+	threshold := cache.threshold
+	cache.mu.RUnlock()
 
-	if bestIdx >= 0 && bestSim >= cache.threshold {
-		cache.entries[bestIdx].HitCount++
-		cache.entries[bestIdx].LastAccessAt = time.Now()
-		cache.hits++
-		return append([]byte(nil), cache.entries[bestIdx].ResponseJSON...), true
+	if best != nil && bestSim >= threshold {
+		best.HitCount.Add(1)
+		best.lastAccessNs.Store(time.Now().UnixNano())
+		cache.hits.Add(1)
+		// ResponseJSON is immutable after Store, but callers may mutate the
+		// returned slice, so hand back a copy.
+		return append([]byte(nil), best.ResponseJSON...), true
 	}
 
-	cache.misses++
+	cache.misses.Add(1)
 	return nil, false
 }
 
@@ -152,20 +167,25 @@ func Store(namespace, requestKey string, responseJSON []byte, embedding []float6
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
-	entry := CacheEntry{
+	cache.pruneExpiredLocked()
+
+	now := time.Now()
+	entry := &CacheEntry{
 		Namespace:    namespace,
 		RequestKey:   requestKey,
 		ResponseJSON: append([]byte(nil), responseJSON...),
 		Embedding:    cloneEmbedding(embedding),
-		CreatedAt:    time.Now(),
-		LastAccessAt: time.Now(),
+		CreatedAt:    now,
 	}
+	entry.lastAccessNs.Store(now.UnixNano())
 
-	if len(cache.entries) >= cache.maxEntries {
-		// Evict the oldest entry
+	if len(cache.entries) >= cache.maxEntries && len(cache.entries) > 0 {
+		// Evict the least-recently-accessed entry.
 		oldestIdx := 0
+		oldestNs := cache.entries[0].lastAccessNs.Load()
 		for i, e := range cache.entries {
-			if e.LastAccessAt.Before(cache.entries[oldestIdx].LastAccessAt) {
+			if ns := e.lastAccessNs.Load(); ns < oldestNs {
+				oldestNs = ns
 				oldestIdx = i
 			}
 		}
@@ -184,9 +204,10 @@ func Stats() (hits, misses int64, size int) {
 		return 0, 0, 0
 	}
 	cache.mu.Lock()
-	defer cache.mu.Unlock()
 	cache.pruneExpiredLocked()
-	return cache.hits, cache.misses, len(cache.entries)
+	size = len(cache.entries)
+	cache.mu.Unlock()
+	return cache.hits.Load(), cache.misses.Load(), size
 }
 
 // Clear empties the cache.
@@ -198,10 +219,10 @@ func Clear() {
 		return
 	}
 	cache.mu.Lock()
-	defer cache.mu.Unlock()
-	cache.entries = make([]CacheEntry, 0, cache.maxEntries)
-	cache.hits = 0
-	cache.misses = 0
+	cache.entries = make([]*CacheEntry, 0, cache.maxEntries)
+	cache.mu.Unlock()
+	cache.hits.Store(0)
+	cache.misses.Store(0)
 }
 
 // Enabled returns true if the semantic cache is initialized and active.
@@ -216,10 +237,11 @@ func (sc *SemanticCache) pruneExpiredLocked() {
 	if sc.ttl <= 0 {
 		return
 	}
-	now := time.Now()
+	nowNs := time.Now().UnixNano()
+	ttl := int64(sc.ttl)
 	n := 0
 	for _, entry := range sc.entries {
-		if now.Sub(entry.LastAccessAt) < sc.ttl {
+		if nowNs-entry.lastAccessNs.Load() < ttl {
 			sc.entries[n] = entry
 			n++
 		}

@@ -19,7 +19,6 @@ import (
 	grp "github.com/lingyuins/octopus/internal/op/group"
 	"github.com/lingyuins/octopus/internal/op/modelmapping"
 	rl "github.com/lingyuins/octopus/internal/op/ratelimitstore"
-	stg "github.com/lingyuins/octopus/internal/op/setting"
 	st "github.com/lingyuins/octopus/internal/op/stats"
 	"github.com/lingyuins/octopus/internal/relay/balancer"
 	"github.com/lingyuins/octopus/internal/relay/condition"
@@ -167,27 +166,6 @@ func resolveAPIRateLimit(modelName string, c *gin.Context) (rpm int, tpm int) {
 	return
 }
 
-func initSemanticCacheFromSettings() {
-	enabled, _ := stg.GetBool(dbmodel.SettingKeySemanticCacheEnabled)
-	if !enabled {
-		semantic_cache.Clear()
-		return
-	}
-	ttl, _ := stg.GetInt(dbmodel.SettingKeySemanticCacheTTL)
-	thresholdRaw, _ := stg.GetInt(dbmodel.SettingKeySemanticCacheThreshold)
-	maxEntries, _ := stg.GetInt(dbmodel.SettingKeySemanticCacheMaxEntries)
-	if ttl <= 0 {
-		ttl = 3600
-	}
-	if thresholdRaw < 0 || thresholdRaw > 100 {
-		thresholdRaw = 98
-	}
-	if maxEntries <= 0 {
-		maxEntries = 1000
-	}
-	semantic_cache.Init(maxEntries, float64(thresholdRaw)/100.0, ttl)
-}
-
 func resolveCandidateModelName(requestModel string, item dbmodel.GroupItem) string {
 	if upstreamModel, ok := resolveRequestedUpstreamModel(requestModel); ok {
 		if strings.TrimSpace(item.ModelName) == "" || strings.EqualFold(strings.TrimSpace(item.ModelName), "zen") {
@@ -240,8 +218,6 @@ func Handler(endpointType string, inboundType inbound.InboundType, c *gin.Contex
 	var streamSession *relayStreamSession
 	var streamSessionOwned bool
 	var lastErr error
-	// Initialize semantic cache from settings
-	initSemanticCacheFromSettings()
 
 	if conversationID, sessionHash, ok := resolveRelayStreamSessionIdentity(endpointType, int(inboundType), apiKeyID, internalRequest); ok {
 		session, created, err := acquireRelayStreamSession(conversationID, apiKeyID, sessionHash)
@@ -370,9 +346,8 @@ func Handler(endpointType string, inboundType inbound.InboundType, c *gin.Contex
 			if outcome, ok := result.(*inflightRelayResult); ok && outcome != nil {
 				if shared {
 					if outcome.namespace != "" && outcome.requestText != "" {
-						cfg, ok := loadSemanticCacheRuntimeConfig()
+						cfg, ok := semanticCacheRuntimeConfig()
 						if ok {
-							ensureSemanticCacheInitialized(cfg)
 							embedding, _, embErr := lookupSemanticEmbeddingWithCache(req.operationCtx, req, cfg, outcome.namespace, outcome.requestText)
 							if embErr == nil {
 								if payload, found := semantic_cache.Lookup(outcome.namespace, embedding); found {
@@ -786,7 +761,7 @@ func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http
 			if err != nil {
 				if errors.Is(err, errResponseFilterBlocked) {
 					// 关键词拦截：发送错误 SSE 事件并终止流
-					filterCfg := loadResponseFilterConfig()
+					filterCfg := ra.getResponseFilterConfig()
 					if ra.streamSession != nil {
 						errPayload, _ := json.Marshal(map[string]any{
 							"error": map[string]any{
@@ -869,7 +844,7 @@ func (ra *relayAttempt) transformStreamData(ctx context.Context, data string) ([
 	}
 
 	// 输出结果关键词拦截（流式）
-	filterCfg := loadResponseFilterConfig()
+	filterCfg := ra.getResponseFilterConfig()
 	if blocked, keyword := applyResponseFilter(internalStream, filterCfg); blocked {
 		log.Infof("response filter blocked streaming chunk with keyword %q", keyword)
 		return nil, errResponseFilterBlocked
@@ -893,7 +868,7 @@ func (ra *relayAttempt) handleResponse(ctx context.Context, response *http.Respo
 	}
 
 	// 输出结果关键词拦截
-	filterCfg := loadResponseFilterConfig()
+	filterCfg := ra.getResponseFilterConfig()
 	if blocked, keyword := applyResponseFilter(internalResponse, filterCfg); blocked {
 		log.Infof("response filter blocked keyword %q", keyword)
 		errMsg := filterCfg.ErrorMessage

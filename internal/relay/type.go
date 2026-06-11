@@ -129,6 +129,20 @@ type relayAttempt struct {
 	firstTokenTimeOutSec int
 	tryIndex             int
 	tryTotal             int
+
+	// filterCfg 缓存本次尝试的响应关键词过滤配置，避免在流式响应的每个
+	// chunk 上重复读取 setting 并解析关键词 JSON。通过 getResponseFilterConfig
+	// 懒加载，仅在首次需要时计算一次。
+	filterCfg *responseFilterConfig
+}
+
+// getResponseFilterConfig 返回本次尝试的响应过滤配置，仅加载一次并缓存。
+func (ra *relayAttempt) getResponseFilterConfig() responseFilterConfig {
+	if ra.filterCfg == nil {
+		cfg := loadResponseFilterConfig()
+		ra.filterCfg = &cfg
+	}
+	return *ra.filterCfg
 }
 
 // attemptResult 封装单次尝试的结果

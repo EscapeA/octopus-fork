@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../client';
-import { REFETCH_INTERVAL_CONFIG, REFETCH_INTERVAL_DEFAULT, REFETCH_INTERVAL_FAST, REFETCH_INTERVAL_SLOW } from '../constants';
+import { REFETCH_INTERVAL_CONFIG, REFETCH_INTERVAL_SLOW } from '../constants';
 import { formatCount, formatMoney, formatTime } from '@/lib/utils';
 
 /**
@@ -124,7 +124,6 @@ export function useStatsToday() {
             return apiClient.get<StatsDaily>('/api/v1/stats/today');
         },
         refetchInterval: REFETCH_INTERVAL_CONFIG,
-        refetchOnMount: 'always',
     });
 }
 
@@ -163,7 +162,6 @@ export function useStatsDaily() {
             date: item.date,
         })),
         refetchInterval: REFETCH_INTERVAL_SLOW,
-        refetchOnMount: 'always',
     });
 }
 /**
@@ -201,8 +199,7 @@ export function useStatsHourly() {
             histogram_gt_5k: formatCount(item.histogram_gt_5k),
             request_count: formatCount(item.request_success + item.request_failed),
         })),
-        refetchInterval: REFETCH_INTERVAL_DEFAULT,
-        refetchOnMount: 'always',
+        refetchInterval: REFETCH_INTERVAL_CONFIG,
     });
 }
 
@@ -236,8 +233,7 @@ export function useStatsTotal() {
             histogram_gt_5k: formatCount(data.histogram_gt_5k),
             request_count: formatCount(data.request_success + data.request_failed),
         }),
-        refetchInterval: REFETCH_INTERVAL_DEFAULT,
-        refetchOnMount: 'always',
+        refetchInterval: REFETCH_INTERVAL_CONFIG,
     });
 }
 
@@ -282,7 +278,6 @@ export function useStatsAPIKey(options?: { enabled?: boolean }) {
         })),
         enabled,
         refetchInterval: REFETCH_INTERVAL_CONFIG,
-        refetchOnMount: 'always',
     });
 }
 
@@ -323,6 +318,5 @@ export function useStatsChannel(options?: { enabled?: boolean }) {
         })),
         enabled,
         refetchInterval: REFETCH_INTERVAL_CONFIG,
-        refetchOnMount: 'always',
     });
 }

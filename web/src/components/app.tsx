@@ -17,7 +17,7 @@ import { SettingKey, type Setting } from '@/api/endpoints/setting';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/common/Toast';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
-import { REFETCH_INTERVAL_DEFAULT } from '@/api/constants';
+import { REFETCH_INTERVAL_CONFIG } from '@/api/constants';
 import { CONTENT_MAP } from '@/route';
 import { parseNavOrder, parseNavVisible } from '@/components/modules/navbar';
 import { apiClient } from '@/api/client';
@@ -100,8 +100,9 @@ export function AppContainer() {
     const { data: settings } = useQuery({
         ...getSettingsListQueryOptions(),
         enabled: isAuthenticated && !isAPIKeyAuth,
-        refetchInterval: REFETCH_INTERVAL_DEFAULT,
-        refetchOnMount: 'always',
+        // 全局设置变更极少，且 AppContainer 常驻不卸载；60s 轮询足够，
+        // 并依赖 mutation 后 invalidate 即时刷新，无需 refetchOnMount: 'always'。
+        refetchInterval: REFETCH_INTERVAL_CONFIG,
     });
 
     // Logo 动画完成状态

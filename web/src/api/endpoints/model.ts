@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../client';
-import { REFETCH_INTERVAL_DEFAULT } from '../constants';
+import { REFETCH_INTERVAL_CONFIG } from '../constants';
 import { logger } from '@/lib/logger';
 
 /**
@@ -97,7 +97,7 @@ export function useModelList() {
         queryFn: async () => {
             return apiClient.get<LLMInfo[]>('/api/v1/model/list');
         },
-        refetchInterval: REFETCH_INTERVAL_DEFAULT,
+        refetchInterval: REFETCH_INTERVAL_CONFIG,
         refetchOnMount: 'always',
     });
 }
@@ -119,7 +119,7 @@ export function useModelChannelList() {
         queryFn: async () => {
             return apiClient.get<LLMChannel[]>('/api/v1/model/channel');
         },
-        refetchInterval: REFETCH_INTERVAL_DEFAULT,
+        refetchInterval: REFETCH_INTERVAL_CONFIG,
     });
 }
 
@@ -130,7 +130,7 @@ export function useModelMarket() {
             const response = await apiClient.get<ModelMarketResponse>('/api/v1/model/market');
             return normalizeModelMarketResponse(response);
         },
-        refetchInterval: REFETCH_INTERVAL_DEFAULT,
+        refetchInterval: REFETCH_INTERVAL_CONFIG,
         refetchOnMount: 'always',
     });
 }
@@ -267,7 +267,7 @@ export function useLastUpdateTime() {
         queryFn: async () => {
             return apiClient.get<string>('/api/v1/model/last-update-time');
         },
-        refetchInterval: REFETCH_INTERVAL_DEFAULT,
+        refetchInterval: REFETCH_INTERVAL_CONFIG,
     });
 }
 

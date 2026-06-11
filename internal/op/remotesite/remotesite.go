@@ -4,6 +4,7 @@ package remotesite
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/lingyuins/octopus/internal/db"
@@ -263,20 +264,29 @@ func RefreshAll(ctx context.Context) (map[int]*hub.RefreshResult, error) {
 		return nil, fmt.Errorf("list enabled sites: %w", err)
 	}
 
-	results := make(map[int]*hub.RefreshResult, len(sites))
+	names := make(map[int]string, len(sites))
+	siteIDs := make([]int, 0, len(sites))
 	for _, site := range sites {
-		r, err := Refresh(ctx, site.ID)
+		siteIDs = append(siteIDs, site.ID)
+		names[site.ID] = site.Name
+	}
+
+	var mu sync.Mutex
+	results := make(map[int]*hub.RefreshResult, len(sites))
+	forEachSiteConcurrent(ctx, siteIDs, func(ctx context.Context, siteID int) {
+		r, err := Refresh(ctx, siteID)
 		if err != nil {
-			log.Warnf("refresh site %d (%s): %v", site.ID, site.Name, err)
-			results[site.ID] = &hub.RefreshResult{
+			log.Warnf("refresh site %d (%s): %v", siteID, names[siteID], err)
+			r = &hub.RefreshResult{
 				HealthStatus: model.HealthStatusError,
 				HealthMsg:    err.Error(),
 				SyncedAt:     time.Now(),
 			}
-			continue
 		}
-		results[site.ID] = r
-	}
+		mu.Lock()
+		results[siteID] = r
+		mu.Unlock()
+	})
 	return results, nil
 }
 

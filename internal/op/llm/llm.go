@@ -9,6 +9,7 @@ import (
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/utils/cache"
+	"gorm.io/gorm/clause"
 )
 
 var modelCache = cache.New[string, model.LLMPrice](16)
@@ -153,22 +154,36 @@ func BatchUpdate(infos []model.LLMInfo, ctx context.Context) error {
 		return nil
 	}
 
+	// 规范化并去重 name，过滤空 name。之前的实现对每条记录执行一次独立的
+	// UPDATE（名为 batch 实为 N 次往返），模型多时同步任务 DB 往返过多。
+	// 改为单条 upsert：以 name（主键）冲突时更新价格列，一次 SQL 完成。
+	seen := make(map[string]struct{}, len(infos))
+	normalized := make([]model.LLMInfo, 0, len(infos))
 	for _, info := range infos {
 		info.Name = strings.ToLower(strings.TrimSpace(info.Name))
 		if info.Name == "" {
 			continue
 		}
-		if err := db.GetDB().WithContext(ctx).
-			Model(&model.LLMInfo{}).
-			Where("name = ?", info.Name).
-			Updates(map[string]any{
-				"input":       info.Input,
-				"output":      info.Output,
-				"cache_read":  info.CacheRead,
-				"cache_write": info.CacheWrite,
-			}).Error; err != nil {
-			return err
+		if _, ok := seen[info.Name]; ok {
+			continue
 		}
+		seen[info.Name] = struct{}{}
+		normalized = append(normalized, info)
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
+
+	if err := db.GetDB().WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "name"}},
+			DoUpdates: clause.AssignmentColumns([]string{"input", "output", "cache_read", "cache_write"}),
+		}).
+		Create(&normalized).Error; err != nil {
+		return err
+	}
+
+	for _, info := range normalized {
 		modelCache.Set(info.Name, info.LLMPrice)
 	}
 

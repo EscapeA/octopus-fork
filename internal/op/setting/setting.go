@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"sync/atomic"
 
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
@@ -11,6 +12,15 @@ import (
 )
 
 var settingCache = cache.New[model.SettingKey, string](16)
+
+// generation 在每次设置发生变更时自增。调用方可以缓存基于设置派生的
+// 配置（如语义缓存运行时配置），只在代际变化时重新读取，避免在请求热
+// 路径上反复读取多个设置并重建配置。
+var generation atomic.Uint64
+
+// Generation 返回当前设置代际。每当任意设置被写入（SetString/SetInt）或
+// 缓存被整体刷新（RefreshCache）时该值都会改变。
+func Generation() uint64 { return generation.Load() }
 
 // GetCache returns the internal setting cache (for backward compatibility).
 func GetCache() cache.Cache[model.SettingKey, string] { return settingCache }
@@ -50,6 +60,7 @@ func SetString(key model.SettingKey, value string) error {
 		return fmt.Errorf("failed to set setting, key not found")
 	}
 	settingCache.Set(key, value)
+	generation.Add(1)
 	return nil
 }
 
@@ -89,6 +100,7 @@ func SetInt(key model.SettingKey, value int) error {
 		return fmt.Errorf("failed to set setting, key not found")
 	}
 	settingCache.Set(key, strconv.Itoa(value))
+	generation.Add(1)
 	return nil
 }
 
@@ -124,5 +136,6 @@ func RefreshCache(ctx context.Context) error {
 	for _, setting := range settings {
 		settingCache.Set(setting.Key, setting.Value)
 	}
+	generation.Add(1)
 	return nil
 }

@@ -1,12 +1,16 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { useModelCapabilities, type ModelCapability } from '@/api/endpoints/model';
 import { LoadingState } from '@/components/common/LoadingState';
 import { ErrorState } from '@/components/common/ErrorState';
+import { VirtualizedGrid } from '@/components/common/VirtualizedGrid';
 import { Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useTranslations } from 'next-intl';
+
+// 桌面行与表头共用的列宽模板，保证虚拟化行与表头对齐。
+const CAPABILITY_GRID_COLS = 'minmax(0,1.6fr) minmax(0,2fr) 7rem 7rem';
 
 function CapabilityBadge({ endpoint, t }: { endpoint: string; t: ReturnType<typeof useTranslations> }) {
     if (endpoint === '*') {
@@ -15,18 +19,21 @@ function CapabilityBadge({ endpoint, t }: { endpoint: string; t: ReturnType<type
     return <Badge variant="outline" className="font-mono text-[10px]">{endpoint}</Badge>;
 }
 
-function CapabilityRow({ cap, t }: { cap: ModelCapability; t: ReturnType<typeof useTranslations> }) {
+const CapabilityRow = memo(function CapabilityRow({ cap, t }: { cap: ModelCapability; t: ReturnType<typeof useTranslations> }) {
     return (
-        <tr className="border-b border-border/30 transition-colors hover:bg-muted/40">
-            <td className="px-3 py-2.5 text-sm font-medium sm:px-4">{cap.name}</td>
-            <td className="px-3 py-2.5 sm:px-4">
+        <div
+            className="grid items-center border-b border-border/30 transition-colors hover:bg-muted/40"
+            style={{ gridTemplateColumns: CAPABILITY_GRID_COLS }}
+        >
+            <div className="px-3 py-2.5 text-sm font-medium sm:px-4">{cap.name}</div>
+            <div className="px-3 py-2.5 sm:px-4">
                 <div className="flex flex-wrap gap-1">
                     {cap.endpoints.map((ep) => (
                         <CapabilityBadge key={ep} endpoint={ep} t={t} />
                     ))}
                 </div>
-            </td>
-            <td className="px-3 py-2.5 text-center sm:px-4">
+            </div>
+            <div className="px-3 py-2.5 text-center sm:px-4">
                 {cap.conversation ? (
                     <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
                         <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -35,8 +42,8 @@ function CapabilityRow({ cap, t }: { cap: ModelCapability; t: ReturnType<typeof 
                 ) : (
                     <span className="text-xs text-muted-foreground">—</span>
                 )}
-            </td>
-            <td className="px-3 py-2.5 text-center sm:px-4">
+            </div>
+            <div className="px-3 py-2.5 text-center sm:px-4">
                 {cap.available ? (
                     <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
                         <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -48,12 +55,12 @@ function CapabilityRow({ cap, t }: { cap: ModelCapability; t: ReturnType<typeof 
                         {t('capabilities.down')}
                     </span>
                 )}
-            </td>
-        </tr>
+            </div>
+        </div>
     );
-}
+});
 
-function CapabilityCard({ cap, t }: { cap: ModelCapability; t: ReturnType<typeof useTranslations> }) {
+const CapabilityCard = memo(function CapabilityCard({ cap, t }: { cap: ModelCapability; t: ReturnType<typeof useTranslations> }) {
     return (
         <div className="rounded-lg border border-border/30 bg-card p-3 transition-colors hover:border-primary/18">
             <div className="flex items-start justify-between gap-2">
@@ -85,7 +92,7 @@ function CapabilityCard({ cap, t }: { cap: ModelCapability; t: ReturnType<typeof
             )}
         </div>
     );
-}
+});
 
 export function CapabilitiesPanel() {
     const t = useTranslations('model');
@@ -98,6 +105,26 @@ export function CapabilitiesPanel() {
         if (!term) return capabilities;
         return capabilities.filter((c) => c.name.toLowerCase().includes(term));
     }, [capabilities, search]);
+
+    // 在一次遍历内统计三个计数，避免在渲染体内对 filtered 反复执行 filter
+    // （输入搜索词时每次按键都会触发，行数多时成本明显）。
+    const { autoCount, convCount, nonConvCount } = useMemo(() => {
+        let auto = 0;
+        let conv = 0;
+        for (const c of filtered) {
+            const isAuto = c.endpoints.includes('*');
+            if (isAuto) {
+                auto++;
+            } else if (c.conversation) {
+                conv++;
+            }
+        }
+        return {
+            autoCount: auto,
+            convCount: conv,
+            nonConvCount: filtered.length - auto - conv,
+        };
+    }, [filtered]);
 
     if (isLoading) {
         return (
@@ -114,10 +141,6 @@ export function CapabilitiesPanel() {
             </section>
         );
     }
-
-    const autoCount = filtered.filter((c) => c.endpoints.includes('*')).length;
-    const convCount = filtered.filter((c) => c.conversation && !c.endpoints.includes('*')).length;
-    const nonConvCount = filtered.length - autoCount - convCount;
 
     return (
         <section className="relative flex h-full min-h-0 flex-col gap-3 sm:gap-4">
@@ -140,47 +163,52 @@ export function CapabilitiesPanel() {
                     />
                 </div>
 
-                {/* Mobile: card list */}
-                <div className="min-h-0 flex-1 overflow-auto sm:hidden">
-                    {filtered.length > 0 ? (
-                        <div className="grid grid-cols-1 gap-2 p-3">
-                            {filtered.map((cap) => (
-                                <CapabilityCard key={cap.name} cap={cap} t={t} />
-                            ))}
+                {filtered.length === 0 ? (
+                    <div className="px-4 py-12 text-center text-sm text-muted-foreground">
+                        {search ? t('capabilities.emptySearch') : t('capabilities.empty')}
+                    </div>
+                ) : (
+                    <>
+                        {/* Mobile: virtualized card list */}
+                        <div className="min-h-0 flex-1 sm:hidden">
+                            <VirtualizedGrid
+                                items={filtered}
+                                layout="list"
+                                columns={{ default: 1 }}
+                                estimateItemHeight={92}
+                                gap={8}
+                                getItemKey={(cap) => `cap-card-${cap.name}`}
+                                renderItem={(cap) => <CapabilityCard cap={cap} t={t} />}
+                                bottomPaddingClassName="pb-3"
+                            />
                         </div>
-                    ) : (
-                        <div className="px-4 py-12 text-center text-sm text-muted-foreground">
-                            {search ? t('capabilities.emptySearch') : t('capabilities.empty')}
-                        </div>
-                    )}
-                </div>
 
-                {/* Desktop: table */}
-                <div className="hidden min-h-0 flex-1 overflow-auto sm:block">
-                    <table className="w-full text-left text-sm">
-                        <thead className="sticky top-0 z-10 border-b border-border/30 bg-muted/50 text-xs uppercase text-muted-foreground">
-                            <tr>
-                                <th className="px-4 py-2.5 font-medium">{t('capabilities.model')}</th>
-                                <th className="px-4 py-2.5 font-medium">{t('capabilities.endpoints')}</th>
-                                <th className="px-4 py-2.5 text-center font-medium">{t('capabilities.conversation')}</th>
-                                <th className="px-4 py-2.5 text-center font-medium">{t('capabilities.status')}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filtered.length > 0 ? (
-                                filtered.map((cap) => (
-                                    <CapabilityRow key={cap.name} cap={cap} t={t} />
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">
-                                        {search ? t('capabilities.emptySearch') : t('capabilities.empty')}
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                        {/* Desktop: sticky header + virtualized rows */}
+                        <div className="hidden min-h-0 flex-1 flex-col sm:flex">
+                            <div
+                                className="grid border-b border-border/30 bg-muted/50 text-xs uppercase text-muted-foreground"
+                                style={{ gridTemplateColumns: CAPABILITY_GRID_COLS }}
+                            >
+                                <div className="px-4 py-2.5 font-medium">{t('capabilities.model')}</div>
+                                <div className="px-4 py-2.5 font-medium">{t('capabilities.endpoints')}</div>
+                                <div className="px-4 py-2.5 text-center font-medium">{t('capabilities.conversation')}</div>
+                                <div className="px-4 py-2.5 text-center font-medium">{t('capabilities.status')}</div>
+                            </div>
+                            <div className="min-h-0 flex-1">
+                                <VirtualizedGrid
+                                    items={filtered}
+                                    layout="list"
+                                    columns={{ default: 1 }}
+                                    estimateItemHeight={45}
+                                    gap={0}
+                                    getItemKey={(cap) => `cap-row-${cap.name}`}
+                                    renderItem={(cap) => <CapabilityRow cap={cap} t={t} />}
+                                    bottomPaddingClassName="pb-0"
+                                />
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
 
             <p className="px-1 text-[0.68rem] text-muted-foreground sm:text-xs">
