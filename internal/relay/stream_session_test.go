@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -404,5 +405,58 @@ func TestServeRelayStreamSessionDoneWithErrorAfterHeadersWritesSSEError(t *testi
 	}
 	if !strings.Contains(body, "upstream internal error") {
 		t.Fatalf("body should contain error message, got: %s", body)
+	}
+}
+
+func TestRelayStreamSessionFinishKeepsBufferForReconnect(t *testing.T) {
+	// Finish 不应立即清空 replay 缓冲：断线重连需要重放已生成内容。
+	relayStreamSessions = relayStreamSessionStore{
+		byKey:                make(map[string]*relayStreamSession),
+		activeByConversation: make(map[string]string),
+	}
+
+	session, created, err := acquireRelayStreamSession("conv-keep", 1, 1)
+	if err != nil || !created || session == nil {
+		t.Fatalf("acquireRelayStreamSession() = (%v, %t, %v)", session, created, err)
+	}
+	session.AddPayload([]byte("data: hello\n\n"))
+	session.Finish(nil)
+
+	events, done, _ := session.Snapshot(0)
+	if !done {
+		t.Fatal("session should be done after Finish")
+	}
+	if len(events) == 0 {
+		t.Fatal("buffered events should remain available for reconnect after Finish")
+	}
+}
+
+func TestEnforceSessionLimitEvictsOldestDoneSessions(t *testing.T) {
+	relayStreamSessions = relayStreamSessionStore{
+		byKey:                make(map[string]*relayStreamSession),
+		activeByConversation: make(map[string]string),
+	}
+	store := &relayStreamSessions
+
+	// 填充超过上限的已完成会话，最旧的应被驱逐。
+	total := relayStreamMaxSessions + 10
+	base := time.Now().Add(-time.Hour)
+	store.mu.Lock()
+	for i := 0; i < total; i++ {
+		key := "k-" + strconv.Itoa(i)
+		store.byKey[key] = &relayStreamSession{
+			store:             store,
+			key:               key,
+			conversationScope: key,
+			done:              true,
+			updatedAt:         base.Add(time.Duration(i) * time.Millisecond),
+		}
+	}
+	store.enforceSessionLimitLocked()
+	remaining := len(store.byKey)
+	store.mu.Unlock()
+
+	if remaining > relayStreamMaxSessions {
+		t.Fatalf("session count = %d, want <= %d", remaining, relayStreamMaxSessions)
 	}
 }

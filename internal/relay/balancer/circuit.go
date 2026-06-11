@@ -206,3 +206,35 @@ func RemoveChannelEntries(channelID int) {
 		return true
 	})
 }
+
+// PurgeIdleEntries 删除空闲时长超过 idleFor 的熔断器条目。globalBreaker 的 key 含
+// 客户端请求携带的 modelName（基数不受控），缺少按空闲时长的周期回收会导致 map
+// 无界增长（见 issue #46）。仅回收处于 Closed 且最近一次失败已超过 idleFor 的条目，
+// 不动 Open/HalfOpen 状态（它们正在主动保护上游）。返回删除的条目数。
+func PurgeIdleEntries(idleFor time.Duration) int {
+	if idleFor <= 0 {
+		return 0
+	}
+	now := time.Now()
+	removed := 0
+	globalBreaker.Range(func(key, value any) bool {
+		entry, ok := value.(*circuitEntry)
+		if !ok {
+			globalBreaker.Delete(key)
+			removed++
+			return true
+		}
+		entry.mu.Lock()
+		state := entry.State
+		last := entry.LastFailureTime
+		entry.mu.Unlock()
+		// 仅清理 Closed 状态的条目：Open/HalfOpen 正在保护上游，不能丢弃。
+		// LastFailureTime 为零值（从未失败）或已超过空闲阈值的 Closed 条目可回收。
+		if state == StateClosed && (last.IsZero() || now.Sub(last) >= idleFor) {
+			globalBreaker.Delete(key)
+			removed++
+		}
+		return true
+	})
+	return removed
+}

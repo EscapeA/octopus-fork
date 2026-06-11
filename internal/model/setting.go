@@ -124,7 +124,7 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyLoginRateLimitMaxFailed, Value: "5"},     // 默认5次
 		{Key: SettingKeyStreamSessionTTLMinutes, Value: "30"},    // 默认30分钟
 		{Key: SettingKeyStreamSessionMaxEvents, Value: "4096"},   // 默认4096条
-		{Key: SettingKeyStreamSessionMaxBytesMB, Value: "16"},    // 默认16MB
+		{Key: SettingKeyStreamSessionMaxBytesMB, Value: "4"},     // 默认4MB
 		{Key: SettingKeyNotifyHTTPTimeoutSeconds, Value: "10"},   // 默认10秒
 		{Key: SettingKeyFailureHintTTLUnauthorized, Value: "10"}, // 默认10秒
 		{Key: SettingKeyFailureHintTTLRateLimit, Value: "5"},     // 默认5秒

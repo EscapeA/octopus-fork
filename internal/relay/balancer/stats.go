@@ -218,3 +218,43 @@ func RemoveChannelStats(channelID int) {
 		return true
 	})
 }
+
+// lastActivity 返回滑动窗口中最近一条记录的时间。空窗口返回零值。
+func (cs *ChannelStats) lastActivity() time.Time {
+	cs.mu.RLock()
+	defer cs.mu.RUnlock()
+	if cs.count == 0 {
+		return time.Time{}
+	}
+	// head 指向下一个写入位置，最近写入的记录在 head-1。
+	last := (cs.head - 1 + len(cs.window)) % len(cs.window)
+	return cs.window[last].Timestamp
+}
+
+// PurgeIdleStats 删除空闲时长超过 idleFor 的统计条目。globalAutoStats 的 key 含
+// 客户端请求携带的 modelName（基数不受控），若有刷量/扫描类请求携带任意 model 名，
+// map 会持续膨胀且每条还分配 window slice。之前只在渠道/Key 删除时清理，缺少按空闲
+// 时长的周期回收（见 issue #46）。返回删除的条目数。
+func PurgeIdleStats(idleFor time.Duration) int {
+	if idleFor <= 0 {
+		return 0
+	}
+	now := time.Now()
+	removed := 0
+	globalAutoStats.Range(func(key, value any) bool {
+		stats, ok := value.(*ChannelStats)
+		if !ok {
+			globalAutoStats.Delete(key)
+			removed++
+			return true
+		}
+		last := stats.lastActivity()
+		// 零值（从未记录）或超过空闲阈值均视为可回收。
+		if last.IsZero() || now.Sub(last) >= idleFor {
+			globalAutoStats.Delete(key)
+			removed++
+		}
+		return true
+	})
+	return removed
+}

@@ -66,6 +66,32 @@ func RemoveAPIKeySticky(apiKeyID int) {
 	})
 }
 
+// PurgeIdleEntries 删除时间戳早于 idleFor 之前的粘性会话条目。globalSession 的 key
+// 含客户端请求携带的 modelName（基数不受控），缺少周期回收会导致 map 无界增长
+// （见 issue #46）。粘性会话本身有 TTL 惰性失效，但只在该 (apiKey, model) 再次被
+// 请求时才触发；对一次性/随机 model 名，条目会一直驻留。返回删除的条目数。
+func PurgeIdleSessions(idleFor time.Duration) int {
+	if idleFor <= 0 {
+		return 0
+	}
+	now := time.Now()
+	removed := 0
+	globalSession.Range(func(key, value any) bool {
+		entry, ok := value.(*SessionEntry)
+		if !ok {
+			globalSession.Delete(key)
+			removed++
+			return true
+		}
+		if now.Sub(entry.Timestamp) >= idleFor {
+			globalSession.Delete(key)
+			removed++
+		}
+		return true
+	})
+	return removed
+}
+
 // StickyCount returns the number of entries in the global sticky session store.
 func StickyCount() int {
 	count := 0

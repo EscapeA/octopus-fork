@@ -87,6 +87,17 @@ func Init() {
 		// 清理过期的失败提示缓存条目
 		relay.PurgeFailureHintCache()
 
+		// 主动清理过期的流会话条目，避免仅依赖惰性触发（见 issue #46 内存暴涨）
+		relay.PurgeExpiredStreamSessions()
+
+		// 主动回收 balancer 三个全局 map 中长期空闲的条目。它们的 key 含客户端
+		// 请求携带的 modelName（基数不受控），之前只在渠道/Key 删除时清理，缺少
+		// 按空闲时长的周期回收，刷量/随机 model 名会导致 map 无界增长（见 issue #46）。
+		const balancerIdleThreshold = time.Hour
+		balancer.PurgeIdleEntries(balancerIdleThreshold)
+		balancer.PurgeIdleStats(balancerIdleThreshold)
+		balancer.PurgeIdleSessions(balancerIdleThreshold)
+
 		if db.IsSQLite() {
 			db.EnqueueWrite(db.WriteJob{Name: "relay_log_save", Fn: func(_ context.Context) error {
 				return relaylog.RelayLogSaveDBTask(context.Background())

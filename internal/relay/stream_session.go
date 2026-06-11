@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -26,6 +27,20 @@ var (
 	overrideStreamSessionTTL       *time.Duration
 	overrideStreamSessionMaxEvents *int
 	overrideStreamSessionMaxBytes  *int
+)
+
+const (
+	// relayStreamDoneRetention 是会话完成（Finish）后其 replay 缓冲区的保留时长。
+	// 完成会话的缓冲区仅用于断线重连重放——客户端在生成结束后短时间内重连读取
+	// 已生成内容。这个窗口远短于会话 TTL：之前完成会话会连同最多 16MB 的缓冲区
+	// 一起驻留整个 TTL（默认 30 分钟），高并发流式下常驻内存累积到数百 MB 并
+	// 触发 swap（见 issue #46）。改为最多保留 2 分钟即清理，把大缓冲的驻留时间
+	// 压缩一个数量级，同时保留断线重连重放语义。
+	relayStreamDoneRetention = 2 * time.Minute
+
+	// relayStreamMaxSessions 是全局会话 map 的硬上限。超过时主动驱逐最旧的已完成
+	// 会话，防止 map 在会话获取频率低、清理迟滞时无界增长。
+	relayStreamMaxSessions = 4096
 )
 
 func getStreamSessionTTL() time.Duration {
@@ -55,7 +70,7 @@ func getStreamSessionMaxBytes() int {
 	if v, err := setting.GetInt(dbmodel.SettingKeyStreamSessionMaxBytesMB); err == nil && v > 0 {
 		return v << 20
 	}
-	return 16 << 20
+	return 4 << 20
 }
 
 type relayStreamEvent struct {
@@ -140,14 +155,70 @@ func acquireRelayStreamSession(conversationID string, apiKeyID int, requestHash 
 	}
 	store.byKey[key] = session
 	store.activeByConversation[conversationScope] = key
+	store.enforceSessionLimitLocked()
 	return session, true, nil
 }
 
+// enforceSessionLimitLocked 在会话总数超过 relayStreamMaxSessions 时，驱逐最旧的
+// 已完成会话，防止全局 map 在清理迟滞时无界增长。调用方必须持有 store.mu 写锁。
+// 只驱逐 done 会话，避免中断正在进行的生成；若全是活跃会话则不驱逐（活跃会话的
+// buffer 受单会话上限约束，且会在 Finish 后释放）。
+func (s *relayStreamSessionStore) enforceSessionLimitLocked() {
+	if relayStreamMaxSessions <= 0 || len(s.byKey) <= relayStreamMaxSessions {
+		return
+	}
+
+	type doneSession struct {
+		key       string
+		scope     string
+		updatedAt time.Time
+	}
+	doneList := make([]doneSession, 0, len(s.byKey))
+	for key, session := range s.byKey {
+		session.mu.RLock()
+		done := session.done
+		updatedAt := session.updatedAt
+		scope := session.conversationScope
+		session.mu.RUnlock()
+		if done {
+			doneList = append(doneList, doneSession{key: key, scope: scope, updatedAt: updatedAt})
+		}
+	}
+	sort.Slice(doneList, func(i, j int) bool {
+		return doneList[i].updatedAt.Before(doneList[j].updatedAt)
+	})
+
+	excess := len(s.byKey) - relayStreamMaxSessions
+	for i := 0; i < len(doneList) && excess > 0; i++ {
+		d := doneList[i]
+		session, ok := s.byKey[d.key]
+		if !ok {
+			continue
+		}
+		delete(s.byKey, d.key)
+		if activeKey, ok := s.activeByConversation[d.scope]; ok && activeKey == session.key {
+			delete(s.activeByConversation, d.scope)
+		}
+		excess--
+	}
+}
+
+// doneSessionRetention 返回已完成会话条目在 map 中的保留时长：取
+// relayStreamDoneRetention 与配置 TTL 的较小值。已完成会话的大缓冲在 Finish
+// 时已清空，这里控制的是空壳元数据条目的清理时机，与 Finish 调度的窗口一致。
+func doneSessionRetention() time.Duration {
+	retention := relayStreamDoneRetention
+	if ttl := getStreamSessionTTL(); ttl > 0 && ttl < retention {
+		retention = ttl
+	}
+	return retention
+}
+
 func (s *relayStreamSessionStore) cleanupLocked(now time.Time) {
-	// TTL 在循环外读取一次，避免在持有 store 写锁期间对每个 session 重复
+	// 保留时长在循环外读取一次，避免在持有 store 写锁期间对每个 session 重复
 	// 读取 setting（map 查找 + Atoi）。清理可能遍历大量 session，每次循环都
 	// 读 setting 会线性放大写锁的持有时间，阻塞所有新流式会话获取。
-	ttl := getStreamSessionTTL()
+	retention := doneSessionRetention()
 	for key, session := range s.byKey {
 		session.mu.RLock()
 		done := session.done
@@ -159,7 +230,7 @@ func (s *relayStreamSessionStore) cleanupLocked(now time.Time) {
 		if !done {
 			continue
 		}
-		if now.Sub(updatedAt) < ttl {
+		if now.Sub(updatedAt) < retention {
 			continue
 		}
 
@@ -186,7 +257,7 @@ func (s *relayStreamSessionStore) removeIfExpired(key string, conversationScope 
 	sessionScope := session.conversationScope
 	session.mu.RUnlock()
 
-	if !done || sessionScope != conversationScope || time.Since(updatedAt) < getStreamSessionTTL() {
+	if !done || sessionScope != conversationScope || time.Since(updatedAt) < doneSessionRetention() {
 		return
 	}
 
@@ -348,6 +419,12 @@ func (s *relayStreamSession) Finish(err error) {
 	s.err = err
 	s.updatedAt = time.Now()
 
+	// 不在此处清空 events：完成的会话其 replay 缓冲仍需支持断线重连重放
+	// （客户端重连后先重放已缓冲事件，再收到 terminal error）。内存控制改由
+	// 缩短的保留窗口实现——见 relayStreamDoneRetention：done 会话最多保留 2 分钟
+	// （而非完整 TTL 30 分钟）即被清理，把大缓冲的驻留时间压缩一个数量级
+	// （见 issue #46 的内存暴涨）。
+
 	subscribers := make([]chan struct{}, 0, len(s.subscribers))
 	for ch := range s.subscribers {
 		subscribers = append(subscribers, ch)
@@ -361,8 +438,14 @@ func (s *relayStreamSession) Finish(err error) {
 	}
 	s.store.mu.Unlock()
 
-	if getStreamSessionTTL() > 0 {
-		time.AfterFunc(getStreamSessionTTL(), func() {
+	// 用较短的完成保留窗口调度清理（取 doneRetention 与 TTL 的较小值），
+	// 而非完整 TTL，缩短已完成会话条目在 map 中的驻留时间。
+	retention := relayStreamDoneRetention
+	if ttl := getStreamSessionTTL(); ttl > 0 && ttl < retention {
+		retention = ttl
+	}
+	if retention > 0 {
+		time.AfterFunc(retention, func() {
 			s.store.removeIfExpired(s.key, s.conversationScope)
 		})
 	}
@@ -503,4 +586,16 @@ func ActiveSessionCount() int {
 		}
 	}
 	return count
+}
+
+// PurgeExpiredStreamSessions proactively removes finished stream sessions whose
+// retention window has elapsed. It is invoked by a periodic background task so
+// cleanup does not depend solely on a new session being acquired (lazy
+// cleanupLocked) or on per-session AfterFunc timers. This bounds the global
+// session map under sustained streaming load (see issue #46).
+func PurgeExpiredStreamSessions() {
+	store := &relayStreamSessions
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	store.cleanupLocked(time.Now())
 }
