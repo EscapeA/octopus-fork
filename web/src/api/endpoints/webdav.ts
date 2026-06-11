@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../client'
-import { REFETCH_INTERVAL_DEFAULT } from '../constants'
+import { REFETCH_INTERVAL_CONFIG } from '../constants'
 
 export interface WebDAVConfig {
   enabled: boolean
@@ -26,7 +26,7 @@ export function useWebDAVConfig() {
   return useQuery({
     queryKey: ['webdav', 'config'],
     queryFn: () => apiClient.get<WebDAVConfig>('/api/v1/backup/webdav/config'),
-    refetchInterval: REFETCH_INTERVAL_DEFAULT,
+    refetchInterval: REFETCH_INTERVAL_CONFIG,
   })
 }
 
@@ -62,7 +62,7 @@ export function useWebDAVFiles() {
   return useQuery({
     queryKey: ['webdav', 'files'],
     queryFn: () => apiClient.get<WebDAVFile[]>('/api/v1/backup/webdav/list'),
-    refetchInterval: REFETCH_INTERVAL_DEFAULT,
+    refetchInterval: REFETCH_INTERVAL_CONFIG,
   })
 }
 

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, API_BASE_URL } from "../client";
+import { REFETCH_INTERVAL_CONFIG } from "../constants";
 import { logger } from "@/lib/logger";
 import { useAuthStore } from "./user";
 import type { ProxyMode } from "./proxy-pool";
@@ -191,7 +192,7 @@ export function useSiteList() {
     queryKey: ["sites", "list"],
     queryFn: async () => apiClient.get<SiteServer[]>("/api/v1/site/list"),
     select: normalizeSiteServerList,
-    refetchInterval: 30000,
+    refetchInterval: REFETCH_INTERVAL_CONFIG,
   });
 }
 

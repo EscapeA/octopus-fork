@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../client';
+import { REFETCH_INTERVAL_CONFIG } from '../constants';
 import { logger } from '@/lib/logger';
 import type { SitePlatform } from './site';
 import type { AutoGroupType } from './channel';
@@ -410,7 +411,7 @@ export function useSiteChannelList(options: { includeHistory?: boolean } = {}) {
         queryKey: ['site-channel', 'list', { includeHistory }],
         queryFn: async () => apiClient.get<SiteChannelCardServer[]>(`/api/v1/site-channel/list?include_history=${includeHistory}`),
         select: (cards) => cards.map(normalizeSiteChannelCard),
-        refetchInterval: 30000,
+        refetchInterval: REFETCH_INTERVAL_CONFIG,
     });
 }
 

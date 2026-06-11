@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/lingyuins/octopus/internal/db"
@@ -12,7 +13,31 @@ import (
 	"gorm.io/gorm"
 )
 
+// siteListCache provides a short-lived TTL cache for site list queries
+// which involve 5 expensive Preloads.
+var siteListCache struct {
+	mu        sync.RWMutex
+	result    []model.Site
+	expiresAt time.Time
+}
+
+const siteListCacheTTL = 5 * time.Second
+
+func invalidateSiteListCache() {
+	siteListCache.mu.Lock()
+	siteListCache.expiresAt = time.Time{}
+	siteListCache.mu.Unlock()
+}
+
 func SiteList(ctx context.Context) ([]model.Site, error) {
+	siteListCache.mu.RLock()
+	if siteListCache.expiresAt.After(time.Now()) {
+		result := siteListCache.result
+		siteListCache.mu.RUnlock()
+		return result, nil
+	}
+	siteListCache.mu.RUnlock()
+
 	var sites []model.Site
 	if err := db.GetDB().WithContext(ctx).
 		Preload("Accounts").
@@ -28,6 +53,10 @@ func SiteList(ctx context.Context) ([]model.Site, error) {
 	for i := range sites {
 		normalizeSiteProxyFields(&sites[i])
 	}
+	siteListCache.mu.Lock()
+	siteListCache.result = sites
+	siteListCache.expiresAt = time.Now().Add(siteListCacheTTL)
+	siteListCache.mu.Unlock()
 	return sites, nil
 }
 
@@ -116,8 +145,10 @@ func SiteCreate(site *model.Site, ctx context.Context) error {
 			return tx.Model(&model.Site{}).Where("id = ?", site.ID).Update("enabled", false).Error
 		})
 		site.Enabled = false
+		invalidateSiteListCache()
 		return err
 	}
+	invalidateSiteListCache()
 	return db.GetDB().WithContext(ctx).Create(site).Error
 }
 
@@ -234,16 +265,22 @@ func SiteUpdate(req *model.SiteUpdateRequest, ctx context.Context) (*model.Site,
 			return nil, fmt.Errorf("failed to update site: %w", err)
 		}
 	}
+	invalidateSiteListCache()
 	return SiteGet(req.ID, ctx)
 }
 
 func SiteEnabled(id int, enabled bool, ctx context.Context) error {
-	return db.GetDB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := db.GetDB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(&model.Site{}).Where("id = ?", id).Update("enabled", enabled).Error; err != nil {
 			return err
 		}
 		return tx.Model(&model.SiteAccount{}).Where("site_id = ?", id).Update("enabled", enabled).Error
 	})
+	if err != nil {
+		return err
+	}
+	invalidateSiteListCache()
+	return nil
 }
 
 func SiteDel(id int, ctx context.Context) error {
@@ -287,12 +324,13 @@ func SiteDel(id int, ctx context.Context) error {
 		invalidateSiteBindingCache()
 		deleteSiteModelHourlyCacheForAccounts(affectedAccountIDs)
 	}
+	invalidateSiteListCache()
 	return nil
 }
 
 func SiteArchive(id int, ctx context.Context) error {
 	now := time.Now()
-	return db.GetDB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := db.GetDB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(&model.Site{}).Where("id = ?", id).Updates(map[string]any{
 			"archived":    true,
 			"archived_at": &now,
@@ -302,15 +340,25 @@ func SiteArchive(id int, ctx context.Context) error {
 		}
 		return tx.Model(&model.SiteAccount{}).Where("site_id = ?", id).Update("enabled", false).Error
 	})
+	if err != nil {
+		return err
+	}
+	invalidateSiteListCache()
+	return nil
 }
 
 func SiteRestore(id int, ctx context.Context) error {
-	return db.GetDB().WithContext(ctx).Model(&model.Site{}).
+	err := db.GetDB().WithContext(ctx).Model(&model.Site{}).
 		Where("id = ?", id).
 		Updates(map[string]any{
 			"archived":    false,
 			"archived_at": gorm.Expr("NULL"),
 		}).Error
+	if err != nil {
+		return err
+	}
+	invalidateSiteListCache()
+	return nil
 }
 
 func SiteAccountGet(id int, ctx context.Context) (*model.SiteAccount, error) {
@@ -368,8 +416,10 @@ func SiteAccountCreate(account *model.SiteAccount, ctx context.Context) error {
 		if account.AutoCheckinSet {
 			account.AutoCheckin = explicitAutoCheckin
 		}
+		invalidateSiteListCache()
 		return err
 	}
+	invalidateSiteListCache()
 	return db.GetDB().WithContext(ctx).Create(account).Error
 }
 
@@ -531,11 +581,17 @@ func SiteAccountUpdate(req *model.SiteAccountUpdateRequest, ctx context.Context)
 			return nil, fmt.Errorf("failed to update site account: %w", err)
 		}
 	}
+	invalidateSiteListCache()
 	return SiteAccountGet(req.ID, ctx)
 }
 
 func SiteAccountEnabled(id int, enabled bool, ctx context.Context) error {
-	return db.GetDB().WithContext(ctx).Model(&model.SiteAccount{}).Where("id = ?", id).Update("enabled", enabled).Error
+	err := db.GetDB().WithContext(ctx).Model(&model.SiteAccount{}).Where("id = ?", id).Update("enabled", enabled).Error
+	if err != nil {
+		return err
+	}
+	invalidateSiteListCache()
+	return nil
 }
 
 func deleteLegacySitePricesByAccountIDs(tx *gorm.DB, accountIDs []int) error {
@@ -579,6 +635,7 @@ func SiteAccountDel(id int, ctx context.Context) error {
 	}
 	invalidateSiteBindingCache()
 	deleteSiteModelHourlyCacheForAccounts([]int{id})
+	invalidateSiteListCache()
 	return nil
 }
 
@@ -616,10 +673,15 @@ func SiteModelRouteUpdate(accountID int, groupKey string, modelName string, rout
 		"route_raw_payload": strings.TrimSpace(routeRawPayload),
 		"route_updated_at":  &now,
 	}
-	return db.GetDB().WithContext(ctx).
+	err := db.GetDB().WithContext(ctx).
 		Model(&model.SiteModel{}).
 		Where("site_account_id = ? AND group_key = ? AND model_name = ?", accountID, model.NormalizeSiteGroupKey(groupKey), strings.TrimSpace(modelName)).
 		Updates(updates).Error
+	if err != nil {
+		return err
+	}
+	invalidateSiteListCache()
+	return nil
 }
 
 func SiteModelRouteUpdateIfNotManual(accountID int, groupKey string, modelName string, routeType model.SiteModelRouteType, source model.SiteModelRouteSource, routeRawPayload string, ctx context.Context) (bool, error) {
@@ -638,12 +700,18 @@ func SiteModelRouteUpdateIfNotManual(accountID int, groupKey string, modelName s
 	if result.Error != nil {
 		return false, result.Error
 	}
+	invalidateSiteListCache()
 	return result.RowsAffected > 0, nil
 }
 
 func SiteModelDisabledUpdate(accountID int, groupKey string, modelName string, disabled bool, ctx context.Context) error {
-	return db.GetDB().WithContext(ctx).
+	err := db.GetDB().WithContext(ctx).
 		Model(&model.SiteModel{}).
 		Where("site_account_id = ? AND group_key = ? AND model_name = ?", accountID, model.NormalizeSiteGroupKey(groupKey), strings.TrimSpace(modelName)).
 		Update("disabled", disabled).Error
+	if err != nil {
+		return err
+	}
+	invalidateSiteListCache()
+	return nil
 }

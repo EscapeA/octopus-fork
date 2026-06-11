@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { apiClient } from '../client';
-import { REFETCH_INTERVAL_DEFAULT } from '../constants';
+import { REFETCH_INTERVAL_CONFIG } from '../constants';
 
 export interface OpsCacheStatus {
     enabled: boolean;
@@ -185,7 +185,7 @@ export function useOpsCacheStatus() {
                 trend: data.provider_prompt_cache?.trend ?? [],
             },
         }),
-        refetchInterval: REFETCH_INTERVAL_DEFAULT,
+        refetchInterval: REFETCH_INTERVAL_CONFIG,
         refetchOnMount: 'always',
     });
 }
@@ -198,7 +198,7 @@ export function useOpsQuotaSummary() {
             ...data,
             keys: data.keys ?? [],
         }),
-        refetchInterval: REFETCH_INTERVAL_DEFAULT,
+        refetchInterval: REFETCH_INTERVAL_CONFIG,
         refetchOnMount: 'always',
     });
 }
@@ -211,7 +211,7 @@ export function useOpsHealthStatus() {
             ...data,
             failing_groups: data.failing_groups ?? [],
         }),
-        refetchInterval: REFETCH_INTERVAL_DEFAULT,
+        refetchInterval: REFETCH_INTERVAL_CONFIG,
         refetchOnMount: 'always',
     });
 }
@@ -224,7 +224,7 @@ export function useOpsSystemSummary() {
             ...data,
             ai_route_services: data.ai_route_services ?? [],
         }),
-        refetchInterval: REFETCH_INTERVAL_DEFAULT,
+        refetchInterval: REFETCH_INTERVAL_CONFIG,
         refetchOnMount: 'always',
     });
 }
@@ -411,7 +411,7 @@ export function useOpsTelemetrySummary() {
                 providers: data.provider_health.providers ?? [],
             },
         }),
-        refetchInterval: REFETCH_INTERVAL_DEFAULT,
+        refetchInterval: REFETCH_INTERVAL_CONFIG,
         refetchOnMount: 'always',
     });
 }

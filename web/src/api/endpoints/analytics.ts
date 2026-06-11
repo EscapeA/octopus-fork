@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../client';
-import { REFETCH_INTERVAL_DEFAULT } from '../constants';
+import { REFETCH_INTERVAL_CONFIG } from '../constants';
 import {
     type GenerateAIRouteProgress,
     type GroupTestProgress,
@@ -175,7 +175,7 @@ export function useAnalyticsOverview(range: AnalyticsRange) {
     return useQuery({
         queryKey: ['analytics', 'overview', range],
         queryFn: async () => apiClient.get<AnalyticsOverview>('/api/v1/analytics/overview', { range }),
-        refetchInterval: REFETCH_INTERVAL_DEFAULT,
+        refetchInterval: REFETCH_INTERVAL_CONFIG,
         refetchOnMount: 'always',
     });
 }
@@ -184,7 +184,7 @@ export function useAnalyticsUtilization(range: AnalyticsRange) {
     return useQuery({
         queryKey: ['analytics', 'utilization', range],
         queryFn: async () => apiClient.get<AnalyticsUtilization>('/api/v1/analytics/utilization', { range }),
-        refetchInterval: REFETCH_INTERVAL_DEFAULT,
+        refetchInterval: REFETCH_INTERVAL_CONFIG,
         refetchOnMount: 'always',
     });
 }
@@ -193,7 +193,7 @@ export function useAnalyticsGroupHealth() {
     return useQuery({
         queryKey: ['analytics', 'group-health'],
         queryFn: async () => apiClient.get<AnalyticsGroupHealthItem[]>('/api/v1/analytics/group-health'),
-        refetchInterval: REFETCH_INTERVAL_DEFAULT,
+        refetchInterval: REFETCH_INTERVAL_CONFIG,
         refetchOnMount: 'always',
     });
 }
@@ -202,7 +202,7 @@ export function useAnalyticsEvaluationSummary() {
     return useQuery({
         queryKey: ['analytics', 'evaluation'],
         queryFn: async () => apiClient.get<AnalyticsEvaluationSummary>('/api/v1/analytics/evaluation'),
-        refetchInterval: REFETCH_INTERVAL_DEFAULT,
+        refetchInterval: REFETCH_INTERVAL_CONFIG,
         refetchOnMount: 'always',
     });
 }
@@ -229,7 +229,7 @@ export function useAnalyticsLatencyDistribution(range: AnalyticsRange) {
     return useQuery({
         queryKey: ['analytics', 'latency-distribution', range],
         queryFn: async () => apiClient.get<LatencyDistribution>('/api/v1/analytics/latency-distribution', { range }),
-        refetchInterval: REFETCH_INTERVAL_DEFAULT,
+        refetchInterval: REFETCH_INTERVAL_CONFIG,
         refetchOnMount: 'always',
     });
 }

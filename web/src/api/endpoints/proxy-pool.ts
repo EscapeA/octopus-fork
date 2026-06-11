@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { apiClient } from '../client';
+import { REFETCH_INTERVAL_CONFIG } from '../constants';
 import { logger } from '@/lib/logger';
 
 export type ProxyMode = 'direct' | 'system' | 'pool' | 'inherit';
@@ -54,7 +55,7 @@ export function useProxyConfigurationList() {
         queryKey: ['proxy-pool', 'list'],
         queryFn: async () => apiClient.get<ProxyConfiguration[]>('/api/v1/proxy-pool/list'),
         select: (data) => data ?? [],
-        refetchInterval: 30000,
+        refetchInterval: REFETCH_INTERVAL_CONFIG,
     });
 }
 

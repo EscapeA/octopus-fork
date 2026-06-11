@@ -621,13 +621,39 @@ func HourlyGet() []model.StatsHourly {
 	return result
 }
 
+var (
+	dailyAllCacheMu sync.RWMutex
+	dailyAllCache   []model.StatsDaily
+	dailyAllCached  bool
+)
+
+// InvalidateDailyCache clears the cached daily statistics list.
+func InvalidateDailyCache() {
+	dailyAllCacheMu.Lock()
+	dailyAllCached = false
+	dailyAllCache = nil
+	dailyAllCacheMu.Unlock()
+}
+
 // GetDaily retrieves all daily statistics records from the database.
 func GetDaily(ctx context.Context) ([]model.StatsDaily, error) {
+	dailyAllCacheMu.RLock()
+	if dailyAllCached {
+		result := dailyAllCache
+		dailyAllCacheMu.RUnlock()
+		return result, nil
+	}
+	dailyAllCacheMu.RUnlock()
+
 	var statsDaily []model.StatsDaily
 	result := db.GetDB().WithContext(ctx).Find(&statsDaily)
 	if result.Error != nil {
 		return nil, result.Error
 	}
+	dailyAllCacheMu.Lock()
+	dailyAllCache = statsDaily
+	dailyAllCached = true
+	dailyAllCacheMu.Unlock()
 	return statsDaily, nil
 }
 

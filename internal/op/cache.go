@@ -114,6 +114,12 @@ func init() {
 		}
 		return nil
 	})
+	RegisterCacheInit(func(ctx context.Context) error {
+		if err := proxyConfigurationRefreshCache(ctx); err != nil {
+			return fmt.Errorf("proxy configuration refresh cache error: %v", err)
+		}
+		return nil
+	})
 
 	// ── Cache save order ──
 	RegisterCacheSave(func(ctx context.Context) error {

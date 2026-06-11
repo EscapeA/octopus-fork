@@ -21,6 +21,18 @@ const defaultProxyTestURL = "https://api.openai.com/v1/models"
 var proxyConfigurationCache = cache.New[int, model.ProxyConfiguration](16)
 
 func ProxyConfigurationList(ctx context.Context) ([]model.ProxyConfiguration, error) {
+	if proxyConfigurationCache.Len() > 0 {
+		counts, err := ProxyConfigurationReferenceCounts(ctx)
+		if err != nil {
+			return nil, err
+		}
+		var items []model.ProxyConfiguration
+		for _, item := range proxyConfigurationCache.GetAll() {
+			item.ReferenceCount = counts[item.ID]
+			items = append(items, item)
+		}
+		return items, nil
+	}
 	var items []model.ProxyConfiguration
 	if err := db.GetDB().WithContext(ctx).Order("id ASC").Find(&items).Error; err != nil {
 		return nil, err
@@ -31,6 +43,7 @@ func ProxyConfigurationList(ctx context.Context) ([]model.ProxyConfiguration, er
 	}
 	for i := range items {
 		items[i].ReferenceCount = counts[items[i].ID]
+		proxyConfigurationCache.Set(items[i].ID, items[i])
 	}
 	return items, nil
 }
