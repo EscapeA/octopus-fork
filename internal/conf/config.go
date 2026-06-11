@@ -24,6 +24,11 @@ type Log struct {
 type Database struct {
 	Type string `mapstructure:"type"`
 	Path string `mapstructure:"path"`
+	// LogType / LogPath 为可选的独立「日志数据库」配置（仅承载 relay_logs）。
+	// 二者任一为空时，日志沿用主库连接，行为与旧版完全一致（向后兼容）。
+	// 配置后，relay_logs 落到独立库，可通过直接删库/断连实现秒级清理与卸载。
+	LogType string `mapstructure:"log_type"`
+	LogPath string `mapstructure:"log_path"`
 }
 
 type Auth struct {
@@ -132,6 +137,9 @@ func setDefaults() {
 	viper.SetDefault("server.port", 8080)
 	viper.SetDefault("database.type", "sqlite")
 	viper.SetDefault("database.path", defaultDatabasePath())
+	// 日志库默认留空：留空表示与主库共用连接（向后兼容）。
+	viper.SetDefault("database.log_type", "")
+	viper.SetDefault("database.log_path", "")
 	viper.SetDefault("log.level", "info")
 	viper.SetDefault("auth.jwt_secret", "")
 	viper.SetDefault("relay.max_json_body_bytes", int64(64<<20))

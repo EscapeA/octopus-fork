@@ -129,6 +129,17 @@ func setSetting(c *gin.Context) {
 		task.Update(string(setting.Key), time.Duration(hours)*time.Hour)
 	case model.SettingKeyLogLevel:
 		log.SetLevel(setting.Value)
+	case model.SettingKeyRelayLogKeepEnabled:
+		// 独立日志库模式下：关闭日志则断开日志库连接，开启则重连。
+		// 共用主库时为空操作。失败仅记录，不影响设置已持久化的事实。
+		enabled, err := strconv.ParseBool(setting.Value)
+		if err != nil {
+			log.Warnf("invalid relay_log_keep_enabled value %q after persist: %v", setting.Value, err)
+			break
+		}
+		if err := op.RelayLogApplyKeepEnabled(c.Request.Context(), enabled); err != nil {
+			log.Warnf("failed to apply log database lifecycle after toggling relay_log_keep_enabled: %v", err)
+		}
 	}
 	resp.Success(c, setting)
 }

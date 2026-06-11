@@ -209,3 +209,75 @@ func TestRelayLogCleanupAllFastClearAllowsReinsert(t *testing.T) {
 		t.Fatalf("reinserted row id = %d, want 10", got.ID)
 	}
 }
+
+func TestRelayLogSeparateLogDBRoutesWrites(t *testing.T) {
+	mainPath := filepath.Join(t.TempDir(), "main.db")
+	if err := db.InitDB("sqlite", mainPath, false); err != nil {
+		t.Fatalf("InitDB failed: %v", err)
+	}
+	logPath := filepath.Join(t.TempDir(), "logs.db")
+	if err := db.InitLogDB("sqlite", logPath, false); err != nil {
+		t.Fatalf("InitLogDB failed: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := setting.RefreshCache(context.Background()); err != nil {
+		t.Fatalf("RefreshCache failed: %v", err)
+	}
+
+	// Seed the in-memory cache and flush; logs must land on the log DB.
+	restore := SetCacheForTest([]model.RelayLog{
+		{ID: 1, Time: 1, RequestModelName: "m1"},
+		{ID: 2, Time: 2, RequestModelName: "m2"},
+	})
+	t.Cleanup(restore)
+
+	if err := relayLogFlushToDB(context.Background()); err != nil {
+		t.Fatalf("relayLogFlushToDB failed: %v", err)
+	}
+
+	// Log DB should hold the rows.
+	var logCount int64
+	if err := db.GetLogDB().Model(&model.RelayLog{}).Count(&logCount).Error; err != nil {
+		t.Fatalf("count log DB failed: %v", err)
+	}
+	if logCount != 2 {
+		t.Fatalf("log DB relay log count = %d, want 2", logCount)
+	}
+
+	// Main DB's relay_logs table must remain empty (writes did not leak there).
+	var mainCount int64
+	if err := db.GetDB().Model(&model.RelayLog{}).Count(&mainCount).Error; err != nil {
+		t.Fatalf("count main DB failed: %v", err)
+	}
+	if mainCount != 0 {
+		t.Fatalf("main DB relay log count = %d, want 0 (logs must not leak to main DB)", mainCount)
+	}
+}
+
+func TestRelayLogApplyKeepEnabledClosesAndReopensLogDB(t *testing.T) {
+	mainPath := filepath.Join(t.TempDir(), "main.db")
+	if err := db.InitDB("sqlite", mainPath, false); err != nil {
+		t.Fatalf("InitDB failed: %v", err)
+	}
+	logPath := filepath.Join(t.TempDir(), "logs.db")
+	if err := db.InitLogDB("sqlite", logPath, false); err != nil {
+		t.Fatalf("InitLogDB failed: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	// Disabling logs clears and disconnects the separate log DB.
+	if err := ApplyKeepEnabledChange(context.Background(), false); err != nil {
+		t.Fatalf("ApplyKeepEnabledChange(false) failed: %v", err)
+	}
+	if db.GetLogDB() != nil {
+		t.Fatalf("GetLogDB() should be nil after disabling logs in separate mode")
+	}
+
+	// Re-enabling reconnects.
+	if err := ApplyKeepEnabledChange(context.Background(), true); err != nil {
+		t.Fatalf("ApplyKeepEnabledChange(true) failed: %v", err)
+	}
+	if db.GetLogDB() == nil {
+		t.Fatalf("GetLogDB() should be non-nil after re-enabling logs")
+	}
+}

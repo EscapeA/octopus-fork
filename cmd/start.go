@@ -48,6 +48,11 @@ func runStart() error {
 	if err := db.InitDB(conf.AppConfig.Database.Type, conf.AppConfig.Database.Path, conf.IsDebug()); err != nil {
 		return fmt.Errorf("database init error: %w", err)
 	}
+	// 独立日志库（仅承载 relay_logs）。log_type/log_path 留空时回落到主库，
+	// 行为与旧版一致。必须在主库 InitDB 之后调用。
+	if err := db.InitLogDB(conf.AppConfig.Database.LogType, conf.AppConfig.Database.LogPath, conf.IsDebug()); err != nil {
+		return fmt.Errorf("log database init error: %w", err)
+	}
 	shutdown.Register(db.Close)
 
 	startupTaskCtx, startupTaskCancel := context.WithTimeout(context.Background(), 10*time.Second)

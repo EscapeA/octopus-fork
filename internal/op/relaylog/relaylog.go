@@ -65,7 +65,7 @@ func StartFlushWorker(ctx context.Context) {
 		for {
 			select {
 			case <-flushCh:
-				if db.IsSQLite() {
+				if db.IsLogSQLite() {
 					db.EnqueueWrite(db.WriteJob{Name: "relay_log_flush", Fn: func(_ context.Context) error {
 						return relayLogFlushToDB(context.Background())
 					}})
@@ -181,7 +181,14 @@ func relayLogFlushToDB(ctx context.Context) error {
 	lastFlushedID := batch[len(batch)-1].ID
 	relayLogCacheLock.Unlock()
 
-	result := db.GetDB().WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(&batch)
+	// 独立日志库被关闭（CloseLogDB）时 GetLogDB 返回 nil；此时不应写入，
+	// 保留缓存等待下次（重开后）刷盘。共用主库模式下永远非 nil。
+	conn := db.GetLogDB()
+	if conn == nil {
+		return nil
+	}
+
+	result := conn.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(&batch)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -279,7 +286,33 @@ func RelayLogSaveDBTask(ctx context.Context) error {
 	return nil
 }
 
+// ApplyKeepEnabledChange 在「保留历史日志」开关变更后调整独立日志库连接：
+//   - 关闭日志：先清空日志表释放空间，再断开独立日志库连接（释放文件句柄/连接池）；
+//   - 开启日志：重连独立日志库。
+//
+// 仅在「独立日志库」模式下有实际效果；共用主库时 db.CloseLogDB/ReopenLogDB 均为
+// 空操作，绝不会触碰主库连接。关闭日志后 RelayLogAdd 不再触发 DB 写入，因此断连安全。
+func ApplyKeepEnabledChange(ctx context.Context, enabled bool) error {
+	if !db.IsLogDBSeparate() {
+		return nil
+	}
+	if enabled {
+		return db.ReopenLogDB()
+	}
+	// 关闭：先清空（此时连接仍在），再断开。
+	if err := relayLogCleanupAll(ctx); err != nil {
+		log.Warnf("failed to clear logs before closing log DB: %v", err)
+	}
+	return db.CloseLogDB()
+}
+
 func relayLogCleanup(ctx context.Context) error {
+	conn := db.GetLogDB()
+	if conn == nil {
+		// 独立日志库已断开（如日志已关闭），无需清理。
+		return nil
+	}
+
 	// Priority: keep count > keep period (days)
 	keepCount, err := setting.GetInt(model.SettingKeyRelayLogKeepCount)
 	if err != nil {
@@ -290,7 +323,7 @@ func relayLogCleanup(ctx context.Context) error {
 		// Count-based cleanup with batch deletion (50% when over threshold)
 		// Avoids high-frequency small deletes under heavy load
 		var total int64
-		if err := db.GetDB().Model(&model.RelayLog{}).Count(&total).Error; err != nil {
+		if err := conn.Model(&model.RelayLog{}).Count(&total).Error; err != nil {
 			return err
 		}
 		if total <= int64(keepCount) {
@@ -302,7 +335,7 @@ func relayLogCleanup(ctx context.Context) error {
 		// 在大表上重复扫描子查询结果集，显著加快清理速度。
 		deleteCount := total / 2
 		var thresholdID int64
-		if err := db.GetDB().WithContext(ctx).Model(&model.RelayLog{}).
+		if err := conn.WithContext(ctx).Model(&model.RelayLog{}).
 			Order("id ASC").
 			Offset(int(deleteCount)).
 			Limit(1).
@@ -312,7 +345,7 @@ func relayLogCleanup(ctx context.Context) error {
 		if thresholdID == 0 {
 			return nil
 		}
-		return db.GetDB().WithContext(ctx).
+		return conn.WithContext(ctx).
 			Where("id < ?", thresholdID).
 			Delete(&model.RelayLog{}).Error
 	}
@@ -328,7 +361,7 @@ func relayLogCleanup(ctx context.Context) error {
 	}
 
 	cutoffTime := time.Now().Add(-time.Duration(keepPeriod) * 24 * time.Hour).Unix()
-	return db.GetDB().WithContext(ctx).Where("time < ?", cutoffTime).Delete(&model.RelayLog{}).Error
+	return conn.WithContext(ctx).Where("time < ?", cutoffTime).Delete(&model.RelayLog{}).Error
 }
 
 // relayLogCleanupAll 删除数据库中所有日志记录，用于日志关闭时释放磁盘空间。
@@ -336,7 +369,12 @@ func relayLogCleanup(ctx context.Context) error {
 // 使用 db.FastClearTable（TRUNCATE / DROP+重建）而非逐行 DELETE：百万级日志在
 // SQLite + WAL + 单连接下逐行删可能耗时数十分钟，整表清空近乎瞬时。
 func relayLogCleanupAll(ctx context.Context) error {
-	return db.FastClearTable(db.GetDB().WithContext(ctx), &model.RelayLog{}, "relay_logs")
+	conn := db.GetLogDB()
+	if conn == nil {
+		// 独立日志库已断开（日志关闭场景）：无需清理。
+		return nil
+	}
+	return db.FastClearTable(conn.WithContext(ctx), &model.RelayLog{}, "relay_logs")
 }
 
 // loadExcludedGroupSet 读取被屏蔽分组的设置（JSON 字符串数组），返回以分组
@@ -448,8 +486,10 @@ func RelayLogList(ctx context.Context, startTime, endTime *int, page, pageSize i
 		}
 	}
 
-	// 如果启用了日志保存，缓存不够时从数据库补充
-	if enabled {
+	// 如果启用了日志保存，缓存不够时从数据库补充。
+	// conn 可能为 nil（独立日志库已被 CloseLogDB 断开），此时只返回缓存结果。
+	conn := db.GetLogDB()
+	if enabled && conn != nil {
 		remaining := pageSize - len(result)
 		if remaining > 0 {
 			dbOffset := 0
@@ -457,7 +497,7 @@ func RelayLogList(ctx context.Context, startTime, endTime *int, page, pageSize i
 				dbOffset = offset - cacheCount
 			}
 
-			query := db.GetDB().WithContext(ctx).
+			query := conn.WithContext(ctx).
 				Select("id", "time", "request_model_name", "request_api_key_id", "request_api_key_name",
 					"client_ip",
 					"endpoint_type", "channel_id", "channel_name", "actual_model_name",
@@ -527,18 +567,19 @@ func RelayLogClear(ctx context.Context) error {
 	relayLogCacheLock.Lock()
 	relayLogCache = make([]model.RelayLog, 0, relayLogMaxSize)
 	relayLogCacheLock.Unlock()
+	conn := db.GetLogDB()
+	if conn == nil {
+		// 独立日志库已断开（后台日志关闭中）：内存缓存已清，无需触碰数据库。
+		return nil
+	}
 	// 整表清空走 FastClearTable，避免百万级逐行 DELETE 卡住数十分钟。
-	return db.FastClearTable(db.GetDB().WithContext(ctx), &model.RelayLog{}, "relay_logs")
+	return db.FastClearTable(conn.WithContext(ctx), &model.RelayLog{}, "relay_logs")
 }
 
 // RelayLogGetByID 根据ID获取完整日志详情（包含 request_content 和 response_content）
 func RelayLogGetByID(ctx context.Context, id int64) (*model.RelayLog, error) {
-	var relayLog model.RelayLog
-	if err := db.GetDB().WithContext(ctx).Where("id = ?", id).First(&relayLog).Error; err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, err
-		}
-
+	// 在缓存中查找的闭包：日志库关闭或 DB 未命中时回落到内存缓存。
+	lookupCache := func() (*model.RelayLog, error) {
 		relayLogCacheLock.Lock()
 		defer relayLogCacheLock.Unlock()
 		for i := range relayLogCache {
@@ -554,6 +595,20 @@ func RelayLogGetByID(ctx context.Context, id int64) (*model.RelayLog, error) {
 			}
 		}
 		return nil, nil
+	}
+
+	conn := db.GetLogDB()
+	if conn == nil {
+		// 日志库已断开（如关闭后台日志）：只查内存缓存。
+		return lookupCache()
+	}
+
+	var relayLog model.RelayLog
+	if err := conn.WithContext(ctx).Where("id = ?", id).First(&relayLog).Error; err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
+		return lookupCache()
 	}
 	if usage, ok := cacheusage.ParseProviderPromptCacheUsageSignals(relayLog.ResponseContent); ok {
 		relayLog.SemanticCacheHit = usage.SemanticCacheHit

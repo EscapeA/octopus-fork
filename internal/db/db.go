@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/glebarez/sqlite"
@@ -21,8 +22,42 @@ import (
 var db *gorm.DB
 var currentDBType string
 
+// 独立日志库（仅承载 relay_logs）。当配置了 database.log_type/log_path 时启用，
+// 否则 logDB 保持 nil，GetLogDB() 回落到主库——与旧版行为完全一致。
+//
+// 关闭后台日志时可调用 CloseLogDB 断开该连接（释放文件句柄/连接池），
+// 重新开启时调用 ReopenLogDB 重连。这些操作只在「独立日志库」模式下有意义；
+// 共用主库时它们是空操作，绝不会动主库连接。
+var (
+	logDB            *gorm.DB
+	currentLogDBType string
+	logDBType        string // 配置的日志库类型（用于 Reopen），空表示共用主库
+	logDBPath        string // 配置的日志库路径（用于 Reopen）
+	logDBDebug       bool
+	logDBLock        sync.RWMutex
+)
+
 func IsSQLite() bool {
 	return currentDBType == "sqlite"
+}
+
+// IsLogDBSeparate 报告日志是否使用独立数据库（而非共用主库）。
+func IsLogDBSeparate() bool {
+	logDBLock.RLock()
+	defer logDBLock.RUnlock()
+	return logDBType != ""
+}
+
+// IsLogSQLite 报告日志库是否为 SQLite。独立库时取日志库类型，否则取主库类型。
+func IsLogSQLite() bool {
+	logDBLock.RLock()
+	separate := logDBType != ""
+	t := currentLogDBType
+	logDBLock.RUnlock()
+	if separate {
+		return t == "sqlite"
+	}
+	return IsSQLite()
 }
 
 func InitDB(dbType, dsn string, debug bool) error {
@@ -33,6 +68,116 @@ func InitDB(dbType, dsn string, debug bool) error {
 		return err
 	}
 	return Migrate(db)
+}
+
+// InitLogDB 初始化独立日志库。logType/logPath 任一为空时视为「共用主库」，
+// 不建立独立连接（GetLogDB 将回落到主库）。配置完整时打开独立连接并只迁移
+// relay_logs 表结构。必须在 InitDB 之后调用。
+func InitLogDB(logType, logPath string, debug bool) error {
+	logType = strings.TrimSpace(logType)
+	logPath = strings.TrimSpace(logPath)
+	if logType == "postgresql" {
+		logType = "postgres"
+	}
+
+	logDBLock.Lock()
+	defer logDBLock.Unlock()
+
+	// 记录配置，供 CloseLogDB/ReopenLogDB 使用。
+	logDBType = logType
+	logDBPath = logPath
+	logDBDebug = debug
+
+	if logType == "" || logPath == "" {
+		// 共用主库：不建立独立连接。
+		logDBType = ""
+		logDB = nil
+		currentLogDBType = ""
+		return nil
+	}
+
+	conn, err := OpenStandalone(logType, logPath, debug)
+	if err != nil {
+		return fmt.Errorf("open log database: %w", err)
+	}
+	if err := MigrateLogDB(conn); err != nil {
+		_ = closeConn(conn)
+		return fmt.Errorf("migrate log database: %w", err)
+	}
+	logDB = conn
+	currentLogDBType = logType
+	return nil
+}
+
+// MigrateLogDB 仅迁移日志库需要的表结构（relay_logs）。
+func MigrateLogDB(conn *gorm.DB) error {
+	if err := conn.AutoMigrate(&model.RelayLog{}); err != nil {
+		return err
+	}
+	if conn.Dialector != nil && conn.Dialector.Name() == "postgres" {
+		conn.Exec("DEALLOCATE ALL")
+		conn.Exec("DISCARD ALL")
+	}
+	return nil
+}
+
+// GetLogDB 返回日志库连接。独立库模式下返回独立连接；若该连接已被
+// CloseLogDB 断开（logDB == nil 但仍配置了独立库），返回 nil，调用方需
+// 自行判断（日志关闭场景下不应再写入）。共用主库模式下返回主库连接。
+func GetLogDB() *gorm.DB {
+	logDBLock.RLock()
+	defer logDBLock.RUnlock()
+	if logDBType != "" {
+		return logDB
+	}
+	return db
+}
+
+// CloseLogDB 断开独立日志库连接（用于关闭后台日志时释放资源）。
+// 共用主库模式下为空操作——绝不关闭主库连接。返回后 GetLogDB 在独立库
+// 模式下会返回 nil，直到 ReopenLogDB 重连。
+func CloseLogDB() error {
+	logDBLock.Lock()
+	defer logDBLock.Unlock()
+	if logDBType == "" || logDB == nil {
+		return nil
+	}
+	err := closeConn(logDB)
+	logDB = nil
+	currentLogDBType = ""
+	return err
+}
+
+// ReopenLogDB 重新打开独立日志库连接（用于重新开启后台日志）。
+// 共用主库模式下为空操作。若连接已存在则直接返回。
+func ReopenLogDB() error {
+	logDBLock.Lock()
+	defer logDBLock.Unlock()
+	if logDBType == "" {
+		return nil
+	}
+	if logDB != nil {
+		return nil
+	}
+	conn, err := OpenStandalone(logDBType, logDBPath, logDBDebug)
+	if err != nil {
+		return fmt.Errorf("reopen log database: %w", err)
+	}
+	if err := MigrateLogDB(conn); err != nil {
+		_ = closeConn(conn)
+		return fmt.Errorf("migrate log database on reopen: %w", err)
+	}
+	logDB = conn
+	currentLogDBType = logDBType
+	return nil
+}
+
+func closeConn(conn *gorm.DB) error {
+	sqlDB, err := conn.DB()
+	if err != nil {
+		return err
+	}
+	return sqlDB.Close()
 }
 
 func OpenStandalone(dbType, dsn string, debug bool) (*gorm.DB, error) {
@@ -183,6 +328,8 @@ func initPostgres(dsn string, config *gorm.Config) (*gorm.DB, error) {
 }
 
 func Close() error {
+	// 先关闭独立日志库（共用主库模式下为空操作），再关闭主库。
+	_ = CloseLogDB()
 	sqlDB, err := db.DB()
 	if err != nil {
 		return err
@@ -206,7 +353,12 @@ func GetDB() *gorm.DB {
 // 重建依赖 model 的 struct tag 完整声明索引；relay_logs 的 time 索引即来自
 // model.RelayLog 的字段 tag，因此可被正确恢复。
 func FastClearTable(conn *gorm.DB, model any, tableName string) error {
-	switch currentDBType {
+	// 方言取自连接本身，而非全局 currentDBType——日志库可能与主库不同方言。
+	dialect := ""
+	if conn != nil && conn.Dialector != nil {
+		dialect = conn.Dialector.Name()
+	}
+	switch dialect {
 	case "mysql":
 		// MySQL TRUNCATE 是 DDL，瞬时清空并重置自增；不需要重建。
 		return conn.Exec("TRUNCATE TABLE `" + tableName + "`").Error

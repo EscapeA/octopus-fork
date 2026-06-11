@@ -34,6 +34,12 @@ func RelayLogList(ctx context.Context, startTime, endTime *int, page, pageSize i
 
 func RelayLogClear(ctx context.Context) error { return relaylog.RelayLogClear(ctx) }
 
+// RelayLogApplyKeepEnabled 在「保留历史日志」开关变更后调整独立日志库连接：
+// 关闭时断开日志库连接（释放资源），重新开启时重连。共用主库时为空操作。
+func RelayLogApplyKeepEnabled(ctx context.Context, enabled bool) error {
+	return relaylog.ApplyKeepEnabledChange(ctx, enabled)
+}
+
 func RelayLogGetByID(ctx context.Context, id int64) (*model.RelayLog, error) {
 	return relaylog.RelayLogGetByID(ctx, id)
 }
