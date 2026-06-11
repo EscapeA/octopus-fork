@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../client';
-import { REFETCH_INTERVAL_DEFAULT } from '../constants';
+import { REFETCH_INTERVAL_CONFIG, REFETCH_INTERVAL_DEFAULT } from '../constants';
 import { logger } from '@/lib/logger';
 
 export interface AlertRule {
@@ -82,7 +82,7 @@ export function useAlertRuleList() {
     return useQuery({
         queryKey: ['alerts', 'rules'],
         queryFn: async () => apiClient.get<AlertRule[]>('/api/v1/alert/rule/list'),
-        refetchInterval: REFETCH_INTERVAL_DEFAULT,
+        refetchInterval: REFETCH_INTERVAL_CONFIG,
     });
 }
 
@@ -129,7 +129,7 @@ export function useAlertNotifChannelList() {
     return useQuery({
         queryKey: ['alerts', 'channels'],
         queryFn: async () => apiClient.get<AlertNotifChannel[]>('/api/v1/alert/notif/list'),
-        refetchInterval: REFETCH_INTERVAL_DEFAULT,
+        refetchInterval: REFETCH_INTERVAL_CONFIG,
     });
 }
 

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"sync"
+
 	"github.com/lingyuins/octopus/internal/model"
 )
 
@@ -15,7 +17,34 @@ type modelMarketStatsAggregate struct {
 	requestFailed  int64
 }
 
+// marketCache provides a short-lived TTL cache for the aggregated model market
+// response. This avoids redundant recomputation when multiple clients request
+// the data within a short window (e.g. concurrent polling).
+var marketCache struct {
+	mu        sync.RWMutex
+	result    model.ModelMarketResponse
+	expiresAt time.Time
+}
+
+const marketCacheTTL = 5 * time.Second
+
+// ModelMarketInvalidateCache forces the next ModelMarketGet call to recompute.
+func ModelMarketInvalidateCache() {
+	marketCache.mu.Lock()
+	marketCache.expiresAt = time.Time{}
+	marketCache.mu.Unlock()
+}
+
 func ModelMarketGet(ctx context.Context, lastUpdateTime time.Time) (model.ModelMarketResponse, error) {
+	// Fast path: return cached result if still valid.
+	marketCache.mu.RLock()
+	if time.Now().Before(marketCache.expiresAt) {
+		cached := marketCache.result
+		marketCache.mu.RUnlock()
+		return cached, nil
+	}
+	marketCache.mu.RUnlock()
+
 	models, err := LLMList(ctx)
 	if err != nil {
 		return model.ModelMarketResponse{}, err
@@ -27,10 +56,18 @@ func ModelMarketGet(ctx context.Context, lastUpdateTime time.Time) (model.ModelM
 	}
 
 	items, summary := buildModelMarket(models, modelChannels, channelCache.GetAll(), StatsModelList(), lastUpdateTime)
-	return model.ModelMarketResponse{
+	resp := model.ModelMarketResponse{
 		Summary: summary,
 		Items:   items,
-	}, nil
+	}
+
+	// Store in cache.
+	marketCache.mu.Lock()
+	marketCache.result = resp
+	marketCache.expiresAt = time.Now().Add(marketCacheTTL)
+	marketCache.mu.Unlock()
+
+	return resp, nil
 }
 
 func buildModelMarket(

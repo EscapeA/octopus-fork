@@ -15,16 +15,66 @@ var stateMu sync.Mutex  // protects read-modify-write in StateSet
 
 var timeNow = func() int64 { return time.Now().UnixMilli() }
 
+// In-memory caches for alert rules and notification channels.
+// These are configuration data that rarely change. Caching them avoids
+// repeated database queries on every API poll (every 30 s per client).
+
+var (
+	rulesCacheMu sync.RWMutex
+	rulesCache   []model.AlertRule
+	rulesCached  bool
+
+	notifCacheMu sync.RWMutex
+	notifCache   []model.AlertNotifChannel
+	notifCached  bool
+)
+
+func invalidateRulesCache() {
+	rulesCacheMu.Lock()
+	rulesCached = false
+	rulesCache = nil
+	rulesCacheMu.Unlock()
+}
+
+func invalidateNotifCache() {
+	notifCacheMu.Lock()
+	notifCached = false
+	notifCache = nil
+	notifCacheMu.Unlock()
+}
+
 func RuleList(ctx context.Context) ([]model.AlertRule, error) {
+	rulesCacheMu.RLock()
+	if rulesCached {
+		cached := rulesCache
+		rulesCacheMu.RUnlock()
+		// Return a copy so callers cannot mutate the cache.
+		out := make([]model.AlertRule, len(cached))
+		copy(out, cached)
+		return out, nil
+	}
+	rulesCacheMu.RUnlock()
+
 	rules := make([]model.AlertRule, 0)
 	if err := db.GetDB().WithContext(ctx).Find(&rules).Error; err != nil {
 		return nil, err
 	}
+
+	rulesCacheMu.Lock()
+	rulesCache = make([]model.AlertRule, len(rules))
+	copy(rulesCache, rules)
+	rulesCached = true
+	rulesCacheMu.Unlock()
+
 	return rules, nil
 }
 
 func RuleCreate(ctx context.Context, rule *model.AlertRule) error {
-	return db.GetDB().WithContext(ctx).Create(rule).Error
+	if err := db.GetDB().WithContext(ctx).Create(rule).Error; err != nil {
+		return err
+	}
+	invalidateRulesCache()
+	return nil
 }
 
 func RuleUpdate(ctx context.Context, rule *model.AlertRule) error {
@@ -38,7 +88,11 @@ func RuleUpdate(ctx context.Context, rule *model.AlertRule) error {
 	if count == 0 {
 		return fmt.Errorf("alert rule not found")
 	}
-	return db.GetDB().WithContext(ctx).Save(rule).Error
+	if err := db.GetDB().WithContext(ctx).Save(rule).Error; err != nil {
+		return err
+	}
+	invalidateRulesCache()
+	return nil
 }
 
 func RuleDelete(ctx context.Context, id int) error {
@@ -49,19 +103,41 @@ func RuleDelete(ctx context.Context, id int) error {
 	if res.RowsAffected == 0 {
 		return fmt.Errorf("alert rule not found")
 	}
+	invalidateRulesCache()
 	return nil
 }
 
 func NotifChannelList(ctx context.Context) ([]model.AlertNotifChannel, error) {
+	notifCacheMu.RLock()
+	if notifCached {
+		cached := notifCache
+		notifCacheMu.RUnlock()
+		out := make([]model.AlertNotifChannel, len(cached))
+		copy(out, cached)
+		return out, nil
+	}
+	notifCacheMu.RUnlock()
+
 	channels := make([]model.AlertNotifChannel, 0)
 	if err := db.GetDB().WithContext(ctx).Find(&channels).Error; err != nil {
 		return nil, err
 	}
+
+	notifCacheMu.Lock()
+	notifCache = make([]model.AlertNotifChannel, len(channels))
+	copy(notifCache, channels)
+	notifCached = true
+	notifCacheMu.Unlock()
+
 	return channels, nil
 }
 
 func NotifChannelCreate(ctx context.Context, ch *model.AlertNotifChannel) error {
-	return db.GetDB().WithContext(ctx).Create(ch).Error
+	if err := db.GetDB().WithContext(ctx).Create(ch).Error; err != nil {
+		return err
+	}
+	invalidateNotifCache()
+	return nil
 }
 
 func NotifChannelUpdate(ctx context.Context, ch *model.AlertNotifChannel) error {
@@ -75,7 +151,11 @@ func NotifChannelUpdate(ctx context.Context, ch *model.AlertNotifChannel) error 
 	if count == 0 {
 		return fmt.Errorf("alert notification channel not found")
 	}
-	return db.GetDB().WithContext(ctx).Save(ch).Error
+	if err := db.GetDB().WithContext(ctx).Save(ch).Error; err != nil {
+		return err
+	}
+	invalidateNotifCache()
+	return nil
 }
 
 func NotifChannelDelete(ctx context.Context, id int) error {
@@ -86,6 +166,7 @@ func NotifChannelDelete(ctx context.Context, id int) error {
 	if res.RowsAffected == 0 {
 		return fmt.Errorf("alert notification channel not found")
 	}
+	invalidateNotifCache()
 	return nil
 }
 
