@@ -26,7 +26,7 @@ type ChannelAttempt struct {
 
 type RelayLog struct {
 	ID                int64            `json:"id" gorm:"primaryKey;autoIncrement:false"`                // Snowflake ID
-	Time              int64            `json:"time" gorm:"column:time"`                                 // 时间戳（秒）
+	Time              int64            `json:"time" gorm:"column:time;index:idx_relay_logs_time"`       // 时间戳（秒）
 	RequestModelName  string           `json:"request_model_name" gorm:"column:request_model_name"`     // 请求模型名称
 	RequestAPIKeyID   int              `json:"request_api_key_id" gorm:"column:request_api_key_id"`     // 请求使用的 API Key ID
 	RequestAPIKeyName string           `json:"request_api_key_name" gorm:"column:request_api_key_name"` // 请求使用的 API Key 名称
@@ -52,7 +52,7 @@ type RelayLog struct {
 // RelayLogListItem 日志列表轻量条目，排除了 RequestContent 和 ResponseContent 大字段
 type RelayLogListItem struct {
 	ID                int64            `json:"id" gorm:"column:id"`
-	Time              int64            `json:"time" gorm:"column:time"`
+	Time              int64            `json:"time" gorm:"column:time;index:idx_relay_logs_time"`
 	RequestModelName  string           `json:"request_model_name" gorm:"column:request_model_name"`
 	RequestAPIKeyID   int              `json:"request_api_key_id" gorm:"column:request_api_key_id"`
 	RequestAPIKeyName string           `json:"request_api_key_name" gorm:"column:request_api_key_name"`

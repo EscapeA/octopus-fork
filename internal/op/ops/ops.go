@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/lingyuins/octopus/internal/conf"
@@ -265,10 +266,36 @@ func buildOpsCacheStatus(
 	}
 }
 
+// providerPromptCacheResult caches the expensive provider prompt cache summary
+// which loads relay logs including response_content. It is called from multiple
+// ops endpoints (cache, health, telemetry), so a short TTL avoids redundant DB queries.
+var (
+	providerPromptCacheMu     sync.RWMutex
+	providerPromptCacheResult model.OpsProviderPromptCacheSummary
+	providerPromptCacheExp    time.Time
+)
+
+const providerPromptCacheTTL = 60 * time.Second
+
 func buildOpsProviderPromptCacheSummary(ctx context.Context) model.OpsProviderPromptCacheSummary {
+	providerPromptCacheMu.RLock()
+	if time.Now().Before(providerPromptCacheExp) {
+		cached := providerPromptCacheResult
+		providerPromptCacheMu.RUnlock()
+		return cached
+	}
+	providerPromptCacheMu.RUnlock()
+
 	start := opsHourlyWindowStart(time.Now(), configuredStatsTimezoneOffsetHours())
 	logs := loadOpsProviderPromptCacheLogs(ctx, start)
-	return buildOpsProviderPromptCacheSummaryFromLogs(logs, start)
+	result := buildOpsProviderPromptCacheSummaryFromLogs(logs, start)
+
+	providerPromptCacheMu.Lock()
+	providerPromptCacheResult = result
+	providerPromptCacheExp = time.Now().Add(providerPromptCacheTTL)
+	providerPromptCacheMu.Unlock()
+
+	return result
 }
 
 func configuredStatsTimezoneOffsetHours() int {
@@ -1007,14 +1034,34 @@ func buildOpsTelemetryTrendFromLogs(logs []model.RelayLog, now time.Time, memory
 	return points
 }
 
+// telemetryLogsCache avoids redundant DB queries for telemetry log data.
+var (
+	telemetryLogsCacheMu  sync.RWMutex
+	telemetryLogsCache    []model.RelayLog
+	telemetryLogsCacheKey int64
+	telemetryLogsCacheExp time.Time
+)
+
+const telemetryLogsCacheTTL = 60 * time.Second
+
 func loadOpsTelemetryLogs(ctx context.Context, since time.Time) []model.RelayLog {
+	sinceUnix := since.Unix()
+
+	telemetryLogsCacheMu.RLock()
+	if time.Now().Before(telemetryLogsCacheExp) && telemetryLogsCacheKey == sinceUnix {
+		cached := telemetryLogsCache
+		telemetryLogsCacheMu.RUnlock()
+		return cached
+	}
+	telemetryLogsCacheMu.RUnlock()
+
 	logs := make([]model.RelayLog, 0)
 	seen := make(map[int64]struct{})
 
 	cache, lock := relaylog.GetCacheAndLock()
 	lock.Lock()
 	for _, logItem := range cache {
-		if logItem.Time < since.Unix() {
+		if logItem.Time < sinceUnix {
 			continue
 		}
 		logs = append(logs, logItem)
@@ -1026,15 +1073,25 @@ func loadOpsTelemetryLogs(ctx context.Context, since time.Time) []model.RelayLog
 
 	keepEnabled, err := setting.GetBool(model.SettingKeyRelayLogKeepEnabled)
 	if err != nil || !keepEnabled || db.GetDB() == nil {
+		telemetryLogsCacheMu.Lock()
+		telemetryLogsCache = logs
+		telemetryLogsCacheKey = sinceUnix
+		telemetryLogsCacheExp = time.Now().Add(telemetryLogsCacheTTL)
+		telemetryLogsCacheMu.Unlock()
 		return logs
 	}
 
 	var dbLogs []model.RelayLog
 	if err := db.GetDB().WithContext(ctx).
 		Select("id", "time", "use_time", "error").
-		Where("time >= ?", since.Unix()).
+		Where("time >= ?", sinceUnix).
 		Order("time ASC").
 		Find(&dbLogs).Error; err != nil {
+		telemetryLogsCacheMu.Lock()
+		telemetryLogsCache = logs
+		telemetryLogsCacheKey = sinceUnix
+		telemetryLogsCacheExp = time.Now().Add(telemetryLogsCacheTTL)
+		telemetryLogsCacheMu.Unlock()
 		return logs
 	}
 	for _, logItem := range dbLogs {
@@ -1045,6 +1102,13 @@ func loadOpsTelemetryLogs(ctx context.Context, since time.Time) []model.RelayLog
 		}
 		logs = append(logs, logItem)
 	}
+
+	telemetryLogsCacheMu.Lock()
+	telemetryLogsCache = logs
+	telemetryLogsCacheKey = sinceUnix
+	telemetryLogsCacheExp = time.Now().Add(telemetryLogsCacheTTL)
+	telemetryLogsCacheMu.Unlock()
+
 	return logs
 }
 
