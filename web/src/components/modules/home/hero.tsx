@@ -102,7 +102,7 @@ export function HomeHero() {
                         ) : null}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+                    <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4">
                         {metrics.map((metric) => (
                             <div key={metric.key} className="group rounded-lg border border-border bg-card px-3 py-2.5 transition-colors duration-200 hover:border-border/80 hover:bg-muted/30 sm:px-4 sm:py-3">
                                 <div className="mb-2 h-1 w-10 rounded-full bg-primary/20 transition-all duration-300 group-hover:w-14 group-hover:bg-primary/30" />

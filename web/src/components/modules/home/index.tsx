@@ -23,7 +23,7 @@ function ChartSkeleton() {
 
 export function Home() {
     return (
-        <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain space-y-5 md:space-y-7 rounded-t-xl pb-3 md:pb-4">
+        <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain space-y-4 md:space-y-5 xl:space-y-6 rounded-t-xl pb-3 md:pb-4">
             <HomeHero />
             <HomeAnalyticsOverview />
             <Suspense fallback={<ChartSkeleton />}>

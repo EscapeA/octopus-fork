@@ -537,7 +537,7 @@ export function APIKeyPage() {
             </PageWrapper>
 
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="max-h-[88dvh] overflow-y-auto rounded-3xl sm:max-w-md">
+                <DialogContent className="max-h-[88dvh] overflow-y-auto rounded-3xl sm:max-w-md lg:max-w-3xl">
                     <DialogHeader>
                         <DialogTitle>
                             {editingKey ? t('apiKey.page.editTitle') : t('apiKey.page.createTitle')}

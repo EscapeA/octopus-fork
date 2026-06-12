@@ -315,8 +315,10 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
     }, [form, onSubmit]);
 
     return (
-        <form onSubmit={handleSubmit} className="grid gap-2">
-            <label className="grid gap-1 text-xs text-muted-foreground">
+        // @container 让表单按"自身宽度"而非视口切换列数：宽对话框(lg)里两列密排，
+        // 窄浮层(~420px)里仍单列。各字段用 @lg:col-span-* 控制跨列。
+        <form onSubmit={handleSubmit} className="@container grid grid-cols-1 gap-2 @lg:grid-cols-2 @lg:gap-x-4">
+            <label className="grid gap-1 text-xs text-muted-foreground @lg:col-span-2">
                 {t('apiKey.form.name')}
                 <Input
                     type="text"
@@ -328,7 +330,7 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
                 />
             </label>
 
-            <label className="grid gap-1 text-xs text-muted-foreground">
+            <label className="grid gap-1 text-xs text-muted-foreground @lg:col-span-2">
                 <span className="flex items-center gap-1.5">
                     {t('apiKey.form.customKey')}
                     {!isEditing && (
@@ -351,7 +353,7 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
                 )}
             </label>
 
-            <div className="grid gap-1 text-xs text-muted-foreground">
+            <div className="grid gap-1 text-xs text-muted-foreground @lg:col-span-2">
                 {t('apiKey.form.tags')}
                 <TagInput
                     value={form.tags}
@@ -362,7 +364,7 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
                 />
             </div>
 
-            <div className="grid gap-1 text-xs text-muted-foreground">
+            <div className="grid gap-1 text-xs text-muted-foreground @lg:col-span-2">
                 {t('apiKey.form.maxCost')}
                 <div className="flex items-center gap-2">
                     <div className="relative flex-1">
@@ -423,7 +425,7 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
                 </div>
             </div>
 
-            <div className="grid gap-1 text-xs text-muted-foreground">
+            <div className="grid gap-1 text-xs text-muted-foreground @lg:col-span-2">
                 {t('apiKey.form.perModelQuota.label')}
                 <Input
                     type="text"
@@ -435,7 +437,7 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
                 />
             </div>
 
-            <div className="grid gap-1 text-xs text-muted-foreground">
+            <div className="grid gap-1 text-xs text-muted-foreground @lg:col-span-2">
                 {t('apiKey.form.allowedIPs')}
                 <Input
                     type="text"
@@ -447,7 +449,7 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
                 />
             </div>
 
-            <div className="grid gap-1 text-xs text-muted-foreground">
+            <div className="grid gap-1 text-xs text-muted-foreground @lg:col-span-2">
                 {t('apiKey.form.expireAt')}
                 <div className="flex items-center gap-2 relative">
                     <Popover
@@ -509,7 +511,7 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
                 </div>
             </div>
 
-            <div className="grid gap-1">
+            <div className="grid gap-1 @lg:col-span-2">
                 <div className="text-xs text-muted-foreground">{t('apiKey.form.supportedModels')}</div>
                 <div className="max-h-40 overflow-auto rounded-xl p-2">
                     {availableModels.length === 0 ? (
@@ -546,7 +548,7 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
                 <div className="text-[11px] text-muted-foreground/80">{t('apiKey.form.modelsHint')}</div>
             </div>
 
-            <div className="flex items-center justify-between pt-1">
+            <div className="flex items-center justify-between pt-1 @lg:col-span-2">
                 <span className="text-xs text-muted-foreground">{t('apiKey.form.enabled')}</span>
                 <Switch
                     checked={form.enabled ?? true}
@@ -555,7 +557,7 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
                 />
             </div>
 
-            <div className="flex gap-2 pt-2 mt-3">
+            <div className="flex gap-2 pt-2 mt-3 @lg:col-span-2">
                 <button
                     type="button"
                     onClick={onClose}

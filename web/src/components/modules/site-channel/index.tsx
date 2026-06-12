@@ -135,7 +135,7 @@ import {
 } from './utils';
 import { useJumpStore, type JumpTarget, type PendingJump, type SiteChannelJumpTarget, isSiteChannelJumpTarget } from '@/stores/jump';
 import { useEnableSiteAccount } from '@/api/endpoints/site';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsBelowBreakpoint } from '@/hooks/use-mobile';
 import {
     DEFAULT_SITE_CHANNEL_PANEL_PREFERENCES,
     type SiteChannelQuickFilter,
@@ -1486,7 +1486,9 @@ function SiteAccountPanel({
     const [deletingManualModelKey, setDeletingManualModelKey] = useState<string | null>(null);
     const [displayLimit, setDisplayLimit] = useState(SITE_PANEL_INITIAL_DISPLAY_LIMIT);
     const modelElementRefs = useRef<Map<string, HTMLElement>>(new Map());
-    const isMobile = useIsMobile();
+    // 宽表格在 xl(1280px) 以下需要横向滚动才能显示全部列；为避免在笔记本与
+    // 平板等中等屏幕上仍出现横向滚动宽表格，xl 以下统一改用折叠卡片列表。
+    const useCardLayout = useIsBelowBreakpoint(1280);
     const panelKey = `${siteId}:${account.account_id}`;
 
     const panelPreferences = useSiteChannelPanelViewStore(
@@ -2748,7 +2750,7 @@ function SiteAccountPanel({
                 <div className="flex min-h-[18rem] flex-1 items-center justify-center rounded-3xl border border-dashed border-border/70 bg-muted/20 px-6 text-center text-sm text-muted-foreground">
                     当前筛选和搜索条件下没有匹配模型
                 </div>
-            ) : isMobile ? (
+            ) : useCardLayout ? (
                 <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
                     <SiteChannelMobileList
                         models={displayedModels}
