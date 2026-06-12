@@ -482,7 +482,7 @@ func RelayLogList(ctx context.Context, startTime, endTime *int, page, pageSize i
 			if idx < 0 {
 				break
 			}
-			result = append(result, enrichRelayLogListItem(cachedLogs[idx].ToListItem(), cachedLogs[idx].ResponseContent))
+			result = append(result, cachedLogs[idx].ToListItem())
 		}
 	}
 
@@ -501,7 +501,8 @@ func RelayLogList(ctx context.Context, startTime, endTime *int, page, pageSize i
 				Select("id", "time", "request_model_name", "request_api_key_id", "request_api_key_name",
 					"client_ip",
 					"endpoint_type", "channel_id", "channel_name", "actual_model_name",
-					"input_tokens", "output_tokens", "response_content", "ftut", "use_time",
+					"input_tokens", "output_tokens", "semantic_cache_hit", "cache_read_tokens",
+					"ftut", "use_time",
 					"cost", "error", "attempts", "total_attempts")
 			if startTime != nil {
 				query = query.Where("time >= ?", *startTime)
@@ -521,9 +522,9 @@ func RelayLogList(ctx context.Context, startTime, endTime *int, page, pageSize i
 			if err := query.Order("id DESC").Offset(dbOffset).Limit(remaining).Find(&dbLogs).Error; err != nil {
 				return nil, err
 			}
-			for _, dbLog := range dbLogs {
-				result = append(result, enrichRelayLogListItem(dbLog, dbLog.ResponseContent))
-			}
+			// semantic_cache_hit / cache_read_tokens 已在写入时落库，直接返回，
+			// 无需读取并重新解析 response_content 大字段。
+			result = append(result, dbLogs...)
 		}
 	}
 
@@ -551,16 +552,6 @@ func RelayLogCacheReadTokens(responseContent string) int {
 		return 0
 	}
 	return int(usage.CachedTokens)
-}
-
-func enrichRelayLogListItem(item model.RelayLogListItem, responseContent string) model.RelayLogListItem {
-	if usage, ok := cacheusage.ParseProviderPromptCacheUsageSignals(responseContent); ok {
-		item.SemanticCacheHit = usage.SemanticCacheHit
-		if !usage.SemanticCacheHit {
-			item.CacheReadTokens = int(usage.CachedTokens)
-		}
-	}
-	return item
 }
 
 func RelayLogClear(ctx context.Context) error {

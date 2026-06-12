@@ -139,7 +139,9 @@ func streamLog(c *gin.Context) {
 			if relaylog.RelayLogStreamExcluded(log.RequestModelName) {
 				continue
 			}
-			data, err := json.Marshal(log)
+			// 仅推送列表所需的轻量字段，剥离 request_content / response_content
+			// 大字段（详情按需单独拉取），避免高 QPS 下用大 payload 拖慢前端。
+			data, err := json.Marshal(log.ToListItem())
 			if err != nil {
 				continue
 			}

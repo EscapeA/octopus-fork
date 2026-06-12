@@ -281,3 +281,56 @@ func TestRelayLogApplyKeepEnabledClosesAndReopensLogDB(t *testing.T) {
 		t.Fatalf("GetLogDB() should be non-nil after re-enabling logs")
 	}
 }
+
+// TestRelayLogListReadsPersistedCacheColumns 验证列表查询直接返回落库的
+// semantic_cache_hit / cache_read_tokens 列，而不再读取并解析 response_content
+// 大字段——这是日志列表加载缓慢问题的核心修复点。
+func TestRelayLogListReadsPersistedCacheColumns(t *testing.T) {
+	dsn := filepath.Join(t.TempDir(), "relaylog-cachecols.db")
+	if err := db.InitDB("sqlite", dsn, false); err != nil {
+		t.Fatalf("InitDB failed: %v", err)
+	}
+	// 显式声明共用主库模式，清除可能被前序「独立日志库」测试残留的全局
+	// logDBType 状态（CloseLogDB 在关闭后仍保留 logDBType 供 Reopen 使用），
+	// 否则 GetLogDB 会走独立库分支返回 nil，跳过本测试需要的 DB 查询。
+	if err := db.InitLogDB("", "", false); err != nil {
+		t.Fatalf("InitLogDB(shared) failed: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := setting.RefreshCache(context.Background()); err != nil {
+		t.Fatalf("RefreshCache failed: %v", err)
+	}
+	// 启用日志保存，让列表查询走 DB 分支。
+	if err := setting.SetString(model.SettingKeyRelayLogKeepEnabled, "true"); err != nil {
+		t.Fatalf("enable relay log keep failed: %v", err)
+	}
+
+	// 落库时大字段是一个无法解析出缓存信号的占位串：若查询仍依赖解析
+	// response_content，下面对 cache 列的断言就会失败。
+	seed := []model.RelayLog{
+		{ID: 1, Time: 1, RequestModelName: "gpt-4", SemanticCacheHit: true, CacheReadTokens: 0, ResponseContent: "not-json"},
+		{ID: 2, Time: 2, RequestModelName: "claude", SemanticCacheHit: false, CacheReadTokens: 123, ResponseContent: "not-json"},
+	}
+	if err := db.GetDB().Create(&seed).Error; err != nil {
+		t.Fatalf("seed relay logs failed: %v", err)
+	}
+
+	logs, err := RelayLogList(context.Background(), nil, nil, 1, 50)
+	if err != nil {
+		t.Fatalf("RelayLogList returned error: %v", err)
+	}
+	if len(logs) != 2 {
+		t.Fatalf("RelayLogList returned %d logs, want 2", len(logs))
+	}
+
+	byID := make(map[int64]model.RelayLogListItem, len(logs))
+	for _, l := range logs {
+		byID[l.ID] = l
+	}
+	if !byID[1].SemanticCacheHit {
+		t.Fatalf("log 1 SemanticCacheHit = false, want true (should come from persisted column)")
+	}
+	if byID[2].CacheReadTokens != 123 {
+		t.Fatalf("log 2 CacheReadTokens = %d, want 123 (should come from persisted column)", byID[2].CacheReadTokens)
+	}
+}
