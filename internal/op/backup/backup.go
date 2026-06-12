@@ -101,8 +101,18 @@ func ExportAll(ctx context.Context, includeLogs, includeStats bool) (*model.DBDu
 		if err := conn.Order("id DESC").Limit(maxAuditLogsExport).Find(&d.AuditLogs).Error; err != nil {
 			return nil, fmt.Errorf("export audit_logs: %w", err)
 		}
-		if err := conn.Order("id DESC").Limit(maxRelayLogsExport).Find(&d.RelayLogs).Error; err != nil {
-			return nil, fmt.Errorf("export relay_logs: %w", err)
+		// relay_logs 可能位于独立日志库，从日志库连接读取（共用主库时 GetLogDB
+		// 返回主库连接，行为不变）。强制导出：无论「保留历史日志」开关是否开启，
+		// 都导出日志库的实际内容；若独立日志库此前被 CloseLogDB 断开，先重连再读。
+		if db.IsLogDBSeparate() {
+			if err := db.ReopenLogDB(); err != nil {
+				return nil, fmt.Errorf("reopen log db before export: %w", err)
+			}
+		}
+		if logConn := db.GetLogDB(); logConn != nil {
+			if err := logConn.WithContext(ctx).Order("id DESC").Limit(maxRelayLogsExport).Find(&d.RelayLogs).Error; err != nil {
+				return nil, fmt.Errorf("export relay_logs: %w", err)
+			}
 		}
 	}
 
@@ -207,6 +217,13 @@ func ImportWithModeToDB(ctx context.Context, target *gorm.DB, dump *model.DBDump
 	res := &model.DBImportResult{RowsAffected: map[string]int64{}}
 	cfg := &importConfig{conn: target.WithContext(ctx), res: res, isFull: isFull, version: dump.Version}
 
+	// relay_logs 是否需要路由到独立日志库：仅在「live 导入」（target 即主库）
+	// 且配置了独立日志库时成立。此时 relay_logs 落在另一个数据库，无法纳入主库
+	// 事务，需在事务外单独处理（日志可丢，跨库非原子可接受）。
+	// 迁移路径（target 为另开的库）不走这里，relay_logs 跟随 target 一起迁移，
+	// 行为与旧版一致。
+	logToSeparateDB := target == db.GetDB() && db.IsLogDBSeparate()
+
 	err := cfg.conn.Transaction(func(tx *gorm.DB) error {
 		cfg.conn = tx
 
@@ -245,6 +262,11 @@ func ImportWithModeToDB(ctx context.Context, target *gorm.DB, dump *model.DBDump
 				}
 			}
 			for _, table := range deleteOrder {
+				// relay_logs 路由到独立日志库时，由事务外的 importRelayLogsToLogDB
+				// 负责清空与写入，主事务（主库）跳过它。
+				if table == "relay_logs" && logToSeparateDB {
+					continue
+				}
 				if err := cfg.deleteAll(table); err != nil {
 					return fmt.Errorf("full import: delete %s: %w", table, err)
 				}
@@ -352,7 +374,9 @@ func ImportWithModeToDB(ctx context.Context, target *gorm.DB, dump *model.DBDump
 		}
 
 		// Relay logs
-		if dump.IncludeLogs {
+		// 独立日志库 live 模式下，relay_logs 在主事务外单独写入日志库（见下方），
+		// 此处跳过；其余情况（共用主库、迁移）仍内联在主事务中，行为不变。
+		if dump.IncludeLogs && !logToSeparateDB {
 			if err := cfg.doNothing("relay_logs", &dump.RelayLogs, len(dump.RelayLogs)); err != nil {
 				return err
 			}
@@ -394,6 +418,30 @@ func ImportWithModeToDB(ctx context.Context, target *gorm.DB, dump *model.DBDump
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	// 独立日志库 live 模式：relay_logs 在主事务外单独写入日志库。
+	// 跨库非原子——主库数据已提交，日志单独导入；日志可丢，失败仅记录在结果中
+	// 不回滚主库。
+	//
+	// 强制导入：无论「保留历史日志」开关是否开启，都把日志写入日志库。若日志库
+	// 此前被 CloseLogDB 断开（用户关闭了后台日志），先 ReopenLogDB 重连——导入
+	// 完成后日志库即处于开启（已连接）状态。
+	if logToSeparateDB && dump.IncludeLogs {
+		if err := db.ReopenLogDB(); err != nil {
+			return nil, fmt.Errorf("reopen log db before import: %w", err)
+		}
+		if logConn := db.GetLogDB(); logConn != nil {
+			logCfg := &importConfig{conn: logConn.WithContext(ctx), res: res, isFull: isFull, version: dump.Version}
+			if isFull {
+				if err := logCfg.deleteAll("relay_logs"); err != nil {
+					return nil, fmt.Errorf("full import: delete relay_logs (log db): %w", err)
+				}
+			}
+			if err := logCfg.doNothing("relay_logs", &dump.RelayLogs, len(dump.RelayLogs)); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	// Summarize rows affected from progress

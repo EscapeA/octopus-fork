@@ -134,3 +134,101 @@ func TestImportWithModeFullClearsExistingRowsUsingActualTableNames(t *testing.T)
 	assertCount(&model.StatsTotal{}, 1, "id = ?", 2)
 	assertCount(&model.RemoteSite{}, 1, "id = ?", 2)
 }
+
+func TestExportImportSeparateLogDBRoundTrip(t *testing.T) {
+	mainPath := filepath.Join(t.TempDir(), "main.db")
+	if err := internaldb.InitDB("sqlite", mainPath, false); err != nil {
+		t.Fatalf("init main db: %v", err)
+	}
+	logPath := filepath.Join(t.TempDir(), "logs.db")
+	if err := internaldb.InitLogDB("sqlite", logPath, false); err != nil {
+		t.Fatalf("init log db: %v", err)
+	}
+	t.Cleanup(func() { _ = internaldb.Close() })
+
+	// Seed relay logs into the separate log DB (not the main DB).
+	logConn := internaldb.GetLogDB()
+	seed := []model.RelayLog{
+		{ID: 1, Time: 1, RequestModelName: "m1"},
+		{ID: 2, Time: 2, RequestModelName: "m2"},
+	}
+	if err := logConn.Create(&seed).Error; err != nil {
+		t.Fatalf("seed log db: %v", err)
+	}
+
+	// Export must read relay_logs from the log DB.
+	dump, err := ExportAll(context.Background(), true, false)
+	if err != nil {
+		t.Fatalf("export: %v", err)
+	}
+	if len(dump.RelayLogs) != 2 {
+		t.Fatalf("exported relay logs = %d, want 2 (must read from log DB)", len(dump.RelayLogs))
+	}
+
+	// Clear the log DB, then full-import: logs must be force-written back to log DB.
+	if err := logConn.Where("1 = 1").Delete(&model.RelayLog{}).Error; err != nil {
+		t.Fatalf("clear log db: %v", err)
+	}
+	if _, err := ImportWithMode(context.Background(), dump, model.ImportModeFull); err != nil {
+		t.Fatalf("full import: %v", err)
+	}
+
+	var logCount int64
+	if err := internaldb.GetLogDB().Model(&model.RelayLog{}).Count(&logCount).Error; err != nil {
+		t.Fatalf("count log db after import: %v", err)
+	}
+	if logCount != 2 {
+		t.Fatalf("log DB relay log count after import = %d, want 2", logCount)
+	}
+
+	// Logs must NOT have leaked into the main DB.
+	var mainCount int64
+	if err := internaldb.GetDB().Model(&model.RelayLog{}).Count(&mainCount).Error; err != nil {
+		t.Fatalf("count main db: %v", err)
+	}
+	if mainCount != 0 {
+		t.Fatalf("main DB relay log count = %d, want 0 (logs must stay in log DB)", mainCount)
+	}
+}
+
+func TestImportForceReopensClosedLogDB(t *testing.T) {
+	mainPath := filepath.Join(t.TempDir(), "main.db")
+	if err := internaldb.InitDB("sqlite", mainPath, false); err != nil {
+		t.Fatalf("init main db: %v", err)
+	}
+	logPath := filepath.Join(t.TempDir(), "logs.db")
+	if err := internaldb.InitLogDB("sqlite", logPath, false); err != nil {
+		t.Fatalf("init log db: %v", err)
+	}
+	t.Cleanup(func() { _ = internaldb.Close() })
+
+	// Simulate logs disabled: log DB disconnected.
+	if err := internaldb.CloseLogDB(); err != nil {
+		t.Fatalf("close log db: %v", err)
+	}
+	if internaldb.GetLogDB() != nil {
+		t.Fatalf("precondition: log DB should be disconnected")
+	}
+
+	dump := &model.DBDump{
+		Version:     1,
+		IncludeLogs: true,
+		RelayLogs:   []model.RelayLog{{ID: 9, Time: 9, RequestModelName: "forced"}},
+	}
+	if _, err := ImportWithMode(context.Background(), dump, model.ImportModeFull); err != nil {
+		t.Fatalf("full import: %v", err)
+	}
+
+	// Import must have force-reopened the log DB and written the row.
+	logConn := internaldb.GetLogDB()
+	if logConn == nil {
+		t.Fatalf("log DB should be reconnected after import")
+	}
+	var count int64
+	if err := logConn.Model(&model.RelayLog{}).Where("id = ?", 9).Count(&count).Error; err != nil {
+		t.Fatalf("count log db: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("forced relay log count = %d, want 1", count)
+	}
+}
