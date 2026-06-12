@@ -102,13 +102,13 @@ export function HomeHero() {
                         ) : null}
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                         {metrics.map((metric) => (
-                            <div key={metric.key} className="group rounded-lg border border-border bg-card px-4 py-3 transition-colors duration-200 hover:border-border/80 hover:bg-muted/30">
+                            <div key={metric.key} className="group rounded-lg border border-border bg-card px-3 py-2.5 transition-colors duration-200 hover:border-border/80 hover:bg-muted/30 sm:px-4 sm:py-3">
                                 <div className="mb-2 h-1 w-10 rounded-full bg-primary/20 transition-all duration-300 group-hover:w-14 group-hover:bg-primary/30" />
                                 <div className="text-xs font-medium text-muted-foreground">{metric.label}</div>
                                 <div className="mt-1 flex items-baseline gap-1">
-                                    <span className="text-2xl font-semibold">
+                                    <span className="text-xl font-semibold sm:text-2xl">
                                         <AnimatedNumber value={metric.value} />
                                     </span>
                                     {metric.unit ? <span className="text-sm text-muted-foreground">{metric.unit}</span> : null}
@@ -118,11 +118,11 @@ export function HomeHero() {
                     </div>
                 </div>
 
-                <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 xl:grid-cols-2">
+                <div className="grid auto-rows-fr grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-2">
                     {signals.map((signal, index) => (
                         <article
                             key={signal.key}
-                            className={`group rounded-lg border border-border bg-card p-3 sm:p-4 transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-border/80 ${index === 0 ? 'sm:col-span-2 xl:min-h-[11rem]' : ''}`}
+                            className={`group rounded-lg border border-border bg-card p-3 sm:p-4 transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-border/80 ${index === 0 ? 'col-span-2 xl:min-h-[11rem]' : ''}`}
                         >
                             <div className="flex items-start justify-between gap-3">
                                 <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${signal.accent}`}>

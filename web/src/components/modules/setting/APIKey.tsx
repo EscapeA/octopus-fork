@@ -78,17 +78,142 @@ function hasModel(supported: string | undefined, model: string): boolean {
     return supported ? supported.split(',').includes(model) : false;
 }
 
+/** 将逗号分隔的标签字符串解析为去重、去空的数组。 */
+export function parseTags(raw: string | undefined): string[] {
+    if (!raw) return [];
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const part of raw.split(',')) {
+        const tag = part.trim();
+        if (tag && !seen.has(tag)) {
+            seen.add(tag);
+            result.push(tag);
+        }
+    }
+    return result;
+}
+
+function serializeTags(tags: string[]): string {
+    return tags.join(',');
+}
+
+/** 标签输入：支持回车 / 逗号添加、点击移除，并可从已有标签快速补全。 */
+function TagInput({
+    value,
+    suggestions,
+    disabled,
+    placeholder,
+    onChange,
+}: {
+    value: string | undefined;
+    suggestions: string[];
+    disabled?: boolean;
+    placeholder?: string;
+    onChange: (next: string) => void;
+}) {
+    const tags = useMemo(() => parseTags(value), [value]);
+    const [draft, setDraft] = useState('');
+
+    const addTag = useCallback((raw: string) => {
+        const tag = raw.trim().replace(/,+$/, '').trim();
+        if (!tag) return;
+        if (tags.includes(tag)) {
+            setDraft('');
+            return;
+        }
+        onChange(serializeTags([...tags, tag]));
+        setDraft('');
+    }, [tags, onChange]);
+
+    const removeTag = useCallback((tag: string) => {
+        onChange(serializeTags(tags.filter((t) => t !== tag)));
+    }, [tags, onChange]);
+
+    const availableSuggestions = useMemo(
+        () => suggestions.filter((s) => !tags.includes(s)).slice(0, 12),
+        [suggestions, tags],
+    );
+
+    return (
+        <div className="grid gap-1.5">
+            <div
+                className={cn(
+                    'flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-muted/20 px-2.5 py-2 transition-colors focus-within:border-primary/40',
+                    disabled && 'opacity-50',
+                )}
+            >
+                {tags.map((tag) => (
+                    <span
+                        key={tag}
+                        className="inline-flex items-center gap-1 rounded-lg bg-primary/12 px-2 py-1 text-xs font-medium text-primary"
+                    >
+                        {tag}
+                        <button
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => removeTag(tag)}
+                            className="grid size-3.5 place-items-center rounded-full text-primary/70 transition-colors hover:bg-primary/20 hover:text-primary"
+                        >
+                            <X className="size-3" />
+                        </button>
+                    </span>
+                ))}
+                <input
+                    type="text"
+                    value={draft}
+                    disabled={disabled}
+                    placeholder={tags.length === 0 ? placeholder : ''}
+                    onChange={(e) => {
+                        const v = e.target.value;
+                        if (v.endsWith(',')) {
+                            addTag(v);
+                        } else {
+                            setDraft(v);
+                        }
+                    }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addTag(draft);
+                        } else if (e.key === 'Backspace' && draft === '' && tags.length > 0) {
+                            removeTag(tags[tags.length - 1]);
+                        }
+                    }}
+                    onBlur={() => addTag(draft)}
+                    className="h-6 min-w-[6rem] flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                />
+            </div>
+            {availableSuggestions.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                    {availableSuggestions.map((s) => (
+                        <button
+                            key={s}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => addTag(s)}
+                            className="rounded-lg border border-dashed border-border px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:opacity-50"
+                        >
+                            + {s}
+                        </button>
+                    ))}
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
 const PER_MODEL_QUOTA_PLACEHOLDER = '{"gpt-4o":{"rpm":5,"tpm":50000}}';
 
-interface APIKeyFormProps {
+export interface APIKeyFormProps {
     apiKey?: APIKey;
     isPending: boolean;
     submitLabel: string;
+    tagSuggestions?: string[];
     onSubmit: (data: Omit<APIKey, 'id' | 'api_key'>) => void;
     onClose: () => void;
 }
 
-function APIKeyForm({ apiKey, isPending, submitLabel, onSubmit, onClose }: APIKeyFormProps) {
+export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = [], onSubmit, onClose }: APIKeyFormProps) {
     const t = useTranslations('setting');
     const { data: groups = [] } = useGroupList();
 
@@ -102,6 +227,7 @@ function APIKeyForm({ apiKey, isPending, submitLabel, onSubmit, onClose }: APIKe
         rate_limit_tpm: apiKey?.rate_limit_tpm ?? 0,
         per_model_quota_json: apiKey?.per_model_quota_json ?? '',
         allowed_ips: apiKey?.allowed_ips ?? '',
+        tags: apiKey?.tags ?? '',
     }));
     const [maxCostInput, setMaxCostInput] = useState(() =>
         apiKey?.max_cost != null ? String(apiKey.max_cost) : ''
@@ -193,6 +319,17 @@ function APIKeyForm({ apiKey, isPending, submitLabel, onSubmit, onClose }: APIKe
                     required
                 />
             </label>
+
+            <div className="grid gap-1 text-xs text-muted-foreground">
+                {t('apiKey.form.tags')}
+                <TagInput
+                    value={form.tags}
+                    suggestions={tagSuggestions}
+                    disabled={isPending}
+                    placeholder={t('apiKey.form.tagsPlaceholder')}
+                    onChange={(next) => updateForm({ tags: next })}
+                />
+            </div>
 
             <div className="grid gap-1 text-xs text-muted-foreground">
                 {t('apiKey.form.maxCost')}
@@ -415,6 +552,7 @@ function APIKeyFormOverlay({
     apiKey,
     isPending,
     submitLabel,
+    tagSuggestions,
     onSubmit,
     onClose,
 }: {
@@ -422,6 +560,7 @@ function APIKeyFormOverlay({
     apiKey?: APIKey;
     isPending: boolean;
     submitLabel: string;
+    tagSuggestions?: string[];
     onSubmit: (data: Omit<APIKey, 'id' | 'api_key'>) => void;
     onClose: () => void;
 }) {
@@ -436,6 +575,7 @@ function APIKeyFormOverlay({
                 apiKey={apiKey}
                 isPending={isPending}
                 submitLabel={submitLabel}
+                tagSuggestions={tagSuggestions}
                 onSubmit={onSubmit}
                 onClose={onClose}
             />
@@ -661,6 +801,14 @@ function APIKeyPanelBase({
         return [...apiKeys].sort((a, b) => a.id - b.id);
     }, [apiKeys]);
 
+    const tagSuggestions = useMemo(() => {
+        const set = new Set<string>();
+        for (const key of apiKeys ?? []) {
+            for (const tag of parseTags(key.tags)) set.add(tag);
+        }
+        return Array.from(set).sort((a, b) => a.localeCompare(b));
+    }, [apiKeys]);
+
     const handleDelete = useCallback((id: number) => {
         setDeletingId(id);
         deleteAPIKey.mutate(id, {
@@ -737,6 +885,7 @@ function APIKeyPanelBase({
                         layoutId={addLayoutId}
                         isPending={createAPIKey.isPending}
                         submitLabel={t('apiKey.form.create')}
+                        tagSuggestions={tagSuggestions}
                         onSubmit={handleCreate}
                         onClose={() => setIsAdding(false)}
                     />
@@ -760,6 +909,7 @@ function APIKeyPanelBase({
                         apiKey={editingKey.apiKey}
                         isPending={updateAPIKey.isPending}
                         submitLabel={t('apiKey.form.save')}
+                        tagSuggestions={tagSuggestions}
                         onSubmit={(data) => handleUpdate(editingKey.apiKey, data)}
                         onClose={() => setEditingKey(null)}
                     />
@@ -830,16 +980,6 @@ function APIKeyDialogPanel() {
                     <X className="size-4" />
                 </button>
             )}
-        />
-    );
-}
-
-export function APIKeyPagePanel() {
-    return (
-        <APIKeyPanelBase
-            idPrefix="apikey-page"
-            containerClassName="relative space-y-5 rounded-xl border border-border/35 bg-card p-5 text-card-foreground shadow-md  md:p-6"
-            listClassName="min-h-[24rem] space-y-2 overflow-y-auto rounded-lg border border-border/30 bg-card p-3 shadow-sm md:min-h-[32rem]"
         />
     );
 }

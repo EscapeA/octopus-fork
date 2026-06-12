@@ -67,7 +67,7 @@ function ViewSwitcher({
 function SemanticCacheView({ data, t }: { data: OpsCacheStatus; t: CacheTranslations }) {
     return (
         <div className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
                 <MetricCard
                     title={t('cache.metrics.hitRate')}
                     value={formatPercent(data.hit_rate).formatted.value}
@@ -223,7 +223,7 @@ function ProviderPromptCacheView({
 
     return (
         <div className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 md:gap-4 md:grid-cols-2 xl:grid-cols-5">
                 <MetricCard
                     title={t('cache.providerPrompt.metrics.cacheRate')}
                     value={formatPercent(data.cache_rate).formatted.value}

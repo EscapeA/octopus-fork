@@ -78,10 +78,10 @@ function OverviewMetric({
   tone?: "default" | "warning";
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-muted/20 px-4 py-3">
+    <div className="flex items-center gap-2.5 rounded-2xl bg-muted/20 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
       <span
         className={cn(
-          "flex size-9 items-center justify-center rounded-xl bg-background shadow-sm",
+          "flex size-8 shrink-0 items-center justify-center rounded-xl bg-background shadow-sm sm:size-9",
           tone === "warning"
             ? "text-amber-600 dark:text-amber-400"
             : "text-muted-foreground",
@@ -181,7 +181,7 @@ export function CheckinPanel({
         </button>
 
         {overviewExpanded && (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-4 grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4">
             <OverviewMetric
               icon={<Wallet className="size-4" />}
               label="当前余额"

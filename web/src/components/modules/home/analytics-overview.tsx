@@ -111,22 +111,22 @@ export function HomeAnalyticsOverview() {
                     empty={!data}
                     emptyLabel={t('empty')}
                 >
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-2 xl:grid-cols-4">
                         {cards.map((card) => (
                             <article
                                 key={card.title}
                                 className={cn(
-                                    'group rounded-lg border border-border bg-card p-4 transition-[transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-border/80',
+                                    'group rounded-lg border border-border bg-card p-3 transition-[transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-border/80 sm:p-4',
                                 )}
                             >
-                                <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-start justify-between gap-2 sm:gap-3">
                                     <div className="min-w-0">
-                                        <div className="mb-3 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                                            <ScanLine className="h-3.5 w-3.5 text-primary/50" strokeWidth={1.5} />
-                                            <span>{card.title}</span>
+                                        <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground sm:mb-3 sm:gap-2">
+                                            <ScanLine className="h-3.5 w-3.5 shrink-0 text-primary/50" strokeWidth={1.5} />
+                                            <span className="truncate">{card.title}</span>
                                         </div>
                                         <div className="flex items-baseline gap-1">
-                                            <span className="text-xl font-semibold tracking-tight md:text-2xl">
+                                            <span className="text-lg font-semibold tracking-tight sm:text-xl md:text-2xl">
                                                 <AnimatedNumber value={card.value} />
                                             </span>
                                             {card.unit ? <span className="text-sm text-muted-foreground">{card.unit}</span> : null}
@@ -134,7 +134,7 @@ export function HomeAnalyticsOverview() {
                                     </div>
                                     <div
                                         className={cn(
-                                            'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary',
+                                            'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:h-10 sm:w-10',
                                             card.accentClassName,
                                         )}
                                     >

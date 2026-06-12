@@ -1536,12 +1536,12 @@ export function Site() {
               {isExpanded ? (
                 <motion.div
                   key="site-accounts"
-                  initial={{ opacity: 0, maxHeight: 0 }}
-                  animate={{ opacity: 1, maxHeight: 2000 }}
-                  exit={{ opacity: 0, maxHeight: 0 }}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.18, ease: [0.25, 0.46, 0.45, 0.94] }}
                   className="overflow-hidden"
-                  style={{ willChange: 'max-height, opacity, transform' }}
+                  style={{ willChange: 'height, opacity' }}
                 >
                   <div className="mt-4 border-t border-border/60 pt-4">
                     {hasFilteredAccounts ? (
@@ -1821,9 +1821,9 @@ export function Site() {
   };
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto overscroll-contain rounded-t-3xl">
+    <div className="rounded-t-3xl">
       <PageWrapper
-        className="space-y-4 pb-24 md:pb-4"
+        className="space-y-3 pb-4 sm:space-y-4"
         childLayout={false}
       >
         <CheckinPanel

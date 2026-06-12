@@ -67,7 +67,7 @@ export function Health() {
                 emptyLabel={t('states.loading')}
             >
                 <div className="space-y-4">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
                         <HealthSignalCard
                             title={t('health.cards.database')}
                             ok={!!data?.database_ok}
@@ -97,7 +97,7 @@ export function Health() {
                         />
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
                         <MetricCard
                             title={t('health.cards.healthyGroups')}
                             value={data?.healthy_group_count ?? 0}

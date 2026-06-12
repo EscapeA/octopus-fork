@@ -47,7 +47,7 @@ export function System() {
                 emptyLabel={t('states.loading')}
             >
                 <div className="space-y-4">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
                         <MetricCard
                             title={t('system.metrics.channels')}
                             value={data?.channel_count ?? 0}

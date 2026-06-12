@@ -182,6 +182,7 @@ type apiKeyRequestPayload struct {
 	RateLimitTPM      int     `json:"rate_limit_tpm,omitempty"`
 	PerModelQuotaJSON string  `json:"per_model_quota_json,omitempty"`
 	AllowedIPs        string  `json:"allowed_ips,omitempty"`
+	Tags              string  `json:"tags,omitempty"`
 }
 
 func (p apiKeyRequestPayload) toModel() model.APIKey {
@@ -196,6 +197,7 @@ func (p apiKeyRequestPayload) toModel() model.APIKey {
 		RateLimitTPM:      p.RateLimitTPM,
 		PerModelQuotaJSON: p.PerModelQuotaJSON,
 		AllowedIPs:        p.AllowedIPs,
+		Tags:              p.Tags,
 	}
 }
 
