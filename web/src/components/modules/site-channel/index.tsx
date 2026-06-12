@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/zh-cn';
@@ -11,6 +11,7 @@ import {
     ArrowUpDown,
     Check,
     CheckCircle2,
+    ChevronDown,
     CircleAlert,
     CircleOff,
     Clock,
@@ -47,7 +48,6 @@ const DAYJS_LOCALE_MAP: Record<string, string> = {
 };
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { VirtualizedGrid } from '@/components/common/VirtualizedGrid';
 import {
     Dialog,
     DialogContent,
@@ -135,6 +135,7 @@ import {
 } from './utils';
 import { useJumpStore, type JumpTarget, type PendingJump, type SiteChannelJumpTarget, isSiteChannelJumpTarget } from '@/stores/jump';
 import { useEnableSiteAccount } from '@/api/endpoints/site';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
     DEFAULT_SITE_CHANNEL_PANEL_PREFERENCES,
     type SiteChannelQuickFilter,
@@ -929,6 +930,247 @@ function MoveRoutePopover({
 
 const STICKY_HEAD_CELL = 'sticky top-0 z-10 bg-card';
 
+// 移动端折叠卡片列表：折叠态只显示模型名、分组、端点格式与关键状态，
+// 点击展开后再显示 Key、最近请求、渠道跳转及操作按钮，参考模型广场的
+// 折叠卡片交互，避免在小屏幕上横向滚动宽表格。
+function SiteChannelMobileCard({
+    model,
+    isPending,
+    isHighlighted,
+    onMoveModel,
+    onToggleDisabled,
+    onDeleteManualModel,
+    onNavigateToChannel,
+    registerModelRef,
+}: {
+    model: SiteModelView;
+    isPending: boolean;
+    isHighlighted: boolean;
+    onMoveModel: (model: SiteModelView, routeType: SiteModelRouteType) => void;
+    onToggleDisabled: (model: SiteModelView) => void;
+    onDeleteManualModel: (model: SiteModelView) => void;
+    onNavigateToChannel: (channelId: number) => void;
+    registerModelRef: (modelKey: string, node: HTMLElement | null) => void;
+}) {
+    const [expanded, setExpanded] = useState(false);
+    const modelKey = makeModelKey(model.group_key, model.model_name);
+    const { Avatar: ModelAvatar } = getModelIcon(model.model_name);
+    const historyCount = getModelHistoryCount(model);
+
+    return (
+        <article
+            ref={(node) => registerModelRef(modelKey, node)}
+            className={cn(
+                'overflow-hidden border border-border/35 bg-card text-card-foreground',
+                'first:rounded-t-xl last:rounded-b-xl not-first:-mt-px',
+                model.disabled && 'opacity-60',
+                isPending && 'opacity-70',
+                isHighlighted && 'z-10 ring-2 ring-primary/35 ring-inset',
+            )}
+        >
+            <button
+                type="button"
+                onClick={() => setExpanded((prev) => !prev)}
+                aria-expanded={expanded}
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left"
+            >
+                <div className="grid size-8 shrink-0 place-items-center self-center rounded-lg border border-border/25 bg-card">
+                    <ModelAvatar size={18} />
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight">{model.model_name}</span>
+                        {model.source === 'manual' ? (
+                            <Badge variant="outline" className="h-5 shrink-0 px-1.5 text-[10px] border-primary/30 bg-primary/10 text-primary">自定义</Badge>
+                        ) : null}
+                        <ChevronDown className={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200', expanded && 'rotate-180')} />
+                    </div>
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                        <Badge variant="outline" className={cn('h-5 shrink-0 px-1.5 text-[10px]', getRouteTypeTone(model.route_type))}>
+                            {routeTypeLabel(model.route_type)}
+                        </Badge>
+                        <span className="shrink-0 truncate text-[11px] text-muted-foreground">{model.group_name || model.group_key}</span>
+                        {model.disabled ? (
+                            <Badge variant="outline" className="h-5 shrink-0 px-1.5 text-[10px] border-destructive/30 bg-destructive/10 text-destructive">已禁用</Badge>
+                        ) : null}
+                        {modelNeedsAttention(model) ? (
+                            <Badge variant="outline" className="h-5 shrink-0 px-1.5 text-[10px] border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300">待处理</Badge>
+                        ) : null}
+                    </div>
+                </div>
+            </button>
+
+            <AnimatePresence initial={false}>
+                {expanded ? (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.22 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="space-y-3 border-t border-border/20 px-3 pt-3 pb-3">
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div className="rounded-lg border border-border/25 bg-background/60 px-2 py-1.5">
+                                    <div className="text-muted-foreground">来源</div>
+                                    <div className="mt-0.5 font-medium text-foreground">{routeSourceLabel(model.route_source)}</div>
+                                </div>
+                                <div className="rounded-lg border border-border/25 bg-background/60 px-2 py-1.5">
+                                    <div className="text-muted-foreground">Key</div>
+                                    <div className={cn('mt-0.5 font-medium', model.has_keys ? 'text-foreground' : 'text-amber-700 dark:text-amber-300')}>
+                                        {model.enabled_key_count}/{model.key_count}
+                                        {!model.has_keys ? ' · 缺少 Key' : ''}
+                                    </div>
+                                </div>
+                                <div className="rounded-lg border border-border/25 bg-background/60 px-2 py-1.5">
+                                    <div className="text-muted-foreground">最近请求</div>
+                                    <div className="mt-0.5 font-medium text-foreground">{formatHistoryTime(getModelLastRequestAt(model))}</div>
+                                    <div className="text-[11px] text-muted-foreground">{historyCount} 次记录</div>
+                                </div>
+                                <div className="rounded-lg border border-border/25 bg-background/60 px-2 py-1.5">
+                                    <div className="text-muted-foreground">渠道</div>
+                                    <div className="mt-0.5 font-medium text-foreground">
+                                        {model.projected_channel_id ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => onNavigateToChannel(model.projected_channel_id!)}
+                                                className="inline-flex rounded-full border border-border px-2 py-0.5 text-xs transition hover:border-primary/30 hover:bg-primary/5"
+                                            >
+                                                #{model.projected_channel_id}
+                                            </button>
+                                        ) : (
+                                            <span className="text-muted-foreground">-</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <MoveRoutePopover
+                                    currentRouteType={model.route_type}
+                                    disabled={isPending || model.disabled}
+                                    buttonClassName="border border-border/25"
+                                    onMove={(routeType) => onMoveModel(model, routeType)}
+                                />
+                                <HoverCard>
+                                    <HoverCardTrigger asChild>
+                                        <button
+                                            type="button"
+                                            className="rounded-lg border border-border/25 p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                                        >
+                                            <History className="size-4" />
+                                        </button>
+                                    </HoverCardTrigger>
+                                    <HoverCardContent
+                                        side="top"
+                                        align="start"
+                                        className="w-auto max-w-none rounded-2xl border border-border/70 bg-card p-0 shadow-xl"
+                                    >
+                                        <HistorySummary model={model} />
+                                    </HoverCardContent>
+                                </HoverCard>
+                                {model.source === 'manual' ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => onDeleteManualModel(model)}
+                                        disabled={isPending}
+                                        className="rounded-lg border border-border/25 p-1 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                                        title="删除自定义模型"
+                                    >
+                                        <Trash2 className="size-4" />
+                                    </button>
+                                ) : null}
+                                <button
+                                    type="button"
+                                    onClick={() => onToggleDisabled(model)}
+                                    disabled={isPending}
+                                    className={cn(
+                                        'rounded-lg border border-border/25 p-1 transition',
+                                        model.disabled
+                                            ? 'text-destructive hover:bg-destructive/10'
+                                            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                                    )}
+                                >
+                                    <CircleOff className="size-4" />
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                ) : null}
+            </AnimatePresence>
+        </article>
+    );
+}
+
+function SiteChannelMobileList({
+    models,
+    hasMore,
+    onReachEnd,
+    pendingModelKeys,
+    highlightedModelKey,
+    onMoveModel,
+    onToggleDisabled,
+    onDeleteManualModel,
+    onNavigateToChannel,
+    registerModelRef,
+}: {
+    models: SiteModelView[];
+    hasMore: boolean;
+    onReachEnd: () => void;
+    pendingModelKeys: Set<string>;
+    highlightedModelKey: string | null;
+    onMoveModel: (model: SiteModelView, routeType: SiteModelRouteType) => void;
+    onToggleDisabled: (model: SiteModelView) => void;
+    onDeleteManualModel: (model: SiteModelView) => void;
+    onNavigateToChannel: (channelId: number) => void;
+    registerModelRef: (modelKey: string, node: HTMLElement | null) => void;
+}) {
+    const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        if (!hasMore) return;
+        const node = sentinelRef.current;
+        if (!node) return;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                for (const entry of entries) {
+                    if (entry.isIntersecting) {
+                        onReachEnd();
+                        break;
+                    }
+                }
+            },
+            { rootMargin: '200px', threshold: 0 },
+        );
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [hasMore, onReachEnd]);
+
+    return (
+        <div className="p-2.5">
+            <div className="flex flex-col">
+                {models.map((model) => {
+                    const modelKey = makeModelKey(model.group_key, model.model_name);
+                    return (
+                        <SiteChannelMobileCard
+                            key={modelKey}
+                            model={model}
+                            isPending={pendingModelKeys.has(modelKey)}
+                            isHighlighted={highlightedModelKey === modelKey}
+                            onMoveModel={onMoveModel}
+                            onToggleDisabled={onToggleDisabled}
+                            onDeleteManualModel={onDeleteManualModel}
+                            onNavigateToChannel={onNavigateToChannel}
+                            registerModelRef={registerModelRef}
+                        />
+                    );
+                })}
+            </div>
+            {hasMore ? <div ref={sentinelRef} aria-hidden className="h-px" /> : null}
+        </div>
+    );
+}
+
 function SiteChannelTableView({
     models,
     hasMore,
@@ -1244,6 +1486,7 @@ function SiteAccountPanel({
     const [deletingManualModelKey, setDeletingManualModelKey] = useState<string | null>(null);
     const [displayLimit, setDisplayLimit] = useState(SITE_PANEL_INITIAL_DISPLAY_LIMIT);
     const modelElementRefs = useRef<Map<string, HTMLElement>>(new Map());
+    const isMobile = useIsMobile();
     const panelKey = `${siteId}:${account.account_id}`;
 
     const panelPreferences = useSiteChannelPanelViewStore(
@@ -2505,6 +2748,21 @@ function SiteAccountPanel({
                 <div className="flex min-h-[18rem] flex-1 items-center justify-center rounded-3xl border border-dashed border-border/70 bg-muted/20 px-6 text-center text-sm text-muted-foreground">
                     当前筛选和搜索条件下没有匹配模型
                 </div>
+            ) : isMobile ? (
+                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
+                    <SiteChannelMobileList
+                        models={displayedModels}
+                        hasMore={displayedModels.length < visibleModels.length}
+                        onReachEnd={handleLoadMoreModels}
+                        pendingModelKeys={pendingModelKeys}
+                        highlightedModelKey={highlightedModelKey}
+                        onMoveModel={(model, nextRouteType) => applyRouteChange([model], nextRouteType)}
+                        onToggleDisabled={handleToggleDisabled}
+                        onDeleteManualModel={handleDeleteManualModel}
+                        onNavigateToChannel={onNavigateToChannel}
+                        registerModelRef={registerModelRef}
+                    />
+                </div>
             ) : (
                 <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden rounded-3xl border border-border/70 bg-card/70">
                     <SiteChannelTableView
@@ -3208,35 +3466,30 @@ function SiteChannelGrid({
     clearPending: (requestId?: number) => void;
     requestJump: (target: JumpTarget) => void;
 }) {
-    const columnCompute = useCallback((width: number) => {
-        if (layout === 'list') return 1;
-        const MIN_CARD_WIDTH = 320;
-        const GUTTER = 16;
-        const cols = Math.floor((width + GUTTER) / (MIN_CARD_WIDTH + GUTTER));
-        return Math.max(1, Math.min(6, cols));
-    }, [layout]);
-
-    const renderCard = useCallback((card: SiteChannelCard) => (
-        <SiteCard
-            key={card.site_id}
-            card={card}
-            layout={layout}
-            jumpRequest={pendingSiteChannelJump?.target.siteId === card.site_id ? pendingSiteChannelJump : null}
-            highlighted={highlightedSiteId === card.site_id}
-            registerCardRef={registerCardRef}
-            onJumpHandled={clearPending}
-            requestJump={requestJump}
-        />
-    ), [layout, pendingSiteChannelJump, highlightedSiteId, registerCardRef, clearPending, requestJump]);
-
+    // 普通 CSS 网格（非虚拟化）：站点渠道卡片直接随页面滚动容器排版。
+    // 之前用 VirtualizedGrid 时它带 h-full 自成滚动容器，嵌在 Hub 的
+    // PageWrapper（本身才是页面滚动容器）里会塌成 0 高度，移动端表现为
+    // 添加 2 个以上站点后下方内容无法滚动查看。站点数量通常有限，直接
+    // 全量渲染即可，和「站点」标签页保持一致的滚动行为。
     return (
-        <VirtualizedGrid
-            items={cards}
-            layout={layout}
-            columns={columnCompute}
-            estimateItemHeight={240}
-            getItemKey={(card) => `site-channel-${card.site_id}`}
-            renderItem={renderCard}
-        />
+        <div
+            className={cn(
+                'grid gap-4',
+                layout === 'list' ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3',
+            )}
+        >
+            {cards.map((card) => (
+                <SiteCard
+                    key={card.site_id}
+                    card={card}
+                    layout={layout}
+                    jumpRequest={pendingSiteChannelJump?.target.siteId === card.site_id ? pendingSiteChannelJump : null}
+                    highlighted={highlightedSiteId === card.site_id}
+                    registerCardRef={registerCardRef}
+                    onJumpHandled={clearPending}
+                    requestJump={requestJump}
+                />
+            ))}
+        </div>
     );
 }

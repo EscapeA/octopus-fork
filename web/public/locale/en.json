@@ -96,7 +96,17 @@
     "user": "User",
     "setting": "Setting",
     "ariaLabel": "Main navigation",
-    "apikey": "API Keys"
+    "apikey": "API Keys & Endpoints"
+  },
+  "endpoints": {
+    "title": "Available Endpoints",
+    "searchPlaceholder": "Search by endpoint or model",
+    "hint": "Shows every currently callable endpoint and the models under it. Endpoints with no models are hidden.",
+    "autoEndpoint": "Auto endpoint",
+    "endpointCount": "{count, plural, =0 {No endpoints} one {# endpoint} other {# endpoints}}",
+    "modelCount": "{count, plural, =0 {No models} one {# model} other {# models}}",
+    "empty": "No available endpoints",
+    "noMatch": "No endpoints or models match your search"
   },
   "hub": {
     "tabs": {

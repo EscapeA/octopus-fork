@@ -96,7 +96,17 @@
     "user": "用户",
     "setting": "设置",
     "ariaLabel": "主导航",
-    "apikey": "API 密钥"
+    "apikey": "API 密钥及端点"
+  },
+  "endpoints": {
+    "title": "可用端点",
+    "searchPlaceholder": "按端点或模型名搜索",
+    "hint": "展示当前可调用的全部端点及其下的模型，没有模型的端点不会出现。",
+    "autoEndpoint": "自动端点",
+    "endpointCount": "{count, plural, =0 {暂无端点} other {# 个端点}}",
+    "modelCount": "{count, plural, =0 {暂无模型} other {# 个模型}}",
+    "empty": "暂无可用端点",
+    "noMatch": "没有符合搜索条件的端点或模型"
   },
   "hub": {
     "tabs": {

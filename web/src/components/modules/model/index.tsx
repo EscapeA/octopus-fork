@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useModelMarket } from '@/api/endpoints/model';
 import { useTranslations } from 'next-intl';
 import { ModelItem } from './Item';
@@ -9,8 +9,6 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useSearchStore, useToolbarViewOptionsStore } from '@/components/modules/toolbar';
 import { VirtualizedGrid } from '@/components/common/VirtualizedGrid';
 import { sortModelMarketItems } from './sort';
-import { CapabilitiesPanel } from './CapabilitiesPanel';
-import { cn } from '@/lib/utils';
 
 export function Model() {
     const t = useTranslations('model');
@@ -45,41 +43,9 @@ export function Model() {
         return byName;
     }, [sortedModels, searchTerm, filter]);
 
-    const [viewMode, setViewMode] = useState<'market' | 'capabilities'>('market');
-
     return (
         <section className="relative flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain rounded-t-xl pb-3 sm:gap-4 sm:pb-4 md:pb-4" aria-label={pageKey}>
-            {/* View mode toggle */}
-            <div className="flex items-center gap-0.5 self-start rounded-lg border border-border/35 bg-card p-0.5 sm:gap-1 sm:p-1">
-                <button
-                    type="button"
-                    onClick={() => setViewMode('market')}
-                    className={cn(
-                        'rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:px-4 sm:py-2 sm:text-sm',
-                        viewMode === 'market'
-                            ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground',
-                    )}
-                >
-                    {t('tabs.market')}
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setViewMode('capabilities')}
-                    className={cn(
-                        'rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:px-4 sm:py-2 sm:text-sm',
-                        viewMode === 'capabilities'
-                            ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground',
-                    )}
-                >
-                    {t('tabs.capabilities')}
-                </button>
-            </div>
-
-            {viewMode === 'market' ? (
-                <>
-                    {visibleModels.length > 0 ? (
+            {visibleModels.length > 0 ? (
                 <section className="relative flex min-h-0 flex-1 flex-col rounded-xl border border-border/35 bg-card p-3 text-card-foreground md:p-4">
                     <div className="relative min-h-0 flex-1">
                         {isMobile ? (
@@ -121,11 +87,6 @@ export function Model() {
                     </div>
                 </section>
             )}
-                </>
-            ) : (
-                <CapabilitiesPanel />
-            )}
         </section>
     );
 }
-

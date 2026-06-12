@@ -35,6 +35,7 @@ import {
 } from '@/api/endpoints/apikey';
 import { useStatsAPIKey, type StatsAPIKeyFormatted } from '@/api/endpoints/stats';
 import { APIKeyForm, parseTags } from '@/components/modules/setting/APIKey';
+import { EndpointsPanel } from './EndpointsPanel';
 import { CopyIconButton } from '@/components/common/CopyButton';
 import { toast } from '@/components/common/Toast';
 import { cn } from '@/lib/utils';
@@ -261,12 +262,14 @@ function formatTokenValue(value: number): string {
 
 export function APIKeyPage() {
     const t = useTranslations('setting');
+    const tEndpoints = useTranslations('endpoints');
     const { data: apiKeys, isLoading, error } = useAPIKeyList();
     const { data: statsList = [] } = useStatsAPIKey();
     const createAPIKey = useCreateAPIKey();
     const updateAPIKey = useUpdateAPIKey();
     const deleteAPIKey = useDeleteAPIKey();
 
+    const [view, setView] = useState<'keys' | 'endpoints'>('keys');
     const [search, setSearch] = useState('');
     const [activeTag, setActiveTag] = useState<string | null>(null);
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -359,6 +362,37 @@ export function APIKeyPage() {
     return (
         <div className="h-full min-h-0 overflow-y-auto overscroll-contain rounded-t-xl">
             <PageWrapper className="space-y-4 pb-3 md:pb-6">
+                <div className="flex items-center gap-0.5 self-start rounded-lg border border-border/35 bg-card p-0.5 sm:gap-1 sm:p-1">
+                    <button
+                        type="button"
+                        onClick={() => setView('keys')}
+                        className={cn(
+                            'rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:px-4 sm:py-2 sm:text-sm',
+                            view === 'keys'
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground',
+                        )}
+                    >
+                        {t('apiKey.title')}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setView('endpoints')}
+                        className={cn(
+                            'rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:px-4 sm:py-2 sm:text-sm',
+                            view === 'endpoints'
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground',
+                        )}
+                    >
+                        {tEndpoints('title')}
+                    </button>
+                </div>
+
+                {view === 'endpoints' ? (
+                    <EndpointsPanel />
+                ) : (
+                <>
                 <section className="rounded-2xl border border-border bg-card p-4 md:p-5">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-2">
@@ -497,6 +531,8 @@ export function APIKeyPage() {
                             ))}
                         </AnimatePresence>
                     </div>
+                )}
+                </>
                 )}
             </PageWrapper>
 
