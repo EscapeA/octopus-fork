@@ -35,10 +35,12 @@ var auditedManagementWriteRoutes = map[string]struct{}{
 	"POST /api/v1/channel/sync":                                                      {},
 	"POST /api/v1/channel/update":                                                    {},
 	"DELETE /api/v1/channel/delete/:id":                                              {},
+	"POST /api/v1/channel/check-keys/:id":                                            {},
 	"POST /api/v1/channel/group/create":                                              {},
 	"POST /api/v1/channel/group/update":                                              {},
 	"DELETE /api/v1/channel/group/delete/:id":                                        {},
 	"POST /api/v1/group/auto-group":                                                  {},
+	"POST /api/v1/group/purge-unavailable":                                           {},
 	"POST /api/v1/group/create":                                                      {},
 	"POST /api/v1/group/update":                                                      {},
 	"DELETE /api/v1/group/delete-all":                                                {},
@@ -242,6 +244,8 @@ func buildAuditTarget(c *gin.Context, fullPath string, bodyFields map[string]any
 	switch fullPath {
 	case "/api/v1/group/delete-all":
 		return "all-groups"
+	case "/api/v1/group/purge-unavailable":
+		return "unavailable-group-items"
 	case "/api/v1/log/clear":
 		return "relay-logs"
 	case "/api/v1/model/update-price":
