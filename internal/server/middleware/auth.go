@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lingyuins/octopus/internal/conf"
 	"github.com/lingyuins/octopus/internal/model"
 	ak "github.com/lingyuins/octopus/internal/op/apikey"
 	"github.com/lingyuins/octopus/internal/op/stats"
@@ -72,6 +73,11 @@ func APIKeyAuth() gin.HandlerFunc {
 			return
 		}
 
+		if !strings.HasPrefix(apiKey, "sk-"+conf.APP_NAME+"-") {
+			resp.Error(c, http.StatusUnauthorized, resp.ErrUnauthorized)
+			c.Abort()
+			return
+		}
 		apiKeyObj, err := ak.GetByKey(apiKey, c.Request.Context())
 		if err != nil {
 			resp.Error(c, http.StatusUnauthorized, resp.ErrUnauthorized)

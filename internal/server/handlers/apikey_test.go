@@ -173,8 +173,9 @@ func TestCreateAPIKeyAcceptsFullyCustomValue(t *testing.T) {
 	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if response.Data.APIKey != "my-totally-custom-api-key" {
-		t.Fatalf("expected custom api_key, got %q", response.Data.APIKey)
+	// The backend should auto-prepend the sk-octopus- prefix.
+	if response.Data.APIKey != "sk-octopus-my-totally-custom-api-key" {
+		t.Fatalf("expected prefixed custom api_key, got %q", response.Data.APIKey)
 	}
 }
 

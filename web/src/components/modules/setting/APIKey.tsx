@@ -218,9 +218,15 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
     const { data: groups = [] } = useGroupList();
     const isEditing = !!apiKey;
 
+    // Strip the fixed prefix so the form only edits the suffix part.
+    const apiKeyPrefix = 'sk-octopus-';
+    const initialKeySuffix = apiKey?.api_key?.startsWith(apiKeyPrefix)
+        ? apiKey.api_key.slice(apiKeyPrefix.length)
+        : (apiKey?.api_key ?? '');
+
     const [form, setForm] = useState<Omit<APIKey, 'id'>>(() => ({
         name: apiKey?.name ?? '',
-        api_key: apiKey?.api_key ?? '',
+        api_key: initialKeySuffix,
         enabled: apiKey?.enabled ?? true,
         expire_at: apiKey?.expire_at,
         max_cost: apiKey?.max_cost,
@@ -329,14 +335,17 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
                         <span className="text-[10px] text-muted-foreground/70">({t('apiKey.form.optional')})</span>
                     )}
                 </span>
-                <Input
-                    type="text"
-                    value={form.api_key}
-                    onChange={(e) => updateForm({ api_key: e.target.value })}
-                    placeholder={isEditing ? '' : t('apiKey.form.customKeyPlaceholder')}
-                    className="h-9 text-sm rounded-xl font-mono"
-                    disabled={isPending}
-                />
+                <div className="flex items-center gap-0 rounded-xl border border-border bg-muted/20 overflow-hidden transition-colors focus-within:border-primary/40">
+                    <span className="shrink-0 px-3 text-sm font-mono text-muted-foreground select-none">sk-octopus-</span>
+                    <Input
+                        type="text"
+                        value={form.api_key}
+                        onChange={(e) => updateForm({ api_key: e.target.value })}
+                        placeholder={isEditing ? '' : t('apiKey.form.customKeyPlaceholder')}
+                        className="h-9 text-sm rounded-none border-0 bg-transparent focus-visible:ring-0 shadow-none"
+                        disabled={isPending}
+                    />
+                </div>
                 {!isEditing && (
                     <span className="text-[11px] text-muted-foreground/70">{t('apiKey.form.customKeyHint')}</span>
                 )}

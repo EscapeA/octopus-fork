@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lingyuins/octopus/internal/conf"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op/apikey"
 	"github.com/lingyuins/octopus/internal/op/group"
@@ -64,6 +65,8 @@ func createAPIKey(c *gin.Context) {
 	// Use custom key if provided; otherwise auto-generate.
 	if strings.TrimSpace(apiKey.APIKey) == "" {
 		apiKey.APIKey = auth.GenerateAPIKey()
+	} else {
+		apiKey.APIKey = normalizeAPIKeyPrefix(apiKey.APIKey)
 	}
 	if err := apikey.Create(&apiKey, c.Request.Context()); err != nil {
 		if status, msg, ok := classifyAPIKeyMutationError(err); ok {
@@ -95,6 +98,10 @@ func updateAPIKey(c *gin.Context) {
 		return
 	}
 	apiKey := req.toModel()
+	// Normalize custom key prefix if a new key value is provided.
+	if strings.TrimSpace(apiKey.APIKey) != "" {
+		apiKey.APIKey = normalizeAPIKeyPrefix(apiKey.APIKey)
+	}
 	if err := apikey.Update(&apiKey, c.Request.Context()); err != nil {
 		if status, msg, ok := classifyAPIKeyMutationError(err); ok {
 			resp.Error(c, status, msg)
@@ -226,4 +233,17 @@ func classifyAPIKeyMutationError(err error) (int, string, bool) {
 	default:
 		return 0, "", false
 	}
+}
+
+// apiKeyPrefix is the mandatory prefix for all API keys.
+var apiKeyPrefix = "sk-" + conf.APP_NAME + "-"
+
+// normalizeAPIKeyPrefix ensures the key has the sk-octopus- prefix.
+// If the user provides only a suffix (e.g. "my-key"), the prefix is prepended.
+func normalizeAPIKeyPrefix(key string) string {
+	key = strings.TrimSpace(key)
+	if strings.HasPrefix(key, apiKeyPrefix) {
+		return key
+	}
+	return apiKeyPrefix + key
 }
