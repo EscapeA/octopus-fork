@@ -29,9 +29,11 @@ export type SettingItemId =
     | 'response-filter'
     | 'backup'
     | 'webdav'
+    | 'purge-unavailable'
     | 'route-group-danger';
 
 export const DEFAULT_SETTING_ORDER: SettingItemId[] = [
+    'info',
     'appearance',
     'ai-route',
     'auto-strategy',
@@ -39,13 +41,13 @@ export const DEFAULT_SETTING_ORDER: SettingItemId[] = [
     'semantic-cache',
     'retry',
     'log',
-    'info',
     'system',
     'llmsync',
     'circuit-breaker',
     'response-filter',
     'backup',
     'webdav',
+    'purge-unavailable',
     'route-group-danger',
 ];
 
@@ -121,6 +123,7 @@ export function SettingOrder() {
             'response-filter': settingT('responseFilter.title'),
             backup: settingT('backup.title'),
             webdav: settingT('webdav.title'),
+            'purge-unavailable': settingT('purgeUnavailable.title'),
             'route-group-danger': settingT('routeGroups.title'),
         };
         return map;

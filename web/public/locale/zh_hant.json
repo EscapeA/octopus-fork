@@ -1409,6 +1409,20 @@
       "success": "已刪除 {count} 個路由分組",
       "failed": "刪除路由分組失敗"
     },
+    "purgeUnavailable": {
+      "title": "清理分組內不可用模型",
+      "description": "掃描全部路由分組，刪除指向不可用模型的路由項：渠道已停用、渠道更新後消失的模型、以及渠道刪除後殘留的模型。",
+      "button": "清理不可用模型",
+      "purging": "清理中...",
+      "confirmTitle": "確認清理不可用模型？",
+      "confirmDescription": "這會從所有路由分組中刪除以下三類路由項：\n1. 所屬渠道已停用的模型\n2. 渠道更新後已不再提供的模型\n3. 渠道刪除後殘留的模型\n分組本身不會被刪除。是否繼續？",
+      "cancel": "取消",
+      "confirm": "確認清理",
+      "success": "已清理 {count} 個不可用路由項",
+      "successNone": "未發現不可用路由項",
+      "summary": "渠道停用 {disabled} · 模型消失 {missing} · 渠道刪除殘留 {removed}",
+      "failed": "清理不可用模型失敗"
+    },
     "apiKey": {
       "title": "API 金鑰",
       "empty": "暫無 API 金鑰",
@@ -2185,7 +2199,16 @@
         "saving": "儲存中...",
         "delete": "刪除",
         "confirmDelete": "確認刪除",
-        "deleting": "刪除中..."
+        "deleting": "刪除中...",
+        "checkKeys": "檢查全部 Key",
+        "checking": "檢查中...",
+        "checkAllPassed": "全部 Key 可用（{passed}/{total} 項通過）",
+        "checkPartialPassed": "部分 Key 可用（{passed}/{total} 項通過）",
+        "checkAllFailed": "全部 Key 均不可用，可刪除該渠道",
+        "checkFailed": "檢查渠道 Key 失敗",
+        "deleteUnavailable": "刪除此渠道",
+        "deleteUnavailableTitle": "刪除全部 Key 不可用的渠道？",
+        "deleteUnavailableDescription": "該渠道的全部 {total} 個 Key 檢查均未通過。\n刪除後該渠道及其密鑰、統計資料將被永久移除，且會從所有路由分組中清除其路由項。\n此操作無法復原，是否繼續？"
       }
     },
     "create": {

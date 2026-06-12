@@ -330,7 +330,7 @@ export function SettingAppearance() {
                         </Select>
                     </div>
 
-                    <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
                         <div className="flex flex-col gap-4 rounded-lg border-border/30 bg-card p-4 shadow-sm">
                             <div className="flex items-center gap-3">
                                 <Languages className="h-5 w-5 text-muted-foreground" />
@@ -386,8 +386,11 @@ export function SettingAppearance() {
                         </div>
                     </div>
 
-                    <NavigationPreferences />
-                    <SettingOrder />
+                    {/* 大屏下把两个排序列表并排，避免在宽对话框里各自拉成稀疏的窄长条 */}
+                    <div className="grid items-start gap-4 xl:grid-cols-2">
+                        <NavigationPreferences />
+                        <SettingOrder />
+                    </div>
                 </div>
             </div>
         </div>

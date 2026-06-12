@@ -9,13 +9,19 @@ import {
     Activity,
     TrendingUp,
     Globe,
-    Key
+    Key,
+    ShieldCheck,
+    ShieldAlert,
+    Stethoscope,
+    Loader2
 } from 'lucide-react';
 import {
     useUpdateChannel,
     useDeleteChannel,
+    useCheckChannelKeys,
     type Channel,
     type UpdateChannelRequest,
+    type TestChannelSummary,
 } from '@/api/endpoints/channel';
 import { useSettingList, SettingKey } from '@/api/endpoints/setting';
 import {
@@ -38,14 +44,30 @@ import { formatMoney } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { CCSwitchProviderLink } from './CCSwitchProviderLink';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { toast } from '@/components/common/Toast';
 
 export function CardContent({ channel, stats }: { channel: Channel; stats: StatsMetricsFormatted }) {
     const { setIsOpen } = useMorphingDialog();
     const updateChannel = useUpdateChannel();
     const deleteChannel = useDeleteChannel();
+    const checkChannelKeys = useCheckChannelKeys();
     const { data: settings } = useSettingList();
     const [isEditing, setIsEditing] = useState(false);
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+    // 检查全部 Key 后的结果；当 passed === false 表示全部 Key 都不可用，
+    // 此时弹出确认对话框允许直接删除该渠道。
+    const [checkResult, setCheckResult] = useState<TestChannelSummary | null>(null);
+    const [showUnavailableDelete, setShowUnavailableDelete] = useState(false);
     const [formData, setFormData] = useState<ChannelFormData>({
         name: channel.name,
         group_id: channel.group_id,
@@ -187,6 +209,49 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
             deleteChannel.mutate(channel.id);
         }, 300);
     };
+
+    const handleCheckKeys = async () => {
+        setCheckResult(null);
+        try {
+            const summary = await checkChannelKeys.mutateAsync(channel.id);
+            setCheckResult(summary);
+            const total = summary.results.length;
+            const passed = summary.results.filter((r) => r.passed).length;
+            if (total === 0) {
+                toast.error(t('actions.checkFailed'));
+                return;
+            }
+            if (!summary.passed) {
+                // 全部 Key 均不可用：提示并打开删除确认框。
+                toast.error(t('actions.checkAllFailed'));
+                setShowUnavailableDelete(true);
+            } else if (passed === total) {
+                toast.success(t('actions.checkAllPassed', { passed, total }));
+            } else {
+                toast.warning(t('actions.checkPartialPassed', { passed, total }));
+            }
+        } catch (error) {
+            toast.error(t('actions.checkFailed'), { description: (error as Error)?.message });
+        }
+    };
+
+    const handleConfirmDeleteUnavailable = () => {
+        setShowUnavailableDelete(false);
+        setIsOpen(false);
+        setTimeout(() => {
+            deleteChannel.mutate(channel.id);
+        }, 300);
+    };
+
+    const checkedTotal = checkResult?.results.length ?? 0;
+    const checkedPassed = checkResult?.results.filter((r) => r.passed).length ?? 0;
+    const checkSummaryMessage = !checkResult
+        ? ''
+        : !checkResult.passed
+            ? t('actions.checkAllFailed')
+            : checkedPassed === checkedTotal
+                ? t('actions.checkAllPassed', { passed: checkedPassed, total: checkedTotal })
+                : t('actions.checkPartialPassed', { passed: checkedPassed, total: checkedTotal });
 
     const sectionClassName = 'relative overflow-hidden rounded-lg border border-border/30 bg-card p-4';
     const itemClassName = 'rounded-lg border border-border/25 bg-card p-3';
@@ -460,7 +525,36 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
                                 </dl>
                             </div>
 
-                            <div className="mt-4 grid shrink-0 gap-3 sm:grid-cols-2">
+                            <div className="mt-4 shrink-0 space-y-3">
+                                <Button
+                                    onClick={handleCheckKeys}
+                                    disabled={checkChannelKeys.isPending || channel.keys.length === 0}
+                                    variant="outline"
+                                    className="h-11 w-full rounded-lg"
+                                >
+                                    {checkChannelKeys.isPending
+                                        ? <Loader2 className="size-4 animate-spin" />
+                                        : <Stethoscope className="size-4" />}
+                                    {checkChannelKeys.isPending ? t('actions.checking') : t('actions.checkKeys')}
+                                </Button>
+
+                                {checkResult ? (
+                                    <div
+                                        className={cn(
+                                            'flex items-start gap-2 rounded-lg border px-3 py-2 text-sm',
+                                            checkResult.passed
+                                                ? 'border-emerald-500/30 bg-emerald-500/8 text-emerald-700 dark:text-emerald-300'
+                                                : 'border-destructive/30 bg-destructive/8 text-destructive',
+                                        )}
+                                    >
+                                        {checkResult.passed
+                                            ? <ShieldCheck className="mt-0.5 size-4 shrink-0" />
+                                            : <ShieldAlert className="mt-0.5 size-4 shrink-0" />}
+                                        <span>{checkSummaryMessage}</span>
+                                    </div>
+                                ) : null}
+
+                                <div className="grid gap-3 sm:grid-cols-2">
                                 <Button
                                     onClick={() => (isConfirmingDelete ? setIsConfirmingDelete(false) : setIsEditing(true))}
                                     variant={isConfirmingDelete ? 'secondary' : 'default'}
@@ -481,6 +575,7 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
                                             ? t('actions.confirmDelete')
                                             : t('actions.delete')}
                                 </Button>
+                                </div>
                             </div>
                         </TabsContent>
 
@@ -500,6 +595,31 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
                     </TabsContents>
                 </Tabs>
             </MorphingDialogDescription>
+
+            <AlertDialog open={showUnavailableDelete} onOpenChange={setShowUnavailableDelete}>
+                <AlertDialogContent className="rounded-xl">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t('actions.deleteUnavailableTitle')}</AlertDialogTitle>
+                        <AlertDialogDescription className="whitespace-pre-line">
+                            {t('actions.deleteUnavailableDescription', { total: checkResult?.results.length ?? channel.keys.length })}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleteChannel.isPending}>
+                            {t('actions.cancel')}
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            disabled={deleteChannel.isPending}
+                            onClick={(event) => {
+                                event.preventDefault();
+                                handleConfirmDeleteUnavailable();
+                            }}
+                        >
+                            {deleteChannel.isPending ? t('actions.deleting') : t('actions.deleteUnavailable')}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }

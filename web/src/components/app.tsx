@@ -393,18 +393,12 @@ export function AppContainer() {
         >
             <NavBar />
             <main className="relative z-10 flex min-h-0 w-full min-w-0 flex-1 flex-col gap-4 md:gap-5">
-                <header className="relative z-20 flex flex-none items-center gap-3 overflow-visible rounded-xl border border-border bg-card px-4 py-3 md:px-6 md:py-5 lg:gap-6">
-                    <div className="flex min-w-0 flex-1 items-center gap-3 md:gap-4">
-                        <div className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-card md:size-14">
-                            <Logo size={42} />
+                <header className="relative z-20 flex flex-none items-center gap-3 overflow-visible rounded-xl border border-border bg-card px-4 py-2.5 md:px-5 md:py-3 lg:gap-5">
+                    <div className="flex min-w-0 flex-1 items-center gap-2.5 md:gap-3">
+                        <div className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-card md:size-10">
+                            <Logo size={28} />
                         </div>
                         <div className="min-w-0 flex-1 overflow-hidden">
-                            <div className="mb-1 flex items-center gap-2">
-                                <span className="h-2 w-8 rounded-full bg-primary/60" />
-                                <span className="text-[0.68rem] font-medium text-muted-foreground/70">
-                                    Octopus
-                                </span>
-                            </div>
                             <AnimatePresence mode="wait" custom={direction}>
                                 <motion.div
                                     key={activeItem}
@@ -434,7 +428,7 @@ export function AppContainer() {
                                     className="flex min-w-0 flex-col"
                                 >
                                     <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-                                        <span className="min-w-0 truncate text-2xl font-bold leading-tight tracking-[-0.04em] text-foreground sm:text-3xl md:text-4xl">
+                                        <span className="min-w-0 truncate text-xl font-bold leading-tight tracking-[-0.04em] text-foreground sm:text-2xl md:text-3xl">
                                             {t(activeItem)}
                                         </span>
                                         <HeaderActions activeItem={activeItem} />

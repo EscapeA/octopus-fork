@@ -15,6 +15,7 @@ import (
 	"github.com/lingyuins/octopus/internal/op/setting"
 	"github.com/lingyuins/octopus/internal/utils/cache"
 	"github.com/lingyuins/octopus/internal/utils/log"
+	"github.com/lingyuins/octopus/internal/utils/xstrings"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -1026,4 +1027,104 @@ func RefreshCacheByIDs(ids []int, ctx context.Context) error {
 	}
 	RebuildIndexes()
 	return nil
+}
+
+// PurgeUnavailableReason 标记某个分组项为什么被判定为不可用。
+type PurgeUnavailableReason string
+
+const (
+	// PurgeReasonChannelMissing 渠道已被删除，分组项是残留数据。
+	PurgeReasonChannelMissing PurgeUnavailableReason = "channel_missing"
+	// PurgeReasonChannelDisabled 渠道存在但已被禁用。
+	PurgeReasonChannelDisabled PurgeUnavailableReason = "channel_disabled"
+	// PurgeReasonModelMissing 渠道存在且启用，但其声明的模型列表已不再包含该模型
+	// （通常是渠道更新/同步后模型消失）。
+	PurgeReasonModelMissing PurgeUnavailableReason = "model_missing"
+)
+
+// PurgeUnavailableResult 汇总一次清理操作的结果。
+type PurgeUnavailableResult struct {
+	DeletedCount    int `json:"deleted_count"`
+	ChannelMissing  int `json:"channel_missing"`
+	ChannelDisabled int `json:"channel_disabled"`
+	ModelMissing    int `json:"model_missing"`
+	AffectedGroups  int `json:"affected_groups"`
+	ScannedGroups   int `json:"scanned_groups"`
+	ScannedItems    int `json:"scanned_items"`
+}
+
+// PurgeUnavailableItems 扫描所有分组，删除指向不可用模型的分组项：
+//  1. 渠道已删除（缓存中找不到对应渠道）；
+//  2. 渠道已禁用；
+//  3. 渠道更新后其声明的模型列表里不再包含该模型。
+//
+// 删除在单条 IN 语句内完成，随后刷新受影响分组的缓存与索引。
+func PurgeUnavailableItems(ctx context.Context) (PurgeUnavailableResult, error) {
+	result := PurgeUnavailableResult{}
+
+	// 预先缓存每个渠道声明的模型集合，避免重复 split。
+	channelModelSets := make(map[int]map[string]struct{})
+	getChannelModels := func(ch model.Channel) map[string]struct{} {
+		if set, ok := channelModelSets[ch.ID]; ok {
+			return set
+		}
+		set := make(map[string]struct{})
+		for _, name := range xstrings.SplitTrimCompact(",", ch.Model, ch.CustomModel) {
+			set[name] = struct{}{}
+		}
+		channelModelSets[ch.ID] = set
+		return set
+	}
+
+	groups := groupCache.GetAll()
+	var itemIDsToDelete []int
+	affectedGroups := make(map[int]struct{})
+
+	for _, group := range groups {
+		result.ScannedGroups++
+		for _, item := range group.Items {
+			result.ScannedItems++
+			ch, ok := channel.GetCache().Get(item.ChannelID)
+			if !ok {
+				itemIDsToDelete = append(itemIDsToDelete, item.ID)
+				affectedGroups[group.ID] = struct{}{}
+				result.ChannelMissing++
+				continue
+			}
+			if !ch.Enabled {
+				itemIDsToDelete = append(itemIDsToDelete, item.ID)
+				affectedGroups[group.ID] = struct{}{}
+				result.ChannelDisabled++
+				continue
+			}
+			if _, ok := getChannelModels(ch)[item.ModelName]; !ok {
+				itemIDsToDelete = append(itemIDsToDelete, item.ID)
+				affectedGroups[group.ID] = struct{}{}
+				result.ModelMissing++
+				continue
+			}
+		}
+	}
+
+	result.DeletedCount = len(itemIDsToDelete)
+	result.AffectedGroups = len(affectedGroups)
+	if len(itemIDsToDelete) == 0 {
+		return result, nil
+	}
+
+	if err := db.GetDB().WithContext(ctx).
+		Where("id IN ?", itemIDsToDelete).
+		Delete(&model.GroupItem{}).Error; err != nil {
+		return PurgeUnavailableResult{}, fmt.Errorf("failed to delete group items: %w", err)
+	}
+
+	affectedIDs := make([]int, 0, len(affectedGroups))
+	for id := range affectedGroups {
+		affectedIDs = append(affectedIDs, id)
+	}
+	if err := RefreshCacheByIDs(affectedIDs, ctx); err != nil {
+		return PurgeUnavailableResult{}, fmt.Errorf("failed to refresh group cache: %w", err)
+	}
+
+	return result, nil
 }

@@ -62,6 +62,11 @@ func init() {
 				Handle(testChannel),
 		).
 		AddRoute(
+			router.NewRoute("/check-keys/:id", http.MethodPost).
+				Use(middleware.RequirePermission(auth.PermChannelsWrite)).
+				Handle(checkChannelKeys),
+		).
+		AddRoute(
 			router.NewRoute("/group/list", http.MethodGet).
 				Handle(listChannelGroup),
 		).
@@ -247,6 +252,29 @@ func testChannel(c *gin.Context) {
 func syncChannel(c *gin.Context) {
 	task.SyncModelsTask()
 	resp.Success(c, nil)
+}
+
+// checkChannelKeys 针对已保存的渠道，按其当前的 base_urls × keys 组合做一次连通性
+// 探测，返回与 /test 相同的汇总结构。前端据此判断"全部 key 是否都不可用"
+// （summary.passed === false 即代表没有任何可用组合）。只读操作，不回写 key 状态。
+func checkChannelKeys(c *gin.Context) {
+	id := c.Param("id")
+	idNum, err := strconv.Atoi(id)
+	if err != nil {
+		resp.Error(c, http.StatusBadRequest, resp.ErrInvalidParam)
+		return
+	}
+	channel, err := ch.Get(idNum, c.Request.Context())
+	if err != nil {
+		resp.Error(c, http.StatusNotFound, err.Error())
+		return
+	}
+	summary, err := helper.TestChannel(c.Request.Context(), *channel)
+	if err != nil {
+		resp.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	resp.Success(c, summary)
 }
 
 type channelRequestPayload struct {

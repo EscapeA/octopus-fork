@@ -1409,6 +1409,20 @@
       "success": "Deleted {count} route groups",
       "failed": "Failed to delete route groups"
     },
+    "purgeUnavailable": {
+      "title": "Clean Up Unavailable Models",
+      "description": "Scan all route groups and remove items pointing to unavailable models: disabled channels, models that disappeared after a channel update, and items left over after a channel was deleted.",
+      "button": "Clean Up Unavailable Models",
+      "purging": "Cleaning up...",
+      "confirmTitle": "Clean up unavailable models?",
+      "confirmDescription": "This removes three kinds of items from all route groups:\n1. Models whose channel is disabled\n2. Models a channel no longer provides after an update\n3. Models left over after a channel was deleted\nThe groups themselves are kept. Continue?",
+      "cancel": "Cancel",
+      "confirm": "Clean Up",
+      "success": "Cleaned up {count} unavailable items",
+      "successNone": "No unavailable items found",
+      "summary": "Channel disabled {disabled} · Model gone {missing} · Channel deleted {removed}",
+      "failed": "Failed to clean up unavailable models"
+    },
     "apiKey": {
       "title": "API Keys",
       "empty": "No API keys",
@@ -2185,7 +2199,16 @@
         "saving": "Saving...",
         "delete": "Delete",
         "confirmDelete": "Confirm Delete",
-        "deleting": "Deleting..."
+        "deleting": "Deleting...",
+        "checkKeys": "Check All Keys",
+        "checking": "Checking...",
+        "checkAllPassed": "All keys available ({passed}/{total} passed)",
+        "checkPartialPassed": "Some keys available ({passed}/{total} passed)",
+        "checkAllFailed": "All keys are unavailable, you can delete this channel",
+        "checkFailed": "Failed to check channel keys",
+        "deleteUnavailable": "Delete This Channel",
+        "deleteUnavailableTitle": "Delete channel with all keys unavailable?",
+        "deleteUnavailableDescription": "All {total} keys of this channel failed the check.\nDeleting will permanently remove the channel, its keys and stats, and clear its route items from all route groups.\nThis action cannot be undone. Continue?"
       }
     },
     "create": {

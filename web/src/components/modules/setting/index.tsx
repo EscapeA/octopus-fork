@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import {
     Sun, User, Database, RotateCcw, Zap,
     ScrollText, Monitor, RefreshCw, ChevronsUpDown,
-    Info, Bot, Sparkles, FolderX, Cloud, ShieldAlert,
+    Info, Bot, Sparkles, FolderX, Cloud, ShieldAlert, Eraser,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { SettingAppearance } from './Appearance';
@@ -22,6 +22,7 @@ import { SettingAIRoute } from './AIRoute';
 import { SettingSemanticCache } from './SemanticCache';
 import { SettingWebDAV } from './WebDAV';
 import { SettingRouteGroupDanger } from './RouteGroupDanger';
+import { SettingPurgeUnavailableModels } from './PurgeUnavailableModels';
 import { SettingResponseFilter } from './ResponseFilter';
 import { DEFAULT_SETTING_ORDER } from './SettingOrder';
 
@@ -33,6 +34,7 @@ type SettingItemDef = {
 };
 
 const SETTING_ITEM_DEFS: SettingItemDef[] = [
+    { id: 'info',              icon: <Info className="h-5 w-5" />,              titleKey: 'info.title',           component: <SettingInfo /> },
     { id: 'appearance',        icon: <Sun className="h-5 w-5" />,              titleKey: 'appearance',           component: <SettingAppearance /> },
     { id: 'ai-route',          icon: <Bot className="h-5 w-5" />,              titleKey: 'aiRoute.title',        component: <SettingAIRoute /> },
     { id: 'auto-strategy',     icon: <Sparkles className="h-5 w-5" />,         titleKey: 'autoStrategy.title',   component: <SettingAutoStrategy /> },
@@ -40,13 +42,13 @@ const SETTING_ITEM_DEFS: SettingItemDef[] = [
     { id: 'semantic-cache',    icon: <Database className="h-5 w-5" />,          titleKey: 'semanticCache.title',  component: <SettingSemanticCache /> },
     { id: 'retry',             icon: <RotateCcw className="h-5 w-5" />,        titleKey: 'retry.title',          component: <SettingRetry /> },
     { id: 'log',               icon: <ScrollText className="h-5 w-5" />,        titleKey: 'log.title',           component: <SettingLog /> },
-    { id: 'info',              icon: <Info className="h-5 w-5" />,              titleKey: 'info.title',           component: <SettingInfo /> },
     { id: 'system',            icon: <Monitor className="h-5 w-5" />,           titleKey: 'system',               component: <SettingSystem /> },
     { id: 'llmsync',           icon: <RefreshCw className="h-5 w-5" />,        titleKey: 'llmSync.title',        component: <SettingLLMSync /> },
     { id: 'circuit-breaker',   icon: <Zap className="h-5 w-5" />,              titleKey: 'circuitBreaker.title', component: <SettingCircuitBreaker /> },
     { id: 'response-filter',   icon: <ShieldAlert className="h-5 w-5" />,      titleKey: 'responseFilter.title', component: <SettingResponseFilter /> },
     { id: 'backup',            icon: <Database className="h-5 w-5" />,          titleKey: 'backup.title',         component: <SettingBackup /> },
     { id: 'webdav',            icon: <Cloud className="h-5 w-5" />,             titleKey: 'webdav.title',         component: <SettingWebDAV /> },
+    { id: 'purge-unavailable', icon: <Eraser className="h-5 w-5" />,           titleKey: 'purgeUnavailable.title', component: <SettingPurgeUnavailableModels /> },
     { id: 'route-group-danger',icon: <FolderX className="h-5 w-5" />,          titleKey: 'routeGroups.title',    component: <SettingRouteGroupDanger /> },
 ];
 
@@ -117,7 +119,7 @@ export function Setting() {
             </div>
 
             <Dialog open={openId !== null} onOpenChange={(open) => { if (!open) setOpenId(null); }}>
-                <DialogContent aria-describedby={undefined} className="w-[100vw] sm:w-[min(95vw,720px)] max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto p-0 gap-0 rounded-none sm:rounded-2xl">
+                <DialogContent aria-describedby={undefined} className="w-[100vw] sm:w-[min(95vw,720px)] lg:w-[min(95vw,1040px)] sm:max-w-[min(95vw,720px)] lg:max-w-[min(95vw,1040px)] max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto p-0 gap-0 rounded-none sm:rounded-2xl">
                     <DialogTitle className="sr-only">{activeItem ? t(activeItem.titleKey) : ''}</DialogTitle>
                     {activeItem && activeItem.component}
                 </DialogContent>

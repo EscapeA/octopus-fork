@@ -297,6 +297,16 @@ export interface DeleteAllGroupsResult {
     deleted_count: number;
 }
 
+export interface PurgeUnavailableItemsResult {
+    deleted_count: number;
+    channel_missing: number;
+    channel_disabled: number;
+    model_missing: number;
+    affected_groups: number;
+    scanned_groups: number;
+    scanned_items: number;
+}
+
 export function isGenerateAIRouteTerminal(progress: GenerateAIRouteProgress | null | undefined) {
     if (!progress) {
         return false;
@@ -455,6 +465,24 @@ export function useDeleteAllGroups() {
         },
         onError: (error) => {
             logger.error('全部分组删除失败:', error);
+        },
+    });
+}
+
+export function usePurgeUnavailableGroupItems() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async () => {
+            return apiClient.post<PurgeUnavailableItemsResult>('/api/v1/group/purge-unavailable', {});
+        },
+        onSuccess: (data) => {
+            logger.log('清理不可用模型成功:', data);
+            queryClient.invalidateQueries({ queryKey: ['groups', 'list'] });
+            queryClient.invalidateQueries({ queryKey: ['models', 'market'] });
+        },
+        onError: (error) => {
+            logger.error('清理不可用模型失败:', error);
         },
     });
 }

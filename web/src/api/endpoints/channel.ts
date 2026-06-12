@@ -462,6 +462,27 @@ export function useTestChannel() {
 }
 
 /**
+ * 检查指定渠道当前已保存的全部 key 的连通性 Hook。
+ * 后端按该渠道的 base_urls × keys 组合逐一探测，返回与 /test 相同的汇总结构。
+ * summary.passed === false 表示没有任何可用组合（全部 key 都不可用）。
+ *
+ * @example
+ * const checkKeys = useCheckChannelKeys();
+ * const summary = await checkKeys.mutateAsync(channelId);
+ * if (!summary.passed) { // 提示可删除该渠道 }
+ */
+export function useCheckChannelKeys() {
+    return useMutation({
+        mutationFn: async (id: number) => {
+            return apiClient.post<TestChannelSummary>(`/api/v1/channel/check-keys/${id}`);
+        },
+        onError: (error) => {
+            logger.error('渠道 key 检查失败:', error);
+        },
+    });
+}
+
+/**
  * 获取渠道最后同步时间 Hook
  *
  * @example

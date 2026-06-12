@@ -62,6 +62,11 @@ func init() {
 				Handle(deleteAllGroups),
 		).
 		AddRoute(
+			router.NewRoute("/purge-unavailable", http.MethodPost).
+				Use(middleware.RequirePermission(auth.PermGroupsWrite)).
+				Handle(purgeUnavailableGroupItems),
+		).
+		AddRoute(
 			router.NewRoute("/delete/:id", http.MethodDelete).
 				Use(middleware.RequirePermission(auth.PermGroupsWrite)).
 				Handle(deleteGroup),
@@ -288,6 +293,15 @@ func deleteAllGroups(c *gin.Context) {
 		return
 	}
 	resp.Success(c, gin.H{"deleted_count": deletedCount})
+}
+
+func purgeUnavailableGroupItems(c *gin.Context) {
+	result, err := grp.PurgeUnavailableItems(c.Request.Context())
+	if err != nil {
+		resp.InternalError(c)
+		return
+	}
+	resp.Success(c, result)
 }
 
 // func autoAddGroupItem(c *gin.Context) {
