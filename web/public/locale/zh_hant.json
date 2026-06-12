@@ -1416,6 +1416,10 @@
       "loadFailed": "載入失敗",
       "form": {
         "name": "名稱",
+        "customKey": "自訂金鑰",
+        "optional": "選填",
+        "customKeyPlaceholder": "留空則自動產生",
+        "customKeyHint": "可設定任意自訂金鑰值",
         "maxCost": "最大金額",
         "maxCostPlaceholder": "請輸入金額",
         "rateLimitRpm": {

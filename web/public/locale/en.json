@@ -1416,6 +1416,10 @@
       "loadFailed": "Failed to load",
       "form": {
         "name": "Name",
+        "customKey": "Custom Key",
+        "optional": "Optional",
+        "customKeyPlaceholder": "Leave empty to auto-generate",
+        "customKeyHint": "You can set any custom key value",
         "maxCost": "Max Cost",
         "maxCostPlaceholder": "Enter amount",
         "rateLimitRpm": {

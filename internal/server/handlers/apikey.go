@@ -61,8 +61,15 @@ func createAPIKey(c *gin.Context) {
 	}
 	apiKey := req.toModel()
 	apiKey.ID = 0
-	apiKey.APIKey = auth.GenerateAPIKey()
+	// Use custom key if provided; otherwise auto-generate.
+	if strings.TrimSpace(apiKey.APIKey) == "" {
+		apiKey.APIKey = auth.GenerateAPIKey()
+	}
 	if err := apikey.Create(&apiKey, c.Request.Context()); err != nil {
+		if status, msg, ok := classifyAPIKeyMutationError(err); ok {
+			resp.Error(c, status, msg)
+			return
+		}
 		resp.InternalError(c)
 		return
 	}
@@ -174,6 +181,7 @@ func maskAPIKeyValue(raw string) string {
 type apiKeyRequestPayload struct {
 	ID                int     `json:"id"`
 	Name              string  `json:"name"`
+	APIKey            string  `json:"api_key,omitempty"`
 	Enabled           bool    `json:"enabled"`
 	ExpireAt          int64   `json:"expire_at,omitempty"`
 	MaxCost           float64 `json:"max_cost,omitempty"`
@@ -189,6 +197,7 @@ func (p apiKeyRequestPayload) toModel() model.APIKey {
 	return model.APIKey{
 		ID:                p.ID,
 		Name:              p.Name,
+		APIKey:            p.APIKey,
 		Enabled:           p.Enabled,
 		ExpireAt:          p.ExpireAt,
 		MaxCost:           p.MaxCost,

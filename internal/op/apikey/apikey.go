@@ -3,6 +3,7 @@ package apikey
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
@@ -32,11 +33,28 @@ func Update(key *model.APIKey, ctx context.Context) error {
 	if !ok {
 		return fmt.Errorf("API key not found")
 	}
-	if err := db.GetDB().WithContext(ctx).Omit("api_key").Save(key).Error; err != nil {
-		return fmt.Errorf("failed to update API key: %w", err)
+
+	// Determine whether the key value itself is being changed.
+	newKeyValue := strings.TrimSpace(key.APIKey)
+	keyValueChanged := newKeyValue != "" && newKeyValue != existing.APIKey
+
+	if keyValueChanged {
+		// Save the new key value to the database.
+		if err := db.GetDB().WithContext(ctx).Save(key).Error; err != nil {
+			return fmt.Errorf("failed to update API key: %w", err)
+		}
+		// Update caches: remove old key mapping, add new one.
+		keyIDMap.Del(existing.APIKey)
+		keyIDMap.Set(newKeyValue, key.ID)
+		keyCache.Set(key.ID, *key)
+	} else {
+		// Key value unchanged; omit it from the save to avoid accidental overwrite.
+		if err := db.GetDB().WithContext(ctx).Omit("api_key").Save(key).Error; err != nil {
+			return fmt.Errorf("failed to update API key: %w", err)
+		}
+		key.APIKey = existing.APIKey
+		keyCache.Set(key.ID, *key)
 	}
-	key.APIKey = existing.APIKey
-	keyCache.Set(key.ID, *key)
 	return nil
 }
 

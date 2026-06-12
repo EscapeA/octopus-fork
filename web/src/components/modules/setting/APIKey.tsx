@@ -209,16 +209,18 @@ export interface APIKeyFormProps {
     isPending: boolean;
     submitLabel: string;
     tagSuggestions?: string[];
-    onSubmit: (data: Omit<APIKey, 'id' | 'api_key'>) => void;
+    onSubmit: (data: Omit<APIKey, 'id'>) => void;
     onClose: () => void;
 }
 
 export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = [], onSubmit, onClose }: APIKeyFormProps) {
     const t = useTranslations('setting');
     const { data: groups = [] } = useGroupList();
+    const isEditing = !!apiKey;
 
-    const [form, setForm] = useState<Omit<APIKey, 'id' | 'api_key'>>(() => ({
+    const [form, setForm] = useState<Omit<APIKey, 'id'>>(() => ({
         name: apiKey?.name ?? '',
+        api_key: apiKey?.api_key ?? '',
         enabled: apiKey?.enabled ?? true,
         expire_at: apiKey?.expire_at,
         max_cost: apiKey?.max_cost,
@@ -259,7 +261,7 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
             ? expireDate.toLocaleDateString()
             : t('apiKey.form.selectDate');
 
-    const updateForm = useCallback((updater: Partial<Omit<APIKey, 'id' | 'api_key'>>) => {
+    const updateForm = useCallback((updater: Partial<Omit<APIKey, 'id'>>) => {
         setForm((prev) => ({ ...prev, ...updater }));
     }, []);
 
@@ -318,6 +320,26 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
                     disabled={isPending}
                     required
                 />
+            </label>
+
+            <label className="grid gap-1 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                    {t('apiKey.form.customKey')}
+                    {!isEditing && (
+                        <span className="text-[10px] text-muted-foreground/70">({t('apiKey.form.optional')})</span>
+                    )}
+                </span>
+                <Input
+                    type="text"
+                    value={form.api_key}
+                    onChange={(e) => updateForm({ api_key: e.target.value })}
+                    placeholder={isEditing ? '' : t('apiKey.form.customKeyPlaceholder')}
+                    className="h-9 text-sm rounded-xl font-mono"
+                    disabled={isPending}
+                />
+                {!isEditing && (
+                    <span className="text-[11px] text-muted-foreground/70">{t('apiKey.form.customKeyHint')}</span>
+                )}
             </label>
 
             <div className="grid gap-1 text-xs text-muted-foreground">
@@ -561,7 +583,7 @@ function APIKeyFormOverlay({
     isPending: boolean;
     submitLabel: string;
     tagSuggestions?: string[];
-    onSubmit: (data: Omit<APIKey, 'id' | 'api_key'>) => void;
+    onSubmit: (data: Omit<APIKey, 'id'>) => void;
     onClose: () => void;
 }) {
     return (
@@ -831,7 +853,7 @@ function APIKeyPanelBase({
 
     const disabledHeaderActions = createAPIKey.isPending || isAdding || !!viewingStats || !!editingKey;
 
-    const handleCreate = useCallback((data: Omit<APIKey, 'id' | 'api_key'>) => {
+    const handleCreate = useCallback((data: Omit<APIKey, 'id'>) => {
         createAPIKey.mutate(data, {
             onSuccess: () => {
                 toast.success(t('apiKey.toast.createSuccess'));
@@ -844,7 +866,7 @@ function APIKeyPanelBase({
         });
     }, [createAPIKey, t]);
 
-    const handleUpdate = useCallback((apiKey: APIKey, data: Omit<APIKey, 'id' | 'api_key'>) => {
+    const handleUpdate = useCallback((apiKey: APIKey, data: Omit<APIKey, 'id'>) => {
         updateAPIKey.mutate({ id: apiKey.id, ...data }, {
             onSuccess: () => {
                 toast.success(t('apiKey.toast.updateSuccess'));

@@ -108,11 +108,73 @@ func TestCreateAPIKeyIgnoresReadonlyFields(t *testing.T) {
 	if response.Data.ID == 1234 {
 		t.Fatalf("create response preserved client supplied id")
 	}
-	if response.Data.APIKey == "sk-octopus-client-supplied" {
-		t.Fatalf("create response preserved client supplied api_key")
+	// Custom api_key should now be accepted.
+	if response.Data.APIKey != "sk-octopus-client-supplied" {
+		t.Fatalf("expected client supplied api_key, got %q", response.Data.APIKey)
+	}
+}
+
+func TestCreateAPIKeyAutoGeneratesWhenEmpty(t *testing.T) {
+	setupAPIKeyHandlerTest(t)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/apikey/create", strings.NewReader(`{
+		"name":"auto-gen-key",
+		"enabled":true
+	}`))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Set("user_role", model.UserRoleEditor)
+
+	createAPIKey(c)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+
+	var response struct {
+		Code int          `json:"code"`
+		Data model.APIKey `json:"data"`
+	}
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Data.APIKey == "" {
+		t.Fatalf("expected auto-generated api_key, got empty")
 	}
 	if !strings.HasPrefix(response.Data.APIKey, "sk-octopus-") {
-		t.Fatalf("expected generated octopus key, got %q", response.Data.APIKey)
+		t.Fatalf("expected auto-generated key with sk-octopus- prefix, got %q", response.Data.APIKey)
+	}
+}
+
+func TestCreateAPIKeyAcceptsFullyCustomValue(t *testing.T) {
+	setupAPIKeyHandlerTest(t)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/apikey/create", strings.NewReader(`{
+		"name":"custom-key",
+		"api_key":"my-totally-custom-api-key",
+		"enabled":true
+	}`))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Set("user_role", model.UserRoleEditor)
+
+	createAPIKey(c)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+
+	var response struct {
+		Code int          `json:"code"`
+		Data model.APIKey `json:"data"`
+	}
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Data.APIKey != "my-totally-custom-api-key" {
+		t.Fatalf("expected custom api_key, got %q", response.Data.APIKey)
 	}
 }
 

@@ -1416,6 +1416,10 @@
       "loadFailed": "加载失败",
       "form": {
         "name": "名称",
+        "customKey": "自定义密钥",
+        "optional": "可选",
+        "customKeyPlaceholder": "留空则自动生成",
+        "customKeyHint": "可设置任意自定义密钥值",
         "maxCost": "最大金额",
         "maxCostPlaceholder": "请输入金额",
         "rateLimitRpm": {

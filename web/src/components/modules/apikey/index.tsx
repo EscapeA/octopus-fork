@@ -326,7 +326,7 @@ export function APIKeyPage() {
         setDialogOpen(true);
     }, []);
 
-    const handleSubmit = useCallback((data: Omit<APIKey, 'id' | 'api_key'>) => {
+    const handleSubmit = useCallback((data: Omit<APIKey, 'id'>) => {
         if (editingKey) {
             updateAPIKey.mutate({ id: editingKey.id, ...data }, {
                 onSuccess: () => {
