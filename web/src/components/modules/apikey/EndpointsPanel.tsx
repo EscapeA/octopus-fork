@@ -10,44 +10,7 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { Input } from '@/components/ui/input';
 import { getModelIcon } from '@/lib/model-icons';
 import { cn } from '@/lib/utils';
-
-const AUTO_ENDPOINT = '*';
-
-interface EndpointGroup {
-    endpoint: string;
-    models: ModelCapability[];
-}
-
-/**
- * 把 capabilities（模型 -> 端点 列表）反转成 端点 -> 模型 列表，
- * 并丢弃没有任何模型的端点。每个模型可能支持多个端点，会出现在多个分组里。
- */
-function buildEndpointGroups(capabilities: ModelCapability[] | undefined): EndpointGroup[] {
-    if (!capabilities || capabilities.length === 0) return [];
-
-    const byEndpoint = new Map<string, ModelCapability[]>();
-    for (const cap of capabilities) {
-        const endpoints = cap.endpoints.length > 0 ? cap.endpoints : [AUTO_ENDPOINT];
-        for (const ep of endpoints) {
-            const list = byEndpoint.get(ep) ?? [];
-            list.push(cap);
-            byEndpoint.set(ep, list);
-        }
-    }
-
-    return Array.from(byEndpoint.entries())
-        .filter(([, models]) => models.length > 0)
-        .map(([endpoint, models]) => ({
-            endpoint,
-            models: [...models].sort((a, b) => a.name.localeCompare(b.name)),
-        }))
-        .sort((a, b) => {
-            // 自动端点排在最后，其余按字母序。
-            if (a.endpoint === AUTO_ENDPOINT) return 1;
-            if (b.endpoint === AUTO_ENDPOINT) return -1;
-            return a.endpoint.localeCompare(b.endpoint);
-        });
-}
+import { AUTO_ENDPOINT, buildEndpointGroups, type EndpointGroup } from './endpoint-grouping';
 
 function ModelChip({ name }: { name: string }) {
     const { Avatar } = getModelIcon(name);
