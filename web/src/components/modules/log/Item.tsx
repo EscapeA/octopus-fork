@@ -258,10 +258,10 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                         hasError ? "border-destructive/40" : "border-border",
                     )}
                 >
-                    <div className={cn("p-3 sm:p-4 grid grid-cols-[auto_1fr] gap-3 sm:gap-4", hasError ? "items-start" : "items-center")}>
+                    <div className={cn("p-2.5 sm:p-4 grid grid-cols-[auto_1fr] gap-2.5 sm:gap-4", hasError ? "items-start" : "items-center")}>
                         <div className="sm:hidden"><ModelAvatar size={36} /></div>
                         <div className="hidden sm:block"><ModelAvatar size={40} /></div>
-                        <div className="min-w-0 flex flex-col gap-3">
+                        <div className="min-w-0 flex flex-col gap-2">
                             <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm md:flex-nowrap">
                                 <span className="min-w-0 max-w-full font-semibold text-card-foreground truncate md:max-w-[32%]" title={displayRequestModelName}>
                                     {displayRequestModelName}
@@ -300,7 +300,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                     <Pin className="size-3.5 shrink-0 text-amber-500" />
                                 )}
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-x-4 gap-y-2 text-xs tabular-nums text-muted-foreground">
+                            <div className="grid grid-cols-2 md:grid-cols-7 gap-x-4 gap-y-1.5 text-xs tabular-nums text-muted-foreground">
                                 <div className="flex items-center gap-1.5">
                                     <Clock className="size-3.5 shrink-0" style={{ color: brandColor }} />
                                     <span>{formatTime(log.time)}</span>
