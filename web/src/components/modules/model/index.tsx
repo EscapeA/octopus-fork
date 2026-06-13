@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { MotionConfig } from 'motion/react';
 import { useModelMarket } from '@/api/endpoints/model';
 import { useTranslations } from 'next-intl';
 import { ModelItem } from './Item';
@@ -59,15 +60,17 @@ export function Model() {
                                 bottomPaddingClassName="pb-3 md:pb-4"
                             />
                         ) : (
-                            <VirtualizedGrid
-                                items={visibleModels}
-                                layout={layout}
-                                columns={{ default: 1, sm: 2, md: 2, lg: 3 }}
-                                estimateItemHeight={228}
-                                getItemKey={(model) => `model-${model.name}`}
-                                renderItem={(model) => <ModelItem model={model} layout={layout} latencyUnit={modelLatencyUnit} />}
-                                bottomPaddingClassName="pb-3 md:pb-4"
-                            />
+                            <MotionConfig transition={{ layout: { duration: 0 } }}>
+                                <VirtualizedGrid
+                                    items={visibleModels}
+                                    layout={layout}
+                                    columns={{ default: 1, sm: 2, md: 2, lg: 3 }}
+                                    estimateItemHeight={228}
+                                    getItemKey={(model) => `model-${model.name}`}
+                                    renderItem={(model) => <ModelItem model={model} layout={layout} latencyUnit={modelLatencyUnit} />}
+                                    bottomPaddingClassName="pb-3 md:pb-4"
+                                />
+                            </MotionConfig>
                         )}
                     </div>
                 </section>
