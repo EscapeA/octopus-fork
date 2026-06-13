@@ -25,6 +25,7 @@ export interface APIKey {
     per_model_quota_json?: string; // 按模型的配额 JSON: {"gpt-4o":{"rpm":5,"tpm":50000}}
     allowed_ips?: string; // 逗号分隔的允许 IP/CIDR 列表
     tags?: string; // 逗号分隔的标签，用于分类与快速检索
+    excluded_channels?: string; // 逗号分隔的被排除渠道 ID，该 Key 不会命中这些渠道（issue #55）
 }
 
 /**

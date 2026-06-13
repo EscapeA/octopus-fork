@@ -24,6 +24,7 @@ import {
     type APIKey,
 } from '@/api/endpoints/apikey';
 import { useGroupList } from '@/api/endpoints/group';
+import { useChannelList } from '@/api/endpoints/channel';
 import { useStatsAPIKey } from '@/api/endpoints/stats';
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/common/Toast';
@@ -216,6 +217,7 @@ export interface APIKeyFormProps {
 export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = [], onSubmit, onClose }: APIKeyFormProps) {
     const t = useTranslations('setting');
     const { data: groups = [] } = useGroupList();
+    const { data: channels = [] } = useChannelList();
     const isEditing = !!apiKey;
 
     // Strip the fixed prefix so the form only edits the suffix part.
@@ -236,6 +238,7 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
         per_model_quota_json: apiKey?.per_model_quota_json ?? '',
         allowed_ips: apiKey?.allowed_ips ?? '',
         tags: apiKey?.tags ?? '',
+        excluded_channels: apiKey?.excluded_channels ?? '',
     }));
     const [maxCostInput, setMaxCostInput] = useState(() =>
         apiKey?.max_cost != null ? String(apiKey.max_cost) : ''
@@ -546,6 +549,43 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
                     )}
                 </div>
                 <div className="text-[11px] text-muted-foreground/80">{t('apiKey.form.modelsHint')}</div>
+            </div>
+
+            <div className="grid gap-1 @lg:col-span-2">
+                <div className="text-xs text-muted-foreground">{t('apiKey.form.excludedChannels')}</div>
+                <div className="max-h-40 overflow-auto rounded-xl p-2">
+                    {channels.length === 0 ? (
+                        <div className="text-xs text-muted-foreground py-2 text-center">
+                            {t('apiKey.form.noChannels')}
+                        </div>
+                    ) : (
+                        <div className="flex flex-wrap gap-2">
+                            {channels.map((ch) => {
+                                const checked = hasModel(form.excluded_channels, String(ch.raw.id));
+                                return (
+                                    <button
+                                        key={ch.raw.id}
+                                        type="button"
+                                        disabled={isPending}
+                                        onClick={() => updateForm({ excluded_channels: toggleModel(form.excluded_channels, String(ch.raw.id)) })}
+                                        className="text-left disabled:opacity-50"
+                                    >
+                                        <Badge
+                                            variant={checked ? 'default' : 'outline'}
+                                            className={cn(
+                                                'cursor-pointer select-none',
+                                                !checked && 'bg-card hover:bg-card'
+                                            )}
+                                        >
+                                            {ch.raw.name}
+                                        </Badge>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+                <div className="text-[11px] text-muted-foreground/80">{t('apiKey.form.excludedChannelsHint')}</div>
             </div>
 
             <div className="flex items-center justify-between pt-1 @lg:col-span-2">
