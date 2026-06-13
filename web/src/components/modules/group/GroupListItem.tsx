@@ -179,7 +179,7 @@ function EditDialogContent({
                             </div>
                         </div>
                         {isTestingAvailability || availabilitySummary ? (
-                            <div className="mt-4 space-y-3">
+                            <div className="mt-4 max-h-[40vh] space-y-3 overflow-y-auto pr-1">
                                 <Progress value={testProgressValue} className="h-2" />
                                 <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                                     <span>
