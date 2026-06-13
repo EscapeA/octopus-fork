@@ -334,3 +334,136 @@ func TestRelayLogListReadsPersistedCacheColumns(t *testing.T) {
 		t.Fatalf("log 2 CacheReadTokens = %d, want 123 (should come from persisted column)", byID[2].CacheReadTokens)
 	}
 }
+
+// TestRelayLogListFiltersByFields 覆盖 LogFilter 各筛选维度在内存缓存路径上的行为
+// （关闭日志保存，RelayLogList 只读缓存）。DB 路径的筛选条件与缓存路径一一对应，
+// 此处以缓存路径为代表做行为断言。
+func TestRelayLogListFiltersByFields(t *testing.T) {
+	dsn := filepath.Join(t.TempDir(), "relaylog-filter.db")
+	if err := db.InitDB("sqlite", dsn, false); err != nil {
+		t.Fatalf("InitDB failed: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := setting.RefreshCache(context.Background()); err != nil {
+		t.Fatalf("RefreshCache failed: %v", err)
+	}
+	// 关闭日志保存：RelayLogList 只读内存缓存，便于断言筛选行为。
+	if err := setting.SetString(model.SettingKeyRelayLogKeepEnabled, "false"); err != nil {
+		t.Fatalf("disable relay log keep failed: %v", err)
+	}
+
+	restore := SetCacheForTest([]model.RelayLog{
+		{ID: 1, Time: 10, RequestModelName: "gpt-4o", ActualModelName: "gpt-4o-2024", ChannelId: 100, RequestAPIKeyID: 7, EndpointType: "chat", Error: ""},
+		{ID: 2, Time: 20, RequestModelName: "claude-3", ActualModelName: "claude-3-opus", ChannelId: 200, RequestAPIKeyID: 8, EndpointType: "messages", Error: "timeout"},
+		{ID: 3, Time: 30, RequestModelName: "gpt-4o-mini", ActualModelName: "gpt-4o-mini", ChannelId: 100, RequestAPIKeyID: 7, EndpointType: "chat", Error: ""},
+		{ID: 4, Time: 40, RequestModelName: "gemini", ActualModelName: "gemini-pro", ChannelId: 300, RequestAPIKeyID: 9, EndpointType: "chat", Error: "rate_limit"},
+	})
+	t.Cleanup(restore)
+
+	// 结果按「新 -> 旧」顺序返回，这里按 ID 断言。
+	ids := func(logs []model.RelayLogListItem) []int64 {
+		out := make([]int64, 0, len(logs))
+		for _, l := range logs {
+			out = append(out, l.ID)
+		}
+		return out
+	}
+	equal := func(got []int64, want ...int64) bool {
+		if len(got) != len(want) {
+			return false
+		}
+		for i := range got {
+			if got[i] != want[i] {
+				return false
+			}
+		}
+		return true
+	}
+
+	t.Run("model substring matches request or actual", func(t *testing.T) {
+		// 大小写不敏感：命中 request(gpt-4o) 与 actual/mini
+		logs, err := RelayLogList(context.Background(), LogFilter{Model: "GPT-4O"}, 1, 50)
+		if err != nil {
+			t.Fatalf("RelayLogList error: %v", err)
+		}
+		if got := ids(logs); !equal(got, 3, 1) {
+			t.Fatalf("model filter got %v, want [3 1]", got)
+		}
+	})
+
+	t.Run("model matches actual_model_name", func(t *testing.T) {
+		logs, err := RelayLogList(context.Background(), LogFilter{Model: "opus"}, 1, 50)
+		if err != nil {
+			t.Fatalf("RelayLogList error: %v", err)
+		}
+		if got := ids(logs); !equal(got, 2) {
+			t.Fatalf("actual model filter got %v, want [2]", got)
+		}
+	})
+
+	t.Run("channel_id", func(t *testing.T) {
+		logs, err := RelayLogList(context.Background(), LogFilter{ChannelID: intPtr(100)}, 1, 50)
+		if err != nil {
+			t.Fatalf("RelayLogList error: %v", err)
+		}
+		if got := ids(logs); !equal(got, 3, 1) {
+			t.Fatalf("channel filter got %v, want [3 1]", got)
+		}
+	})
+
+	t.Run("api_key_id", func(t *testing.T) {
+		logs, err := RelayLogList(context.Background(), LogFilter{APIKeyID: intPtr(8)}, 1, 50)
+		if err != nil {
+			t.Fatalf("RelayLogList error: %v", err)
+		}
+		if got := ids(logs); !equal(got, 2) {
+			t.Fatalf("api key filter got %v, want [2]", got)
+		}
+	})
+
+	t.Run("endpoint_type", func(t *testing.T) {
+		logs, err := RelayLogList(context.Background(), LogFilter{EndpointType: "chat"}, 1, 50)
+		if err != nil {
+			t.Fatalf("RelayLogList error: %v", err)
+		}
+		if got := ids(logs); !equal(got, 4, 3, 1) {
+			t.Fatalf("endpoint type filter got %v, want [4 3 1]", got)
+		}
+	})
+
+	t.Run("has_error true", func(t *testing.T) {
+		tt := true
+		logs, err := RelayLogList(context.Background(), LogFilter{HasError: &tt}, 1, 50)
+		if err != nil {
+			t.Fatalf("RelayLogList error: %v", err)
+		}
+		if got := ids(logs); !equal(got, 4, 2) {
+			t.Fatalf("hasError=true filter got %v, want [4 2]", got)
+		}
+	})
+
+	t.Run("has_error false", func(t *testing.T) {
+		ff := false
+		logs, err := RelayLogList(context.Background(), LogFilter{HasError: &ff}, 1, 50)
+		if err != nil {
+			t.Fatalf("RelayLogList error: %v", err)
+		}
+		if got := ids(logs); !equal(got, 3, 1) {
+			t.Fatalf("hasError=false filter got %v, want [3 1]", got)
+		}
+	})
+
+	t.Run("combined filters narrow results", func(t *testing.T) {
+		// channel 100 的日志均成功，叠加 HasError=true 应为空
+		tt := true
+		logs, err := RelayLogList(context.Background(), LogFilter{ChannelID: intPtr(100), HasError: &tt}, 1, 50)
+		if err != nil {
+			t.Fatalf("RelayLogList error: %v", err)
+		}
+		if len(logs) != 0 {
+			t.Fatalf("combined filter got %v, want empty", ids(logs))
+		}
+	})
+}
+
+func intPtr(v int) *int { return &v }
