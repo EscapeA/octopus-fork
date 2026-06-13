@@ -68,6 +68,24 @@ export interface LogListParams {
     page_size?: number;
     start_time?: number;
     end_time?: number;
+    model?: string;
+    channel_id?: number;
+    api_key_id?: number;
+    endpoint_type?: string;
+    status?: 'success' | 'error';
+}
+
+/**
+ * 日志筛选条件（前端用）
+ */
+export interface LogFilter {
+    model?: string;
+    channel_id?: number;
+    api_key_id?: number;
+    endpoint_type?: string;
+    status?: 'success' | 'error';
+    start_time?: number;
+    end_time?: number;
 }
 
 /**
@@ -95,7 +113,7 @@ export function useClearLogs() {
     });
 }
 
-const logsInfiniteQueryKey = (pageSize: number) => ['logs', 'infinite', pageSize] as const;
+const logsInfiniteQueryKey = (pageSize: number, filter: LogFilter) => ['logs', 'infinite', pageSize, filter] as const;
 
 export const DEFAULT_LOG_PAGE_SIZE = 10;
 
@@ -128,9 +146,9 @@ function subscribeLogRefresh(listener: () => void) {
  * // 滚动到底部时加载更多
  * if (hasMore && !isLoadingMore) loadMore();
  */
-export function useLogs(options: { pageSize?: number } = {}) {
-    const { pageSize = DEFAULT_LOG_PAGE_SIZE } = options;
-    const { refresh } = useLogRefresh(pageSize);
+export function useLogs(options: { pageSize?: number; filter?: LogFilter } = {}) {
+    const { pageSize = DEFAULT_LOG_PAGE_SIZE, filter = {} } = options;
+    const { refresh } = useLogRefresh(pageSize, filter);
     const token = useAuthStore((state) => state.token);
 
     const [isConnected, setIsConnected] = useState(false);
@@ -139,13 +157,32 @@ export function useLogs(options: { pageSize?: number } = {}) {
 
     const queryClient = useQueryClient();
 
+    // Stable filter reference to avoid unnecessary re-renders
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const stableFilter = useMemo(() => filter, [
+        filter.model,
+        filter.channel_id,
+        filter.api_key_id,
+        filter.endpoint_type,
+        filter.status,
+        filter.start_time,
+        filter.end_time,
+    ]);
+
     const logsQuery = useInfiniteQuery({
-        queryKey: logsInfiniteQueryKey(pageSize),
+        queryKey: logsInfiniteQueryKey(pageSize, stableFilter),
         initialPageParam: 1,
         queryFn: async ({ pageParam }) => {
             const params = new URLSearchParams();
             params.set('page', String(pageParam));
             params.set('page_size', String(pageSize));
+            if (stableFilter.model) params.set('model', stableFilter.model);
+            if (stableFilter.channel_id != null) params.set('channel_id', String(stableFilter.channel_id));
+            if (stableFilter.api_key_id != null) params.set('api_key_id', String(stableFilter.api_key_id));
+            if (stableFilter.endpoint_type) params.set('endpoint_type', stableFilter.endpoint_type);
+            if (stableFilter.status) params.set('status', stableFilter.status);
+            if (stableFilter.start_time != null) params.set('start_time', String(stableFilter.start_time));
+            if (stableFilter.end_time != null) params.set('end_time', String(stableFilter.end_time));
             const result = await apiClient.get<RelayLog[] | null>(`/api/v1/log/list?${params.toString()}`);
             return result ?? [];
         },
@@ -198,9 +235,13 @@ export function useLogs(options: { pageSize?: number } = {}) {
                 }, delayMs);
             });
 
+        const hasActiveFilter = !!(stableFilter.model || stableFilter.channel_id != null || stableFilter.api_key_id != null || stableFilter.endpoint_type || stableFilter.status || stableFilter.start_time != null || stableFilter.end_time != null);
+
         const mergeIncomingLog = (log: RelayLog) => {
+            // When a filter is active, skip merging SSE logs to avoid showing unfiltered results
+            if (hasActiveFilter) return;
             queryClient.setQueryData(
-                logsInfiniteQueryKey(pageSize),
+                logsInfiniteQueryKey(pageSize, stableFilter),
                 (old: InfiniteData<RelayLog[], number> | undefined) => {
                     if (!old) {
                         return { pages: [[log]], pageParams: [1] };
@@ -317,11 +358,11 @@ export function useLogs(options: { pageSize?: number } = {}) {
             abortRef.current = null;
             setIsConnected(false);
         };
-    }, [pageSize, queryClient, token]);
+    }, [pageSize, stableFilter, queryClient, token]);
 
     const clear = useCallback(() => {
-        queryClient.removeQueries({ queryKey: logsInfiniteQueryKey(pageSize) });
-    }, [pageSize, queryClient]);
+        queryClient.removeQueries({ queryKey: logsInfiniteQueryKey(pageSize, stableFilter) });
+    }, [pageSize, stableFilter, queryClient]);
 
     return {
         logs,
@@ -337,7 +378,7 @@ export function useLogs(options: { pageSize?: number } = {}) {
     };
 }
 
-export function useLogRefresh(pageSize = DEFAULT_LOG_PAGE_SIZE) {
+export function useLogRefresh(pageSize = DEFAULT_LOG_PAGE_SIZE, filter: LogFilter = {}) {
     const queryClient = useQueryClient();
     const isRefreshing = useSyncExternalStore(
         subscribeLogRefresh,
@@ -348,14 +389,14 @@ export function useLogRefresh(pageSize = DEFAULT_LOG_PAGE_SIZE) {
     const refresh = useCallback(async () => {
         setLogRefreshState(pageSize, true);
         try {
-            await queryClient.refetchQueries({ queryKey: logsInfiniteQueryKey(pageSize) });
+            await queryClient.refetchQueries({ queryKey: logsInfiniteQueryKey(pageSize, filter) });
         } catch (e) {
             logger.error('手动刷新日志失败:', e);
             throw e;
         } finally {
             setLogRefreshState(pageSize, false);
         }
-    }, [pageSize, queryClient]);
+    }, [pageSize, filter, queryClient]);
 
     return { isRefreshing, refresh };
 }

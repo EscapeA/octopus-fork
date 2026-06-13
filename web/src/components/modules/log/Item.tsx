@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useMemo, useState, useEffect } from 'react';
-import { Clock, Cpu, Zap, AlertCircle, ArrowDownToLine, ArrowUpFromLine, DollarSign, ArrowRight, ArrowDown, Send, MessageSquare, Loader2, RotateCw, ChevronDown, ChevronUp, Pin, KeyRound, Globe } from 'lucide-react';
+import { Clock, Cpu, Zap, AlertCircle, ArrowDownToLine, ArrowUpFromLine, DollarSign, ArrowRight, ArrowDown, Send, MessageSquare, Loader2, RotateCw, ChevronDown, ChevronUp, Pin, KeyRound, Globe, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'motion/react';
 import JsonView from '@uiw/react-json-view';
@@ -102,7 +102,7 @@ function RetryBadgeWithTooltip({ channelName, brandColor, attempts, channelNameB
     );
 }
 
-function DeferredJsonContent({ content, fallbackText }: { content: string | undefined; fallbackText: string }) {
+function DeferredJsonContent({ content, fallbackText, collapsed }: { content: string | undefined; fallbackText: string; collapsed: boolean }) {
     const { resolvedTheme } = useTheme();
     const { isOpen } = useMorphingDialog();
     const [shouldRender, setShouldRender] = useState(false);
@@ -170,7 +170,7 @@ function DeferredJsonContent({ content, fallbackText }: { content: string | unde
                         }}
                         displayDataTypes={false}
                         displayObjectSize={false}
-                        collapsed={false}
+                        collapsed={collapsed}
                     />
                 </motion.div>
             ) : (
@@ -197,6 +197,8 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
     const hasError = !!log.error;
     const hasMultipleAttempts = log.attempts && log.attempts.length > 1;
     const [isDiagnosticExpanded, setIsDiagnosticExpanded] = useState(false);
+    const [requestJsonCollapsed, setRequestJsonCollapsed] = useState(false);
+    const [responseJsonCollapsed, setResponseJsonCollapsed] = useState(false);
     const displayFields = useMemo(() => resolveLogDisplayFields(log, detail, channelNameById), [channelNameById, detail, log]);
     const { Avatar: ModelAvatar, color: brandColor } = useMemo(
         () => getModelIcon(displayFields.actualModelName),
@@ -524,9 +526,24 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                             <div className="flex items-center gap-2 px-3 md:px-4 py-2.5 md:py-3 border-b border-border bg-muted/50 shrink-0">
                                                 <Send className="size-4 text-green-500" />
                                                 <span className="text-sm font-medium text-card-foreground">{t('requestContent')}</span>
-                                                <Badge variant="secondary" className="ml-auto text-xs">
-                                                    {usageKnown ? `${log.input_tokens.toLocaleString()} ${t('tokens')}` : tCommon('unknown')}
-                                                </Badge>
+                                                <div className="ml-auto flex items-center gap-1">
+                                                    <Badge variant="secondary" className="text-xs">
+                                                        {usageKnown ? `${log.input_tokens.toLocaleString()} ${t('tokens')}` : tCommon('unknown')}
+                                                    </Badge>
+                                                    {requestContent && (
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setRequestJsonCollapsed((v) => !v)}
+                                                                className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                                                title={requestJsonCollapsed ? t('expandAll') : t('collapseAll')}
+                                                            >
+                                                                {requestJsonCollapsed ? <ChevronsUpDown className="size-3.5" /> : <ChevronsDownUp className="size-3.5" />}
+                                                            </button>
+                                                            <CopyIconButton text={requestContent} className="text-muted-foreground hover:text-foreground" />
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
                                             <div className="min-h-0 flex-1 overflow-hidden">
                                                 {isDetailLoading ? (
@@ -534,7 +551,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                                         <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
                                                     </div>
                                                 ) : (
-                                                    <DeferredJsonContent content={requestContent} fallbackText={t('noRequestContent')} />
+                                                    <DeferredJsonContent content={requestContent} fallbackText={t('noRequestContent')} collapsed={requestJsonCollapsed} />
                                                 )}
                                             </div>
                                         </div>
@@ -542,9 +559,24 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                             <div className="flex items-center gap-2 px-3 md:px-4 py-2.5 md:py-3 border-b border-border bg-muted/50 shrink-0">
                                                 <MessageSquare className="size-4 text-purple-500" />
                                                 <span className="text-sm font-medium text-card-foreground">{t('responseContent')}</span>
-                                                <Badge variant="secondary" className="ml-auto text-xs">
-                                                    {usageKnown ? `${log.output_tokens.toLocaleString()} ${t('tokens')}` : tCommon('unknown')}
-                                                </Badge>
+                                                <div className="ml-auto flex items-center gap-1">
+                                                    <Badge variant="secondary" className="text-xs">
+                                                        {usageKnown ? `${log.output_tokens.toLocaleString()} ${t('tokens')}` : tCommon('unknown')}
+                                                    </Badge>
+                                                    {responseContent && (
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setResponseJsonCollapsed((v) => !v)}
+                                                                className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                                                title={responseJsonCollapsed ? t('expandAll') : t('collapseAll')}
+                                                            >
+                                                                {responseJsonCollapsed ? <ChevronsUpDown className="size-3.5" /> : <ChevronsDownUp className="size-3.5" />}
+                                                            </button>
+                                                            <CopyIconButton text={responseContent} className="text-muted-foreground hover:text-foreground" />
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
                                             <div className="min-h-0 flex-1 overflow-hidden">
                                                 {isDetailLoading ? (
@@ -552,7 +584,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                                         <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
                                                     </div>
                                                 ) : (
-                                                    <DeferredJsonContent content={responseContent} fallbackText={t('noResponseContent')} />
+                                                    <DeferredJsonContent content={responseContent} fallbackText={t('noResponseContent')} collapsed={responseJsonCollapsed} />
                                                 )}
                                             </div>
                                         </div>

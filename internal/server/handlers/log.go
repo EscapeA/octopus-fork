@@ -41,28 +41,62 @@ func init() {
 
 func listLog(c *gin.Context) {
 	page, pageSize := parsePagination(c.DefaultQuery("page", "1"), c.DefaultQuery("page_size", "20"))
-	startTimeStr := c.Query("start_time")
-	endTimeStr := c.Query("end_time")
 
-	var startTime, endTime *int
-	if startTimeStr != "" {
-		st, err := strconv.Atoi(startTimeStr)
+	filter := relaylog.LogFilter{}
+
+	if v := c.Query("start_time"); v != "" {
+		n, err := strconv.Atoi(v)
 		if err != nil {
 			resp.Error(c, http.StatusBadRequest, "invalid start_time")
 			return
 		}
-		startTime = &st
+		filter.StartTime = &n
 	}
-	if endTimeStr != "" {
-		et, err := strconv.Atoi(endTimeStr)
+	if v := c.Query("end_time"); v != "" {
+		n, err := strconv.Atoi(v)
 		if err != nil {
 			resp.Error(c, http.StatusBadRequest, "invalid end_time")
 			return
 		}
-		endTime = &et
+		filter.EndTime = &n
+	}
+	if v := c.Query("model"); v != "" {
+		filter.Model = v
+	}
+	if v := c.Query("channel_id"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			resp.Error(c, http.StatusBadRequest, "invalid channel_id")
+			return
+		}
+		filter.ChannelID = &n
+	}
+	if v := c.Query("api_key_id"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			resp.Error(c, http.StatusBadRequest, "invalid api_key_id")
+			return
+		}
+		filter.APIKeyID = &n
+	}
+	if v := c.Query("endpoint_type"); v != "" {
+		filter.EndpointType = v
+	}
+	if v := c.Query("status"); v != "" {
+		switch v {
+		case "success":
+			b := false
+			filter.HasError = &b
+		case "error":
+			b := true
+			filter.HasError = &b
+		default:
+			resp.Error(c, http.StatusBadRequest, "invalid status (must be 'success' or 'error')")
+			return
+		}
 	}
 
-	logs, err := relaylog.RelayLogList(c.Request.Context(), startTime, endTime, page, pageSize)
+	logs, err := relaylog.RelayLogList(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
 		resp.InternalError(c)
 		return

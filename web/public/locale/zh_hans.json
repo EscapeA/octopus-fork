@@ -2104,6 +2104,16 @@
       "noMore": "没有更多日志了",
       "loadingMore": "正在加载更多日志…"
     },
+    "filter": {
+      "modelPlaceholder": "搜索模型…",
+      "allChannels": "全部渠道",
+      "allKeys": "全部密钥",
+      "allTypes": "全部类型",
+      "allStatuses": "全部状态",
+      "statusSuccess": "成功",
+      "statusError": "错误",
+      "clear": "清除"
+    },
     "card": {
       "error": "错误",
       "errorInfo": "错误信息",
@@ -2118,6 +2128,8 @@
       "responseContent": "响应内容",
       "noRequestContent": "(无请求内容)",
       "noResponseContent": "(无响应内容)",
+      "expandAll": "展开全部",
+      "collapseAll": "折叠全部",
       "firstTokenTime": "首字时间",
       "tokens": "tokens",
       "retryDetails": "重试详情",

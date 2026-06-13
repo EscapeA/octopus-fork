@@ -1,22 +1,199 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useChannelList } from '@/api/endpoints/channel';
-import { useLogs } from '@/api/endpoints/log';
+import { useAPIKeyList } from '@/api/endpoints/apikey';
+import { useLogs, type LogFilter } from '@/api/endpoints/log';
 import { LogCard } from './Item';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Search, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { VirtualizedGrid } from '@/components/common/VirtualizedGrid';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { ENDPOINT_TYPE_OPTIONS } from '@/components/modules/group/utils';
+
+const EMPTY_FILTER: LogFilter = {};
+
+/**
+ * 日志筛选栏
+ */
+function LogFilterBar({
+    filter,
+    onChange,
+}: {
+    filter: LogFilter;
+    onChange: (f: LogFilter) => void;
+}) {
+    const t = useTranslations('log.filter');
+    const tGroup = useTranslations('group');
+    const { data: channels = [] } = useChannelList();
+    const { data: apiKeys = [] } = useAPIKeyList();
+
+    const hasFilter = !!(
+        filter.model ||
+        filter.channel_id != null ||
+        filter.api_key_id != null ||
+        filter.endpoint_type ||
+        filter.status
+    );
+
+    const handleClear = useCallback(() => {
+        onChange(EMPTY_FILTER);
+    }, [onChange]);
+
+    // Debounce model input
+    const modelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const handleModelInput = useCallback(
+        (e: React.ChangeEvent<HTMLInputElement>) => {
+            if (modelTimer.current) clearTimeout(modelTimer.current);
+            const val = e.target.value;
+            modelTimer.current = setTimeout(() => {
+                const trimmed = val.trim() || undefined;
+                onChange({ ...filter, model: trimmed });
+            }, 400);
+        },
+        [filter, onChange],
+    );
+
+    return (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/35 bg-card px-3 py-2">
+            <div className="flex items-center gap-1.5 min-w-0">
+                <Search className="size-3.5 shrink-0 text-muted-foreground" />
+                <input
+                    defaultValue={filter.model ?? ''}
+                    onChange={handleModelInput}
+                    placeholder={t('modelPlaceholder')}
+                    className="h-7 min-w-0 w-28 rounded-md border border-border/50 bg-background px-2 text-xs outline-none placeholder:text-muted-foreground/50 focus:border-primary/30 focus:ring-1 focus:ring-primary/20"
+                />
+            </div>
+
+            <Select
+                value={filter.channel_id != null ? String(filter.channel_id) : ''}
+                onValueChange={(v) => {
+                    const next = { ...filter };
+                    if (v && v !== '' && v !== '__all__') {
+                        next.channel_id = Number(v);
+                    } else {
+                        delete next.channel_id;
+                    }
+                    onChange(next);
+                }}
+            >
+                <SelectTrigger size="sm" className="h-7 text-xs min-w-[7rem]">
+                    <SelectValue placeholder={t('allChannels')} />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="__all__">{t('allChannels')}</SelectItem>
+                    {channels.map((ch) => (
+                        <SelectItem key={ch.raw.id} value={String(ch.raw.id)}>
+                            {ch.raw.name}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+
+            <Select
+                value={filter.api_key_id != null ? String(filter.api_key_id) : ''}
+                onValueChange={(v) => {
+                    const next = { ...filter };
+                    if (v && v !== '' && v !== '__all__') {
+                        next.api_key_id = Number(v);
+                    } else {
+                        delete next.api_key_id;
+                    }
+                    onChange(next);
+                }}
+            >
+                <SelectTrigger size="sm" className="h-7 text-xs min-w-[7rem]">
+                    <SelectValue placeholder={t('allKeys')} />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="__all__">{t('allKeys')}</SelectItem>
+                    {apiKeys.map((key) => (
+                        <SelectItem key={key.id} value={String(key.id)}>
+                            {key.name}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+
+            <Select
+                value={filter.endpoint_type ?? ''}
+                onValueChange={(v) => {
+                    const next = { ...filter };
+                    if (v && v !== '' && v !== '__all__') {
+                        next.endpoint_type = v;
+                    } else {
+                        delete next.endpoint_type;
+                    }
+                    onChange(next);
+                }}
+            >
+                <SelectTrigger size="sm" className="h-7 text-xs min-w-[7rem]">
+                    <SelectValue placeholder={t('allTypes')} />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="__all__">{t('allTypes')}</SelectItem>
+                    {ENDPOINT_TYPE_OPTIONS.filter((o) => o.value !== '*').map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                            {tGroup(opt.labelKey)}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+
+            <Select
+                value={filter.status ?? ''}
+                onValueChange={(v) => {
+                    const next = { ...filter };
+                    if (v && v !== '' && v !== '__all__') {
+                        next.status = v as 'success' | 'error';
+                    } else {
+                        delete next.status;
+                    }
+                    onChange(next);
+                }}
+            >
+                <SelectTrigger size="sm" className="h-7 text-xs min-w-[6rem]">
+                    <SelectValue placeholder={t('allStatuses')} />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="__all__">{t('allStatuses')}</SelectItem>
+                    <SelectItem value="success">{t('statusSuccess')}</SelectItem>
+                    <SelectItem value="error">{t('statusError')}</SelectItem>
+                </SelectContent>
+            </Select>
+
+            {hasFilter && (
+                <button
+                    type="button"
+                    onClick={handleClear}
+                    className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                    <X className="size-3" />
+                    {t('clear')}
+                </button>
+            )}
+        </div>
+    );
+}
 
 /**
  * 日志页面组件
  * - 初始加载 pageSize 条历史日志
  * - SSE 实时推送新日志
  * - 滚动自动加载更多
+ * - 筛选（模型、渠道、密钥、端点类型、状态）
  */
 export function Log() {
     const t = useTranslations('log');
-    const { logs, hasMore, isLoading, isLoadingMore, loadMore } = useLogs();
+    const [filter, setFilter] = useState<LogFilter>(EMPTY_FILTER);
+    const { logs, hasMore, isLoading, isLoadingMore, loadMore } = useLogs({ filter });
     const { data: channels = [] } = useChannelList();
     const channelNameById = useMemo(() => {
         const map = new Map<number, string>();
@@ -54,7 +231,8 @@ export function Log() {
     }, [hasMore, isLoading, isLoadingMore, logs.length, t]);
 
     return (
-        <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden rounded-t-xl pt-2 md:pt-0">
+        <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden rounded-t-xl pt-2 md:pt-0">
+            <LogFilterBar filter={filter} onChange={setFilter} />
             {isLoading && logs.length === 0 ? (
                 <div className="flex min-h-[18rem] items-center justify-center rounded-xl border border-border/35 bg-card">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

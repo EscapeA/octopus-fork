@@ -2104,6 +2104,16 @@
       "noMore": "No more logs",
       "loadingMore": "Loading more logs…"
     },
+    "filter": {
+      "modelPlaceholder": "Search model…",
+      "allChannels": "All channels",
+      "allKeys": "All keys",
+      "allTypes": "All types",
+      "allStatuses": "All statuses",
+      "statusSuccess": "Success",
+      "statusError": "Error",
+      "clear": "Clear"
+    },
     "card": {
       "error": "Error",
       "errorInfo": "Error Info",
@@ -2119,6 +2129,8 @@
       "responseContent": "Response Content",
       "noRequestContent": "(No request content)",
       "noResponseContent": "(No response content)",
+      "expandAll": "Expand All",
+      "collapseAll": "Collapse All",
       "firstTokenTime": "First Token Time",
       "tokens": "tokens",
       "retryDetails": "Retry Details",

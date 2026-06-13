@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"strings"
 	"sync"
 	"time"
 
@@ -421,26 +422,60 @@ func RelayLogStreamExcluded(requestModelName string) bool {
 	return ok
 }
 
-// RelayLogList 查询日志列表，支持可选的时间范围过滤
-// startTime 和 endTime 为 nil 时表示不限制时间范围
+// LogFilter 日志列表筛选参数
+type LogFilter struct {
+	StartTime    *int
+	EndTime      *int
+	Model        string // 模糊匹配 request_model_name 或 actual_model_name
+	ChannelID    *int
+	APIKeyID     *int
+	EndpointType string
+	HasError     *bool // nil=全部, false=仅成功, true=仅失败
+}
+
+// RelayLogList 查询日志列表，支持可选的筛选条件
 // 返回轻量条目，不包含 request_content 和 response_content 大字段
-func RelayLogList(ctx context.Context, startTime, endTime *int, page, pageSize int) ([]model.RelayLogListItem, error) {
+func RelayLogList(ctx context.Context, filter LogFilter, page, pageSize int) ([]model.RelayLogListItem, error) {
 	enabled, err := setting.GetBool(model.SettingKeyRelayLogKeepEnabled)
 	if err != nil {
 		return nil, err
 	}
-	hasTimeFilter := startTime != nil || endTime != nil
+	hasFilter := filter.StartTime != nil || filter.EndTime != nil ||
+		filter.Model != "" || filter.ChannelID != nil || filter.APIKeyID != nil ||
+		filter.EndpointType != "" || filter.HasError != nil
 	excludedGroups := loadExcludedGroupSet()
 
 	matchesFilter := func(log model.RelayLog) bool {
-		if startTime != nil && log.Time < int64(*startTime) {
+		if filter.StartTime != nil && log.Time < int64(*filter.StartTime) {
 			return false
 		}
-		if endTime != nil && log.Time > int64(*endTime) {
+		if filter.EndTime != nil && log.Time > int64(*filter.EndTime) {
 			return false
 		}
 		if excludedGroups != nil {
 			if _, ok := excludedGroups[log.RequestModelName]; ok {
+				return false
+			}
+		}
+		if filter.Model != "" {
+			modelLower := strings.ToLower(filter.Model)
+			if !strings.Contains(strings.ToLower(log.RequestModelName), modelLower) &&
+				!strings.Contains(strings.ToLower(log.ActualModelName), modelLower) {
+				return false
+			}
+		}
+		if filter.ChannelID != nil && log.ChannelId != *filter.ChannelID {
+			return false
+		}
+		if filter.APIKeyID != nil && log.RequestAPIKeyID != *filter.APIKeyID {
+			return false
+		}
+		if filter.EndpointType != "" && log.EndpointType != filter.EndpointType {
+			return false
+		}
+		if filter.HasError != nil {
+			hasErr := log.Error != ""
+			if *filter.HasError != hasErr {
 				return false
 			}
 		}
@@ -456,7 +491,7 @@ func RelayLogList(ctx context.Context, startTime, endTime *int, page, pageSize i
 
 	// 在锁外按条件过滤（保持原始顺序：旧 -> 新）
 	var cachedLogs []model.RelayLog
-	if hasTimeFilter || excludedGroups != nil {
+	if hasFilter || excludedGroups != nil {
 		cachedLogs = make([]model.RelayLog, 0, len(snapshot))
 		for _, log := range snapshot {
 			if !matchesFilter(log) {
@@ -504,11 +539,11 @@ func RelayLogList(ctx context.Context, startTime, endTime *int, page, pageSize i
 					"input_tokens", "output_tokens", "semantic_cache_hit", "cache_read_tokens",
 					"ftut", "use_time",
 					"cost", "error", "attempts", "total_attempts")
-			if startTime != nil {
-				query = query.Where("time >= ?", *startTime)
+			if filter.StartTime != nil {
+				query = query.Where("time >= ?", *filter.StartTime)
 			}
-			if endTime != nil {
-				query = query.Where("time <= ?", *endTime)
+			if filter.EndTime != nil {
+				query = query.Where("time <= ?", *filter.EndTime)
 			}
 			if len(excludedGroups) > 0 {
 				names := make([]string, 0, len(excludedGroups))
@@ -516,6 +551,26 @@ func RelayLogList(ctx context.Context, startTime, endTime *int, page, pageSize i
 					names = append(names, name)
 				}
 				query = query.Where("request_model_name NOT IN ?", names)
+			}
+			if filter.Model != "" {
+				modelPattern := "%" + strings.ToLower(filter.Model) + "%"
+				query = query.Where("LOWER(request_model_name) LIKE ? OR LOWER(actual_model_name) LIKE ?", modelPattern, modelPattern)
+			}
+			if filter.ChannelID != nil {
+				query = query.Where("channel_id = ?", *filter.ChannelID)
+			}
+			if filter.APIKeyID != nil {
+				query = query.Where("request_api_key_id = ?", *filter.APIKeyID)
+			}
+			if filter.EndpointType != "" {
+				query = query.Where("endpoint_type = ?", filter.EndpointType)
+			}
+			if filter.HasError != nil {
+				if *filter.HasError {
+					query = query.Where("error != ''")
+				} else {
+					query = query.Where("error = '' OR error IS NULL")
+				}
 			}
 
 			var dbLogs []model.RelayLogListItem

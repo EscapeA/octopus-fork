@@ -121,7 +121,7 @@ func TestRelayLogListExcludesConfiguredGroups(t *testing.T) {
 	})
 	t.Cleanup(restore)
 
-	logs, err := RelayLogList(context.Background(), nil, nil, 1, 50)
+	logs, err := RelayLogList(context.Background(), LogFilter{}, 1, 50)
 	if err != nil {
 		t.Fatalf("RelayLogList returned error: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestRelayLogListExcludesConfiguredGroups(t *testing.T) {
 	if err := setting.SetString(model.SettingKeyLogExcludedGroups, "[]"); err != nil {
 		t.Fatalf("clear excluded groups failed: %v", err)
 	}
-	logs, err = RelayLogList(context.Background(), nil, nil, 1, 50)
+	logs, err = RelayLogList(context.Background(), LogFilter{}, 1, 50)
 	if err != nil {
 		t.Fatalf("RelayLogList returned error: %v", err)
 	}
@@ -315,7 +315,7 @@ func TestRelayLogListReadsPersistedCacheColumns(t *testing.T) {
 		t.Fatalf("seed relay logs failed: %v", err)
 	}
 
-	logs, err := RelayLogList(context.Background(), nil, nil, 1, 50)
+	logs, err := RelayLogList(context.Background(), LogFilter{}, 1, 50)
 	if err != nil {
 		t.Fatalf("RelayLogList returned error: %v", err)
 	}

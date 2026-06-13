@@ -28,8 +28,8 @@ func RelayLogAdd(ctx context.Context, relayLog model.RelayLog) error {
 
 func RelayLogSaveDBTask(ctx context.Context) error { return relaylog.RelayLogSaveDBTask(ctx) }
 
-func RelayLogList(ctx context.Context, startTime, endTime *int, page, pageSize int) ([]model.RelayLogListItem, error) {
-	return relaylog.RelayLogList(ctx, startTime, endTime, page, pageSize)
+func RelayLogList(ctx context.Context, filter relaylog.LogFilter, page, pageSize int) ([]model.RelayLogListItem, error) {
+	return relaylog.RelayLogList(ctx, filter, page, pageSize)
 }
 
 func RelayLogClear(ctx context.Context) error { return relaylog.RelayLogClear(ctx) }

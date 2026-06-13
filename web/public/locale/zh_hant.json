@@ -2104,6 +2104,16 @@
       "noMore": "沒有更多日誌了",
       "loadingMore": "正在載入更多日誌…"
     },
+    "filter": {
+      "modelPlaceholder": "搜尋模型…",
+      "allChannels": "全部渠道",
+      "allKeys": "全部金鑰",
+      "allTypes": "全部類型",
+      "allStatuses": "全部狀態",
+      "statusSuccess": "成功",
+      "statusError": "錯誤",
+      "clear": "清除"
+    },
     "card": {
       "error": "錯誤",
       "errorInfo": "錯誤訊息",
@@ -2118,6 +2128,8 @@
       "responseContent": "響應內容",
       "noRequestContent": "(無請求內容)",
       "noResponseContent": "(無響應內容)",
+      "expandAll": "展開全部",
+      "collapseAll": "折疊全部",
       "firstTokenTime": "首字時間",
       "tokens": "tokens",
       "retryDetails": "重試詳情",
