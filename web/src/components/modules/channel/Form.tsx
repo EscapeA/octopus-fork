@@ -158,9 +158,10 @@ function SectionHeader({
 
 interface ModelPickerDialogPanelProps {
     models: string[];
-    selectedModels: string[];
+    draftSelected: string[];
+    onDraftChange: (models: string[]) => void;
     isLoading: boolean;
-    onApply: (models: string[]) => void;
+    onApply: () => void;
 }
 
 interface ModelProviderGroup {
@@ -191,16 +192,11 @@ function groupModelsByProvider(models: string[]): ModelProviderGroup[] {
     });
 }
 
-function ModelPickerDialogPanel({ models, selectedModels, isLoading, onApply }: ModelPickerDialogPanelProps) {
+function ModelPickerDialogPanel({ models, draftSelected, onDraftChange, isLoading, onApply }: ModelPickerDialogPanelProps) {
     const t = useTranslations('channel.form.modelPicker');
     const { setIsOpen } = useMorphingDialog();
     const [searchTerm, setSearchTerm] = useState('');
-    const [draftSelected, setDraftSelected] = useState<string[]>(selectedModels);
     const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
-
-    useEffect(() => {
-        setDraftSelected(selectedModels);
-    }, [selectedModels]);
 
     const normalizedSearch = searchTerm.trim().toLowerCase();
     const isSearching = normalizedSearch.length > 0;
@@ -226,23 +222,22 @@ function ModelPickerDialogPanel({ models, selectedModels, isLoading, onApply }: 
     const allFilteredSelected = filteredModels.length > 0 && filteredModels.every((m) => selectedSet.has(m));
 
     const toggleModel = (model: string) => {
-        setDraftSelected((current) =>
-            current.includes(model)
-                ? current.filter((item) => item !== model)
-                : [...current, model]
+        onDraftChange(
+            draftSelected.includes(model)
+                ? draftSelected.filter((item) => item !== model)
+                : [...draftSelected, model]
         );
     };
 
     const toggleGroupSelection = (groupModels: string[]) => {
-        setDraftSelected((current) => {
-            const currentSet = new Set(current);
-            const allSelected = groupModels.every((m) => currentSet.has(m));
-            if (allSelected) {
-                const removeSet = new Set(groupModels);
-                return current.filter((m) => !removeSet.has(m));
-            }
-            return Array.from(new Set([...current, ...groupModels]));
-        });
+        const currentSet = new Set(draftSelected);
+        const allSelected = groupModels.every((m) => currentSet.has(m));
+        if (allSelected) {
+            const removeSet = new Set(groupModels);
+            onDraftChange(draftSelected.filter((m) => !removeSet.has(m)));
+        } else {
+            onDraftChange(Array.from(new Set([...draftSelected, ...groupModels])));
+        }
     };
 
     const toggleGroupCollapsed = (label: string) => {
@@ -251,17 +246,16 @@ function ModelPickerDialogPanel({ models, selectedModels, isLoading, onApply }: 
 
     const handleSelectFiltered = () => {
         if (filteredModels.length === 0) return;
-        setDraftSelected((current) => {
-            const currentSet = new Set(current);
-            if (filteredModels.every((model) => currentSet.has(model))) {
-                return current.filter((model) => !filteredModels.includes(model));
-            }
-            return Array.from(new Set([...current, ...filteredModels]));
-        });
+        const currentSet = new Set(draftSelected);
+        if (filteredModels.every((model) => currentSet.has(model))) {
+            onDraftChange(draftSelected.filter((model) => !filteredModels.includes(model)));
+        } else {
+            onDraftChange(Array.from(new Set([...draftSelected, ...filteredModels])));
+        }
     };
 
     const handleApply = () => {
-        onApply(draftSelected);
+        onApply();
         setIsOpen(false);
     };
 
@@ -311,7 +305,7 @@ function ModelPickerDialogPanel({ models, selectedModels, isLoading, onApply }: 
                             type="button"
                             variant="ghost"
                             size="sm"
-                            onClick={() => setDraftSelected([])}
+                            onClick={() => onDraftChange([])}
                             disabled={draftSelected.length === 0}
                             className="h-8 rounded-lg px-2 text-xs text-muted-foreground hover:text-foreground"
                         >
@@ -520,6 +514,7 @@ export function ChannelForm({
     const fetchModel = useFetchModel();
     const testChannel = useTestChannel();
     const [testSummary, setTestSummary] = useState<TestChannelSummary | null>(null);
+    const [modelPickerDraft, setModelPickerDraft] = useState<string[]>([]);
 
     const effectiveKey =
         formData.keys.find((k) => k.enabled && k.channel_key.trim())?.channel_key.trim() || '';
@@ -531,9 +526,9 @@ export function ChannelForm({
         onFormDataChange({ ...formData, model, custom_model });
     };
 
-    const applyFetchedModelSelection = (selectedModels: string[]) => {
+    const applyFetchedModelSelection = () => {
         const customModelSet = new Set(customModels);
-        const nextAutoModels = Array.from(new Set(selectedModels)).filter((model) => !customModelSet.has(model));
+        const nextAutoModels = Array.from(new Set(modelPickerDraft)).filter((model) => !customModelSet.has(model));
         updateModels(nextAutoModels, customModels);
         toast.success(t('modelPicker.applySuccess', { count: nextAutoModels.length }));
     };
@@ -633,6 +628,7 @@ export function ChannelForm({
 
     const handleRefreshModels = async () => {
         if (!formData.base_urls?.[0]?.url || !effectiveKey) return;
+        setModelPickerDraft(autoModels);
         setFetchedModels([]);
         fetchModel.mutate(
             {
@@ -1047,7 +1043,8 @@ export function ChannelForm({
                             <MorphingDialogContent className="h-[calc(100dvh-2rem)] w-[min(100vw-2rem,54rem)] max-w-full rounded-xl border border-border/35 bg-card p-0 md:h-[min(44rem,calc(100dvh-3rem))]">
                                 <ModelPickerDialogPanel
                                     models={fetchedModels}
-                                    selectedModels={autoModels}
+                                    draftSelected={modelPickerDraft}
+                                    onDraftChange={setModelPickerDraft}
                                     isLoading={fetchModel.isPending}
                                     onApply={applyFetchedModelSelection}
                                 />
