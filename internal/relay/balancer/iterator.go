@@ -21,10 +21,23 @@ type Iterator struct {
 }
 
 // NewIterator 创建负载均衡迭代器
-// 自动处理：策略排序 + 粘性通道提前
-func NewIterator(group model.Group, apiKeyID int, requestModel string) *Iterator {
+// 自动处理：策略排序 + 渠道黑名单过滤 + 粘性通道提前
+// excludedChannels 为该 API Key 排除的渠道 ID 集合（issue #55），nil/空表示不排除。
+func NewIterator(group model.Group, apiKeyID int, requestModel string, excludedChannels map[int]struct{}) *Iterator {
 	b := GetBalancer(group.Mode)
 	candidates := b.Candidates(group.Items)
+
+	// 按 API Key 渠道黑名单剔除候选。在 sticky 选择之前过滤，确保被排除的渠道
+	// 既不参与负载均衡，也不会作为粘性通道命中。
+	if len(excludedChannels) > 0 {
+		filtered := candidates[:0]
+		for _, item := range candidates {
+			if _, excluded := excludedChannels[item.ChannelID]; !excluded {
+				filtered = append(filtered, item)
+			}
+		}
+		candidates = filtered
+	}
 
 	stickyIdx := -1
 	if group.SessionKeepTime > 0 {

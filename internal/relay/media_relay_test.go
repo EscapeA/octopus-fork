@@ -15,7 +15,7 @@ func TestRecordPreparedCandidateSkip_DoesNotDuplicateCircuitBreak(t *testing.T) 
 			{ChannelID: 11, ModelName: modelName},
 		},
 	}
-	iter := balancer.NewIterator(group, 0, modelName)
+	iter := balancer.NewIterator(group, 0, modelName, nil)
 	if !iter.Next() {
 		t.Fatal("iterator should have one candidate")
 	}
@@ -49,7 +49,7 @@ func TestRecordPreparedCandidateSkip_RecordsSkippedCandidate(t *testing.T) {
 			{ChannelID: 11, ModelName: "gpt-4o"},
 		},
 	}
-	iter := balancer.NewIterator(group, 0, "gpt-4o")
+	iter := balancer.NewIterator(group, 0, "gpt-4o", nil)
 	if !iter.Next() {
 		t.Fatal("iterator should have one candidate")
 	}

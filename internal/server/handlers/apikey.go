@@ -198,6 +198,7 @@ type apiKeyRequestPayload struct {
 	PerModelQuotaJSON string  `json:"per_model_quota_json,omitempty"`
 	AllowedIPs        string  `json:"allowed_ips,omitempty"`
 	Tags              string  `json:"tags,omitempty"`
+	ExcludedChannels  string  `json:"excluded_channels,omitempty"`
 }
 
 func (p apiKeyRequestPayload) toModel() model.APIKey {
@@ -214,6 +215,7 @@ func (p apiKeyRequestPayload) toModel() model.APIKey {
 		PerModelQuotaJSON: p.PerModelQuotaJSON,
 		AllowedIPs:        p.AllowedIPs,
 		Tags:              p.Tags,
+		ExcludedChannels:  p.ExcludedChannels,
 	}
 }
 

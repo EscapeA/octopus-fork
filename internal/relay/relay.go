@@ -281,7 +281,7 @@ func Handler(endpointType string, inboundType inbound.InboundType, c *gin.Contex
 	}
 
 	// 创建迭代器（策略排序 + 粘性优先）
-	iter := balancer.NewIterator(group, apiKeyID, requestModel)
+	iter := balancer.NewIterator(group, apiKeyID, requestModel, parseExcludedChannels(c.GetString("excluded_channels")))
 	if iter.Len() == 0 {
 		lastErr = errors.New("no available channel")
 		resp.Error(c, http.StatusServiceUnavailable, "no available channel")
@@ -1037,7 +1037,7 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 			return nil, err
 		}
 
-		routeIter := balancer.NewIterator(group, req.apiKeyID, requestModel)
+		routeIter := balancer.NewIterator(group, req.apiKeyID, requestModel, parseExcludedChannels(req.c.GetString("excluded_channels")))
 		req.iter = routeIter
 
 		for routeIter.Next() {

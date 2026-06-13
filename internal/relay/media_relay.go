@@ -121,7 +121,7 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 	}
 
 	// 3. Create load balancer iterator
-	iter := balancer.NewIterator(group, apiKeyID, requestModel)
+	iter := balancer.NewIterator(group, apiKeyID, requestModel, parseExcludedChannels(c.GetString("excluded_channels")))
 	if iter.Len() == 0 {
 		resp.Error(c, http.StatusServiceUnavailable, "no available channel")
 		return
@@ -158,7 +158,7 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 		default:
 		}
 
-		routeIter = balancer.NewIterator(group, apiKeyID, requestModel)
+		routeIter = balancer.NewIterator(group, apiKeyID, requestModel, parseExcludedChannels(c.GetString("excluded_channels")))
 
 		for routeIter.Next() {
 			if maxTotalAttempts > 0 && len(allAttempts) >= maxTotalAttempts {
