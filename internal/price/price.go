@@ -123,8 +123,12 @@ func GetLLMPrice(modelName string) *model.LLMPrice {
 }
 
 // matchFallbackPrice attempts to find a price for modelName using two heuristics:
-// 1. Strip "provider/" prefix (e.g. "openai/gpt-4o" -> "gpt-4o")
-// 2. Find the longest known model name that appears as a boundary-aware substring
+//  1. Strip "provider/" prefix (e.g. "openai/gpt-4o" -> "gpt-4o")
+//  2. Find the longest known model name that appears as a whole-word substring
+//     of modelName — delimited by non-alphanumeric characters (or the string
+//     bounds) on BOTH sides — so variants like "xgpt-4o" or "gpt-4ox" do not
+//     steal the price of "gpt-4o".
+//
 // Must be called with llmPriceLock held (RLock).
 func matchFallbackPrice(modelName string) *model.LLMPrice {
 	// 1. Strip prefix before first '/'
@@ -135,23 +139,14 @@ func matchFallbackPrice(modelName string) *model.LLMPrice {
 		}
 	}
 
-	// 2. Longest-match substring with word-boundary check
+	// 2. Longest whole-word substring match.
 	var bestKey string
 	for known := range llmPrice {
 		if len(known) < 3 {
 			continue // skip very short names to avoid false positives
 		}
-		if !strings.Contains(modelName, known) {
+		if !containsWholeWord(modelName, known) {
 			continue
-		}
-		// Verify the character after the match is not alphanumeric (word boundary)
-		pos := strings.Index(modelName, known)
-		end := pos + len(known)
-		if end < len(modelName) {
-			next := modelName[end]
-			if (next >= 'a' && next <= 'z') || (next >= '0' && next <= '9') {
-				continue
-			}
 		}
 		if len(known) > len(bestKey) {
 			bestKey = known
@@ -162,4 +157,35 @@ func matchFallbackPrice(modelName string) *model.LLMPrice {
 		return &p
 	}
 	return nil
+}
+
+// containsWholeWord reports whether substr occurs in s at least once with
+// non-alphanumeric characters (or the string bounds) on both sides, i.e. as a
+// delimited token rather than a fragment of a larger identifier. It scans every
+// occurrence so a later valid boundary can rescue an earlier invalid one.
+func containsWholeWord(s, substr string) bool {
+	searchFrom := 0
+	for searchFrom <= len(s)-len(substr) {
+		idx := strings.Index(s[searchFrom:], substr)
+		if idx < 0 {
+			return false
+		}
+		pos := searchFrom + idx
+		end := pos + len(substr)
+		if !isAlphaNumAt(s, pos-1) && !isAlphaNumAt(s, end) {
+			return true
+		}
+		searchFrom = pos + 1
+	}
+	return false
+}
+
+// isAlphaNumAt reports whether the byte at index i is an ASCII letter or digit.
+// Out-of-range indices return false, treating the string bounds as a word boundary.
+func isAlphaNumAt(s string, i int) bool {
+	if i < 0 || i >= len(s) {
+		return false
+	}
+	c := s[i]
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
 }
