@@ -2368,7 +2368,8 @@
           "openrouter": "OpenRouter 聚合接口。",
           "siliconflow": "硅基流动 OpenAI 兼容接口。",
           "volcengine": "火山引擎 Ark 接口。",
-          "mimo": "小米 Mimo OpenAI 兼容接口。"
+          "mimo": "小米 Mimo OpenAI 兼容接口。",
+          "cloudflare": "Cloudflare Workers AI 接口，base_url 填账户根路径（含 /client/v4/accounts/{ACCOUNT_ID}）。"
         }
       },
       "remove": "移除",
@@ -2401,7 +2402,8 @@
       "matchRegex": "匹配正则",
       "matchRegexPlaceholder": "可选：用于匹配请求模型名称的正则表达式",
       "remark": "备注",
-      "typeMiMoChat": "MiMo Chat"
+      "typeMiMoChat": "MiMo Chat",
+      "typeCloudflare": "Cloudflare"
     }
   },
   "errors": {

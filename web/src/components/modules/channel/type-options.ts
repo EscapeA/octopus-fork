@@ -5,4 +5,5 @@ export const CHANNEL_TYPE_OPTIONS = [
   { value: 4, labelKey: "typeVolcengine" },
   { value: 5, labelKey: "typeOpenAIEmbedding" },
   { value: 6, labelKey: "typeMiMoChat" },
+  { value: 7, labelKey: "typeCloudflare" },
 ] as const;

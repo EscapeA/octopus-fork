@@ -2368,7 +2368,8 @@
           "openrouter": "OpenRouter aggregated endpoint.",
           "siliconflow": "SiliconFlow OpenAI-compatible endpoint.",
           "volcengine": "Volcengine Ark endpoint.",
-          "mimo": "Xiaomi Mimo OpenAI-compatible endpoint."
+          "mimo": "Xiaomi Mimo OpenAI-compatible endpoint.",
+          "cloudflare": "Cloudflare Workers AI endpoint. Set base_url to your account root (incl. /client/v4/accounts/{ACCOUNT_ID})."
         }
       },
       "remove": "Remove",
@@ -2401,7 +2402,8 @@
       "matchRegex": "Match Regex",
       "matchRegexPlaceholder": "Optional: regex pattern to match request model names",
       "remark": "Remark",
-      "typeMiMoChat": "MiMo Chat"
+      "typeMiMoChat": "MiMo Chat",
+      "typeCloudflare": "Cloudflare"
     }
   },
   "errors": {
