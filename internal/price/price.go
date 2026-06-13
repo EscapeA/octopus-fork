@@ -112,8 +112,54 @@ func GetLLMPrice(modelName string) *model.LLMPrice {
 	llmPriceLock.RLock()
 	defer llmPriceLock.RUnlock()
 	price, ok := llmPrice[modelName]
-	if !ok {
-		return nil
+	if ok {
+		return &price
 	}
-	return &price
+	// Fallback: try matching by base model name
+	if fallback := matchFallbackPrice(modelName); fallback != nil {
+		return fallback
+	}
+	return nil
+}
+
+// matchFallbackPrice attempts to find a price for modelName using two heuristics:
+// 1. Strip "provider/" prefix (e.g. "openai/gpt-4o" -> "gpt-4o")
+// 2. Find the longest known model name that appears as a boundary-aware substring
+// Must be called with llmPriceLock held (RLock).
+func matchFallbackPrice(modelName string) *model.LLMPrice {
+	// 1. Strip prefix before first '/'
+	if idx := strings.Index(modelName, "/"); idx >= 0 && idx < len(modelName)-1 {
+		base := modelName[idx+1:]
+		if p, ok := llmPrice[base]; ok {
+			return &p
+		}
+	}
+
+	// 2. Longest-match substring with word-boundary check
+	var bestKey string
+	for known := range llmPrice {
+		if len(known) < 3 {
+			continue // skip very short names to avoid false positives
+		}
+		if !strings.Contains(modelName, known) {
+			continue
+		}
+		// Verify the character after the match is not alphanumeric (word boundary)
+		pos := strings.Index(modelName, known)
+		end := pos + len(known)
+		if end < len(modelName) {
+			next := modelName[end]
+			if (next >= 'a' && next <= 'z') || (next >= '0' && next <= '9') {
+				continue
+			}
+		}
+		if len(known) > len(bestKey) {
+			bestKey = known
+		}
+	}
+	if bestKey != "" {
+		p := llmPrice[bestKey]
+		return &p
+	}
+	return nil
 }

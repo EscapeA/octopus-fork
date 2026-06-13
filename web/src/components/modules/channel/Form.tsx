@@ -40,7 +40,8 @@ import { toast } from '@/components/common/Toast';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshCw, X, Plus, FlaskConical, CheckCircle2, AlertTriangle, Trash2, Sparkles, Orbit, Layers3, KeyRound, Cable, Search, Check, ListFilter } from 'lucide-react';
+import { RefreshCw, X, Plus, FlaskConical, CheckCircle2, AlertTriangle, Trash2, Sparkles, Orbit, Layers3, KeyRound, Cable, Search, Check, ListFilter, ChevronRight } from 'lucide-react';
+import { getModelIcon } from '@/lib/model-icons';
 
 export interface ChannelKeyFormItem {
     id?: number;
@@ -162,22 +163,67 @@ interface ModelPickerDialogPanelProps {
     onApply: (models: string[]) => void;
 }
 
+interface ModelProviderGroup {
+    label: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    Avatar: React.ComponentType<any>;
+    color: string;
+    models: string[];
+}
+
+function groupModelsByProvider(models: string[]): ModelProviderGroup[] {
+    const groupMap = new Map<string, { label: string; Avatar: ModelProviderGroup['Avatar']; color: string; models: string[] }>();
+
+    for (const model of models) {
+        const { label, Avatar, color } = getModelIcon(model);
+        const existing = groupMap.get(label);
+        if (existing) {
+            existing.models.push(model);
+        } else {
+            groupMap.set(label, { label, Avatar, color, models: [model] });
+        }
+    }
+
+    return Array.from(groupMap.values()).sort((a, b) => {
+        if (a.label === 'Model') return 1;
+        if (b.label === 'Model') return -1;
+        return a.label.localeCompare(b.label);
+    });
+}
+
 function ModelPickerDialogPanel({ models, selectedModels, isLoading, onApply }: ModelPickerDialogPanelProps) {
     const t = useTranslations('channel.form.modelPicker');
     const { setIsOpen } = useMorphingDialog();
     const [searchTerm, setSearchTerm] = useState('');
     const [draftSelected, setDraftSelected] = useState<string[]>(selectedModels);
+    const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         setDraftSelected(selectedModels);
     }, [selectedModels]);
 
     const normalizedSearch = searchTerm.trim().toLowerCase();
-    const filteredModels = normalizedSearch
-        ? models.filter((model) => model.toLowerCase().includes(normalizedSearch))
-        : models;
+    const isSearching = normalizedSearch.length > 0;
+
+    const groups = useMemo(() => groupModelsByProvider(models), [models]);
+
+    const filteredGroups = useMemo(() => {
+        if (!isSearching) return groups;
+        return groups
+            .map((group) => ({
+                ...group,
+                models: group.models.filter((m) => m.toLowerCase().includes(normalizedSearch)),
+            }))
+            .filter((group) => group.models.length > 0);
+    }, [groups, normalizedSearch, isSearching]);
+
+    const filteredModels = useMemo(
+        () => filteredGroups.flatMap((g) => g.models),
+        [filteredGroups]
+    );
+
     const selectedSet = new Set(draftSelected);
-    const allFilteredSelected = filteredModels.length > 0 && filteredModels.every((model) => selectedSet.has(model));
+    const allFilteredSelected = filteredModels.length > 0 && filteredModels.every((m) => selectedSet.has(m));
 
     const toggleModel = (model: string) => {
         setDraftSelected((current) =>
@@ -187,9 +233,24 @@ function ModelPickerDialogPanel({ models, selectedModels, isLoading, onApply }: 
         );
     };
 
+    const toggleGroupSelection = (groupModels: string[]) => {
+        setDraftSelected((current) => {
+            const currentSet = new Set(current);
+            const allSelected = groupModels.every((m) => currentSet.has(m));
+            if (allSelected) {
+                const removeSet = new Set(groupModels);
+                return current.filter((m) => !removeSet.has(m));
+            }
+            return Array.from(new Set([...current, ...groupModels]));
+        });
+    };
+
+    const toggleGroupCollapsed = (label: string) => {
+        setCollapsedGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+    };
+
     const handleSelectFiltered = () => {
         if (filteredModels.length === 0) return;
-
         setDraftSelected((current) => {
             const currentSet = new Set(current);
             if (filteredModels.every((model) => currentSet.has(model))) {
@@ -276,30 +337,72 @@ function ModelPickerDialogPanel({ models, selectedModels, isLoading, onApply }: 
                             <RefreshCw className="size-4 animate-spin" />
                             {t('loading')}
                         </div>
-                    ) : filteredModels.length > 0 ? (
-                        <div className="grid gap-2 sm:grid-cols-2">
-                            {filteredModels.map((model) => {
-                                const selected = selectedSet.has(model);
+                    ) : filteredGroups.length > 0 ? (
+                        <div className="flex flex-col gap-1">
+                            {filteredGroups.map((group) => {
+                                const isCollapsed = !isSearching && collapsedGroups[group.label];
+                                const groupSelectedCount = group.models.filter((m) => selectedSet.has(m)).length;
+                                const allGroupSelected = group.models.length > 0 && groupSelectedCount === group.models.length;
+                                const Avatar = group.Avatar;
+
                                 return (
-                                    <button
-                                        key={model}
-                                        type="button"
-                                        onClick={() => toggleModel(model)}
-                                        className={`flex min-w-0 items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors ${
-                                            selected
-                                                ? 'border-primary/30 bg-primary/10 text-foreground'
-                                                : 'border-border/25 bg-background/40 text-muted-foreground hover:border-border/60 hover:text-foreground'
-                                        }`}
-                                    >
-                                        <span className={`flex size-5 shrink-0 items-center justify-center rounded-md border ${
-                                            selected ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card'
-                                        }`}>
-                                            {selected ? <Check className="size-3.5" /> : null}
-                                        </span>
-                                        <span className="min-w-0 flex-1 truncate font-mono" title={model}>
-                                            {model}
-                                        </span>
-                                    </button>
+                                    <div key={group.label} className="rounded-lg">
+                                        <div className="flex items-center gap-2 px-1 py-1.5">
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleGroupCollapsed(group.label)}
+                                                className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 hover:text-foreground transition-colors"
+                                            >
+                                                <ChevronRight
+                                                    className={`size-3.5 transition-transform duration-150 ${isCollapsed ? '' : 'rotate-90'}`}
+                                                />
+                                            </button>
+                                            <Avatar className="size-4 shrink-0" />
+                                            <span className="text-xs font-medium text-foreground">{group.label}</span>
+                                            <Badge variant="secondary" className="h-4 rounded-full px-1.5 text-[0.625rem] tabular-nums">
+                                                {groupSelectedCount}/{group.models.length}
+                                            </Badge>
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleGroupSelection(group.models)}
+                                                className={`ml-auto shrink-0 rounded px-2 py-0.5 text-[0.625rem] font-medium transition-colors ${
+                                                    allGroupSelected
+                                                        ? 'text-primary hover:text-primary/70'
+                                                        : 'text-muted-foreground/60 hover:text-foreground'
+                                                }`}
+                                            >
+                                                {allGroupSelected ? t('unselectFiltered') : t('selectFiltered')}
+                                            </button>
+                                        </div>
+                                        {!isCollapsed && (
+                                            <div className="grid gap-2 sm:grid-cols-2 pl-7 pb-1">
+                                                {group.models.map((model) => {
+                                                    const selected = selectedSet.has(model);
+                                                    return (
+                                                        <button
+                                                            key={model}
+                                                            type="button"
+                                                            onClick={() => toggleModel(model)}
+                                                            className={`flex min-w-0 items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors ${
+                                                                selected
+                                                                    ? 'border-primary/30 bg-primary/10 text-foreground'
+                                                                    : 'border-border/25 bg-background/40 text-muted-foreground hover:border-border/60 hover:text-foreground'
+                                                            }`}
+                                                        >
+                                                            <span className={`flex size-5 shrink-0 items-center justify-center rounded-md border ${
+                                                                selected ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card'
+                                                            }`}>
+                                                                {selected ? <Check className="size-3.5" /> : null}
+                                                            </span>
+                                                            <span className="min-w-0 flex-1 truncate font-mono" title={model}>
+                                                                {model}
+                                                            </span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
                                 );
                             })}
                         </div>
