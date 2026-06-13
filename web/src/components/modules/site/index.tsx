@@ -84,7 +84,6 @@ import {
   type SiteJumpTarget,
   useJumpStore,
 } from "@/stores/jump";
-import { useHubTabStore } from "@/components/modules/remote-site/hub-tab-store";
 import {
   CalendarCheck2,
   CheckSquare,
@@ -1178,13 +1177,11 @@ export function Site() {
   }
 
   function jumpToSiteChannel(siteId: number) {
-    useHubTabStore.getState().setActiveTab("sites");
-    requestJump({ kind: "site-card", siteId });
+    requestJump({ kind: "site-channel-card", siteId });
   }
 
   function jumpToSiteChannelAccount(siteId: number, accountId: number) {
-    useHubTabStore.getState().setActiveTab("sites");
-    requestJump({ kind: "site-account", siteId, accountId });
+    requestJump({ kind: "site-channel-account", siteId, accountId });
   }
 
   function toggleSiteExpanded(siteId: number, forceExpanded: boolean) {
