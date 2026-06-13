@@ -3,6 +3,7 @@ package outbound
 import (
 	"github.com/lingyuins/octopus/internal/transformer/model"
 	"github.com/lingyuins/octopus/internal/transformer/outbound/anthropic"
+	"github.com/lingyuins/octopus/internal/transformer/outbound/cloudflare"
 	"github.com/lingyuins/octopus/internal/transformer/outbound/gemini"
 	"github.com/lingyuins/octopus/internal/transformer/outbound/mimo"
 	"github.com/lingyuins/octopus/internal/transformer/outbound/openai"
@@ -19,6 +20,7 @@ const (
 	OutboundTypeVolcengine
 	OutboundTypeOpenAIEmbedding
 	OutboundTypeMimo
+	OutboundTypeCloudflare
 )
 
 func (t OutboundType) String() string {
@@ -37,6 +39,8 @@ func (t OutboundType) String() string {
 		return "embedding"
 	case OutboundTypeMimo:
 		return "mimo"
+	case OutboundTypeCloudflare:
+		return "cloudflare"
 	default:
 		return "unknown"
 	}
@@ -55,6 +59,7 @@ var ChatChannelTypes = map[OutboundType]bool{
 	OutboundTypeGemini:         true,
 	OutboundTypeVolcengine:     true,
 	OutboundTypeMimo:           true,
+	OutboundTypeCloudflare:     true,
 }
 
 // IsEmbeddingChannelType 判断 channel 类型是否支持 embedding 请求
@@ -75,6 +80,7 @@ var outboundFactories = map[OutboundType]func() model.Outbound{
 	OutboundTypeGemini:          func() model.Outbound { return &gemini.MessagesOutbound{} },
 	OutboundTypeVolcengine:      func() model.Outbound { return &volcengine.ResponseOutbound{} },
 	OutboundTypeMimo:            func() model.Outbound { return &mimo.ChatOutbound{} },
+	OutboundTypeCloudflare:      func() model.Outbound { return &cloudflare.ChatOutbound{} },
 }
 
 func Get(outboundType OutboundType) model.Outbound {

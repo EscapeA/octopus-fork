@@ -313,6 +313,10 @@ func appendBaseURLPathByChannel(rawURL string, channelType outbound.OutboundType
 		return appendBaseURLPathIfMissing(rawURL, lowerURL, "/v1beta")
 	case outbound.OutboundTypeVolcengine:
 		return appendBaseURLPathIfMissing(rawURL, lowerURL, "/api/v3")
+	case outbound.OutboundTypeCloudflare:
+		// Cloudflare Workers AI 的路径（/ai/run/@cf/{model}）由 adapter 拼接，
+		// base_url 保持账户根路径（含 /client/v4/accounts/{id}）原样，不加默认前缀。
+		return rawURL
 	default:
 		return appendBaseURLPathIfMissing(rawURL, lowerURL, "/v1")
 	}
