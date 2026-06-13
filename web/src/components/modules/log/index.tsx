@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useChannelList } from '@/api/endpoints/channel';
 import { useAPIKeyList } from '@/api/endpoints/apikey';
 import { useLogs, type LogFilter } from '@/api/endpoints/log';
@@ -46,12 +46,21 @@ function LogFilterBar({
         onChange(EMPTY_FILTER);
     }, [onChange]);
 
+    // 受控输入框文本：与 filter.model 单向同步。用户输入只更新本地缓冲并防抖回写
+    // filter；当 filter.model 被外部重置（如「清除」按钮）时再同步回输入框，
+    // 避免非受控 defaultValue 在清除后仍残留旧文字。
+    const [modelInput, setModelInput] = useState(filter.model ?? '');
+    useEffect(() => {
+        setModelInput(filter.model ?? '');
+    }, [filter.model]);
+
     // Debounce model input
     const modelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const handleModelInput = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) => {
-            if (modelTimer.current) clearTimeout(modelTimer.current);
             const val = e.target.value;
+            setModelInput(val);
+            if (modelTimer.current) clearTimeout(modelTimer.current);
             modelTimer.current = setTimeout(() => {
                 const trimmed = val.trim() || undefined;
                 onChange({ ...filter, model: trimmed });
@@ -65,7 +74,7 @@ function LogFilterBar({
             <div className="flex items-center gap-1.5 min-w-0">
                 <Search className="size-3.5 shrink-0 text-muted-foreground" />
                 <input
-                    defaultValue={filter.model ?? ''}
+                    value={modelInput}
                     onChange={handleModelInput}
                     placeholder={t('modelPlaceholder')}
                     className="h-7 min-w-0 w-28 rounded-md border border-border/50 bg-background px-2 text-xs outline-none placeholder:text-muted-foreground/50 focus:border-primary/30 focus:ring-1 focus:ring-primary/20"
