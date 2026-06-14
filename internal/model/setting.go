@@ -71,6 +71,9 @@ const (
 	SettingKeyResponseFilterErrorMessage           SettingKey = "response_filter_error_message"            // 阻断时返回的错误信息
 	SettingKeyLogLevel                             SettingKey = "log_level"                                // 应用日志级别: debug, info, warn, error
 	SettingKeyLogExcludedGroups                    SettingKey = "log_excluded_groups"                      // 在日志列表/实时流中屏蔽的分组名称列表(JSON 数组)
+	SettingKeyWebAuthnRPID                         SettingKey = "webauthn_rp_id"                          // WebAuthn RP ID（域名，不含协议/端口）
+	SettingKeyWebAuthnRPName                       SettingKey = "webauthn_rp_name"                        // WebAuthn RP 展示名
+	SettingKeyWebAuthnOrigins                      SettingKey = "webauthn_origins"                        // WebAuthn 允许的 Origin 列表（逗号分隔，完整 scheme://host[:port]）
 )
 
 type Setting struct {
@@ -140,6 +143,9 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyResponseFilterErrorMessage, Value: "The response contains blocked keywords and has been intercepted."},
 		{Key: SettingKeyLogLevel, Value: "info"},
 		{Key: SettingKeyLogExcludedGroups, Value: "[]"},
+		{Key: SettingKeyWebAuthnRPID, Value: ""},
+		{Key: SettingKeyWebAuthnRPName, Value: "Octopus"},
+		{Key: SettingKeyWebAuthnOrigins, Value: ""},
 	}
 }
 

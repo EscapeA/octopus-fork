@@ -29,6 +29,7 @@ export type SettingItemId =
     | 'response-filter'
     | 'backup'
     | 'webdav'
+    | 'webauthn'
     | 'purge-unavailable'
     | 'route-group-danger';
 
@@ -47,6 +48,7 @@ export const DEFAULT_SETTING_ORDER: SettingItemId[] = [
     'response-filter',
     'backup',
     'webdav',
+    'webauthn',
     'purge-unavailable',
     'route-group-danger',
 ];
@@ -123,6 +125,7 @@ export function SettingOrder() {
             'response-filter': settingT('responseFilter.title'),
             backup: settingT('backup.title'),
             webdav: settingT('webdav.title'),
+            webauthn: settingT('webauthn.title'),
             'purge-unavailable': settingT('purgeUnavailable.title'),
             'route-group-danger': settingT('routeGroups.title'),
         };

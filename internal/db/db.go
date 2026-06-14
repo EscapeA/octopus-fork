@@ -256,6 +256,7 @@ func Migrate(conn *gorm.DB) error {
 		&model.SiteChannelBinding{},
 		&model.ProxyConfiguration{},
 		&model.WSResponseAffinity{},
+		&model.WebAuthnCredential{},
 		&migrate.MigrationRecord{},
 	); err != nil {
 		return err

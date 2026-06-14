@@ -16,7 +16,8 @@
     },
     "button": {
       "loading": "登入中...",
-      "submit": "登入"
+      "submit": "登入",
+      "passkey": "使用 Passkey 登入"
     }
   },
   "bootstrap": {
@@ -1556,6 +1557,19 @@
       "syncSuccess": "供應源同步成功",
       "syncFailed": "供應源同步失敗"
     },
+    "webauthn": {
+      "title": "Passkey(WebAuthn)",
+      "description": "設定 Passkey 登入所依賴的 Relying Party 資訊",
+      "hint": "RP ID 通常為站點網域（不含通訊協定與連接埠）；Origins 為完整網址（含 https://）。瀏覽器要求 HTTPS（localhost 除外）。",
+      "rpId": "RP ID",
+      "rpIdHint": "例如 example.com，不要帶 https:// 或連接埠",
+      "rpName": "顯示名稱",
+      "origins": "允許的 Origin",
+      "originsHint": "完整網址，多個以逗號分隔，如 https://example.com",
+      "saved": "Passkey 設定已儲存",
+      "saveFailed": "儲存失敗",
+      "needRpid": "填寫 Origin 時必須同時填寫 RP ID"
+    },
     "account": {
       "title": "帳戶設定",
       "save": "儲存",
@@ -1593,6 +1607,21 @@
       "logout": {
         "label": "退出目前登入",
         "button": "退出登入"
+      },
+      "passkey": {
+        "title": "Passkey 登入",
+        "description": "綁定 Passkey 後，可在登入頁一鍵免密登入",
+        "unnamed": "未命名憑證",
+        "lastUsed": "最近使用",
+        "created": "建立於",
+        "delete": "刪除",
+        "namePlaceholder": "憑證名稱（如「MacBook」）",
+        "add": "新增 Passkey",
+        "adding": "新增中...",
+        "addSuccess": "Passkey 新增成功",
+        "addFailed": "Passkey 新增失敗",
+        "deleteSuccess": "Passkey 已刪除",
+        "deleteFailed": "刪除失敗"
       }
     },
     "info": {

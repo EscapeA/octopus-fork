@@ -16,7 +16,8 @@
     },
     "button": {
       "loading": "登录中...",
-      "submit": "登录"
+      "submit": "登录",
+      "passkey": "使用 Passkey 登录"
     }
   },
   "bootstrap": {
@@ -1556,6 +1557,19 @@
       "syncSuccess": "渠道同步成功",
       "syncFailed": "渠道同步失败"
     },
+    "webauthn": {
+      "title": "Passkey(WebAuthn)",
+      "description": "配置 Passkey 登录所依赖的 Relying Party 信息",
+      "hint": "RP ID 通常为站点域名（不含协议与端口）；Origins 为完整地址（含 https://）。浏览器要求 HTTPS（localhost 除外）。",
+      "rpId": "RP ID",
+      "rpIdHint": "例如 example.com，不要带 https:// 或端口",
+      "rpName": "展示名称",
+      "origins": "允许的 Origin",
+      "originsHint": "完整地址，多个用逗号分隔，如 https://example.com",
+      "saved": "Passkey 配置已保存",
+      "saveFailed": "保存失败",
+      "needRpid": "填写 Origin 时必须同时填写 RP ID"
+    },
     "account": {
       "title": "账户设置",
       "save": "保存",
@@ -1593,6 +1607,21 @@
       "logout": {
         "label": "退出当前登录",
         "button": "退出登录"
+      },
+      "passkey": {
+        "title": "Passkey 登录",
+        "description": "绑定 Passkey 后，可在登录页一键免密登录",
+        "unnamed": "未命名凭证",
+        "lastUsed": "最近使用",
+        "created": "创建于",
+        "delete": "删除",
+        "namePlaceholder": "凭证名称（如「MacBook」）",
+        "add": "添加 Passkey",
+        "adding": "添加中...",
+        "addSuccess": "Passkey 添加成功",
+        "addFailed": "Passkey 添加失败",
+        "deleteSuccess": "Passkey 已删除",
+        "deleteFailed": "删除失败"
       }
     },
     "info": {

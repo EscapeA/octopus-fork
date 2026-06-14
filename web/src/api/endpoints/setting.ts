@@ -73,6 +73,9 @@ export const SettingKey = {
     ResponseFilterErrorMessage: 'response_filter_error_message',
     LogLevel: 'log_level',
     LogExcludedGroups: 'log_excluded_groups',
+    WebAuthnRPID: 'webauthn_rp_id',
+    WebAuthnRPName: 'webauthn_rp_name',
+    WebAuthnOrigins: 'webauthn_origins',
 } as const;
 
 /**

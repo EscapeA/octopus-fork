@@ -8,8 +8,9 @@ import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { useLogin } from "@/api/endpoints/user"
 import { useAPIKeyLogin } from "@/api/endpoints/apikey"
+import { isWebAuthnSupported, usePasskeyLogin, useWebAuthnStatus } from "@/api/endpoints/webauthn"
 import Logo from "@/components/modules/logo"
-import { KeyRound, User } from "lucide-react"
+import { Fingerprint, KeyRound, User } from "lucide-react"
 import { ParticleBackground } from "@/components/nature"
 import { useIsMobile } from "@/hooks/use-mobile"
 import {
@@ -33,6 +34,13 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
 
   const loginMutation = useLogin()
   const apiKeyLoginMutation = useAPIKeyLogin()
+  const passkeyLoginMutation = usePasskeyLogin()
+  const webauthnStatus = useWebAuthnStatus()
+
+  const passkeyAvailable =
+    isWebAuthnSupported() &&
+    webauthnStatus.data?.enabled &&
+    webauthnStatus.data?.has_credentials
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -56,7 +64,17 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
     }
   }
 
-  const isPending = loginMutation.isPending || apiKeyLoginMutation.isPending
+  const handlePasskeyLogin = async () => {
+    setError(null)
+    try {
+      await passkeyLoginMutation.mutateAsync()
+      onLoginSuccess?.()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : t('error.generic'))
+    }
+  }
+
+  const isPending = loginMutation.isPending || apiKeyLoginMutation.isPending || passkeyLoginMutation.isPending
 
   const handleModeChange = (value: string) => {
     setMode(value as LoginMode)
@@ -179,6 +197,26 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
               >
                 {isPending ? t('button.loading') : t('button.submit')}
               </Button>
+
+              {passkeyAvailable && (
+                <>
+                  <div className="relative flex items-center gap-3 py-1">
+                    <div className="h-px flex-1 bg-border/30" />
+                    <span className="text-[11px] text-muted-foreground/60">or</span>
+                    <div className="h-px flex-1 bg-border/30" />
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handlePasskeyLogin}
+                    disabled={isPending}
+                    variant="outline"
+                    className="w-full h-12 rounded-xl border-border/40 bg-card hover:bg-muted/50 transition-all active:scale-[0.98]"
+                  >
+                    <Fingerprint className="w-4 h-4" />
+                    {t('button.passkey')}
+                  </Button>
+                </>
+              )}
             </form>
           </Tabs>
         </div>

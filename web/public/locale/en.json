@@ -16,7 +16,8 @@
     },
     "button": {
       "loading": "Logging in...",
-      "submit": "Login"
+      "submit": "Login",
+      "passkey": "Sign in with Passkey"
     }
   },
   "bootstrap": {
@@ -1556,6 +1557,19 @@
       "syncSuccess": "Channel synced successfully",
       "syncFailed": "Failed to sync channel"
     },
+    "webauthn": {
+      "title": "Passkey (WebAuthn)",
+      "description": "Configure the Relying Party used for Passkey login",
+      "hint": "RP ID is typically your site domain (no scheme or port); Origins are full URLs (with https://). Browsers require HTTPS (localhost excepted).",
+      "rpId": "RP ID",
+      "rpIdHint": "e.g. example.com — no https:// or port",
+      "rpName": "Display Name",
+      "origins": "Allowed Origins",
+      "originsHint": "Full URLs, comma-separated, e.g. https://example.com",
+      "saved": "Passkey configuration saved",
+      "saveFailed": "Failed to save",
+      "needRpid": "RP ID is required when an Origin is provided"
+    },
     "account": {
       "title": "Account Settings",
       "save": "Save",
@@ -1593,6 +1607,21 @@
       "logout": {
         "label": "Sign out current session",
         "button": "Logout"
+      },
+      "passkey": {
+        "title": "Passkey Login",
+        "description": "Register a Passkey to sign in from the login page without a password",
+        "unnamed": "Unnamed credential",
+        "lastUsed": "Last used",
+        "created": "Created",
+        "delete": "Delete",
+        "namePlaceholder": "Credential name (e.g. \"MacBook\")",
+        "add": "Add Passkey",
+        "adding": "Adding...",
+        "addSuccess": "Passkey added",
+        "addFailed": "Failed to add Passkey",
+        "deleteSuccess": "Passkey removed",
+        "deleteFailed": "Failed to remove"
       }
     },
     "info": {
