@@ -14,11 +14,14 @@ import (
 // logging because they are read-only in practice (tests, probes), authentication
 // endpoints (would flood the audit log), or one-time bootstrap operations.
 var exemptFromAudit = map[string]string{
-	"POST /api/v1/channel/test":         "connectivity probe — no state change",
-	"POST /api/v1/user/login":           "authentication — auditing every login would flood the log",
-	"POST /api/v1/group/test":           "group routing test — no state change",
-	"POST /api/v1/group/test-draft":     "group draft test — no state change",
+	"POST /api/v1/channel/test":           "connectivity probe — no state change",
+	"POST /api/v1/user/login":             "authentication — auditing every login would flood the log",
+	"POST /api/v1/group/test":             "group routing test — no state change",
+	"POST /api/v1/group/test-draft":       "group draft test — no state change",
 	"POST /api/v1/bootstrap/create-admin": "one-time first-run bootstrap",
+	"POST /api/v1/webauthn/login/begin":   "authentication — passkey challenge issuance, no user yet",
+	"POST /api/v1/webauthn/login/finish":  "authentication — passkey assertion, the binding is audited at register/finish",
+	"POST /api/v1/webauthn/register/begin": "no state change — challenge issuance only; credential binding audited at register/finish",
 }
 
 // TestAllManagementWriteRoutesAreAudited verifies that every registered

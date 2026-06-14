@@ -61,6 +61,8 @@ var auditedManagementWriteRoutes = map[string]struct{}{
 	"POST /api/v1/user/create":                                                       {},
 	"POST /api/v1/user/update-role":                                                  {},
 	"DELETE /api/v1/user/delete/:id":                                                 {},
+	"POST /api/v1/webauthn/register/finish":                                          {},
+	"DELETE /api/v1/webauthn/credentials/:id":                                        {},
 	"POST /api/v1/remote-site/create":                                                {},
 	"POST /api/v1/remote-site/update":                                                {},
 	"DELETE /api/v1/remote-site/delete/:id":                                          {},
