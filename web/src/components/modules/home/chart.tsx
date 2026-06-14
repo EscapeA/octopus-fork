@@ -174,7 +174,7 @@ export function StatsChart() {
         <div className="relative rounded-xl border border-border bg-card pt-5 text-card-foreground">
             <div className="space-y-4 px-4 pb-3 md:px-5">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                         <div className="inline-flex items-center gap-2 rounded-md border border-primary/12 bg-card px-2.5 py-1 text-xs font-medium text-primary">
                             <BarChart3 className="h-3.5 w-3.5" strokeWidth={1.5} />
                             <span>{t('title')}</span>

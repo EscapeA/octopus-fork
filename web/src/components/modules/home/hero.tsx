@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'motion/react';
-import { Activity, ArrowRight, DollarSign, Leaf, ShieldCheck, Waves } from 'lucide-react';
+import { Activity, DollarSign, Leaf, ShieldCheck, Waves } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useStatsToday } from '@/api/endpoints/stats';
 import { AnimatedNumber } from '@/components/common/AnimatedNumber';
@@ -128,10 +128,7 @@ export function HomeHero() {
                                 <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${signal.accent}`}>
                                     <signal.icon className="h-[1.125rem] w-[1.125rem]" strokeWidth={1.5} />
                                 </div>
-                                <div className="flex items-center gap-2 text-muted-foreground/50">
-                                    {index === 0 ? <Leaf className="h-4 w-4 text-primary/50" strokeWidth={1.5} /> : null}
-                                    <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" strokeWidth={1.5} />
-                                </div>
+                                {index === 0 ? <Leaf className="h-4 w-4 text-primary/50" strokeWidth={1.5} /> : null}
                             </div>
                             <div className="mt-5 text-xs text-muted-foreground">{signal.label}</div>
                             <div className="mt-2 flex items-baseline gap-1">
