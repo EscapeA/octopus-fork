@@ -148,7 +148,7 @@ function ProviderPromptCacheRow({
 }) {
     return (
         <tr className="border-b border-border/40 align-top last:border-0">
-            <td className="py-3 pr-3">
+            <td className="px-3 py-3">
                 <div className="text-sm font-semibold">{provider.channel_name}</div>
             </td>
             <td className="px-3 py-3 text-right text-sm tabular-nums">{formatCount(provider.request_count)}</td>
@@ -158,7 +158,7 @@ function ProviderPromptCacheRow({
             </td>
             <td className="px-3 py-3 text-right text-sm tabular-nums">{formatCount(provider.cache_read_tokens)}</td>
             <td className="px-3 py-3 text-right text-sm tabular-nums">{formatCount(provider.cache_write_tokens)}</td>
-            <td className="pl-3 py-3 text-right text-sm font-semibold tabular-nums">
+            <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums">
                 ${formatCurrency(provider.estimated_cost_saved)}
             </td>
         </tr>

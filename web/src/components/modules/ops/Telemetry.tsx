@@ -208,7 +208,7 @@ function ProviderRow({ provider }: { provider: OpsTelemetryProviderItem }) {
 
     return (
         <tr className="border-b border-border/40 align-top last:border-0">
-            <td className="py-3 pr-3">
+            <td className="px-3 py-3">
                 <div className="min-w-0">
                     <div className="truncate text-sm font-semibold">{provider.channel_name}</div>
                     <div className="mt-1 truncate text-xs text-muted-foreground">
@@ -228,7 +228,7 @@ function ProviderRow({ provider }: { provider: OpsTelemetryProviderItem }) {
             <td className="py-3 px-3 text-right">
                 <div className="text-sm font-medium tabular-nums">{formatCount(provider.request_count)}</div>
             </td>
-            <td className="py-3 pl-3 text-right">
+            <td className="px-3 py-3 text-right">
                 <div className="text-sm font-semibold tabular-nums">{formatTelemetryPercent(provider.success_rate)}</div>
             </td>
         </tr>
