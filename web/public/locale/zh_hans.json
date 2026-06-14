@@ -837,6 +837,7 @@
       "edit": "编辑",
       "save": "保存",
       "create": "创建",
+      "test": "测试",
       "cancel": "取消"
     },
     "conditions": {
@@ -924,6 +925,8 @@
       "ruleDisabled": "规则已停用",
       "channelCreated": "渠道已创建",
       "channelUpdated": "渠道已更新",
+      "channelTested": "测试通知已发送",
+      "channelTestFailed": "测试通知发送失败",
       "actionFailed": "操作失败"
     }
   },

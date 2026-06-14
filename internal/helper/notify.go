@@ -502,6 +502,43 @@ func SendNotification(channel *model.AlertNotifChannel, payload AlertWebhookPayl
 	}
 }
 
+// testNotifyLanguageDefault is the fallback language for test notification text.
+const testNotifyLanguageDefault = "en"
+
+// buildTestNotificationMessage returns a localized test notification message
+// based on the alert notification language setting.
+func buildTestNotificationMessage() string {
+	language := testNotifyLanguageDefault
+	if v, err := setting.GetString(model.SettingKeyAlertNotifyLanguage); err == nil && v != "" {
+		language = v
+	}
+	switch language {
+	case "zh-Hans":
+		return "这是来自 Octopus 的测试通知。如果你收到了这条消息，说明通知渠道配置正确。"
+	case "zh-Hant":
+		return "這是來自 Octopus 的測試通知。如果你收到了這條訊息，說明通知管道設定正確。"
+	default:
+		return "This is a test notification from Octopus. If you received this message, the notification channel is configured correctly."
+	}
+}
+
+// TestNotification sends a test message to the given channel to verify its configuration.
+// It performs no persistence and is intended for the management UI "Test" action so
+// misconfigurations surface before (or after) a channel is saved.
+func TestNotification(channel *model.AlertNotifChannel) error {
+	if channel == nil {
+		return fmt.Errorf("notification channel is required")
+	}
+	payload := AlertWebhookPayload{
+		RuleName:      channel.Name,
+		ConditionType: model.AlertRuleConditionType("test"),
+		State:         "test",
+		Message:       buildTestNotificationMessage(),
+		Time:          time.Now().Format(time.RFC3339),
+	}
+	return SendNotification(channel, payload)
+}
+
 // FormatEmailAddress validates and formats an email address.
 func FormatEmailAddress(addr string) (string, error) {
 	a, err := mail.ParseAddress(addr)

@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -162,5 +163,57 @@ func TestUpdateNotifChannelNotFoundReturns404(t *testing.T) {
 
 	if recorder.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusNotFound, recorder.Body.String())
+	}
+}
+
+func TestNotifChannelReportsConfigError(t *testing.T) {
+	setupAlertHandlerTest(t)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	// gotify channel with neither config nor url/secret fallbacks -> validation error
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/alert/notif/test", strings.NewReader(`{
+		"name":"bad-gotify",
+		"type":"gotify"
+	}`))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	testNotifChannel(c)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "gotify") {
+		t.Fatalf("expected error to mention gotify, got: %s", recorder.Body.String())
+	}
+}
+
+func TestNotifChannelSucceedsAgainstWebhook(t *testing.T) {
+	setupAlertHandlerTest(t)
+
+	var received map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(body, &received)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	body := fmt.Sprintf(`{"name":"my-webhook","type":"webhook","url":%q}`, srv.URL)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/alert/notif/test", strings.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	testNotifChannel(c)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if received == nil {
+		t.Fatalf("webhook server did not receive a request")
+	}
+	if received["state"] != "test" {
+		t.Fatalf("expected state=test in webhook payload, got: %v", received["state"])
 	}
 }

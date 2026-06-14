@@ -837,6 +837,7 @@
       "edit": "Edit",
       "save": "Save",
       "create": "Create",
+      "test": "Test",
       "cancel": "Cancel"
     },
     "conditions": {
@@ -924,6 +925,8 @@
       "ruleDisabled": "Rule disabled",
       "channelCreated": "Channel created",
       "channelUpdated": "Channel updated",
+      "channelTested": "Test notification sent",
+      "channelTestFailed": "Test notification failed",
       "actionFailed": "Action failed"
     }
   },

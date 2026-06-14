@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import { Bell, Clock, Loader, Mail, MessageSquare, Pencil, Plus, Power, PowerOff, RefreshCw, Save, Trash2, Webhook, X } from 'lucide-react';
+import { Bell, Clock, Loader, Mail, MessageSquare, Pencil, Plus, Power, PowerOff, RefreshCw, Save, Send, Trash2, Webhook, X } from 'lucide-react';
 import {
     useAlertRuleList,
     useCreateAlertRule,
@@ -11,6 +11,7 @@ import {
     useCreateNotifChannel,
     useDeleteNotifChannel,
     useUpdateNotifChannel,
+    useTestNotifChannel,
     useAlertHistory,
     NOTIF_CHANNEL_TYPES,
     type AlertRule,
@@ -314,11 +315,13 @@ export function Alert() {
     const createChannel = useCreateNotifChannel();
     const updateChannel = useUpdateNotifChannel();
     const deleteChannel = useDeleteNotifChannel();
+    const testChannel = useTestNotifChannel();
 
     const [showNewRule, setShowNewRule] = useState(false);
     const [showNewChannel, setShowNewChannel] = useState(false);
     const [editingRuleId, setEditingRuleId] = useState<number | null>(null);
     const [editingChannelId, setEditingChannelId] = useState<number | null>(null);
+    const [testingKey, setTestingKey] = useState<string | null>(null);
     const [newRule, setNewRule] = useState<AlertRuleDraft>(() => createAlertRuleDraft());
     const [editingRule, setEditingRule] = useState<AlertRuleDraft>(() => createAlertRuleDraft());
     const [newChannel, setNewChannel] = useState<AlertChannelDraft>(() => createAlertChannelDraft());
@@ -447,6 +450,20 @@ export function Alert() {
                 resetNewChannel();
             },
             onError: (e) => toast.error(t('toast.actionFailed'), { description: e.message }),
+        });
+    };
+
+    const handleTestChannel = (key: string, payload: Partial<AlertNotifChannel>) => {
+        setTestingKey(key);
+        testChannel.mutate(payload, {
+            onSuccess: () => {
+                toast.success(t('toast.channelTested'));
+                setTestingKey(null);
+            },
+            onError: (e) => {
+                toast.error(t('toast.channelTestFailed'), { description: e.message });
+                setTestingKey(null);
+            },
         });
     };
 
@@ -748,6 +765,13 @@ export function Alert() {
                                     {t('actions.create')}
                                 </button>
                                 <button
+                                    onClick={() => handleTestChannel('new', channelDraftToPayload(newChannel))}
+                                    disabled={testingKey === 'new'}
+                                    className="flex-1 h-9 rounded-xl bg-muted text-muted-foreground text-sm font-medium hover:bg-muted/80 active:scale-[0.98] disabled:opacity-50"
+                                >
+                                    {testingKey === 'new' ? <Loader className="h-4 w-4 animate-spin mx-auto" /> : t('actions.test')}
+                                </button>
+                                <button
                                     onClick={resetNewChannel}
                                     className="flex-1 h-9 rounded-xl bg-muted text-muted-foreground text-sm font-medium hover:bg-muted/80 active:scale-[0.98]"
                                 >
@@ -796,6 +820,13 @@ export function Alert() {
                                                             <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4" />{t('actions.save')}
                                                         </button>
                                                         <button
+                                                            onClick={() => handleTestChannel(`edit:${channel.id}`, channelDraftToPayload(editingChannel))}
+                                                            disabled={testingKey === `edit:${channel.id}`}
+                                                            className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium bg-background text-foreground hover:bg-card transition-all active:scale-95 disabled:opacity-50"
+                                                        >
+                                                            {testingKey === `edit:${channel.id}` ? <Loader className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" /> : <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}{t('actions.test')}
+                                                        </button>
+                                                        <button
                                                             onClick={resetChannelEdit}
                                                             className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium bg-muted text-muted-foreground hover:bg-muted/80 transition-all active:scale-95"
                                                         >
@@ -814,15 +845,24 @@ export function Alert() {
                                         </div>
                                         <div className="flex items-center gap-2 shrink-0">
                                             {!isEditing ? (
-                                                <button
-                                                    onClick={() => {
-                                                        setEditingChannelId(channel.id);
-                                                        setEditingChannel(createAlertChannelDraft(channel));
-                                                    }}
-                                                    className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium bg-background text-foreground hover:bg-card transition-all active:scale-95"
-                                                >
-                                                    <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />{t('actions.edit')}
-                                                </button>
+                                                <>
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditingChannelId(channel.id);
+                                                            setEditingChannel(createAlertChannelDraft(channel));
+                                                        }}
+                                                        className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium bg-background text-foreground hover:bg-card transition-all active:scale-95"
+                                                    >
+                                                        <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />{t('actions.edit')}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleTestChannel(`list:${channel.id}`, channel)}
+                                                        disabled={testingKey === `list:${channel.id}`}
+                                                        className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium bg-background text-foreground hover:bg-card transition-all active:scale-95 disabled:opacity-50"
+                                                    >
+                                                        {testingKey === `list:${channel.id}` ? <Loader className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" /> : <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}{t('actions.test')}
+                                                    </button>
+                                                </>
                                             ) : null}
                                             <button
                                                 onClick={() => {

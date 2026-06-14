@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lingyuins/octopus/internal/helper"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op/alert"
 	"github.com/lingyuins/octopus/internal/server/auth"
@@ -27,6 +28,7 @@ func init() {
 		AddRoute(router.NewRoute("/notif/create", http.MethodPost).Use(middleware.RequirePermission(auth.PermSettingsWrite)).Handle(createNotifChannel)).
 		AddRoute(router.NewRoute("/notif/update", http.MethodPost).Use(middleware.RequirePermission(auth.PermSettingsWrite)).Handle(updateNotifChannel)).
 		AddRoute(router.NewRoute("/notif/delete/:id", http.MethodDelete).Use(middleware.RequirePermission(auth.PermSettingsWrite)).Handle(deleteNotifChannel)).
+		AddRoute(router.NewRoute("/notif/test", http.MethodPost).Use(middleware.RequirePermission(auth.PermSettingsWrite)).Handle(testNotifChannel)).
 		AddRoute(router.NewRoute("/history", http.MethodGet).Handle(listAlertHistory))
 }
 
@@ -151,6 +153,23 @@ func deleteNotifChannel(c *gin.Context) {
 			return
 		}
 		resp.InternalError(c)
+		return
+	}
+	resp.Success(c, nil)
+}
+
+// testNotifChannel sends a test notification using the supplied channel configuration.
+// It accepts the same payload shape as create/update so unsaved drafts can be
+// verified directly from the management UI.
+func testNotifChannel(c *gin.Context) {
+	var req alertNotifChannelPayload
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.Error(c, http.StatusBadRequest, resp.ErrInvalidJSON)
+		return
+	}
+	ch := req.toModel()
+	if err := helper.TestNotification(&ch); err != nil {
+		resp.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 	resp.Success(c, nil)

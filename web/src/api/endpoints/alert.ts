@@ -172,6 +172,15 @@ export function useDeleteNotifChannel() {
     });
 }
 
+export function useTestNotifChannel() {
+    return useMutation({
+        mutationFn: async (data: Partial<AlertNotifChannel>) => {
+            return apiClient.post<null>('/api/v1/alert/notif/test', data);
+        },
+        onError: (error) => logger.error('Test notif channel failed:', error),
+    });
+}
+
 export function useAlertHistory(limit: number = 50) {
     return useQuery({
         queryKey: ['alerts', 'history', limit],
