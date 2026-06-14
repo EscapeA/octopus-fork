@@ -1053,6 +1053,9 @@
       "title": "Usage Overview",
       "description": "Track call volume, success rate, spend, and coverage for the selected range.",
       "empty": "No overview data is available for this range",
+      "customize": "Customize",
+      "customizeTitle": "Metric Visibility & Order",
+      "customizeReset": "Reset",
       "range": {
         "7d": "7D",
         "30d": "30D",

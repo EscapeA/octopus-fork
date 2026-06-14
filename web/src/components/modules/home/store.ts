@@ -29,15 +29,81 @@ export function normalizeOverviewRange(value: string | null | undefined): Overvi
     return OVERVIEW_RANGES.includes(value as OverviewRange) ? (value as OverviewRange) : '7d';
 }
 
+// 首页 analytics 概览的 8 个指标卡，用户可显隐与排序。
+export type OverviewMetricKey =
+    | 'requestCount'
+    | 'successRate'
+    | 'totalTokens'
+    | 'totalCost'
+    | 'providerCount'
+    | 'apiKeyCount'
+    | 'modelCount'
+    | 'fallbackRate';
+
+export const OVERVIEW_METRIC_KEYS: readonly OverviewMetricKey[] = [
+    'requestCount',
+    'successRate',
+    'totalTokens',
+    'totalCost',
+    'providerCount',
+    'apiKeyCount',
+    'modelCount',
+    'fallbackRate',
+];
+
+function normalizeOverviewMetricOrder(value: unknown): OverviewMetricKey[] {
+    const seen = new Set<OverviewMetricKey>();
+    const result: OverviewMetricKey[] = [];
+    if (Array.isArray(value)) {
+        for (const item of value) {
+            const key = item as OverviewMetricKey;
+            if (
+                typeof item === 'string' &&
+                (OVERVIEW_METRIC_KEYS as readonly string[]).includes(item) &&
+                !seen.has(key)
+            ) {
+                seen.add(key);
+                result.push(key);
+            }
+        }
+    }
+    // 补全缺失或新增的指标，保证顺序数组始终覆盖全集。
+    for (const key of OVERVIEW_METRIC_KEYS) {
+        if (!seen.has(key)) result.push(key);
+    }
+    return result;
+}
+
+function normalizeOverviewHiddenMetrics(value: unknown): OverviewMetricKey[] {
+    if (!Array.isArray(value)) return [];
+    const result: OverviewMetricKey[] = [];
+    for (const item of value) {
+        const key = item as OverviewMetricKey;
+        if (
+            typeof item === 'string' &&
+            (OVERVIEW_METRIC_KEYS as readonly string[]).includes(item) &&
+            !result.includes(key)
+        ) {
+            result.push(key);
+        }
+    }
+    return result;
+}
+
 interface HomeViewState {
     rankSortMode: RankSortMode;
     chartMetricType: ChartMetricType;
     chartPeriod: ChartPeriod;
     overviewRange: OverviewRange;
+    overviewMetricOrder: OverviewMetricKey[];
+    overviewHiddenMetrics: OverviewMetricKey[];
     setRankSortMode: (value: RankSortMode) => void;
     setChartMetricType: (value: ChartMetricType) => void;
     setChartPeriod: (value: ChartPeriod) => void;
     setOverviewRange: (value: OverviewRange) => void;
+    setOverviewMetricHidden: (key: OverviewMetricKey, hidden: boolean) => void;
+    moveOverviewMetric: (key: OverviewMetricKey, direction: 'up' | 'down') => void;
+    resetOverviewMetrics: () => void;
 }
 
 export const useHomeViewStore = create<HomeViewState>()(
@@ -47,10 +113,36 @@ export const useHomeViewStore = create<HomeViewState>()(
             chartMetricType: 'cost',
             chartPeriod: '1',
             overviewRange: '7d',
+            overviewMetricOrder: [...OVERVIEW_METRIC_KEYS],
+            overviewHiddenMetrics: [],
             setRankSortMode: (value) => set({ rankSortMode: normalizeRankSortMode(value) }),
             setChartMetricType: (value) => set({ chartMetricType: normalizeChartMetricType(value) }),
             setChartPeriod: (value) => set({ chartPeriod: normalizeChartPeriod(value) }),
             setOverviewRange: (value) => set({ overviewRange: normalizeOverviewRange(value) }),
+            setOverviewMetricHidden: (key, hidden) => set((state) => {
+                const hiddenNow = state.overviewHiddenMetrics;
+                const alreadyHidden = hiddenNow.includes(key);
+                if (hidden) {
+                    if (alreadyHidden) return {};
+                    // 至少保留一个可见指标，避免概览区被清空。
+                    const visibleCount = state.overviewMetricOrder.length - hiddenNow.length;
+                    if (visibleCount <= 1) return {};
+                    return { overviewHiddenMetrics: [...hiddenNow, key] };
+                }
+                if (!alreadyHidden) return {};
+                return { overviewHiddenMetrics: hiddenNow.filter((k) => k !== key) };
+            }),
+            moveOverviewMetric: (key, direction) => set((state) => {
+                const order = [...state.overviewMetricOrder];
+                const idx = order.indexOf(key);
+                if (idx < 0) return {};
+                const target = direction === 'up' ? idx - 1 : idx + 1;
+                if (target < 0 || target >= order.length) return {};
+                [order[idx], order[target]] = [order[target], order[idx]];
+                return { overviewMetricOrder: order };
+            }),
+            resetOverviewMetrics: () =>
+                set({ overviewMetricOrder: [...OVERVIEW_METRIC_KEYS], overviewHiddenMetrics: [] }),
         }),
         {
             name: 'home-view-options-storage-v2',
@@ -60,6 +152,8 @@ export const useHomeViewStore = create<HomeViewState>()(
                 chartMetricType: state.chartMetricType,
                 chartPeriod: state.chartPeriod,
                 overviewRange: state.overviewRange,
+                overviewMetricOrder: state.overviewMetricOrder,
+                overviewHiddenMetrics: state.overviewHiddenMetrics,
             }),
             merge: (persistedState, currentState) => {
                 const typed = (persistedState as Partial<HomeViewState> | null) ?? null;
@@ -70,6 +164,8 @@ export const useHomeViewStore = create<HomeViewState>()(
                     chartMetricType: normalizeChartMetricType(typed?.chartMetricType),
                     chartPeriod: normalizeChartPeriod(typed?.chartPeriod),
                     overviewRange: normalizeOverviewRange(typed?.overviewRange),
+                    overviewMetricOrder: normalizeOverviewMetricOrder(typed?.overviewMetricOrder),
+                    overviewHiddenMetrics: normalizeOverviewHiddenMetrics(typed?.overviewHiddenMetrics),
                 };
             },
         }

@@ -1053,6 +1053,9 @@
       "title": "使用概览",
       "description": "按周期查看调用规模、成功率、花费和覆盖情况。",
       "empty": "当前范围内暂无概览数据",
+      "customize": "显示项",
+      "customizeTitle": "指标显示与排序",
+      "customizeReset": "重置",
       "range": {
         "7d": "7天",
         "30d": "30天",

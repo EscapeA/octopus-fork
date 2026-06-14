@@ -1,78 +1,140 @@
 'use client';
 
 import { motion } from 'motion/react';
-import { BarChart3, Boxes, CircleCheckBig, Coins, DollarSign, GitBranchPlus, KeyRound, Radio, ScanLine, Sparkles } from 'lucide-react';
+import {
+    BarChart3,
+    Boxes,
+    ChevronDown,
+    ChevronUp,
+    CircleCheckBig,
+    Coins,
+    DollarSign,
+    GitBranchPlus,
+    KeyRound,
+    Radio,
+    RotateCcw,
+    ScanLine,
+    SlidersHorizontal,
+    Sparkles,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Tabs, TabsList, TabsTrigger } from '@/components/animate-ui/components/animate/tabs';
 import { useAnalyticsOverview } from '@/api/endpoints/analytics';
 import { QueryState, formatPercent } from '@/components/modules/analytics/shared';
 import { AnimatedNumber } from '@/components/common/AnimatedNumber';
 import { EASING } from '@/lib/animations/fluid-transitions';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn, formatCount, formatMoney } from '@/lib/utils';
-import { useHomeViewStore, type OverviewRange } from './store';
+import { useHomeViewStore, type OverviewMetricKey, type OverviewRange } from './store';
 
 const RANGE_OPTIONS: readonly OverviewRange[] = ['7d', '30d', '90d'];
+
+type OverviewData = NonNullable<ReturnType<typeof useAnalyticsOverview>['data']>;
+type MetricIcon = typeof BarChart3;
+
+type MetricDef = {
+    key: OverviewMetricKey;
+    title: string;
+    value: string;
+    unit: string;
+    icon: MetricIcon;
+    accentClassName?: string;
+};
 
 export function HomeAnalyticsOverview() {
     const t = useTranslations('home.overview');
     const range = useHomeViewStore((state) => state.overviewRange);
     const setRange = useHomeViewStore((state) => state.setOverviewRange);
+    const metricOrder = useHomeViewStore((state) => state.overviewMetricOrder);
+    const hiddenMetrics = useHomeViewStore((state) => state.overviewHiddenMetrics);
+    const setOverviewMetricHidden = useHomeViewStore((state) => state.setOverviewMetricHidden);
+    const moveOverviewMetric = useHomeViewStore((state) => state.moveOverviewMetric);
+    const resetOverviewMetrics = useHomeViewStore((state) => state.resetOverviewMetrics);
     const { data, isLoading, error } = useAnalyticsOverview(range);
 
-    const cards = data ? [
-        {
-            title: t('metrics.requestCount'),
-            value: formatCount(data.request_count).formatted.value,
-            unit: formatCount(data.request_count).formatted.unit,
-            icon: BarChart3,
-        },
-        {
-            title: t('metrics.successRate'),
-            value: formatPercent(data.success_rate).formatted.value,
-            unit: formatPercent(data.success_rate).formatted.unit,
-            icon: CircleCheckBig,
-            accentClassName: 'bg-emerald-500/10 text-emerald-600',
-        },
-        {
-            title: t('metrics.totalTokens'),
-            value: formatCount(data.total_tokens).formatted.value,
-            unit: formatCount(data.total_tokens).formatted.unit,
-            icon: Coins,
-            accentClassName: 'bg-sky-500/10 text-sky-600',
-        },
-        {
-            title: t('metrics.totalCost'),
-            value: formatMoney(data.total_cost).formatted.value,
-            unit: formatMoney(data.total_cost).formatted.unit,
-            icon: DollarSign,
-            accentClassName: 'bg-amber-500/10 text-amber-600',
-        },
-        {
-            title: t('metrics.providerCount'),
-            value: formatCount(data.provider_count).formatted.value,
-            unit: formatCount(data.provider_count).formatted.unit,
-            icon: Radio,
-        },
-        {
-            title: t('metrics.apiKeyCount'),
-            value: formatCount(data.api_key_count).formatted.value,
-            unit: formatCount(data.api_key_count).formatted.unit,
-            icon: KeyRound,
-        },
-        {
-            title: t('metrics.modelCount'),
-            value: formatCount(data.model_count).formatted.value,
-            unit: formatCount(data.model_count).formatted.unit,
-            icon: Boxes,
-        },
-        {
-            title: t('metrics.fallbackRate'),
-            value: formatPercent(data.fallback_rate).formatted.value,
-            unit: formatPercent(data.fallback_rate).formatted.unit,
-            icon: GitBranchPlus,
-            accentClassName: 'bg-violet-500/10 text-violet-600',
-        },
-    ] : [];
+    // 标题不依赖接口数据，配置面板在数据未加载时也能列出全部指标。
+    const titleByKey: Record<OverviewMetricKey, string> = {
+        requestCount: t('metrics.requestCount'),
+        successRate: t('metrics.successRate'),
+        totalTokens: t('metrics.totalTokens'),
+        totalCost: t('metrics.totalCost'),
+        providerCount: t('metrics.providerCount'),
+        apiKeyCount: t('metrics.apiKeyCount'),
+        modelCount: t('metrics.modelCount'),
+        fallbackRate: t('metrics.fallbackRate'),
+    };
+
+    const buildCard = (key: OverviewMetricKey, d: OverviewData): MetricDef => {
+        const base = { key, title: titleByKey[key] };
+        switch (key) {
+            case 'requestCount':
+                return {
+                    ...base,
+                    value: formatCount(d.request_count).formatted.value,
+                    unit: formatCount(d.request_count).formatted.unit,
+                    icon: BarChart3,
+                };
+            case 'successRate':
+                return {
+                    ...base,
+                    value: formatPercent(d.success_rate).formatted.value,
+                    unit: formatPercent(d.success_rate).formatted.unit,
+                    icon: CircleCheckBig,
+                    accentClassName: 'bg-emerald-500/10 text-emerald-600',
+                };
+            case 'totalTokens':
+                return {
+                    ...base,
+                    value: formatCount(d.total_tokens).formatted.value,
+                    unit: formatCount(d.total_tokens).formatted.unit,
+                    icon: Coins,
+                    accentClassName: 'bg-sky-500/10 text-sky-600',
+                };
+            case 'totalCost':
+                return {
+                    ...base,
+                    value: formatMoney(d.total_cost).formatted.value,
+                    unit: formatMoney(d.total_cost).formatted.unit,
+                    icon: DollarSign,
+                    accentClassName: 'bg-amber-500/10 text-amber-600',
+                };
+            case 'providerCount':
+                return {
+                    ...base,
+                    value: formatCount(d.provider_count).formatted.value,
+                    unit: formatCount(d.provider_count).formatted.unit,
+                    icon: Radio,
+                };
+            case 'apiKeyCount':
+                return {
+                    ...base,
+                    value: formatCount(d.api_key_count).formatted.value,
+                    unit: formatCount(d.api_key_count).formatted.unit,
+                    icon: KeyRound,
+                };
+            case 'modelCount':
+                return {
+                    ...base,
+                    value: formatCount(d.model_count).formatted.value,
+                    unit: formatCount(d.model_count).formatted.unit,
+                    icon: Boxes,
+                };
+            case 'fallbackRate':
+                return {
+                    ...base,
+                    value: formatPercent(d.fallback_rate).formatted.value,
+                    unit: formatPercent(d.fallback_rate).formatted.unit,
+                    icon: GitBranchPlus,
+                    accentClassName: 'bg-violet-500/10 text-violet-600',
+                };
+        }
+    };
+
+    const hiddenSet = new Set(hiddenMetrics);
+    const visibleCount = metricOrder.length - hiddenSet.size;
+    const cards: MetricDef[] = data
+        ? metricOrder.map((key) => buildCard(key, data)).filter((card) => !hiddenSet.has(card.key))
+        : [];
 
     return (
         <motion.section
@@ -93,15 +155,90 @@ export function HomeAnalyticsOverview() {
                     </div>
                 </div>
 
-                <Tabs value={range} onValueChange={(value) => setRange(value as OverviewRange)}>
-                    <TabsList className="w-max rounded-lg border border-border bg-card p-1">
-                        {RANGE_OPTIONS.map((option) => (
-                            <TabsTrigger key={option} value={option}>
-                                {t(`range.${option}`)}
-                            </TabsTrigger>
-                        ))}
-                    </TabsList>
-                </Tabs>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <button
+                                type="button"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-border/80 hover:text-foreground"
+                            >
+                                <SlidersHorizontal className="h-3.5 w-3.5" strokeWidth={1.5} />
+                                <span>{t('customize')}</span>
+                            </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-72 rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-md">
+                            <div className="flex items-center justify-between px-2 py-1">
+                                <span className="text-xs font-semibold">{t('customizeTitle')}</span>
+                                <button
+                                    type="button"
+                                    onClick={resetOverviewMetrics}
+                                    className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                                >
+                                    <RotateCcw className="h-3 w-3" />
+                                    {t('customizeReset')}
+                                </button>
+                            </div>
+                            <div className="mt-1 max-h-80 space-y-0.5 overflow-y-auto">
+                                {metricOrder.map((key, index) => {
+                                    const isHidden = hiddenSet.has(key);
+                                    const disableHide = !isHidden && visibleCount <= 1;
+                                    return (
+                                        <div
+                                            key={key}
+                                            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-muted/50"
+                                        >
+                                            <label
+                                                className={cn(
+                                                    'flex min-w-0 flex-1 items-center gap-2 py-1',
+                                                    disableHide ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+                                                )}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={!isHidden}
+                                                    disabled={disableHide}
+                                                    onChange={(event) => setOverviewMetricHidden(key, !event.target.checked)}
+                                                    className="h-3.5 w-3.5 rounded border-border accent-primary"
+                                                />
+                                                <span className="truncate text-xs">{titleByKey[key]}</span>
+                                            </label>
+                                            <div className="flex shrink-0 items-center">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => moveOverviewMetric(key, 'up')}
+                                                    disabled={index === 0}
+                                                    className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+                                                    aria-label="move up"
+                                                >
+                                                    <ChevronUp className="h-3.5 w-3.5" />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => moveOverviewMetric(key, 'down')}
+                                                    disabled={index === metricOrder.length - 1}
+                                                    className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+                                                    aria-label="move down"
+                                                >
+                                                    <ChevronDown className="h-3.5 w-3.5" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+
+                    <Tabs value={range} onValueChange={(value) => setRange(value as OverviewRange)}>
+                        <TabsList className="w-max rounded-lg border border-border bg-card p-1">
+                            {RANGE_OPTIONS.map((option) => (
+                                <TabsTrigger key={option} value={option}>
+                                    {t(`range.${option}`)}
+                                </TabsTrigger>
+                            ))}
+                        </TabsList>
+                    </Tabs>
+                </div>
             </div>
 
             <div className="mt-5">
@@ -114,7 +251,7 @@ export function HomeAnalyticsOverview() {
                     <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
                         {cards.map((card) => (
                             <article
-                                key={card.title}
+                                key={card.key}
                                 className={cn(
                                     'group rounded-lg border border-border bg-card p-3 transition-[transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-border/80 sm:p-4',
                                 )}

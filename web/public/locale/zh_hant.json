@@ -1053,6 +1053,9 @@
       "title": "使用概覽",
       "description": "按週期查看呼叫規模、成功率、花費和覆蓋情況。",
       "empty": "目前範圍內暫無概覽資料",
+      "customize": "顯示項",
+      "customizeTitle": "指標顯示與排序",
+      "customizeReset": "重設",
       "range": {
         "7d": "7天",
         "30d": "30天",
