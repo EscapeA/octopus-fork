@@ -467,37 +467,6 @@ export function Toolbar() {
                             </div>
                         </PopoverContent>
                     </Popover>
-
-                    {showLayoutOptions && (
-                        <div className="hidden items-center gap-1 rounded-lg border border-border/25 bg-card p-0.5 sm:flex">
-                            <button
-                                type="button"
-                                aria-label={t('popover.grid')}
-                                onClick={() => setLayout(toolbarItem, 'grid')}
-                                className={cn(
-                                    'grid size-8 place-items-center rounded-md transition-[color,background-color,box-shadow] duration-300',
-                                        layout === 'grid'
-                                        ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/20'
-                                        : 'text-muted-foreground hover:bg-card hover:text-foreground'
-                                )}
-                            >
-                                <LayoutGrid className="size-3.5" />
-                            </button>
-                            <button
-                                type="button"
-                                aria-label={t('popover.list')}
-                                onClick={() => setLayout(toolbarItem, 'list')}
-                                className={cn(
-                                    'grid size-8 place-items-center rounded-md transition-[color,background-color,box-shadow] duration-300',
-                                        layout === 'list'
-                                        ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/20'
-                                        : 'text-muted-foreground hover:bg-card hover:text-foreground'
-                                )}
-                            >
-                                <List className="size-3.5" />
-                            </button>
-                        </div>
-                    )}
                 </div>
 
                 <div className="flex items-center gap-1 sm:gap-1.5">
