@@ -198,9 +198,11 @@ export function ChannelGroupManagerPanel({
                         return (
                             <div
                                 key={group.id}
+                                onClick={!isEditing && !isSelected ? () => onSelectGroup(group.id) : undefined}
                                 className={cn(
-                                    'rounded-lg border border-border/25 bg-card p-3',
-                                    isSelected && 'border-primary/35 bg-primary/5'
+                                    'rounded-lg border border-border/25 bg-card p-3 transition-colors',
+                                    isSelected && 'border-primary/35 bg-primary/5',
+                                    !isEditing && !isSelected && 'cursor-pointer hover:border-primary/25 hover:bg-primary/5'
                                 )}
                             >
                                 {isEditing ? (
@@ -245,6 +247,11 @@ export function ChannelGroupManagerPanel({
                                                     {t('defaultBadge')}
                                                 </Badge>
                                             ) : null}
+                                            {isSelected ? (
+                                                <Badge variant="secondary" className="rounded-full bg-primary/10 text-primary">
+                                                    {t('current')}
+                                                </Badge>
+                                            ) : null}
                                             <Badge variant="secondary" className="rounded-full">
                                                 {t('count', { count: channelCount })}
                                             </Badge>
@@ -252,20 +259,10 @@ export function ChannelGroupManagerPanel({
                                         <div className="flex flex-wrap items-center gap-2">
                                             <Button
                                                 type="button"
-                                                variant={isSelected ? 'secondary' : 'ghost'}
-                                                size="sm"
-                                                onClick={() => onSelectGroup(group.id)}
-                                                disabled={isSelected}
-                                                className="h-8 rounded-lg"
-                                            >
-                                                <Check className="size-4" />
-                                                {isSelected ? t('current') : t('select')}
-                                            </Button>
-                                            <Button
-                                                type="button"
                                                 variant="ghost"
                                                 size="sm"
-                                                onClick={() => {
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
                                                     setEditingGroupID(group.id);
                                                     setEditingGroupName(group.name);
                                                 }}
@@ -279,7 +276,10 @@ export function ChannelGroupManagerPanel({
                                                     type="button"
                                                     variant="ghost"
                                                     size="sm"
-                                                    onClick={() => handleDelete(group)}
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        handleDelete(group);
+                                                    }}
                                                     disabled={deleteChannelGroup.isPending}
                                                     className="h-8 rounded-lg text-destructive hover:text-destructive"
                                                 >
