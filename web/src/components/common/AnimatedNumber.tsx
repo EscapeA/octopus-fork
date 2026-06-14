@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { animate } from 'motion/react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { significantDecimalPlaces } from '@/lib/utils';
 
 interface AnimatedNumberProps {
     value: string | number | undefined;
@@ -42,13 +43,15 @@ export function AnimatedNumber({ value, duration = 800 }: AnimatedNumberProps) {
         return <span>-</span>;
     }
 
-    const shouldShowDecimals = typeof value === 'string' && value.includes('.');
-    const decimalPlaces = shouldShowDecimals ? 2 : 0;
+    // Derive the meaningful number of decimals from the source string so that
+    // counts like "5.00" render as "5" instead of keeping spurious trailing
+    // zeros, while genuine precision ("1.5", "1.23") is preserved.
+    const decimalPlaces = significantDecimalPlaces(value);
 
     const formattedValue = displayValue.toLocaleString('en-US', {
         notation: isMobile && displayValue >= 1_000_000 ? 'compact' : 'standard',
         maximumFractionDigits: decimalPlaces,
-        ...(shouldShowDecimals ? { minimumFractionDigits: decimalPlaces } : {}),
+        ...(decimalPlaces > 0 ? { minimumFractionDigits: decimalPlaces } : {}),
     });
 
     return <span>{formattedValue}</span>;

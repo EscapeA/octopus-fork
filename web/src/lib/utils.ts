@@ -34,3 +34,13 @@ export function formatTime(ms: number | undefined): { raw: number, formatted: { 
     formatted: formatNumber(ms, [86400000, 3600000, 60000, 1000], ['', 'd', 'h', 'm', 's', 'ms']),
   };
 }
+
+// significantDecimalPlaces returns how many decimals to render for a numeric
+// display string, trimming trailing zeros so counts like "5.00" show as "5"
+// while genuine precision such as "1.5" or "1.23" is preserved.
+export function significantDecimalPlaces(value: string | number | undefined): number {
+  if (typeof value !== 'string') return 0;
+  const fracPart = value.split('.')[1];
+  if (!fracPart) return 0;
+  return Math.min(2, fracPart.replace(/0+$/, '').length);
+}
