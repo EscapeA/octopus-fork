@@ -45,13 +45,25 @@ func (o *ChatOutbound) TransformRequest(ctx context.Context, request *transforme
 	}
 	openaioutbound.NormalizeMessagesForOpenAICompat(compatRequest.Messages)
 
-	// 模型由 URL 路径承载；stream_options 是 OpenAI 特有字段，Cloudflare 不识别，清掉避免干扰。
-	compatRequest.Model = ""
+	// stream_options 是 OpenAI 特有字段，Cloudflare 不识别，清掉避免干扰。
 	compatRequest.StreamOptions = nil
 
 	body, err := json.Marshal(compatRequest)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// 模型名由 URL 路径承载（@cf/{publisher}/{model}），请求体不应包含 model 字段。
+	// InternalLLMRequest.Model 没有 omitempty，直接序列化会得到 "model":""，导致 Workers AI
+	// 的 anyOf 输入格式动态检测失败（messages/prompt/input 均不匹配，oneOf 0 matches），
+	// 因此需要从 body 中剔除 model 键。
+	var bodyMap map[string]json.RawMessage
+	if err := json.Unmarshal(body, &bodyMap); err != nil {
+		return nil, fmt.Errorf("failed to decode request body: %w", err)
+	}
+	delete(bodyMap, "model")
+	if body, err = json.Marshal(bodyMap); err != nil {
+		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
 
 	modelName := strings.TrimPrefix(strings.TrimSpace(request.Model), "@cf/")
