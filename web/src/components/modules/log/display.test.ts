@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { RelayLog, RelayLogDetail } from '@/api/endpoints/log';
-import { resolveLogDisplayFields } from './display.ts';
+import { formatJsonForCopy, resolveLogDisplayFields } from './display.ts';
 
 function buildLog(overrides: Partial<RelayLog> = {}): RelayLog {
     return {
@@ -189,6 +189,27 @@ test('resolveLogDisplayFields infers embedding request type label', () => {
 
     const result = resolveLogDisplayFields(log);
     assert.equal(result.requestTypeKey, 'embedding');
+});
+
+test('formatJsonForCopy pretty-prints minified JSON with two-space indent', () => {
+    const result = formatJsonForCopy('{"role":"system","content":"hi"}');
+    assert.equal(result, '{\n  "role": "system",\n  "content": "hi"\n}');
+});
+
+test('formatJsonForCopy preserves already-formatted JSON semantics', () => {
+    const result = formatJsonForCopy('{\n  "a": 1\n}');
+    assert.deepEqual(JSON.parse(result), { a: 1 });
+});
+
+test('formatJsonForCopy returns non-JSON content unchanged', () => {
+    const raw = 'not json { broken';
+    assert.equal(formatJsonForCopy(raw), raw);
+});
+
+test('formatJsonForCopy returns empty string for empty or missing input', () => {
+    assert.equal(formatJsonForCopy(''), '');
+    assert.equal(formatJsonForCopy(undefined), '');
+    assert.equal(formatJsonForCopy(null), '');
 });
 
 

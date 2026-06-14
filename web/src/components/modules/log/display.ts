@@ -146,6 +146,18 @@ export function resolveLogDisplayFields(
     };
 }
 
+// formatJsonForCopy pretty-prints JSON content for clipboard use so that copied
+// request/response bodies keep their newlines and indentation instead of being
+// pasted as a single minified line. Non-JSON content is returned unchanged.
+export function formatJsonForCopy(content: string | undefined | null): string {
+    if (!content) return '';
+    try {
+        return JSON.stringify(JSON.parse(content), null, 2);
+    } catch {
+        return content;
+    }
+}
+
 
 
 

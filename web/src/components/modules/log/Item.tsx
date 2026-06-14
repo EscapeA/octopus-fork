@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { formatUnixSeconds } from '@/lib/time';
 import { endpointTypeLabelKey } from '@/components/modules/group/utils';
-import { resolveLogDisplayFields } from './display';
+import { resolveLogDisplayFields, formatJsonForCopy } from './display';
 import { CopyIconButton } from '@/components/common/CopyButton';
 import {
     MorphingDialog,
@@ -171,6 +171,7 @@ function DeferredJsonContent({ content, fallbackText, collapsed }: { content: st
                         displayDataTypes={false}
                         displayObjectSize={false}
                         collapsed={collapsed}
+                        shortenTextAfterLength={collapsed ? 30 : 0}
                     />
                 </motion.div>
             ) : (
@@ -227,6 +228,8 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
 
     const requestContent = detail?.request_content;
     const responseContent = detail?.response_content;
+    const requestCopyText = useMemo(() => formatJsonForCopy(requestContent), [requestContent]);
+    const responseCopyText = useMemo(() => formatJsonForCopy(responseContent), [responseContent]);
     const usageKnown = useMemo(() => {
         if (log.input_tokens > 0 || log.output_tokens > 0 || Number(log.cost) > 0) {
             return true;
@@ -540,7 +543,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                                             >
                                                                 {requestJsonCollapsed ? <ChevronsUpDown className="size-3.5" /> : <ChevronsDownUp className="size-3.5" />}
                                                             </button>
-                                                            <CopyIconButton text={requestContent} className="text-muted-foreground hover:text-foreground" />
+                                                            <CopyIconButton text={requestCopyText} className="text-muted-foreground hover:text-foreground" />
                                                         </>
                                                     )}
                                                 </div>
@@ -573,7 +576,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                                             >
                                                                 {responseJsonCollapsed ? <ChevronsUpDown className="size-3.5" /> : <ChevronsDownUp className="size-3.5" />}
                                                             </button>
-                                                            <CopyIconButton text={responseContent} className="text-muted-foreground hover:text-foreground" />
+                                                            <CopyIconButton text={responseCopyText} className="text-muted-foreground hover:text-foreground" />
                                                         </>
                                                     )}
                                                 </div>
