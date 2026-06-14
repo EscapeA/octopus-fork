@@ -611,6 +611,7 @@ export function Site() {
 
   // Batch selection
   const [selectedSiteIds, setSelectedSiteIds] = useState<number[]>([]);
+  const [batchMode, setBatchMode] = useState(false);
 
   // Delete confirmation
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -1326,20 +1327,22 @@ export function Site() {
         )}
       >
         <div className="flex items-start gap-3">
-          <button
-            type="button"
-            className="mt-1 shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-            title={
-              selectedSiteIds.includes(site.id) ? "取消选择站点" : "选择站点"
-            }
-            onClick={() => toggleSiteSelection(site.id)}
-          >
-            {selectedSiteIds.includes(site.id) ? (
-              <CheckSquare className="size-5 text-primary" />
-            ) : (
-              <Square className="size-5" />
-            )}
-          </button>
+          {batchMode ? (
+            <button
+              type="button"
+              className="mt-1 shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+              title={
+                selectedSiteIds.includes(site.id) ? "取消选择站点" : "选择站点"
+              }
+              onClick={() => toggleSiteSelection(site.id)}
+            >
+              {selectedSiteIds.includes(site.id) ? (
+                <CheckSquare className="size-5 text-primary" />
+              ) : (
+                <Square className="size-5" />
+              )}
+            </button>
+          ) : null}
 
           <div className="min-w-0 flex-1">
             <div className="flex items-start gap-3">
@@ -1836,7 +1839,7 @@ export function Site() {
           onFilterChange={handleCheckinFilterChange}
         />
 
-        {selectedSiteIds.length > 0 ? (
+        {batchMode ? (
           <section className="rounded-3xl border border-primary/30 bg-primary/5 p-4">
             <div className="flex flex-wrap items-center gap-3">
               {(() => {
@@ -1879,7 +1882,7 @@ export function Site() {
                 size="sm"
                 className="rounded-xl"
                 onClick={() => handleBatchAction("enable")}
-                disabled={batchAction.isPending}
+                disabled={batchAction.isPending || selectedSiteIds.length === 0}
               >
                 批量启用
               </Button>
@@ -1888,7 +1891,7 @@ export function Site() {
                 size="sm"
                 className="rounded-xl"
                 onClick={() => handleBatchAction("disable")}
-                disabled={batchAction.isPending}
+                disabled={batchAction.isPending || selectedSiteIds.length === 0}
               >
                 批量禁用
               </Button>
@@ -1897,7 +1900,7 @@ export function Site() {
                 size="sm"
                 className="rounded-xl"
                 onClick={() => handleBatchAction("delete")}
-                disabled={batchAction.isPending}
+                disabled={batchAction.isPending || selectedSiteIds.length === 0}
               >
                 批量删除
               </Button>
@@ -1905,13 +1908,27 @@ export function Site() {
                 variant="ghost"
                 size="sm"
                 className="rounded-xl"
-                onClick={() => setSelectedSiteIds([])}
+                onClick={() => {
+                  setSelectedSiteIds([]);
+                  setBatchMode(false);
+                }}
               >
-                取消选择
+                完成
               </Button>
             </div>
           </section>
-        ) : null}
+        ) : (
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl"
+              onClick={() => setBatchMode(true)}
+            >
+              批量编辑
+            </Button>
+          </div>
+        )}
 
         {error ? (
           <section className="rounded-3xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
