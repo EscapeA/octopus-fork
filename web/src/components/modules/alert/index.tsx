@@ -24,6 +24,7 @@ import { useTranslations } from 'next-intl';
 import {
     applyAlertChannelDraft,
     applyAlertRuleDraft,
+    channelDraftToPayload,
     createAlertChannelDraft,
     createAlertRuleDraft,
     type AlertChannelDraft,
@@ -440,7 +441,7 @@ export function Alert() {
     };
 
     const handleCreateChannel = () => {
-        createChannel.mutate(newChannel, {
+        createChannel.mutate(channelDraftToPayload(newChannel), {
             onSuccess: () => {
                 toast.success(t('toast.channelCreated'));
                 resetNewChannel();

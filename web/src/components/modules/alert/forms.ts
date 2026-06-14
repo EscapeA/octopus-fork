@@ -235,3 +235,14 @@ export function applyAlertChannelDraft<T extends AlertChannelEditable>(channel: 
 
     return result;
 }
+
+// channelDraftToPayload converts an editable draft into the channel payload shape
+// (with the type-specific `config` serialized). It is used for both creating a
+// channel and sending a test notification, ensuring non-webhook channels persist
+// and test against their real configuration rather than empty nested objects.
+export function channelDraftToPayload(draft: AlertChannelDraft): Partial<AlertChannelEditable> {
+    return applyAlertChannelDraft(
+        { id: 0, type: draft.type, name: draft.name, url: draft.url } as AlertChannelEditable,
+        draft,
+    );
+}

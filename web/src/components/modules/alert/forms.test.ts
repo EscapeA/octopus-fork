@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
     applyAlertChannelDraft,
     applyAlertRuleDraft,
+    channelDraftToPayload,
     createAlertChannelDraft,
     createAlertRuleDraft,
 } from './forms.ts';
@@ -166,4 +167,46 @@ test('applyAlertChannelDraft serializes email config', () => {
     assert.equal(config.from, 'a@b.com');
     assert.equal(config.to, 'c@d.com');
     assert.equal(config.use_tls, true);
+});
+
+test('channelDraftToPayload serializes gotify config from a fresh draft', () => {
+    const payload = channelDraftToPayload({
+        name: 'my-gotify',
+        type: 'gotify',
+        url: '',
+        secret: '',
+        gotify: { server_url: 'https://gotify.example.com', token: 'tok', priority: 3 },
+        email: { smtp_host: '', smtp_port: 587, username: '', password: '', from: '', to: '', use_tls: true },
+        telegram: { bot_token: '', chat_id: '' },
+        feishu: { webhook_key: '' },
+        dingtalk: { webhook_key: '' },
+        wecom: { webhook_key: '' },
+        ntfy: { topic_url: '' },
+    });
+    assert.equal(payload.type, 'gotify');
+    assert.equal(payload.url, 'https://gotify.example.com');
+    assert.equal(payload.secret, 'tok');
+    const config = JSON.parse(payload.config || '{}');
+    assert.equal(config.server_url, 'https://gotify.example.com');
+    assert.equal(config.token, 'tok');
+    assert.equal(config.priority, 3);
+});
+
+test('channelDraftToPayload clears config for webhook type', () => {
+    const payload = channelDraftToPayload({
+        name: 'my-webhook',
+        type: 'webhook',
+        url: 'https://example.com/hook',
+        secret: 's',
+        gotify: { server_url: '', token: '' },
+        email: { smtp_host: '', smtp_port: 587, username: '', password: '', from: '', to: '', use_tls: true },
+        telegram: { bot_token: '', chat_id: '' },
+        feishu: { webhook_key: '' },
+        dingtalk: { webhook_key: '' },
+        wecom: { webhook_key: '' },
+        ntfy: { topic_url: '' },
+    });
+    assert.equal(payload.type, 'webhook');
+    assert.equal(payload.url, 'https://example.com/hook');
+    assert.equal(payload.config, '');
 });
