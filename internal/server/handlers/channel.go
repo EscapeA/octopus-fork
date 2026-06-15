@@ -312,6 +312,9 @@ type channelKeyRequestPayload struct {
 func (p channelRequestPayload) toChannel() model.Channel {
 	keys := make([]model.ChannelKey, 0, len(p.Keys))
 	for _, key := range p.Keys {
+		if strings.TrimSpace(key.ChannelKey) == "" {
+			continue
+		}
 		keys = append(keys, model.ChannelKey{
 			Enabled:    key.Enabled,
 			ChannelKey: key.ChannelKey,

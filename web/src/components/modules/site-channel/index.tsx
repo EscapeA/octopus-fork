@@ -150,7 +150,7 @@ type SiteChannelPendingJump = PendingJump & { target: SiteChannelJumpTarget };
 type UnifiedCompletionInputState = Record<number, string>;
 type UnifiedCompletionErrorState = Record<string, string>;
 
-const SITE_PANEL_INITIAL_DISPLAY_LIMIT = 15;
+const SITE_PANEL_INITIAL_DISPLAY_LIMIT = 50;
 const SITE_PANEL_DISPLAY_PAGE_SIZE = 30;
 
 function makeAccountKey(siteId: number, accountId: number) {
@@ -2786,6 +2786,11 @@ function SiteAccountPanel({
                         onNavigateToChannel={onNavigateToChannel}
                         registerModelRef={registerModelRef}
                     />
+                </div>
+            )}
+            {displayedModels.length < visibleModels.length && (
+                <div className="shrink-0 py-2 text-center text-xs text-muted-foreground">
+                    显示 {displayedModels.length} / 共 {visibleModels.length} 个模型，向下滚动加载更多
                 </div>
             )}
         </div>

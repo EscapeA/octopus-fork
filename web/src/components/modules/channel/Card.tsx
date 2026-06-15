@@ -33,7 +33,7 @@ export function Card({ channel, stats, layout = 'grid' }: { channel: Channel; st
         ...splitModels(channel.model),
         ...splitModels(channel.custom_model),
     ]).size;
-    const enabledKeyCount = channel.keys.filter((item) => item.enabled).length;
+    const enabledKeyCount = channel.keys.filter((item) => item.enabled && item.channel_key.trim() !== '').length;
     const firstBaseUrl = channel.base_urls?.find((item) => item.url.trim())?.url?.trim() ?? '';
     const successRequests = getChannelMetricDisplayParts(stats.request_success);
     const failedRequests = getChannelMetricDisplayParts(stats.request_failed);

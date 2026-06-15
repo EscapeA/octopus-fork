@@ -18,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lingyuins/octopus/internal/helper"
 	dbmodel "github.com/lingyuins/octopus/internal/model"
+	opMain "github.com/lingyuins/octopus/internal/op"
 	ak "github.com/lingyuins/octopus/internal/op/apikey"
 	ch "github.com/lingyuins/octopus/internal/op/channel"
 	grp "github.com/lingyuins/octopus/internal/op/group"
@@ -389,6 +390,7 @@ func recordMediaRelayLog(apiKeyID int, requestModel string, endpointType string,
 		log.Warnf("failed to update daily stats for media relay: %v", statsErr)
 	}
 	st.APIKeyUpdate(apiKeyID, stats)
+	opMain.StatsSiteModelHourlyRecordAttempts(attempts, resolvedModel)
 	telemetry.Global().RecordRequest(duration.Milliseconds(), relayErr == nil)
 }
 
