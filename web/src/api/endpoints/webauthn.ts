@@ -147,6 +147,8 @@ export function usePasskeyLogin() {
                 {
                     session_token: begin.session_token,
                     credential: serializeAssertion(credential as PublicKeyCredential),
+                    // Passkey 是持久免密凭证，按"记住我"签发长效 token，避免短期内被强制退出。
+                    expire: -1,
                 },
                 undefined,
                 false,

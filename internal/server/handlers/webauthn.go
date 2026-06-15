@@ -83,6 +83,9 @@ type webauthnFinishRequest struct {
 	SessionToken string          `json:"session_token"`
 	Name         string          `json:"name,omitempty"`
 	Credential   json.RawMessage `json:"credential"`
+	// Expire 控制签发 token 的有效期，语义与账密登录一致：
+	// 0 = 默认（按 Passkey 持久免密凭证，默认走记住我）；>0 = 自定义分钟；-1 = 记住我。
+	Expire int `json:"expire,omitempty"`
 }
 
 func webauthnLoginFinish(c *gin.Context) {
@@ -109,7 +112,13 @@ func webauthnLoginFinish(c *gin.Context) {
 		return
 	}
 	middleware.ClearLoginFailures(loginKey)
-	token, expire, err := auth.GenerateJWTToken(0, user.ID, user.Role)
+	// Passkey 是持久免密凭证，未显式指定过期时间时默认按"记住我"签发长效 token，
+	// 避免登录后短时间内（默认仅 15 分钟）即被强制退出。
+	expireMin := req.Expire
+	if expireMin == 0 {
+		expireMin = -1
+	}
+	token, expire, err := auth.GenerateJWTToken(expireMin, user.ID, user.Role)
 	if err != nil {
 		resp.Error(c, http.StatusInternalServerError, resp.ErrInternalServer)
 		return
