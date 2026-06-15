@@ -92,8 +92,9 @@ export function SettingAccount() {
                 setPasskeyName('');
                 toast.success(t('account.passkey.addSuccess'));
             },
-            onError: () => {
-                toast.error(t('account.passkey.addFailed'));
+            onError: (error) => {
+                const detail = (error instanceof Error && error.message) ? error.message : '';
+                toast.error(detail ? `${t('account.passkey.addFailed')}: ${detail}` : t('account.passkey.addFailed'));
             },
         });
     };
@@ -101,7 +102,10 @@ export function SettingAccount() {
     const handleDeletePasskey = (id: number) => {
         deletePasskey.mutate(id, {
             onSuccess: () => toast.success(t('account.passkey.deleteSuccess')),
-            onError: () => toast.error(t('account.passkey.deleteFailed')),
+            onError: (error) => {
+                const detail = (error instanceof Error && error.message) ? error.message : '';
+                toast.error(detail ? `${t('account.passkey.deleteFailed')}: ${detail}` : t('account.passkey.deleteFailed'));
+            },
         });
     };
 

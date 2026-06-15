@@ -14,6 +14,7 @@ import (
 	"github.com/lingyuins/octopus/internal/server/middleware"
 	"github.com/lingyuins/octopus/internal/server/resp"
 	"github.com/lingyuins/octopus/internal/server/router"
+	"github.com/lingyuins/octopus/internal/utils/log"
 	"gorm.io/gorm"
 )
 
@@ -57,7 +58,7 @@ func webauthnStatus(c *gin.Context) {
 	_, err := wa.New()
 	configured := err == nil
 	resp.Success(c, gin.H{
-		"enabled":        configured,
+		"enabled":         configured,
 		"has_credentials": wa.HasAnyCredential(),
 	})
 }
@@ -189,7 +190,12 @@ func webauthnErrorMessage(err error) string {
 	case errors.Is(err, wa.ErrInvalidToken):
 		return "Passkey session expired, please try again"
 	default:
-		return "Passkey authentication failed"
+		log.Warnf("webauthn error: %v", err)
+		msg := err.Error()
+		if msg == "" {
+			return "Passkey authentication failed"
+		}
+		return msg
 	}
 }
 
