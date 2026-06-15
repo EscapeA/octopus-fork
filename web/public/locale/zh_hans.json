@@ -2173,6 +2173,16 @@
       "statusError": "错误",
       "clear": "清除"
     },
+    "viewOptions": {
+      "title": "显示字段",
+      "endpointType": "接口类型",
+      "channelName": "渠道名称",
+      "actualModel": "实际模型",
+      "apiKeyName": "密钥名称",
+      "clientIP": "客户端 IP",
+      "cost": "费用",
+      "reset": "重置"
+    },
     "card": {
       "error": "错误",
       "errorInfo": "错误信息",

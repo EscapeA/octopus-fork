@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { formatUnixSeconds } from '@/lib/time';
 import { endpointTypeLabelKey } from '@/components/modules/group/utils';
 import { resolveLogDisplayFields, formatJsonForCopy } from './display';
+import { useLogFieldVisibility } from './ui-store';
 import { CopyIconButton } from '@/components/common/CopyButton';
 import {
     MorphingDialog,
@@ -201,6 +202,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
     const [requestJsonCollapsed, setRequestJsonCollapsed] = useState(false);
     const [responseJsonCollapsed, setResponseJsonCollapsed] = useState(false);
     const displayFields = useMemo(() => resolveLogDisplayFields(log, detail, channelNameById), [channelNameById, detail, log]);
+    const vis = useLogFieldVisibility();
     const { Avatar: ModelAvatar, color: brandColor } = useMemo(
         () => getModelIcon(displayFields.actualModelName),
         [displayFields.actualModelName]
@@ -270,35 +272,43 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                     {displayRequestModelName}
                                 </span>
                                 <ArrowRight className="size-3.5 shrink-0 text-muted-foreground/50" />
-                                <Badge
-                                    variant="secondary"
-                                    className="max-w-full shrink-0 text-xs px-1.5 py-0"
-                                    style={{ backgroundColor: `${brandColor}15`, color: brandColor }}
-                                    title={displayEndpointType}
-                                >
-                                    <span className="block max-w-[10rem] truncate">{displayEndpointType}</span>
-                                </Badge>
-                                <ArrowRight className="size-3.5 shrink-0 text-muted-foreground/50" />
-                                {hasMultipleAttempts ? (
-                                    <RetryBadgeWithTooltip
-                                        channelName={displayChannelName}
-                                        brandColor={brandColor}
-                                        attempts={log.attempts!}
-                                        channelNameById={channelNameById}
-                                    />
-                                ) : (
+                                {vis.endpointType && (
                                     <Badge
                                         variant="secondary"
                                         className="max-w-full shrink-0 text-xs px-1.5 py-0"
                                         style={{ backgroundColor: `${brandColor}15`, color: brandColor }}
-                                        title={displayChannelName}
+                                        title={displayEndpointType}
                                     >
-                                        <span className="block max-w-[18rem] truncate">{displayChannelName}</span>
+                                        <span className="block max-w-[10rem] truncate">{displayEndpointType}</span>
                                     </Badge>
                                 )}
-                                <span className="min-w-0 text-muted-foreground truncate md:flex-1" title={displayActualModelName}>
-                                    {displayActualModelName}
-                                </span>
+                                {vis.channelName && (
+                                    <>
+                                        <ArrowRight className="size-3.5 shrink-0 text-muted-foreground/50" />
+                                        {hasMultipleAttempts ? (
+                                            <RetryBadgeWithTooltip
+                                                channelName={displayChannelName}
+                                                brandColor={brandColor}
+                                                attempts={log.attempts!}
+                                                channelNameById={channelNameById}
+                                            />
+                                        ) : (
+                                            <Badge
+                                                variant="secondary"
+                                                className="max-w-full shrink-0 text-xs px-1.5 py-0"
+                                                style={{ backgroundColor: `${brandColor}15`, color: brandColor }}
+                                                title={displayChannelName}
+                                            >
+                                                <span className="block max-w-[18rem] truncate">{displayChannelName}</span>
+                                            </Badge>
+                                        )}
+                                    </>
+                                )}
+                                {vis.actualModel && (
+                                    <span className="min-w-0 text-muted-foreground truncate md:flex-1" title={displayActualModelName}>
+                                        {displayActualModelName}
+                                    </span>
+                                )}
                                 {log.attempts?.some(a => a.sticky) && (
                                     <Pin className="size-3.5 shrink-0 text-amber-500" />
                                 )}
@@ -308,7 +318,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                     <Clock className="size-3.5 shrink-0" style={{ color: brandColor }} />
                                     <span>{formatTime(log.time)}</span>
                                 </div>
-                                {requestAPIKeyName && (
+                                {vis.apiKeyName && requestAPIKeyName && (
                                     <div className="flex items-center gap-1.5">
                                         <KeyRound className="size-3.5 shrink-0 text-orange-500" />
                                         <span className="truncate" title={requestAPIKeyName}>
@@ -316,7 +326,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                         </span>
                                     </div>
                                 )}
-                                {clientIP && (
+                                {vis.clientIP && clientIP && (
                                     <div className="flex items-center gap-1.5">
                                         <Globe className="size-3.5 shrink-0 text-sky-500" />
                                         <span className="truncate" title={clientIP}>{clientIP}</span>
@@ -350,12 +360,14 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                     <ArrowUpFromLine className="size-3.5 shrink-0 text-purple-500" />
                                     <span>{t('output')} {outputTokenDisplay}</span>
                                 </div>
-                                <div className="flex items-center gap-1.5">
-                                    <DollarSign className="size-3.5 shrink-0 text-emerald-500" />
-                                    <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                                        {t('cost')} {costDisplay}
-                                    </span>
-                                </div>
+                                {vis.cost && (
+                                    <div className="flex items-center gap-1.5">
+                                        <DollarSign className="size-3.5 shrink-0 text-emerald-500" />
+                                        <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                                            {t('cost')} {costDisplay}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                             {hasError && (
                                 <div className="p-2.5 rounded-xl bg-destructive/10 border border-destructive/20 overflow-hidden">
@@ -373,33 +385,41 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                             <ModelAvatar size={28} />
                             <span className="font-semibold text-card-foreground">{displayRequestModelName}</span>
                             <ArrowRight className="size-3.5 text-muted-foreground/50" />
-                            <Badge
-                                variant="secondary"
-                                className="max-w-full shrink-0 text-xs px-1.5 py-0"
-                                style={{ backgroundColor: `${brandColor}15`, color: brandColor }}
-                                title={displayEndpointType}
-                            >
-                                <span className="block max-w-[10rem] truncate">{displayEndpointType}</span>
-                            </Badge>
-                            <ArrowRight className="size-3.5 text-muted-foreground/50" />
-                            {hasMultipleAttempts ? (
-                                <RetryBadgeWithTooltip
-                                    channelName={displayChannelName}
-                                    brandColor={brandColor}
-                                    attempts={log.attempts!}
-                                    channelNameById={channelNameById}
-                                />
-                            ) : (
+                            {vis.endpointType && (
                                 <Badge
                                     variant="secondary"
-                                    className="max-w-full text-xs px-1.5 py-0"
+                                    className="max-w-full shrink-0 text-xs px-1.5 py-0"
                                     style={{ backgroundColor: `${brandColor}15`, color: brandColor }}
-                                    title={displayChannelName}
+                                    title={displayEndpointType}
                                 >
-                                    <span className="block max-w-[18rem] truncate">{displayChannelName}</span>
+                                    <span className="block max-w-[10rem] truncate">{displayEndpointType}</span>
                                 </Badge>
                             )}
-                            <span className="min-w-0 flex-1 truncate text-muted-foreground" title={displayActualModelName}>{displayActualModelName}</span>
+                            {vis.channelName && (
+                                <>
+                                    <ArrowRight className="size-3.5 text-muted-foreground/50" />
+                                    {hasMultipleAttempts ? (
+                                        <RetryBadgeWithTooltip
+                                            channelName={displayChannelName}
+                                            brandColor={brandColor}
+                                            attempts={log.attempts!}
+                                            channelNameById={channelNameById}
+                                        />
+                                    ) : (
+                                        <Badge
+                                            variant="secondary"
+                                            className="max-w-full text-xs px-1.5 py-0"
+                                            style={{ backgroundColor: `${brandColor}15`, color: brandColor }}
+                                            title={displayChannelName}
+                                        >
+                                            <span className="block max-w-[18rem] truncate">{displayChannelName}</span>
+                                        </Badge>
+                                    )}
+                                </>
+                            )}
+                            {vis.actualModel && (
+                                <span className="min-w-0 flex-1 truncate text-muted-foreground" title={displayActualModelName}>{displayActualModelName}</span>
+                            )}
                             {log.attempts?.some(a => a.sticky) && (
                                 <Pin className="size-3.5 shrink-0 text-amber-500" />
                             )}
@@ -602,7 +622,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                 <Clock className="size-3.5" style={{ color: brandColor }} />
                                 <span className="tabular-nums">{formatTime(log.time)}</span>
                             </div>
-                            {requestAPIKeyName && (
+                            {vis.apiKeyName && requestAPIKeyName && (
                                 <div className="flex min-w-0 items-center gap-1.5">
                                     <KeyRound className="size-3.5 shrink-0 text-orange-500" />
                                     <span className="truncate" title={requestAPIKeyName}>
@@ -630,12 +650,14 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                     <span>{t('semanticCacheHit')}</span>
                                 </div>
                             )}
-                            <div className="flex items-center gap-1.5">
-                                <DollarSign className="size-3.5 text-emerald-500" />
-                                <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                                    {t('cost')}: {costDisplay}
-                                </span>
-                            </div>
+                            {vis.cost && (
+                                <div className="flex items-center gap-1.5">
+                                    <DollarSign className="size-3.5 text-emerald-500" />
+                                    <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                                        {t('cost')}: {costDisplay}
+                                    </span>
+                                </div>
+                            )}
                             </div>
                         </div>
                     </MorphingDialogContent>

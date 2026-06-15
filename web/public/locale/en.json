@@ -2173,6 +2173,16 @@
       "statusError": "Error",
       "clear": "Clear"
     },
+    "viewOptions": {
+      "title": "Display Fields",
+      "endpointType": "Endpoint Type",
+      "channelName": "Channel Name",
+      "actualModel": "Actual Model",
+      "apiKeyName": "API Key Name",
+      "clientIP": "Client IP",
+      "cost": "Cost",
+      "reset": "Reset"
+    },
     "card": {
       "error": "Error",
       "errorInfo": "Error Info",

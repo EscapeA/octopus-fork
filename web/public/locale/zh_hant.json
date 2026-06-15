@@ -2173,6 +2173,16 @@
       "statusError": "錯誤",
       "clear": "清除"
     },
+    "viewOptions": {
+      "title": "顯示欄位",
+      "endpointType": "介面類型",
+      "channelName": "渠道名稱",
+      "actualModel": "實際模型",
+      "apiKeyName": "金鑰名稱",
+      "clientIP": "用戶端 IP",
+      "cost": "費用",
+      "reset": "重置"
+    },
     "card": {
       "error": "錯誤",
       "errorInfo": "錯誤訊息",

@@ -5,7 +5,9 @@ import { useChannelList } from '@/api/endpoints/channel';
 import { useAPIKeyList } from '@/api/endpoints/apikey';
 import { useLogs, type LogFilter } from '@/api/endpoints/log';
 import { LogCard } from './Item';
-import { Loader2, Search, X } from 'lucide-react';
+import { Loader2, Search, X, Columns3 } from 'lucide-react';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { useLogFieldVisibilityStore, type LogFieldName } from './ui-store';
 import { useTranslations } from 'next-intl';
 import { VirtualizedGrid } from '@/components/common/VirtualizedGrid';
 import { useNavHandoff } from '@/lib/nav-handoff';
@@ -32,8 +34,10 @@ function LogFilterBar({
 }) {
     const t = useTranslations('log.filter');
     const tGroup = useTranslations('group');
+    const tView = useTranslations('log.viewOptions');
     const { data: channels = [] } = useChannelList();
     const { data: apiKeys = [] } = useAPIKeyList();
+    const visibility = useLogFieldVisibilityStore((s) => s.visibility);
 
     const hasFilter = !!(
         filter.model ||
@@ -189,6 +193,41 @@ function LogFilterBar({
                     {t('clear')}
                 </button>
             )}
+
+            <Popover>
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        className="flex items-center gap-1 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        title={tView('title')}
+                    >
+                        <Columns3 className="size-3.5" />
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-52 p-3">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">{tView('title')}</p>
+                    <div className="flex flex-col gap-1">
+                        {(['endpointType', 'channelName', 'actualModel', 'apiKeyName', 'clientIP', 'cost'] as LogFieldName[]).map((field) => (
+                            <label key={field} className="flex items-center gap-2 cursor-pointer rounded px-1.5 py-1 text-xs hover:bg-muted transition-colors">
+                                <input
+                                    type="checkbox"
+                                    checked={visibility[field]}
+                                    onChange={() => useLogFieldVisibilityStore.getState().toggleField(field)}
+                                    className="size-3 rounded"
+                                />
+                                {tView(field)}
+                            </label>
+                        ))}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => useLogFieldVisibilityStore.getState().resetFields()}
+                        className="mt-2 w-full rounded-md border border-border/50 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    >
+                        {tView('reset')}
+                    </button>
+                </PopoverContent>
+            </Popover>
         </div>
     );
 }
