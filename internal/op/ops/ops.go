@@ -443,12 +443,12 @@ func loadOpsProviderPromptCacheLogs(ctx context.Context, since time.Time) []mode
 	relayLogCacheLock.Unlock()
 
 	keepEnabled, err := setting.GetBool(model.SettingKeyRelayLogKeepEnabled)
-	if err != nil || !keepEnabled || db.GetDB() == nil {
+	if err != nil || !keepEnabled || db.GetLogDB() == nil {
 		return logs
 	}
 
 	var dbLogs []model.RelayLog
-	if err := db.GetDB().WithContext(ctx).
+	if err := db.GetLogDB().WithContext(ctx).
 		Select("id", "time", "channel_id", "channel_name", "actual_model_name", "response_content").
 		Where("time >= ?", since.Unix()).
 		Order("time ASC").
@@ -781,12 +781,14 @@ func loadOpsRecentErrorCount(ctx context.Context, since time.Time) (int64, error
 	}
 
 	if keepEnabled {
-		if err := db.GetDB().WithContext(ctx).
-			Model(&model.RelayLog{}).
-			Where("error <> ''").
-			Where("time >= ?", startUnix).
-			Count(&errorCount).Error; err != nil {
-			return 0, err
+		if logDB := db.GetLogDB(); logDB != nil {
+			if err := logDB.WithContext(ctx).
+				Model(&model.RelayLog{}).
+				Where("error <> ''").
+				Where("time >= ?", startUnix).
+				Count(&errorCount).Error; err != nil {
+				return 0, err
+			}
 		}
 	}
 	cache, lock := relaylog.GetCacheAndLock()
@@ -1072,7 +1074,7 @@ func loadOpsTelemetryLogs(ctx context.Context, since time.Time) []model.RelayLog
 	lock.Unlock()
 
 	keepEnabled, err := setting.GetBool(model.SettingKeyRelayLogKeepEnabled)
-	if err != nil || !keepEnabled || db.GetDB() == nil {
+	if err != nil || !keepEnabled || db.GetLogDB() == nil {
 		telemetryLogsCacheMu.Lock()
 		telemetryLogsCache = logs
 		telemetryLogsCacheKey = sinceUnix
@@ -1082,7 +1084,7 @@ func loadOpsTelemetryLogs(ctx context.Context, since time.Time) []model.RelayLog
 	}
 
 	var dbLogs []model.RelayLog
-	if err := db.GetDB().WithContext(ctx).
+	if err := db.GetLogDB().WithContext(ctx).
 		Select("id", "time", "use_time", "error").
 		Where("time >= ?", sinceUnix).
 		Order("time ASC").
