@@ -524,6 +524,13 @@ func forwardMediaRequestJSON(
 
 	copyMediaForwardHeaders(req, c, channel, key, "application/json", streamRequested)
 
+	// MiMo Chat Completions API only accepts application/json, but the
+	// upstream TTS client (e.g. OpenAI SDK) sends Accept: audio/mpeg.
+	// Override after copyMediaForwardHeaders to prevent 406 responses.
+	if strings.EqualFold(strings.TrimSpace(group.EndpointProvider), "mimo") && cfg.UpstreamPath == "/v1/chat/completions" {
+		req.Header.Set("Accept", "application/json")
+	}
+
 	// Send request
 	httpClient, err := helper.ChannelHttpClient(channel)
 	if err != nil {
@@ -545,7 +552,7 @@ func forwardMediaRequestJSON(
 	if cfg.BinaryResponse {
 		provider := strings.ToLower(strings.TrimSpace(group.EndpointProvider))
 		if provider == "mimo" && cfg.UpstreamPath == "/v1/chat/completions" {
-			return handleMimoTTSResponse(c, response)
+			return handleMimoTTSResponse(c, response, cfg.AudioFormat)
 		}
 		return handleBinaryResponse(c, response)
 	}
@@ -883,6 +890,12 @@ func rewriteAudioSpeechRequestByProvider(group dbmodel.Group, cfg mediaEndpointC
 	if format == "" {
 		format = "wav"
 	}
+	// MiMo TTS only supports wav, mp3, pcm, pcm16.
+	// Map unsupported formats (opus, flac, aac, etc.) to mp3.
+	if format != "wav" && format != "mp3" && format != "pcm" && format != "pcm16" {
+		format = "mp3"
+	}
+	cfg.AudioFormat = format
 	if voice == "" {
 		voice = "mimo_default"
 	}
@@ -919,7 +932,7 @@ type mimoTTSChatResponse struct {
 
 // handleMimoTTSResponse extracts the base64-encoded audio from a MiMo chat
 // completion JSON response and sends it as binary audio to the client.
-func handleMimoTTSResponse(c *gin.Context, response *http.Response) (int, error) {
+func handleMimoTTSResponse(c *gin.Context, response *http.Response, audioFormat string) (int, error) {
 	respBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		return 0, fmt.Errorf("failed to read MiMo TTS response: %w", err)
@@ -939,8 +952,15 @@ func handleMimoTTSResponse(c *gin.Context, response *http.Response) (int, error)
 		return response.StatusCode, fmt.Errorf("failed to decode MiMo TTS audio: %w", err)
 	}
 
-	// Determine audio content type from the response format
-	c.Header("Content-Type", "audio/wav")
+	// Set Content-Type based on the resolved audio format.
+	contentType := "audio/wav"
+	switch audioFormat {
+	case "mp3":
+		contentType = "audio/mpeg"
+	case "pcm", "pcm16":
+		contentType = "audio/pcm"
+	}
+	c.Header("Content-Type", contentType)
 	_, err = c.Writer.Write(audioData)
 	if err != nil {
 		return 0, fmt.Errorf("failed to write MiMo TTS audio: %w", err)
