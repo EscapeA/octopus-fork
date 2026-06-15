@@ -237,9 +237,7 @@ export function GroupHealth() {
     // 全量拉取 Auto 策略快照，按 group_id 在卡片内过滤。组数量通常不大，一次请求即可。
     const { data: autoData } = useAnalyticsAutoStrategy();
 
-    // 把 auto 快照按 group 关联：快照本身没有 group_id，但可通过组 items 的 (channel,model) 匹配。
-    // 这里用一个简化映射：autoItemsForGroup 取该组失败渠道覆盖的渠道集合 ∩ auto 快照。
-    // 由于 useAnalyticsGroupHealth 已返回 mode，我们直接用全量 auto 数据按渠道 ID 过滤到该组。
+    // 把 auto 快照按渠道 ID 建索引，后续 autoItemsForGroup 用后端返回的 channel_ids 过滤。
     const autoByChannel = new Map<number, AutoStrategySnapshotItem[]>();
     for (const ai of autoData ?? []) {
         const list = autoByChannel.get(ai.channel_id) ?? [];
@@ -249,16 +247,12 @@ export function GroupHealth() {
 
     const autoItemsForGroup = (item: import('@/api/endpoints/analytics').AnalyticsGroupHealthItem): AutoStrategySnapshotItem[] => {
         if (item.mode !== 5) return [];
-        // 用该组失败渠道列表涉及的渠道 + 全量 auto 中该组可能涉及的渠道。
-        // 由于 group health 不直接返回 items 的渠道集合，我们用 failing_channels 的渠道 +
-        // 全量 auto 中所有渠道作为近似（Auto 组通常渠道有限，影响可控）。
-        const channelIds = new Set<number>();
-        for (const fc of item.failing_channels ?? []) {
-            channelIds.add(fc.channel_id);
-        }
+        // 用后端返回的 channel_ids（该组实际包含的渠道集合）过滤 Auto 快照。
+        const channelIds = new Set<number>(item.channel_ids ?? []);
+        if (channelIds.size === 0) return [];
         const result: AutoStrategySnapshotItem[] = [];
         for (const [channelId, list] of autoByChannel) {
-            if (channelIds.size === 0 || channelIds.has(channelId)) {
+            if (channelIds.has(channelId)) {
                 result.push(...list);
             }
         }

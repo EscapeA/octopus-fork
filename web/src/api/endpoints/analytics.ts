@@ -72,6 +72,7 @@ export interface AnalyticsGroupHealthItem {
     status: 'healthy' | 'warning' | 'degraded' | 'down' | 'empty';
     failing_channels: FailingChannelItem[];
     mode: number;
+    channel_ids: number[];
 }
 
 export interface FailingChannelItem {

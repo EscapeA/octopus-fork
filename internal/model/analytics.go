@@ -132,6 +132,7 @@ type AnalyticsGroupHealthItem struct {
 	Status            string               `json:"status"`
 	FailingChannels   []FailingChannelItem `json:"failing_channels"`
 	Mode              int                  `json:"mode"`
+	ChannelIDs        []int                `json:"channel_ids"`
 }
 
 // FailingChannelItem 描述组内某个 (渠道,模型) 维度的失败情况，供分组健康下钻展示。

@@ -732,6 +732,17 @@ func buildGroupHealth(groups []model.Group, channelByID map[int]model.Channel, f
 			failingChannels = failingChannels[:10]
 		}
 
+		// 收集该组涉及的所有渠道 ID，供前端按组过滤 Auto 策略表现。
+		channelIDs := make([]int, 0, len(group.Items))
+		seenChannels := make(map[int]struct{})
+		for _, item := range group.Items {
+			if _, ok := seenChannels[item.ChannelID]; ok {
+				continue
+			}
+			seenChannels[item.ChannelID] = struct{}{}
+			channelIDs = append(channelIDs, item.ChannelID)
+		}
+
 		items = append(items, model.AnalyticsGroupHealthItem{
 			GroupID:           group.ID,
 			GroupName:         group.Name,
@@ -745,6 +756,7 @@ func buildGroupHealth(groups []model.Group, channelByID map[int]model.Channel, f
 			Status:            status,
 			Mode:              int(group.Mode),
 			FailingChannels:   failingChannels,
+			ChannelIDs:        channelIDs,
 		})
 	}
 
