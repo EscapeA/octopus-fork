@@ -13,6 +13,7 @@ import (
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/utils/cache"
+	"github.com/lingyuins/octopus/internal/utils/xurl"
 	"golang.org/x/net/proxy"
 )
 
@@ -322,55 +323,6 @@ func proxyConfigurationRefreshCache(ctx context.Context) error {
 	return nil
 }
 
-func proxyTestTargetHostSafe(parsedTarget *url.URL) error {
-	if parsedTarget == nil {
-		return fmt.Errorf("test url is required")
-	}
-	host := strings.TrimSpace(parsedTarget.Hostname())
-	if host == "" {
-		host = strings.TrimSpace(parsedTarget.Host)
-	}
-	host = strings.Trim(strings.ToLower(host), ".")
-	if host == "" {
-		return fmt.Errorf("test url must have a host")
-	}
-	if host == "localhost" || strings.HasSuffix(host, ".local") {
-		return fmt.Errorf("test url host is not allowed")
-	}
-	if ip := net.ParseIP(host); ip != nil {
-		if proxyTestIPDisallowed(ip) {
-			return fmt.Errorf("test url host is not allowed")
-		}
-		return nil
-	}
-	ips, err := net.LookupIP(host)
-	if err != nil {
-		return fmt.Errorf("resolve test url host: %w", err)
-	}
-	if len(ips) == 0 {
-		return fmt.Errorf("test url host did not resolve")
-	}
-	for _, ip := range ips {
-		if proxyTestIPDisallowed(ip) {
-			return fmt.Errorf("test url host resolves to a disallowed address")
-		}
-	}
-	return nil
-}
-
-func proxyTestIPDisallowed(ip net.IP) bool {
-	if ip == nil {
-		return true
-	}
-	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsMulticast() || ip.IsUnspecified() {
-		return true
-	}
-	if v4 := ip.To4(); v4 != nil {
-		return v4[0] == 169 && v4[1] == 254
-	}
-	return ip.IsPrivate()
-}
-
 func newProxyTestHTTPClient(proxyURLStr string) (*http.Client, error) {
 	transport, ok := http.DefaultTransport.(*http.Transport)
 	if !ok {
@@ -408,7 +360,7 @@ func ProxyConfigurationTest(req model.ProxyTestRequest, ctx context.Context) (mo
 	if err != nil || parsedTarget.Scheme == "" || parsedTarget.Host == "" || (parsedTarget.Scheme != "http" && parsedTarget.Scheme != "https") {
 		return model.ProxyTestResult{Success: false, Message: "test url must be a valid http or https url"}, nil
 	}
-	if err := proxyTestTargetHostSafe(parsedTarget); err != nil {
+	if err := xurl.AssertSafeHost(parsedTarget); err != nil {
 		return model.ProxyTestResult{Success: false, Message: err.Error()}, nil
 	}
 

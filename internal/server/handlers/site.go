@@ -20,6 +20,7 @@ import (
 	"github.com/lingyuins/octopus/internal/sitesync"
 	"github.com/lingyuins/octopus/internal/utils/log"
 	"github.com/lingyuins/octopus/internal/utils/safe"
+	"github.com/lingyuins/octopus/internal/utils/xurl"
 )
 
 func refreshAccountRandomCheckinScheduleBestEffort(ctx context.Context, accountID int) {
@@ -413,6 +414,11 @@ func detectSitePlatform(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
 		resp.InvalidJSON(c)
+		return
+	}
+	// URL 直接来自请求体，服务器会据此抓取页面探测平台，必须做 SSRF 防护。
+	if err := xurl.AssertSafeURL(request.URL); err != nil {
+		resp.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)

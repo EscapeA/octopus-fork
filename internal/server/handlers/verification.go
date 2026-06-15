@@ -18,6 +18,7 @@ import (
 	"github.com/lingyuins/octopus/internal/server/middleware"
 	"github.com/lingyuins/octopus/internal/server/resp"
 	"github.com/lingyuins/octopus/internal/server/router"
+	"github.com/lingyuins/octopus/internal/utils/xurl"
 )
 
 func init() {
@@ -41,6 +42,10 @@ func init() {
 
 var availableProbes = []string{"text_gen", "models_list", "tool_calling", "structured_output"}
 
+// verifyHTTPClient 是验证请求使用的 HTTP 客户端，带 30s 超时；
+// 避免使用无超时的 http.DefaultClient 导致请求挂死。
+var verifyHTTPClient = &http.Client{Timeout: 30 * time.Second}
+
 func listProbes(c *gin.Context) {
 	resp.Success(c, availableProbes)
 }
@@ -49,6 +54,11 @@ func runVerification(c *gin.Context) {
 	var req model.VerificationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		resp.Error(c, http.StatusBadRequest, resp.ErrInvalidJSON)
+		return
+	}
+	// BaseURL 直接来自请求体，服务器会据此发起请求，必须做 SSRF 防护。
+	if err := xurl.AssertSafeURL(req.BaseURL); err != nil {
+		resp.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -243,7 +253,7 @@ func doVerifyRequest(ctx context.Context, method, url, apiKey string, payload in
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := verifyHTTPClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("request failed: %w", err)
 	}
