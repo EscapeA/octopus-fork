@@ -185,6 +185,7 @@ internal/op/credential/
 | `hub_balance_capture` | 6 小时 | 捕获所有启用站点的余额快照 |
 | `hub_auto_checkin` | 12 小时 | 所有启用站点自动签到（幂等） |
 | `hub_announcement_fetch` | 4 小时 | 拉取所有启用站点的公告 |
+| `hub_usage_history_sync` | 6 小时 | 同步所有启用站点的用量历史 |
 
 ## 凭据加密
 
@@ -199,7 +200,7 @@ internal/op/credential/
 
 Hub 数据已纳入数据库备份/恢复体系（`internal/op/backup/`）：
 
-**导出表：** `remote_sites`, `balance_snapshots`, `check_in_records`, `api_credential_profiles`, `site_announcements`, `remote_site_tokens`
+**导出表：** `remote_sites`, `balance_snapshots`, `check_in_records`, `api_credential_profiles`, `site_announcements`, `remote_site_tokens`, `remote_usage_records`
 
 **导入策略：**
 - Incremental 模式：ON CONFLICT DO NOTHING（跳过已存在的记录）
@@ -207,11 +208,11 @@ Hub 数据已纳入数据库备份/恢复体系（`internal/op/backup/`）：
 
 ## 前端模块
 
-Hub 在侧边栏中作为单一入口，内部通过标签页组织 6 个子面板：
+Hub 在侧边栏中作为单一入口，内部通过标签页组织 7 个子面板：
 
 | 路由 ID | 路径 | 说明 |
 |---------|------|------|
-| `hub` | 侧边栏 Hub | Hub 标签页容器，包含 6 个子面板 |
+| `hub` | 侧边栏 Hub | Hub 标签页容器，包含 7 个子面板 |
 
 **Hub 内部标签页：**
 - **站点 (Sites)** — 站点卡片网格、CRUD、刷新、发现
@@ -220,6 +221,7 @@ Hub 在侧边栏中作为单一入口，内部通过标签页组织 6 个子面�
 - **兑换 (Redemption)** — 兑换码管理
 - **用量 (Usage)** — 远程用量历史
 - **凭证 (Credential)** — API 凭据管理、验证、CLI 导出
+- **站点渠道 (Site Channels)** — 远程站点渠道管理
 
 站点详情页内嵌余额历史图表（BalanceChart）。远程 Token 管理功能已从前端移除，但后端 API 仍保留用于备份系统。
 

@@ -9,6 +9,8 @@ This directory contains the management UI for Octopus.
 - TypeScript
 - Tailwind CSS 4
 - TanStack Query
+- Zustand 5
+- Radix UI
 - `next-intl`
 
 The app uses App Router as the shell entrypoint, but the actual screen switching inside the console is handled client-side in `src/components/app.tsx`.
@@ -66,7 +68,7 @@ The top-level `Dockerfile` already builds this frontend and copies the export in
 
 - `src/components/app.tsx`: Main application shell with login mode switching (user credentials / API key)
 - `src/components/modules/home/*`: Runtime/version overview, hero summary, trend chart, GitHub-style activity heatmap, ranking panel, and analytics overview cards
-- `src/components/modules/remote-site/*`: Hub module — tab-based interface with panels: Sites (SitesPanel with BalanceChart and prediction), Check-in (CheckInPanel), Announcement (AnnouncementPanel), Redemption (RedemptionPanel), Usage History (UsageHistoryPanel), Credential (CredentialPanel), and Site Channels. The formerly standalone announcement, checkin, redemption, usage-history, and credential modules have been merged here as tab panels
+- `src/components/modules/remote-site/*`: Hub module — tab-based interface with 7 sub-panels: Sites (SitesPanel with BalanceChart and prediction), Check-in (CheckInPanel), Announcement (AnnouncementPanel), Redemption (RedemptionPanel), Usage History (UsageHistoryPanel), Credential (CredentialPanel), and Site Channels (SiteChannelsPanel). The formerly standalone announcement, checkin, redemption, usage-history, and credential modules have been merged here as tab panels
 - `src/components/modules/site/*`: Site management module — upstream relay platform management with multi-account support, projected channels, auto-sync, and auto-checkin
 - `src/components/modules/site-channel/*`: Site Channels section — dedicated view for managing channels associated with remote sites
 - `src/components/modules/credential/*`: Shared `CredentialDialog` component reused by the Hub CredentialPanel
@@ -109,15 +111,16 @@ The top-level `Dockerfile` already builds this frontend and copies the export in
 - The Hub (`remote-site`) module consolidates all remote-site management into a single tab-based page. The five formerly standalone modules — announcement, checkin, redemption, usage-history, and credential — no longer exist as separate top-level routes; their UI now lives as tab panels inside `remote-site/`. A shared `CredentialDialog` component remains under `credential/` for reuse by the CredentialPanel.
 - The `model-mapping` module provides pattern-based model name rewriting rules but is not exposed as a top-level navigation route. It is accessible from the app shell toolbar.
 - The `proxy-pool` module provides named proxy configuration management with CRUD, connectivity testing, and reference tracking. It is accessible from the app shell toolbar.
-- The login screen supports two authentication modes (user credentials and API key) behind a tabbed interface, and the first-run bootstrap wizard appears automatically when no admin account exists.
+- The login screen supports two authentication modes (user credentials and API key) behind a tabbed interface, and the first-run bootstrap wizard appears automatically when no admin account exists. Both the login screen and user management support WebAuthn/Passkey registration and authentication.
 - The API key dashboard shows a dedicated view when authenticated via API key (instead of username/password), displaying request stats, token usage, cost, quota, and expiration info.
 - The Settings `Backup` card includes a live database migration feature beyond simple export/import, with connection testing, per-table row counts, and post-migration restart reminder.
 - The Settings `WebDAV` card provides automated cloud backup via WebDAV with configurable schedule, remote file management, and one-click restore.
 - The Settings `Site Automation` card configures auto-sync and auto-checkin intervals for remote sites.
-- The `channel` module includes per-channel proxy mode (direct/system/pool/inherit), request rewrite profiles (preserve/openai_chat_compat with codex header, tool role, and system message strategies), and param_override JSON for per-channel parameter injection into outbound requests.
+- The `channel` module includes per-channel proxy mode (direct/system/pool/inherit), request rewrite profiles (preserve/openai_chat_compat/codex with codex header, tool role, and system message strategies), and param_override JSON for per-channel parameter injection into outbound requests.
 - The `group` module includes endpoint provider configuration (openai/deepseek/mimo/siliconflow/newapi) for stripping incompatible reasoning fields, and supports a zashboard-style collapsible group list view.
 - The Home page includes a GitHub-style activity heatmap visualizing request activity across the past year.
 - The Analytics page includes a Share button that generates a PNG snapshot of the current analytics state for download or clipboard copy.
 - User-configurable time zone (10 zones) affects all date/time display in the UI, independent from server-side stats timezone.
 - Viewer accounts see masked domains (`***`) for Hub-related management data across sites, remote sites, credentials, channels, and URL settings.
 - When backend API surfaces or top-level modules change, update both `web/README.md` and the root README files so the embedded-console docs remain consistent.
+- The Settings page now includes Response Filter (keyword-based output filtering), Log Level, and WebAuthn/Passkey configuration cards.

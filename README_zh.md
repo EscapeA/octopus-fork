@@ -20,10 +20,11 @@
 - 🤖 **Auto 智能策略** - 先探索样本不足的候选，再优先选择窗口内成功率更高的渠道
 - 🧠 **AI 路由、自动分组与条件分组** - 支持在路由页生成整张路由表，在分组编辑弹窗中补全单个分组，并用 JSON 条件控制分组命中
 - 🔄 **协议互转** - 支持 OpenAI Chat / OpenAI Responses / OpenAI Embeddings / Anthropic 四种 API 格式互相转换
-- 🌐 **多供应商支持** - 内置支持 OpenAI 兼容、Anthropic、Gemini、Volcengine、MiMo 渠道
+- 🌐 **多供应商支持** - 内置支持 OpenAI 兼容、Anthropic、Cloudflare、Gemini、Volcengine、MiMo 渠道
 - 🛰️ **媒体与工具类中继** - 支持通过同一套分组 / 重试 / 熔断基础设施转发 OpenAI Images、音频、视频、搜索、重排和审核类端点
 - 🧾 **API Key 治理** - 支持模型白名单、过期时间、费用上限、RPM / TPM 限额、按模型配额，以及 IP / CIDR 白名单
 - 🔐 **角色化管理权限** - 内置 `admin`、`editor`、`viewer` 三种角色，并由服务端强制执行权限控制
+- 🔑 **WebAuthn / Passkey 登录** — 通过 WebAuthn/Passkey 实现无密码登录和注册，支持可配置 RP 设置
 - 🚨 **告警与通知** - 支持错误率、费用阈值、额度超限、渠道下线等告警规则，支持 Webhook、Gotify、Email、Telegram、飞书、钉钉、企业微信、ntfy 八种通知渠道并记录通知历史
 - 💎 **模型广场** - 统一模型目录，展示价格、渠道覆盖、可用 Key 数、延迟和成功率等指标，同时保留创建 / 编辑 / 删除 / 刷新价格能力
 - 🔃 **模型同步** - 自动与渠道同步可用模型列表，省心省力
@@ -351,7 +352,7 @@ http://localhost:3000
 | Alert | 告警规则、通知渠道（Webhook、Gotify、Email、Telegram、飞书、钉钉、企业微信、ntfy）、状态和历史 |
 | Ops | 遥测（Hero 指标、P95 延迟、供应商健康、Prompt Cache 分析）、配额、健康、系统和审计轨迹 |
 | APIKey | API Key 创建、编辑、删除，模型白名单、过期时间、费用上限、RPM / TPM 配额、IP 白名单和按模型配额 |
-| Setting | 版本更新信息、外观与导航偏好（排序 + 可见性）、运行时调优、语义缓存、AI 路由服务池、API Key 默认配置、数据库迁移、WebDAV 备份、站点自动化、备份恢复和危险操作 |
+| Setting | 版本更新信息、外观与导航偏好（排序 + 可见性）、运行时调优、语义缓存、AI 路由服务池、API Key 默认配置、WebAuthn/Passkey、数据库迁移、WebDAV 备份、站点自动化、备份恢复和危险操作 |
 | User | 管理员用户和角色管理 |
 
 此外，以下功能可通过应用外壳工具栏或其他模块内访问：
@@ -406,6 +407,7 @@ UI 提供 9 种内置渠道模板用于快速创建：OpenAI、OpenAI Responses�
 |------|------|
 | `preserve` | 不改写请求体，原样转发 |
 | `openai_chat_compat` | 剥离不兼容字段以适配标准 OpenAI Chat 格式 |
+| `codex` | Codex 专用 Header 整形和工具/系统消息策略 |
 
 **参数覆盖：**
 
@@ -703,6 +705,9 @@ Telemetry 标签页包含供应商侧 Prompt Cache 监控，追踪上游供应�
 | WebDAV Backup | WebDAV 云备份配置：连接设置、自动备份间隔、最大备份保留数、手动触发、远程文件列表、恢复和删除 |
 | Backup | 数据库导出、导入和实时数据库迁移（SQLite / MySQL / PostgreSQL），支持连接测试和按表行数结果展示 |
 | Route Group Danger | 二次确认后删除全部路由分组 |
+| WebAuthn / Passkey | RP ID、RP 展示名、允许的 Origin 配置 |
+| 响应过滤 | 关键词拦截（阻断/替换）、过滤关键词和错误信息 |
+| 日志级别 | 应用日志级别和中继日志显示的排除分组 |
 
 **语义缓存的真实生效条件：**
 
@@ -919,7 +924,7 @@ internal/
 ├── conf/               # 配置加载与构建元信息
 ├── client/             # HTTP 客户端工具
 ├── db/                 # 数据库连接与迁移（SQLite/MySQL/PostgreSQL）
-│   └── migrate/        # 版本化 Schema 迁移（001-011）
+│   └── migrate/        # 版本化 Schema 迁移（001-014）
 ├── model/              # 领域类型（Channel、Group、APIKey、User、Site、ProxyConfiguration、ModelMapping……）
 ├── op/                 # 按领域拆分的业务逻辑操作
 │   ├── airoute/        # AI 路由生成、进度追踪、服务池和兼容辅助逻辑
@@ -955,7 +960,7 @@ internal/
 ├── task/               # 后台定时任务
 ├── transformer/        # 协议适配器
 │   ├── inbound/        # 客户端→内部（OpenAI、Anthropic）
-│   ├── outbound/       # 内部→上游（OpenAI、Anthropic、Gemini、Volcengine、MiMo）
+│   ├── outbound/       # 内部→上游（OpenAI、Anthropic、Cloudflare、Gemini、Volcengine、MiMo）
 │   ├── rewrite/        # 请求规范化（可配置 Profile）
 │   └── model/          # 共享适配器类型与接口
 ├── hub/                # 远程站点适配器接口、注册表、HTTP 客户端和平台专属适配器
@@ -989,7 +994,7 @@ inbound.TransformResponse（内部格式 → 客户端格式）
 
 **Hub 适配器：**
 
-Hub 远程站点管理采用适配器架构，注册了 7 种站点适配器：
+Hub 远程站点管理采用适配器架构，注册了 8 种站点适配器：
 
 | 适配器 | 站点类型 |
 |--------|----------|
@@ -1000,6 +1005,7 @@ Hub 远程站点管理采用适配器架构，注册了 7 种站点适配器：
 | `claudecodehub` | `claude-code-hub` |
 | `ldoh` | `ldoh` |
 | `sub2api` | `sub2api` |
+| `sapi` | `sapi`（用户账号/密码登录，带 Token 缓存） |
 
 每个适配器实现 15 个方法的 `SiteAdapter` 接口，涵盖用户信息、签到、模型、价格、令牌、渠道、公告、状态、兑换和用量日志。
 

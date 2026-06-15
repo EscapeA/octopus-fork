@@ -20,10 +20,11 @@
 - 🤖 **Auto Strategy** - Explore candidates first, then prefer higher in-window success rate automatically
 - 🧠 **AI Routing, Auto Grouping & Conditional Groups** - Generate the full routing table from the route page, fill a single group from the edit dialog, and gate groups with JSON conditions
 - 🔄 **Protocol Conversion** - Seamless conversion between OpenAI Chat / OpenAI Responses / OpenAI Embeddings / Anthropic API formats
-- 🌐 **Multi-Provider Support** - Built-in support for OpenAI-compatible, Anthropic, Gemini, Volcengine, and MiMo channels
+- 🌐 **Multi-Provider Support** - Built-in support for OpenAI-compatible, Anthropic, Cloudflare, Gemini, Volcengine, and MiMo channels
 - 🛰️ **Media & Utility Relay** - Relay OpenAI Images, audio, video, search, rerank, and moderation endpoints through the same group / retry / circuit-breaker infrastructure
 - 🧾 **API Key Governance** - Supported-model allowlists, expiry, max-cost caps, RPM / TPM limits, per-model quotas, and IP / CIDR allowlists
 - 🔐 **Role-Based Admin Access** - Built-in `admin`, `editor`, and `viewer` roles with server-side permission enforcement
+- 🔑 **WebAuthn / Passkey Login** — Passwordless login and registration via WebAuthn/Passkey with configurable RP settings
 - 🚨 **Alerts & Notifications** - Alert rules for error rate, cost threshold, quota exceeded, and channel down with webhook, Gotify, email, Telegram, Feishu, DingTalk, WeCom, and ntfy notification channels and history
 - 💎 **Model Market** - Unified model catalog with pricing, channel coverage, enabled key counts, latency, and success metrics, plus create / edit / delete / refresh price workflows
 - 🔃 **Model Sync** - Automatic synchronization of available model lists with channels
@@ -350,7 +351,7 @@ The embedded management UI currently ships with these top-level modules:
 | Alert | Alert rules, notification channels (webhook, Gotify, email, Telegram, Feishu, DingTalk, WeCom, ntfy), state, and history |
 | Ops | Telemetry (hero metrics, P95 latency, provider health, prompt-cache analytics), quota, health, system, and audit trail |
 | APIKey | API key create, edit, delete, supported-model allowlists, expiry, max-cost caps, RPM / TPM quotas, IP allowlists, and per-model quotas |
-| Setting | Version/update info, appearance and nav preferences (order + visibility), runtime tuning, semantic cache, AI route services, API key defaults, database migration, WebDAV backup, site automation, backup/restore, and dangerous operations |
+| Setting | Version/update info, appearance and nav preferences (order + visibility), runtime tuning, semantic cache, AI route services, API key defaults, WebAuthn/Passkey, database migration, WebDAV backup, site automation, backup/restore, and dangerous operations |
 | User | Admin user management and roles |
 
 Additionally, the following features are accessible from the app shell toolbar or within other modules:
@@ -405,6 +406,7 @@ Per-channel request rewriting for upstream compatibility:
 |---------|-------------|
 | `preserve` | No body rewrite — forward as-is |
 | `openai_chat_compat` | Strip incompatible fields for standard OpenAI Chat format |
+| `codex` | Codex-specific header shaping and tool/system-message strategy |
 
 **Parameter Override:**
 
@@ -702,6 +704,9 @@ Since the program handles numerous statistics, writing to the database on every 
 | WebDAV Backup | WebDAV cloud backup configuration: connection settings, auto-backup interval, max backups retention, manual trigger, remote file listing, restore, and delete |
 | Backup | Database export, import, and live database migration between SQLite / MySQL / PostgreSQL with connection testing and per-table row count results |
 | Route Group Danger | Delete all route groups with explicit confirmation |
+| WebAuthn / Passkey | RP ID, RP name, allowed origins configuration |
+| Response Filter | Keyword-based output filtering (block/replace), filter keywords, and error message |
+| Log Level | Application log level and excluded groups for relay log display |
 
 **Semantic Cache Scope:**
 
@@ -918,7 +923,7 @@ internal/
 ├── conf/               # Configuration loading & build metadata
 ├── client/             # HTTP client utilities
 ├── db/                 # Database connection & migrations (SQLite/MySQL/PostgreSQL)
-│   └── migrate/        # Versioned schema migrations (001-011)
+│   └── migrate/        # Versioned schema migrations (001-014)
 ├── model/              # Domain types (Channel, Group, APIKey, User, Site, ProxyConfiguration, ModelMapping, …)
 ├── op/                 # Business logic operations split by domain
 │   ├── airoute/        # AI route generation, progress tracking, service pool, and compatibility helpers
@@ -954,7 +959,7 @@ internal/
 ├── task/               # Background periodic jobs
 ├── transformer/        # Protocol adapters
 │   ├── inbound/        # Client→Internal (OpenAI, Anthropic)
-│   ├── outbound/       # Internal→Upstream (OpenAI, Anthropic, Gemini, Volcengine, MiMo)
+│   ├── outbound/       # Internal→Upstream (OpenAI, Anthropic, Cloudflare, Gemini, Volcengine, MiMo)
 │   ├── rewrite/        # Request normalization with configurable profiles
 │   └── model/          # Shared transformer types & interfaces
 ├── hub/                # Remote site adapter interface, registry, HTTP client, and platform-specific adapters
@@ -988,7 +993,7 @@ For streaming, the same pipeline processes each SSE event through `TransformStre
 
 **Hub adapters:**
 
-The Hub remote site management uses an adapter-based architecture with 7 registered site adapters:
+The Hub remote site management uses an adapter-based architecture with 8 registered site adapters:
 
 | Adapter | Site Type |
 |---------|-----------|
@@ -999,6 +1004,7 @@ The Hub remote site management uses an adapter-based architecture with 7 registe
 | `claudecodehub` | `claude-code-hub` |
 | `ldoh` | `ldoh` |
 | `sub2api` | `sub2api` |
+| `sapi` | `sapi` (user account/password login with token caching) |
 
 Each adapter implements the 15-method `SiteAdapter` interface covering user info, check-in, models, pricing, tokens, channels, announcements, status, redemption, and usage logs.
 
