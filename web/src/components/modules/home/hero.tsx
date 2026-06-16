@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'motion/react';
-import { Activity, DollarSign, Leaf, ShieldCheck, Waves } from 'lucide-react';
+import { Activity, DollarSign, ShieldCheck, Waves } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useStatsToday } from '@/api/endpoints/stats';
 import { AnimatedNumber } from '@/components/common/AnimatedNumber';
@@ -118,21 +118,20 @@ export function HomeHero() {
                     </div>
                 </div>
 
-                <div className="grid auto-rows-fr grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-2">
-                    {signals.map((signal, index) => (
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-3">
+                    {signals.map((signal) => (
                         <article
                             key={signal.key}
-                            className={`group rounded-lg border border-border bg-card p-3 sm:p-4 transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-border/80 ${index === 0 ? 'col-span-2 xl:min-h-[11rem]' : ''}`}
+                            className="group rounded-lg border border-border bg-card p-3 sm:p-4 transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-border/80"
                         >
                             <div className="flex items-start justify-between gap-3">
                                 <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${signal.accent}`}>
                                     <signal.icon className="h-[1.125rem] w-[1.125rem]" strokeWidth={1.5} />
                                 </div>
-                                {index === 0 ? <Leaf className="h-4 w-4 text-primary/50" strokeWidth={1.5} /> : null}
                             </div>
                             <div className="mt-5 text-xs text-muted-foreground">{signal.label}</div>
                             <div className="mt-2 flex items-baseline gap-1">
-                                <span className={`${index === 0 ? 'text-3xl md:text-4xl' : 'text-2xl'} font-semibold tracking-tight`}>
+                                <span className="text-2xl font-semibold tracking-tight">
                                     <AnimatedNumber value={signal.value} />
                                 </span>
                                 {signal.unit ? <span className="text-sm text-muted-foreground">{signal.unit}</span> : null}
