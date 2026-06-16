@@ -1032,6 +1032,8 @@
     },
     "hero": {
       "title": "今日使用",
+      "subtitle": "实时监控今日 API 调用数据",
+      "description": "追踪调用次数、成功率、费用及 Token 消耗等关键指标",
       "signals": {
         "requests": "今日调用",
         "successRate": "今日成功率",

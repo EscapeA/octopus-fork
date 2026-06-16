@@ -1032,6 +1032,8 @@
     },
     "hero": {
       "title": "Today's Usage",
+      "subtitle": "Real-time monitoring of today's API calls",
+      "description": "Track key metrics including call count, success rate, spend, and token usage",
       "signals": {
         "requests": "Today's Calls",
         "successRate": "Today's Success Rate",
