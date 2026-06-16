@@ -235,11 +235,11 @@ export function Rank() {
                         <span>{t('title')}</span>
                     </div>
                     <div className="w-full overflow-x-auto lg:w-auto">
-                        <TabsList className="flex w-max min-w-full flex-nowrap rounded-lg border border-border bg-card p-1 lg:min-w-0">
-                            <TabsTrigger value="cost" className="flex-none">{t('sortByCost')}</TabsTrigger>
-                            <TabsTrigger value="count" className="flex-none">{t('sortByCount')}</TabsTrigger>
-                            <TabsTrigger value="tokens" className="flex-none">{t('sortByTokens')}</TabsTrigger>
-                            <TabsTrigger value="key-usage" className="flex-none">{t('sortByKeyUsage')}</TabsTrigger>
+                        <TabsList className="flex min-w-full flex-nowrap justify-center rounded-lg border border-border bg-card p-1 lg:min-w-0">
+                            <TabsTrigger value="cost" className="w-auto flex-none min-w-fit">{t('sortByCost')}</TabsTrigger>
+                            <TabsTrigger value="count" className="w-auto flex-none min-w-fit">{t('sortByCount')}</TabsTrigger>
+                            <TabsTrigger value="tokens" className="w-auto flex-none min-w-fit">{t('sortByTokens')}</TabsTrigger>
+                            <TabsTrigger value="key-usage" className="w-auto flex-none min-w-fit">{t('sortByKeyUsage')}</TabsTrigger>
                         </TabsList>
                     </div>
                 </div>
