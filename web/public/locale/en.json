@@ -1031,15 +1031,11 @@
       "noData": "No Data"
     },
     "hero": {
-      "eyebrow": "Personal Hub",
       "title": "Today's Usage",
-      "subtitle": "",
-      "description": "",
       "signals": {
         "requests": "Today's Calls",
         "successRate": "Today's Success Rate",
-        "cost": "Today's Spend",
-        "channels": "Available Channels"
+        "cost": "Today's Spend"
       },
       "metrics": {
         "avgWait": "Average Response Time",
@@ -1071,24 +1067,6 @@
         "modelCount": "Models",
         "fallbackRate": "Fallback Rate"
       }
-    },
-    "total": {
-      "requestStats": "Request Stats",
-      "qualityStats": "Quality Stats",
-      "efficiencyStats": "Efficiency Stats",
-      "supplyStats": "Supply Stats",
-      "requestCount": "Requests",
-      "timeConsumed": "Time Consumed",
-      "successRate": "Global Success Rate",
-      "avgWaitTime": "Avg Request Latency",
-      "avgCostPerRequest": "Avg Cost per Request",
-      "activeChannels": "Active Channels",
-      "totalToken": "Tokens Used",
-      "totalCost": "Total Cost",
-      "inputTokens": "Input Tokens",
-      "inputCost": "Input Cost",
-      "outputTokens": "Output Tokens",
-      "outputCost": "Output Cost"
     },
     "chart": {
       "title": "Trend",

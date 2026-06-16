@@ -1031,15 +1031,11 @@
       "noData": "無數據"
     },
     "hero": {
-      "eyebrow": "個人中樞",
       "title": "今日使用",
-      "subtitle": "",
-      "description": "",
       "signals": {
         "requests": "今日呼叫",
         "successRate": "今日成功率",
-        "cost": "今日花費",
-        "channels": "可用渠道"
+        "cost": "今日花費"
       },
       "metrics": {
         "avgWait": "平均回應時延",
@@ -1071,24 +1067,6 @@
         "modelCount": "模型數",
         "fallbackRate": "回退率"
       }
-    },
-    "total": {
-      "requestStats": "請求統計",
-      "qualityStats": "品質統計",
-      "efficiencyStats": "效率統計",
-      "supplyStats": "供給統計",
-      "requestCount": "請求次數",
-      "timeConsumed": "消耗時間",
-      "successRate": "全域成功率",
-      "avgWaitTime": "平均請求耗時",
-      "avgCostPerRequest": "平均每請求成本",
-      "activeChannels": "活躍 Channel 數",
-      "totalToken": "消耗 Token",
-      "totalCost": "消耗費用",
-      "inputTokens": "輸入 Tokens",
-      "inputCost": "輸入費用",
-      "outputTokens": "輸出 Tokens",
-      "outputCost": "輸出費用"
     },
     "chart": {
       "title": "趨勢",

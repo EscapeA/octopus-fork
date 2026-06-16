@@ -248,7 +248,7 @@ export function HomeAnalyticsOverview() {
                     empty={!data}
                     emptyLabel={t('empty')}
                 >
-                    <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
+                    <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4">
                         {cards.map((card) => (
                             <article
                                 key={card.key}

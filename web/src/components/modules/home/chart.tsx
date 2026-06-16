@@ -191,11 +191,11 @@ export function StatsChart() {
                     </div>
                     <Tabs value={chartMetricType} onValueChange={(value) => setChartMetricType(value as ChartMetricType)}>
                         <div className="w-full overflow-x-auto sm:w-auto">
-                            <TabsList className="flex w-max min-w-full flex-nowrap rounded-lg border border-border bg-card p-1 sm:min-w-0">
-                                <TabsTrigger value="cost">{t('metricType.cost')}</TabsTrigger>
-                                <TabsTrigger value="count">{t('metricType.count')}</TabsTrigger>
-                                <TabsTrigger value="tokens">{t('metricType.tokens')}</TabsTrigger>
-                                <TabsTrigger value="success-rate">{t('metricType.successRate')}</TabsTrigger>
+                            <TabsList className="flex min-w-full flex-nowrap justify-center rounded-lg border border-border bg-card p-1 sm:min-w-0">
+                                <TabsTrigger value="cost" className="w-auto min-w-fit">{t('metricType.cost')}</TabsTrigger>
+                                <TabsTrigger value="count" className="w-auto min-w-fit">{t('metricType.count')}</TabsTrigger>
+                                <TabsTrigger value="tokens" className="w-auto min-w-fit">{t('metricType.tokens')}</TabsTrigger>
+                                <TabsTrigger value="success-rate" className="w-auto min-w-fit">{t('metricType.successRate')}</TabsTrigger>
                             </TabsList>
                         </div>
                     </Tabs>

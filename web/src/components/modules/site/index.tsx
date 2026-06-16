@@ -1824,7 +1824,6 @@ export function Site() {
     <div className="rounded-t-3xl">
       <PageWrapper
         className="space-y-3 pb-4 sm:space-y-4"
-        childLayout={false}
       >
         <CheckinPanel
           sites={sites}

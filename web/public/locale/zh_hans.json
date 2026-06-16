@@ -1031,15 +1031,11 @@
       "noData": "无数据"
     },
     "hero": {
-      "eyebrow": "个人中枢",
       "title": "今日使用",
-      "subtitle": "",
-      "description": "",
       "signals": {
         "requests": "今日调用",
         "successRate": "今日成功率",
-        "cost": "今日花费",
-        "channels": "可用渠道"
+        "cost": "今日花费"
       },
       "metrics": {
         "avgWait": "平均响应时延",
@@ -1071,24 +1067,6 @@
         "modelCount": "模型数",
         "fallbackRate": "回退率"
       }
-    },
-    "total": {
-      "requestStats": "请求统计",
-      "qualityStats": "质量统计",
-      "efficiencyStats": "效率统计",
-      "supplyStats": "供给统计",
-      "requestCount": "请求次数",
-      "timeConsumed": "消耗时间",
-      "successRate": "全局成功率",
-      "avgWaitTime": "平均请求耗时",
-      "avgCostPerRequest": "平均每请求成本",
-      "activeChannels": "活跃 Channel 数",
-      "totalToken": "消耗 Token",
-      "totalCost": "消耗费用",
-      "inputTokens": "输入 Tokens",
-      "inputCost": "输入费用",
-      "outputTokens": "输出 Tokens",
-      "outputCost": "输出费用"
     },
     "chart": {
       "title": "趋势",
