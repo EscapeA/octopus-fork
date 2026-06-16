@@ -15,6 +15,7 @@ export enum SitePlatform {
   OpenAI = "openai",
   Claude = "claude",
   Gemini = "gemini",
+  SAPI = "sapi",
 }
 
 export enum SiteCredentialType {

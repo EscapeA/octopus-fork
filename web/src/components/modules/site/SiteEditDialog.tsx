@@ -64,6 +64,7 @@ const PLATFORM_LABELS: Record<SitePlatform, string> = {
     [SitePlatform.OpenAI]: 'OpenAI',
     [SitePlatform.Claude]: 'Claude',
     [SitePlatform.Gemini]: 'Gemini',
+    [SitePlatform.SAPI]: 'SAPI',
 };
 
 function createEmptySiteForm(): SiteFormState {
