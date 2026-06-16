@@ -835,8 +835,18 @@ func loadAnalyticsChannelModelRows(ctx context.Context, r model.AnalyticsRange, 
 	}
 
 	if keepEnabled {
+		// 优先从 relay_log_attempts 按尝试维度聚合，使"渠道A 失败→重试到B 成功"
+		// 的请求中渠道A 的失败也被计入。依次尝试 LogDB → 主库的 attempts 表，
+		// 最后才回退到顶层列（顶层列只能看到最终渠道的成败，无法捕获中间重试失败）。
+		var attemptsConn *gorm.DB
 		conn := db.GetLogDB()
 		if conn != nil && connHasRelayLogAttempts(conn) {
+			attemptsConn = conn
+		} else if mainConn := db.GetDB(); mainConn != nil && connHasRelayLogAttempts(mainConn) {
+			attemptsConn = mainConn
+		}
+
+		if attemptsConn != nil {
 			// 成功/失败：按尝试维度聚合。
 			type attRow struct {
 				ChannelID    int     `gorm:"column:channel_id"`
@@ -848,7 +858,7 @@ func loadAnalyticsChannelModelRows(ctx context.Context, r model.AnalyticsRange, 
 				TotalCost    float64 `gorm:"column:total_cost"`
 			}
 			var aRows []attRow
-			query := conn.WithContext(ctx).
+			query := attemptsConn.WithContext(ctx).
 				Table("relay_log_attempts AS a").
 				Select(`
 					a.channel_id,
@@ -886,7 +896,8 @@ func loadAnalyticsChannelModelRows(ctx context.Context, r model.AnalyticsRange, 
 				}
 			}
 		} else {
-			// 回退：无 attempts 表时用顶层列（与历史利用率一致）。
+			// 最终回退：LogDB 和主库均无 attempts 表时用顶层列（与历史利用率一致）。
+			// 注意：顶层列只能看到最终渠道的成败，无法捕获中间重试失败。
 			mainConn := db.GetDB()
 			if mainConn != nil {
 				var dbRows []analyticsChannelModelAggregateRow
@@ -1204,10 +1215,18 @@ func loadAnalyticsFailureRows(ctx context.Context, since time.Time) (map[string]
 		// 优先从 relay_log_attempts 聚合失败尝试，使"渠道A 失败→重试到B 成功"
 		// 的请求中渠道A 的失败也被计入（issue #67）。join relay_logs 取
 		// request_model_name（分组名）以保留与 GroupItem.ModelName 的匹配维度。
+		// 依次尝试 LogDB → 主库的 attempts 表，最后才回退到顶层列。
+		var attemptsConn *gorm.DB
 		conn := db.GetLogDB()
 		if conn != nil && connHasRelayLogAttempts(conn) {
+			attemptsConn = conn
+		} else if mainConn := db.GetDB(); mainConn != nil && connHasRelayLogAttempts(mainConn) {
+			attemptsConn = mainConn
+		}
+
+		if attemptsConn != nil {
 			var dbRows []analyticsFailureAggregateRow
-			query := conn.WithContext(ctx).
+			query := attemptsConn.WithContext(ctx).
 				Table("relay_log_attempts AS a").
 				Select(`
 					a.channel_id,
@@ -1229,7 +1248,7 @@ func loadAnalyticsFailureRows(ctx context.Context, since time.Time) (map[string]
 				rows[key] = &rowCopy
 			}
 		} else {
-			// 回退：relay_log_attempts 表不存在（旧库未迁移）时用顶层 relay_logs 列。
+			// 最终回退：LogDB 和主库均无 attempts 表时用顶层 relay_logs 列。
 			conn := db.GetDB()
 			if conn != nil {
 				var dbRows []analyticsFailureAggregateRow
