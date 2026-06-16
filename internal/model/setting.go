@@ -25,7 +25,7 @@ const (
 	SettingKeyCircuitBreakerMaxCooldown            SettingKey = "circuit_breaker_max_cooldown"             // 熔断最大冷却时间（秒），指数退避上限
 	SettingKeyPublicAPIBaseURL                     SettingKey = "public_api_base_url"                      // 对外可访问的 API 基础地址，用于生成示例
 	SettingKeyAlertNotifyLanguage                  SettingKey = "alert_notify_language"                    // 告警通知发送语言
-	SettingKeyRatelimitCooldown                    SettingKey = "ratelimit_cooldown"                       // 429 限流冷却时间（秒）
+	SettingKeyRatelimitCooldown                    SettingKey = "ratelimit_cooldown"                       // Key 错误冷却时间（秒），0=关闭
 	SettingKeyRelayMaxTotalAttempts                SettingKey = "relay_max_total_attempts"                 // 所有候选渠道的最大总尝试次数，0 表示不限制
 	SettingKeyAutoStrategyMinSamples               SettingKey = "auto_strategy_min_samples"                // Auto策略最小样本数阈值
 	SettingKeyAutoStrategyTimeWindow               SettingKey = "auto_strategy_time_window"                // Auto策略时间窗口（秒）
@@ -71,9 +71,9 @@ const (
 	SettingKeyResponseFilterErrorMessage           SettingKey = "response_filter_error_message"            // 阻断时返回的错误信息
 	SettingKeyLogLevel                             SettingKey = "log_level"                                // 应用日志级别: debug, info, warn, error
 	SettingKeyLogExcludedGroups                    SettingKey = "log_excluded_groups"                      // 在日志列表/实时流中屏蔽的分组名称列表(JSON 数组)
-	SettingKeyWebAuthnRPID                         SettingKey = "webauthn_rp_id"                          // WebAuthn RP ID（域名，不含协议/端口）
-	SettingKeyWebAuthnRPName                       SettingKey = "webauthn_rp_name"                        // WebAuthn RP 展示名
-	SettingKeyWebAuthnOrigins                      SettingKey = "webauthn_origins"                        // WebAuthn 允许的 Origin 列表（逗号分隔，完整 scheme://host[:port]）
+	SettingKeyWebAuthnRPID                         SettingKey = "webauthn_rp_id"                           // WebAuthn RP ID（域名，不含协议/端口）
+	SettingKeyWebAuthnRPName                       SettingKey = "webauthn_rp_name"                         // WebAuthn RP 展示名
+	SettingKeyWebAuthnOrigins                      SettingKey = "webauthn_origins"                         // WebAuthn 允许的 Origin 列表（逗号分隔，完整 scheme://host[:port]）
 )
 
 type Setting struct {
@@ -96,7 +96,7 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyCircuitBreakerThreshold, Value: "5"},     // 默认连续失败5次触发熔断
 		{Key: SettingKeyCircuitBreakerCooldown, Value: "60"},     // 默认基础冷却60秒
 		{Key: SettingKeyCircuitBreakerMaxCooldown, Value: "600"}, // 默认最大冷却600秒（10分钟）
-		{Key: SettingKeyRatelimitCooldown, Value: "300"},         // 默认429冷却300秒（5分钟）
+		{Key: SettingKeyRatelimitCooldown, Value: "300"},         // 默认 Key 错误冷却300秒（5分钟），0=关闭
 		{Key: SettingKeyRelayMaxTotalAttempts, Value: "0"},       // 默认不限制所有候选渠道的总尝试次数
 		{Key: SettingKeyPublicAPIBaseURL, Value: ""},
 		{Key: SettingKeyAlertNotifyLanguage, Value: "en"},

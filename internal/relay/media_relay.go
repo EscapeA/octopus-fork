@@ -225,6 +225,13 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 					usedKey = channel.GetChannelKeyExcludingWithCooldown(failedKeyIDs, ratelimitCooldown)
 				}
 				if usedKey.ChannelKey == "" {
+					// When the key loop exits via break without forwarding
+					// (e.g. all keys in rate-limit cooldown), record a skip so the
+					// relay log captures the channel info and reason.
+					if keyRound == 1 {
+						routeIter.Skip(channel.ID, usedKey.ID, channel.Name, "no available key (all keys in cooldown or disabled)")
+						lastErr = fmt.Errorf("channel %s: no available key (all keys in cooldown or disabled)", channel.Name)
+					}
 					break
 				}
 

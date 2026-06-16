@@ -1226,8 +1226,8 @@
         "placeholder": "Enter retry count"
       },
       "ratelimitCooldown": {
-        "label": "429 cooldown (seconds)",
-        "hint": "After an upstream rate limit response, the channel is skipped for this cooldown period.",
+        "label": "Key cooldown (seconds)",
+        "hint": "After a channel key returns an upstream error (e.g. 429 rate limit, 401/403 auth failure), the key is skipped for this cooldown period. Set to 0 to disable cooldown.",
         "placeholder": "Enter cooldown seconds"
       },
       "maxTotalAttempts": {

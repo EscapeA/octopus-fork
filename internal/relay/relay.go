@@ -1118,6 +1118,14 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 					usedKey, _ = PrepareCandidateForRetry(channel, failedKeyIDs, routeIter, ratelimitCooldown, resolvedModelName)
 				}
 				if usedKey.ChannelKey == "" {
+					// When the key loop exits via break without forwarding
+					// (e.g. all keys in rate-limit cooldown), record a skip so the
+					// relay log captures the channel info and reason. Without this,
+					// single-channel groups return 502 with empty channel name.
+					if keyRound == 1 {
+						routeIter.Skip(channel.ID, usedKey.ID, channel.Name, "no available key (all keys in cooldown or disabled)")
+						lastErr = fmt.Errorf("channel %s: no available key (all keys in cooldown or disabled)", channel.Name)
+					}
 					break
 				}
 				if hint, ok := globalFailureHintCache.get(channel.ID, usedKey.ID, resolvedModelName); ok {

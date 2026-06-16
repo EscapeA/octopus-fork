@@ -1226,8 +1226,8 @@
         "placeholder": "請輸入重試次數"
       },
       "ratelimitCooldown": {
-        "label": "429 冷卻時間（秒）",
-        "hint": "渠道觸發上游限流後，會在該冷卻時間內跳過再次嘗試。",
+        "label": "Key 冷卻時間（秒）",
+        "hint": "渠道 Key 返回上游錯誤（如 429 限流、401/403 認證失敗等）後，在該冷卻時間內跳過此 Key。設為 0 關閉冷卻。",
         "placeholder": "請輸入冷卻時間"
       },
       "maxTotalAttempts": {

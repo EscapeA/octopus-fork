@@ -4,6 +4,8 @@ package remotesite
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -325,7 +327,32 @@ func DetectSiteType(ctx context.Context, baseURL, accessToken string) (string, e
 		}
 	}
 
+	// Try sapi: has /api/auth/login (POST) which New API backends don't expose.
+	if sapiEndpointExists(ctx, baseURL, "/api/auth/login") {
+		return model.SiteTypeSAPI, nil
+	}
+
 	return model.SiteTypeUnknown, nil
+}
+
+// sapiEndpointExists probes a POST endpoint to check if it exists on the
+// remote server. A non-404 response indicates the endpoint is present.
+// Used for sapi detection: /api/auth/login exists on sapi but not on New API.
+func sapiEndpointExists(ctx context.Context, baseURL, endpoint string) bool {
+	url := strings.TrimRight(baseURL, "/") + endpoint
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+	if err != nil {
+		return false
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := hub.AdapterHTTPClient.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	// 404 means endpoint doesn't exist → not sapi.
+	// Any other status (400, 401, 422, etc.) means the endpoint exists.
+	return resp.StatusCode != http.StatusNotFound
 }
 
 // maskSecrets replaces sensitive fields with masked values for API responses.
