@@ -35,7 +35,7 @@ import { Progress } from '@/components/ui/progress';
 import dayjs from 'dayjs';
 
 export function APIKeyDashboard() {
-    const t = useTranslations('apikeyDashboard');
+    const t = useTranslations('apiKeyDashboard');
     const { locale, setLocale, chinaMode, exchangeRate } = useSettingStore();
     const { data, error } = useAPIKeyDashboardStats();
     const { logout } = useAuthStore();

@@ -16,7 +16,7 @@ const messages: Record<Locale, typeof zh_hansMessages> = {
 };
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
-    const { locale, timeZone, chinaMode, exchangeRate } = useSettingStore();
+    const { locale, timeZone } = useSettingStore();
     const currentLocale: Locale = normalizeLocale(locale);
     const currentTimeZone = normalizeTimeZone(timeZone) || DEFAULT_TIME_ZONE;
 
