@@ -1736,6 +1736,14 @@
       "description": "拖拽调整设置页面各选项的排列顺序，松手后立即保存。",
       "reset": "恢复默认顺序",
       "resetSuccess": "设置项顺序已恢复默认"
+    },
+    "chinaMode": {
+      "label": "中国化模式",
+      "description": "费用显示人民币，数字使用万/亿单位",
+      "exchangeRate": {
+        "label": "美元兑人民币汇率",
+        "hint": "默认 7.2，可手动调整"
+      }
     }
   },
   "group": {
@@ -2068,7 +2076,8 @@
       "cacheRead": "缓存读取",
       "cacheWrite": "缓存写入",
       "submit": "创建",
-      "submitting": "创建中..."
+      "submitting": "创建中...",
+      "priceHint": "价格单位：美元 / 百万 tokens"
     },
     "summary": {
       "title": "模型广场",
@@ -2124,7 +2133,8 @@
       "output": "输出",
       "cacheRead": "缓存读取",
       "cacheWrite": "缓存写入",
-      "save": "保存"
+      "save": "保存",
+      "priceHint": "价格单位：美元 / 百万 tokens"
     },
     "capabilities": {
       "title": "模型能力",

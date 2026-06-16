@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 export type Locale = 'zh-Hans' | 'zh-Hant' | 'en';
 export const DEFAULT_TIME_ZONE = 'Asia/Shanghai';
+export const DEFAULT_EXCHANGE_RATE = 7.2;
 
 export function normalizeLocale(locale: string | null | undefined): Locale {
     switch (locale) {
@@ -47,8 +48,19 @@ export function normalizeTimeZone(timeZone: string | null | undefined): string {
 interface SettingState {
     locale: Locale;
     timeZone: string;
+    chinaMode: boolean;
+    exchangeRate: number;
     setLocale: (locale: Locale) => void;
     setTimeZone: (timeZone: string) => void;
+    setChinaMode: (enabled: boolean) => void;
+    setExchangeRate: (rate: number) => void;
+}
+
+function normalizeExchangeRate(rate: number | null | undefined): number {
+    if (typeof rate !== 'number' || !isFinite(rate) || rate <= 0) {
+        return DEFAULT_EXCHANGE_RATE;
+    }
+    return rate;
 }
 
 export const useSettingStore = create<SettingState>()(
@@ -56,8 +68,12 @@ export const useSettingStore = create<SettingState>()(
         (set) => ({
             locale: 'zh-Hans',
             timeZone: DEFAULT_TIME_ZONE,
+            chinaMode: false,
+            exchangeRate: DEFAULT_EXCHANGE_RATE,
             setLocale: (locale) => set({ locale: normalizeLocale(locale) }),
             setTimeZone: (timeZone) => set({ timeZone: normalizeTimeZone(timeZone) }),
+            setChinaMode: (chinaMode) => set({ chinaMode }),
+            setExchangeRate: (exchangeRate) => set({ exchangeRate: normalizeExchangeRate(exchangeRate) }),
         }),
         {
             name: 'octopus-settings',
@@ -69,6 +85,8 @@ export const useSettingStore = create<SettingState>()(
                     ...typed,
                     locale: normalizeLocale(typed?.locale),
                     timeZone: normalizeTimeZone(typed?.timeZone),
+                    chinaMode: typed?.chinaMode ?? false,
+                    exchangeRate: normalizeExchangeRate(typed?.exchangeRate),
                 };
             },
         }

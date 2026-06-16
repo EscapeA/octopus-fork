@@ -117,6 +117,8 @@ export function CreateDialogContent() {
                                 />
                             </Field>
                         </div>
+                        <p className="text-xs text-muted-foreground">{t('priceHint')}</p>
+
                         <Button
                             type="submit"
                             disabled={createModel.isPending || !formData.name.trim()}

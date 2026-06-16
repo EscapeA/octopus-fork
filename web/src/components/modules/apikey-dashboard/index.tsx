@@ -36,10 +36,10 @@ import dayjs from 'dayjs';
 
 export function APIKeyDashboard() {
     const t = useTranslations('apiKeyDashboard');
+    const { locale, setLocale, chinaMode, exchangeRate } = useSettingStore();
     const { data, error } = useAPIKeyDashboardStats();
     const { logout } = useAuthStore();
     const { theme, setTheme } = useTheme();
-    const { locale, setLocale } = useSettingStore();
     const [copying, setCopying] = useState(false);
 
     const copyWithToast = useCallback(
@@ -183,7 +183,7 @@ export function APIKeyDashboard() {
                                         <Progress value={Math.min(100, (usedCost / maxCost) * 100)} className="h-3 sm:h-4 *:data-[slot=progress-indicator]:bg-chart-1" />
                                         <div className="flex justify-between text-xs sm:text-sm text-muted-foreground mt-1">
                                             <span>0</span>
-                                            <span>{maxCost.toFixed(2)} $</span>
+                                            <span>{chinaMode ? `${(maxCost * exchangeRate).toFixed(2)} ¥` : `${maxCost.toFixed(2)} $`}</span>
                                         </div>
                                     </div>
                                 )}

@@ -1,8 +1,9 @@
 'use client';
 
-import { type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { NextIntlClientProvider } from 'next-intl';
 import { DEFAULT_TIME_ZONE, normalizeLocale, normalizeTimeZone, useSettingStore, type Locale } from '@/stores/setting';
+import { registerSettingStoreGetter } from '@/lib/utils';
 
 import zh_hansMessages from '../../public/locale/zh_hans.json';
 import zh_hantMessages from '../../public/locale/zh_hant.json';
@@ -18,6 +19,13 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     const { locale, timeZone } = useSettingStore();
     const currentLocale: Locale = normalizeLocale(locale);
     const currentTimeZone = normalizeTimeZone(timeZone) || DEFAULT_TIME_ZONE;
+
+    useEffect(() => {
+        registerSettingStoreGetter(() => {
+            const s = useSettingStore.getState();
+            return { chinaMode: s.chinaMode, exchangeRate: s.exchangeRate };
+        });
+    }, []);
 
     return (
         <NextIntlClientProvider

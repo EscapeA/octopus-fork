@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useMemo, useState, useEffect } from 'react';
-import { Clock, Cpu, Zap, AlertCircle, ArrowDownToLine, ArrowUpFromLine, DollarSign, ArrowRight, ArrowDown, Send, MessageSquare, Loader2, RotateCw, ChevronDown, ChevronUp, Pin, KeyRound, Globe, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
+import { Clock, Cpu, Zap, AlertCircle, ArrowDownToLine, ArrowUpFromLine, DollarSign, JapaneseYen, ArrowRight, ArrowDown, Send, MessageSquare, Loader2, RotateCw, ChevronDown, ChevronUp, Pin, KeyRound, Globe, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'motion/react';
 import JsonView from '@uiw/react-json-view';
@@ -11,11 +11,12 @@ import { useTheme } from 'next-themes';
 import { type RelayLog, type ChannelAttempt, useLogDetail } from '@/api/endpoints/log';
 import { getModelIcon } from '@/lib/model-icons';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn, formatCount, formatMoney } from '@/lib/utils';
 import { formatUnixSeconds } from '@/lib/time';
 import { endpointTypeLabelKey } from '@/components/modules/group/utils';
 import { resolveLogDisplayFields, formatJsonForCopy } from './display';
 import { useLogFieldVisibility } from './ui-store';
+import { useSettingStore } from '@/stores/setting';
 import { CopyIconButton } from '@/components/common/CopyButton';
 import {
     MorphingDialog,
@@ -28,6 +29,25 @@ import {
     useMorphingDialog,
 } from '@/components/ui/morphing-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/animate-ui/components/animate/tooltip';
+
+/** Format count or money result into a compact display string like "1.23 万". */
+function fmt({ value, unit }: { value: string; unit: string }) {
+    return unit ? `${value} ${unit}` : value;
+}
+
+/** Format CNY cost with 2 significant figures. */
+function costFmt(cny: number): string {
+    if (cny === 0) return "0.00";
+    const abs = Math.abs(cny);
+    if (abs >= 1) return cny.toFixed(2);
+    // Determine decimal places needed for 2 sig figs, then round and format
+    const exp = Math.floor(Math.log10(abs));
+    const decimals = Math.max(0, 1 - exp);
+    const rounded = Number(abs.toFixed(decimals + 1));
+    const s = Number(rounded.toPrecision(2));
+    const finalDecimals = Math.max(0, 1 - Math.floor(Math.log10(s)));
+    return (cny < 0 ? "-" : "") + s.toFixed(finalDecimals);
+}
 
 function formatTime(timestamp: number): string {
     return formatUnixSeconds(timestamp, {
@@ -203,6 +223,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
     const [responseJsonCollapsed, setResponseJsonCollapsed] = useState(false);
     const displayFields = useMemo(() => resolveLogDisplayFields(log, detail, channelNameById), [channelNameById, detail, log]);
     const vis = useLogFieldVisibility();
+    const chinaMode = useSettingStore((s) => s.chinaMode);
     const { Avatar: ModelAvatar, color: brandColor } = useMemo(
         () => getModelIcon(displayFields.actualModelName),
         [displayFields.actualModelName]
@@ -250,9 +271,17 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
         }
     }, [log.cost, log.error, log.input_tokens, log.output_tokens, responseContent]);
 
-    const inputTokenDisplay = usageKnown ? effectiveInputTokens.toLocaleString() : tCommon('unknown');
-    const outputTokenDisplay = usageKnown ? log.output_tokens.toLocaleString() : tCommon('unknown');
-    const costDisplay = usageKnown ? Number(log.cost).toFixed(6) : tCommon('unknown');
+    const inputTokenDisplay = usageKnown
+        ? fmt(formatCount(effectiveInputTokens).formatted)
+        : tCommon('unknown');
+    const outputTokenDisplay = usageKnown
+        ? fmt(formatCount(log.output_tokens).formatted)
+        : tCommon('unknown');
+    const costDisplay = usageKnown
+        ? (chinaMode
+            ? costFmt(formatMoney(Number(log.cost)).raw)
+            : formatMoney(Number(log.cost)).raw.toFixed(2))
+        : tCommon('unknown');
 
     return (
         <TooltipProvider>
@@ -353,7 +382,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                 {cacheReadTokens > 0 && (
                                     <div className="flex items-center gap-1.5">
                                         <ArrowDownToLine className="size-3.5 shrink-0 text-teal-500" />
-                                        <span>{t('cacheHit')} {cacheReadTokens.toLocaleString()}</span>
+                                        <span>{t('cacheHit')} {fmt(formatCount(cacheReadTokens).formatted)}</span>
                                     </div>
                                 )}
                                 <div className="flex items-center gap-1.5">
@@ -362,7 +391,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                 </div>
                                 {vis.cost && (
                                     <div className="flex items-center gap-1.5">
-                                        <DollarSign className="size-3.5 shrink-0 text-emerald-500" />
+                                        {chinaMode ? <JapaneseYen className="size-3.5 shrink-0 text-emerald-500" /> : <DollarSign className="size-3.5 shrink-0 text-emerald-500" />}
                                         <span className="font-medium text-emerald-600 dark:text-emerald-400">
                                             {t('cost')} {costDisplay}
                                         </span>
@@ -551,7 +580,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                                 <span className="text-sm font-medium text-card-foreground">{t('requestContent')}</span>
                                                 <div className="ml-auto flex items-center gap-1">
                                                     <Badge variant="secondary" className="text-xs">
-                                                        {usageKnown ? `${log.input_tokens.toLocaleString()} ${t('tokens')}` : tCommon('unknown')}
+                                                        {usageKnown ? `${fmt(formatCount(log.input_tokens).formatted)} ${t('tokens')}` : tCommon('unknown')}
                                                     </Badge>
                                                     {requestContent && (
                                                         <>
@@ -584,7 +613,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                                 <span className="text-sm font-medium text-card-foreground">{t('responseContent')}</span>
                                                 <div className="ml-auto flex items-center gap-1">
                                                     <Badge variant="secondary" className="text-xs">
-                                                        {usageKnown ? `${log.output_tokens.toLocaleString()} ${t('tokens')}` : tCommon('unknown')}
+                                                        {usageKnown ? `${fmt(formatCount(log.output_tokens).formatted)} ${t('tokens')}` : tCommon('unknown')}
                                                     </Badge>
                                                     {responseContent && (
                                                         <>
@@ -641,7 +670,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                             {cacheReadTokens > 0 && (
                                 <div className="flex items-center gap-1.5">
                                     <ArrowDownToLine className="size-3.5 text-teal-500" />
-                                    <span>{t('cacheHit')}: {cacheReadTokens.toLocaleString()}</span>
+                                    <span>{t('cacheHit')}: {fmt(formatCount(cacheReadTokens).formatted)}</span>
                                 </div>
                             )}
                             {semanticCacheHit && (
@@ -652,7 +681,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                             )}
                             {vis.cost && (
                                 <div className="flex items-center gap-1.5">
-                                    <DollarSign className="size-3.5 text-emerald-500" />
+                                    {chinaMode ? <JapaneseYen className="size-3.5 text-emerald-500" /> : <DollarSign className="size-3.5 text-emerald-500" />}
                                     <span className="font-medium text-emerald-600 dark:text-emerald-400">
                                         {t('cost')}: {costDisplay}
                                     </span>
