@@ -88,7 +88,7 @@ export function HomeHero() {
                                 <Waves className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />
                             </div>
                             <div className="space-y-1">
-                                <h1 className="text-2xl font-semibold tracking-tight md:text-3xl lg:text-4xl">{t('title')}</h1>
+                                <h1 className="text-[1.65rem] font-semibold tracking-tight sm:text-2xl md:text-3xl lg:text-4xl">{t('title')}</h1>
                                 {t('subtitle') ? (
                                     <p className="text-sm leading-6 text-muted-foreground md:text-base">{t('subtitle')}</p>
                                 ) : null}
@@ -119,10 +119,10 @@ export function HomeHero() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-3">
-                    {signals.map((signal) => (
+                    {signals.map((signal, index) => (
                         <article
                             key={signal.key}
-                            className="group rounded-lg border border-border bg-card p-3 sm:p-4 transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-border/80"
+                            className={`group rounded-lg border border-border bg-card p-3 sm:p-4 transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-border/80 ${index === 0 ? 'col-span-2 sm:col-span-1' : ''}`}
                         >
                             <div className="flex items-start justify-between gap-3">
                                 <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${signal.accent}`}>
