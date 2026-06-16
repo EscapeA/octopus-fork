@@ -2076,7 +2076,8 @@
       "cacheRead": "快取讀取",
       "cacheWrite": "快取寫入",
       "submit": "建立",
-      "submitting": "建立中..."
+      "submitting": "建立中...",
+      "priceHint": "價格單位：美元 / 百萬 tokens"
     },
     "summary": {
       "title": "模型廣場",
@@ -2132,7 +2133,8 @@
       "output": "輸出",
       "cacheRead": "快取讀取",
       "cacheWrite": "快取寫入",
-      "save": "儲存"
+      "save": "儲存",
+      "priceHint": "價格單位：美元 / 百萬 tokens"
     },
     "capabilities": {
       "title": "模型能力",

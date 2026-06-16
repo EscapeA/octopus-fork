@@ -2076,7 +2076,8 @@
       "cacheRead": "Cache Read",
       "cacheWrite": "Cache Write",
       "submit": "Create",
-      "submitting": "Creating..."
+      "submitting": "Creating...",
+      "priceHint": "Price unit: USD / 1M tokens"
     },
     "summary": {
       "title": "Model Market",
@@ -2132,7 +2133,8 @@
       "output": "Output",
       "cacheRead": "Cache Read",
       "cacheWrite": "Cache Write",
-      "save": "Save"
+      "save": "Save",
+      "priceHint": "Price unit: USD / 1M tokens"
     },
     "capabilities": {
       "title": "Model Capabilities",

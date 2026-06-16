@@ -136,6 +136,8 @@ export function ModelEditOverlay({
                     </label>
                 </div>
 
+                <p className="mt-1.5 text-[0.62rem] text-muted-foreground/70 sm:text-[0.65rem]">{t("priceHint")}</p>
+
                 <div className="mt-3 flex gap-2 sm:mt-4">
                     <button
                         type="button"

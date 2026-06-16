@@ -2076,7 +2076,8 @@
       "cacheRead": "缓存读取",
       "cacheWrite": "缓存写入",
       "submit": "创建",
-      "submitting": "创建中..."
+      "submitting": "创建中...",
+      "priceHint": "价格单位：美元 / 百万 tokens"
     },
     "summary": {
       "title": "模型广场",
@@ -2132,7 +2133,8 @@
       "output": "输出",
       "cacheRead": "缓存读取",
       "cacheWrite": "缓存写入",
-      "save": "保存"
+      "save": "保存",
+      "priceHint": "价格单位：美元 / 百万 tokens"
     },
     "capabilities": {
       "title": "模型能力",
