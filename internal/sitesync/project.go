@@ -34,6 +34,12 @@ func ProjectAccount(ctx context.Context, accountID int) ([]int, error) {
 				log.Warnf("failed to disable managed channel %d: %v", binding.ChannelID, err)
 			}
 		}
+		// Remove GroupItems referencing the now-disabled projected channels
+		// and refresh affected group caches so that the UI and routing layer
+		// no longer expose models from the disabled site.
+		if err := purgeManagedGroupItems(ctx, channelIDs); err != nil {
+			log.Warnf("failed to purge group items for disabled site account %d: %v", account.ID, err)
+		}
 		return channelIDs, nil
 	}
 
@@ -644,6 +650,39 @@ func rewriteManagedGroupItemsForAccount(ctx context.Context, accountID int, spli
 	}
 	if err := op.GroupRefreshCacheByIDs(groupIDs, ctx); err != nil {
 		return fmt.Errorf("failed to refresh group cache after rewrite: %w", err)
+	}
+	return nil
+}
+
+// purgeManagedGroupItems removes all GroupItems that reference the given
+// channelIDs (typically projected channels of a disabled site/account) and
+// refreshes the caches of the affected groups.
+func purgeManagedGroupItems(ctx context.Context, channelIDs []int) error {
+	if len(channelIDs) == 0 {
+		return nil
+	}
+	var items []model.GroupItem
+	if err := db.GetDB().WithContext(ctx).Where("channel_id IN ?", channelIDs).Find(&items).Error; err != nil {
+		return fmt.Errorf("failed to list group items for purge: %w", err)
+	}
+	if len(items) == 0 {
+		return nil
+	}
+	affectedGroupIDs := make(map[int]struct{})
+	itemIDs := make([]int, 0, len(items))
+	for _, item := range items {
+		itemIDs = append(itemIDs, item.ID)
+		affectedGroupIDs[item.GroupID] = struct{}{}
+	}
+	if err := db.GetDB().WithContext(ctx).Where("id IN ?", itemIDs).Delete(&model.GroupItem{}).Error; err != nil {
+		return fmt.Errorf("failed to delete disabled channel group items: %w", err)
+	}
+	groupIDs := make([]int, 0, len(affectedGroupIDs))
+	for id := range affectedGroupIDs {
+		groupIDs = append(groupIDs, id)
+	}
+	if err := op.GroupRefreshCacheByIDs(groupIDs, ctx); err != nil {
+		return fmt.Errorf("failed to refresh group cache after purge: %w", err)
 	}
 	return nil
 }

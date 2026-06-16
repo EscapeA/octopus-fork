@@ -10,13 +10,11 @@ import (
 )
 
 // ChannelEnabledManaged enables/disables a channel bypassing the managed-check guard.
+// It updates both the database and the in-memory channel cache so that the state
+// change is immediately visible to the API, UI, and routing layer.
 func ChannelEnabledManaged(id int, enabled bool, ctx context.Context) error {
-	result := db.GetDB().WithContext(ctx).Model(&model.Channel{}).Where("id = ?", id).Update("enabled", enabled)
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return fmt.Errorf("channel not found")
+	if err := channel.Enabled(id, enabled, ctx); err != nil {
+		return err
 	}
 	return nil
 }
