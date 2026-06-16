@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { createPortal } from 'react-dom';
 import { CopyIconButton } from '@/components/common/CopyButton';
 import { formatAverageLatency, type LatencyUnitMode } from './latency-format';
+import { useSettingStore } from '@/stores/setting';
 
 interface MobileModelItemProps {
     model: ModelMarketItem;
@@ -33,6 +34,7 @@ function InlineMetric({ icon: Icon, value, color }: { icon: typeof Waves; value:
 
 export const MobileModelItem = memo(function MobileModelItem({ model, latencyUnit = 'auto' }: MobileModelItemProps) {
     const t = useTranslations('model');
+    const { chinaMode, exchangeRate } = useSettingStore();
     const [isExpanded, setIsExpanded] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -236,14 +238,24 @@ export const MobileModelItem = memo(function MobileModelItem({ model, latencyUni
                                             <ArrowDownToLine className="size-3" style={{ color: brandColor }} />
                                             {t('card.inputCache')}
                                         </span>
-                                        <span className="tabular-nums text-foreground">{model.input.toFixed(2)}/{model.cache_read.toFixed(2)}$</span>
+                                        <span className="tabular-nums text-foreground">
+                                            {chinaMode
+                                                ? `${(model.input * exchangeRate).toFixed(2)}/${(model.cache_read * exchangeRate).toFixed(2)}¥`
+                                                : `${model.input.toFixed(2)}/${model.cache_read.toFixed(2)}$`
+                                            }
+                                        </span>
                                     </div>
                                     <div className="flex items-center justify-between rounded-md bg-card px-2 py-1.5">
                                         <span className="inline-flex shrink-0 items-center gap-1">
                                             <ArrowUpFromLine className="size-3" style={{ color: brandColor }} />
                                             {t('card.outputCache')}
                                         </span>
-                                        <span className="tabular-nums text-foreground">{model.output.toFixed(2)}/{model.cache_write.toFixed(2)}$</span>
+                                        <span className="tabular-nums text-foreground">
+                                            {chinaMode
+                                                ? `${(model.output * exchangeRate).toFixed(2)}/${(model.cache_write * exchangeRate).toFixed(2)}¥`
+                                                : `${model.output.toFixed(2)}/${model.cache_write.toFixed(2)}$`
+                                            }
+                                        </span>
                                     </div>
                                 </div>
                             </div>

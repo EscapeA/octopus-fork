@@ -1736,6 +1736,14 @@
       "description": "Drag to reorder setting page sections. Changes are saved immediately on drop.",
       "reset": "Reset to Default",
       "resetSuccess": "Setting item order has been reset"
+    },
+    "chinaMode": {
+      "label": "China Localization",
+      "description": "Display costs in CNY, numbers in 万/亿 units",
+      "exchangeRate": {
+        "label": "USD to CNY Rate",
+        "hint": "Default 7.2, adjustable"
+      }
     }
   },
   "group": {

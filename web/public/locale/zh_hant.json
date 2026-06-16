@@ -1736,6 +1736,14 @@
       "description": "拖曳調整設定頁面各選項的排列順序，放開後立即儲存。",
       "reset": "恢復預設順序",
       "resetSuccess": "設定項順序已恢復預設"
+    },
+    "chinaMode": {
+      "label": "中國化模式",
+      "description": "費用顯示人民幣，數字使用萬/億單位",
+      "exchangeRate": {
+        "label": "美元兌人民幣匯率",
+        "hint": "預設 7.2，可手動調整"
+      }
     }
   },
   "group": {
