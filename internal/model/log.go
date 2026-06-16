@@ -47,6 +47,7 @@ type RelayLog struct {
 	Error             string           `json:"error" gorm:"column:error"`                               // 错误信息
 	Attempts          []ChannelAttempt `json:"attempts" gorm:"column:attempts;serializer:json"`         // 所有尝试记录
 	TotalAttempts     int              `json:"total_attempts" gorm:"column:total_attempts"`             // 总尝试次数
+	IsTest            bool             `json:"is_test" gorm:"column:is_test;default:false"`             // 是否为测试请求日志（issue #82）
 }
 
 // RelayLogListItem 日志列表轻量条目，排除了 RequestContent 和 ResponseContent 大字段
@@ -71,6 +72,7 @@ type RelayLogListItem struct {
 	Error             string           `json:"error" gorm:"column:error"`
 	Attempts          []ChannelAttempt `json:"attempts" gorm:"column:attempts;serializer:json"`
 	TotalAttempts     int              `json:"total_attempts" gorm:"column:total_attempts"`
+	IsTest            bool             `json:"is_test" gorm:"column:is_test;default:false"` // 是否为测试请求日志（issue #82）
 }
 
 // RelayLogAttempt 是 relay_log_attempts 关联表的一行，把单次渠道尝试从 RelayLog.Attempts
@@ -119,5 +121,6 @@ func (r *RelayLog) ToListItem() RelayLogListItem {
 		Error:             r.Error,
 		Attempts:          r.Attempts,
 		TotalAttempts:     r.TotalAttempts,
+		IsTest:            r.IsTest,
 	}
 }

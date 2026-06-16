@@ -483,6 +483,8 @@ type LogFilter struct {
 	// 为 true 时，"在渠道A 失败→重试到B 成功"的请求也会被 ChannelID=A 命中，
 	// HasError=true 也会命中整体成功但含失败尝试的请求（issue #67）。
 	IncludeAttempts bool
+	// IsTest 控制"测试日志"过滤：nil=全部, true=仅测试, false=仅非测试（issue #82）。
+	IsTest *bool
 }
 
 // logHasFailedAttempt 报告该日志是否存在任意一次失败的渠道尝试。
@@ -515,7 +517,7 @@ func RelayLogList(ctx context.Context, filter LogFilter, page, pageSize int) ([]
 	}
 	hasFilter := filter.StartTime != nil || filter.EndTime != nil ||
 		filter.Model != "" || filter.ChannelID != nil || filter.APIKeyID != nil ||
-		filter.EndpointType != "" || filter.HasError != nil
+		filter.EndpointType != "" || filter.HasError != nil || filter.IsTest != nil
 	excludedGroups := loadExcludedGroupSet()
 
 	matchesFilter := func(log model.RelayLog) bool {
@@ -567,6 +569,9 @@ func RelayLogList(ctx context.Context, filter LogFilter, page, pageSize int) ([]
 					return false
 				}
 			}
+		}
+		if filter.IsTest != nil && log.IsTest != *filter.IsTest {
+			return false
 		}
 		return true
 	}
@@ -627,7 +632,7 @@ func RelayLogList(ctx context.Context, filter LogFilter, page, pageSize int) ([]
 					"endpoint_type", "channel_id", "channel_name", "actual_model_name",
 					"input_tokens", "output_tokens", "semantic_cache_hit", "cache_read_tokens",
 					"ftut", "use_time",
-					"cost", "error", "attempts", "total_attempts")
+					"cost", "error", "attempts", "total_attempts", "is_test")
 			if filter.StartTime != nil {
 				query = query.Where("time >= ?", *filter.StartTime)
 			}
@@ -677,6 +682,14 @@ func RelayLogList(ctx context.Context, filter LogFilter, page, pageSize int) ([]
 					} else {
 						query = query.Where("error = '' OR error IS NULL")
 					}
+				}
+			}
+
+			if filter.IsTest != nil {
+				if *filter.IsTest {
+					query = query.Where("is_test = true")
+				} else {
+					query = query.Where("is_test = false OR is_test IS NULL")
 				}
 			}
 

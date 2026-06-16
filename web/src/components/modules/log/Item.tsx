@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useMemo, useState, useEffect } from 'react';
-import { Clock, Cpu, Zap, AlertCircle, ArrowDownToLine, ArrowUpFromLine, DollarSign, JapaneseYen, ArrowRight, ArrowDown, Send, MessageSquare, Loader2, RotateCw, ChevronDown, ChevronUp, Pin, KeyRound, Globe, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
+import { Clock, Cpu, Zap, AlertCircle, ArrowDownToLine, ArrowUpFromLine, DollarSign, JapaneseYen, ArrowRight, ArrowDown, Send, MessageSquare, Loader2, RotateCw, ChevronDown, ChevronUp, Pin, KeyRound, Globe, ChevronsDownUp, ChevronsUpDown, TestTube2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'motion/react';
 import JsonView from '@uiw/react-json-view';
@@ -300,6 +300,16 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                 <span className="min-w-0 max-w-full font-semibold text-card-foreground truncate md:max-w-[32%]" title={displayRequestModelName}>
                                     {displayRequestModelName}
                                 </span>
+                                {log.is_test && (
+                                    <Badge
+                                        variant="outline"
+                                        className="shrink-0 text-xs px-1.5 py-0 border-blue-400/50 text-blue-500 dark:text-blue-400"
+                                        title={t('testLog')}
+                                    >
+                                        <TestTube2 className="size-3 mr-1" />
+                                        {t('testLog')}
+                                    </Badge>
+                                )}
                                 <ArrowRight className="size-3.5 shrink-0 text-muted-foreground/50" />
                                 {vis.endpointType && (
                                     <Badge
@@ -413,6 +423,15 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                         <MorphingDialogTitle className="flex items-center gap-2 mb-3 text-sm">
                             <ModelAvatar size={28} />
                             <span className="font-semibold text-card-foreground">{displayRequestModelName}</span>
+                            {log.is_test && (
+                                <Badge
+                                    variant="outline"
+                                    className="shrink-0 text-xs px-1.5 py-0 border-blue-400/50 text-blue-500 dark:text-blue-400"
+                                >
+                                    <TestTube2 className="size-3 mr-1" />
+                                    {t('testLog')}
+                                </Badge>
+                            )}
                             <ArrowRight className="size-3.5 text-muted-foreground/50" />
                             {vis.endpointType && (
                                 <Badge

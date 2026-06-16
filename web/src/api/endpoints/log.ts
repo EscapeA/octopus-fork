@@ -50,6 +50,7 @@ export interface RelayLog {
     error: string;               // 错误信息
     attempts?: ChannelAttempt[]; // 所有尝试记录
     total_attempts?: number;     // 总尝试次数
+    is_test?: boolean;           // 是否为测试请求日志（issue #82）
 }
 
 /**
@@ -89,6 +90,8 @@ export interface LogFilter {
     // 是否"穿透"到单次尝试维度：按渠道A 筛选时也能命中"在A 失败、重试到B 成功"
     // 的请求。后端在指定 channel_id 且未显式传 include_attempts 时默认开启。
     include_attempts?: boolean;
+    // 测试日志过滤：undefined=全部, true=仅测试, false=仅非测试（issue #82）
+    is_test?: boolean;
 }
 
 /**
@@ -171,6 +174,7 @@ export function useLogs(options: { pageSize?: number; filter?: LogFilter } = {})
         filter.start_time,
         filter.end_time,
         filter.include_attempts,
+        filter.is_test,
     ]);
 
     const logsQuery = useInfiniteQuery({
@@ -188,6 +192,7 @@ export function useLogs(options: { pageSize?: number; filter?: LogFilter } = {})
             if (stableFilter.start_time != null) params.set('start_time', String(stableFilter.start_time));
             if (stableFilter.end_time != null) params.set('end_time', String(stableFilter.end_time));
             if (stableFilter.include_attempts != null) params.set('include_attempts', String(stableFilter.include_attempts));
+            if (stableFilter.is_test != null) params.set('is_test', String(stableFilter.is_test));
             const result = await apiClient.get<RelayLog[] | null>(`/api/v1/log/list?${params.toString()}`);
             return result ?? [];
         },
@@ -240,7 +245,7 @@ export function useLogs(options: { pageSize?: number; filter?: LogFilter } = {})
                 }, delayMs);
             });
 
-        const hasActiveFilter = !!(stableFilter.model || stableFilter.channel_id != null || stableFilter.api_key_id != null || stableFilter.endpoint_type || stableFilter.status || stableFilter.start_time != null || stableFilter.end_time != null || stableFilter.include_attempts != null);
+        const hasActiveFilter = !!(stableFilter.model || stableFilter.channel_id != null || stableFilter.api_key_id != null || stableFilter.endpoint_type || stableFilter.status || stableFilter.start_time != null || stableFilter.end_time != null || stableFilter.include_attempts != null || stableFilter.is_test != null);
 
         const mergeIncomingLog = (log: RelayLog) => {
             // When a filter is active, skip merging SSE logs to avoid showing unfiltered results

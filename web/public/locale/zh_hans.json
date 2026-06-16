@@ -2195,6 +2195,9 @@
       "allStatuses": "全部状态",
       "statusSuccess": "成功",
       "statusError": "错误",
+      "allLogs": "全部日志",
+      "testOnly": "仅测试",
+      "nonTest": "仅正式",
       "clear": "清除"
     },
     "viewOptions": {
@@ -2232,6 +2235,7 @@
       "realInput": "真实输入",
       "requestType": "请求类型",
       "channelFallback": "渠道 #{id}",
+      "testLog": "测试",
       "requestTypeLabels": {
         "chat": "对话",
         "streamingChat": "流式对话",

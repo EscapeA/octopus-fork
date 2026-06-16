@@ -2195,6 +2195,9 @@
       "allStatuses": "全部狀態",
       "statusSuccess": "成功",
       "statusError": "錯誤",
+      "allLogs": "全部日誌",
+      "testOnly": "僅測試",
+      "nonTest": "僅正式",
       "clear": "清除"
     },
     "viewOptions": {
@@ -2232,6 +2235,7 @@
       "realInput": "真實輸入",
       "requestType": "請求類型",
       "channelFallback": "渠道 #{id}",
+      "testLog": "測試",
       "requestTypeLabels": {
         "chat": "對話",
         "streamingChat": "串流對話",

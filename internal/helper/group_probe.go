@@ -2,6 +2,7 @@ package helper
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math"
@@ -13,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lingyuins/octopus/internal/conf"
 	appmodel "github.com/lingyuins/octopus/internal/model"
+	"github.com/lingyuins/octopus/internal/op/relaylog"
 	transmodel "github.com/lingyuins/octopus/internal/transformer/model"
 	"github.com/lingyuins/octopus/internal/transformer/outbound"
 	"github.com/lingyuins/octopus/internal/utils/log"
@@ -318,39 +320,77 @@ func testGroupModelItem(ctx context.Context, endpointType string, item appmodel.
 	channel, ok := channels[item.ChannelID]
 	if !ok {
 		result.Message = "channel not found"
+		recordTestLog(ctx, endpointType, item, result, channel, nil, 0, nil)
 		return result
 	}
 	result.ChannelName = channel.Name
 	if !channel.Enabled {
 		result.Message = "channel disabled"
+		recordTestLog(ctx, endpointType, item, result, channel, nil, 0, nil)
 		return result
 	}
 
 	usedKey := channel.GetChannelKey()
 	if strings.TrimSpace(usedKey.ChannelKey) == "" {
 		result.Message = "no available key"
+		recordTestLog(ctx, endpointType, item, result, channel, nil, 0, nil)
 		return result
 	}
 
 	outAdapter := outbound.Get(channel.Type)
 	if outAdapter == nil {
 		result.Message = fmt.Sprintf("unsupported channel type: %d", channel.Type)
+		recordTestLog(ctx, endpointType, item, result, channel, nil, 0, nil)
 		return result
 	}
 
 	if err := validateGroupProbeChannelType(endpointType, channel.Type); err != nil {
 		result.Message = err.Error()
+		recordTestLog(ctx, endpointType, item, result, channel, nil, 0, nil)
 		return result
 	}
+
+	// 构建探测请求，用于日志记录和实际发送
+	probeRequest, probeErr := buildGroupProbeRequest(endpointType, item.ModelName)
+	var requestJSON []byte
+	if probeErr == nil && probeRequest != nil {
+		requestJSON, _ = json.Marshal(probeRequest)
+	}
+
+	startTime := time.Now()
+	var logAttempts []appmodel.ChannelAttempt
 
 	for attempt := 1; attempt <= 3; attempt++ {
 		if attempt > 1 && ctx.Err() != nil {
 			result.Message = ctx.Err().Error()
 			break
 		}
+		attemptStart := time.Now()
 		statusCode, responseText, err := sendGroupProbeRequest(ctx, outAdapter, &channel, usedKey.ChannelKey, endpointType, item.ModelName)
+		attemptDuration := int(time.Since(attemptStart).Milliseconds())
+
 		result.StatusCode = statusCode
 		result.ResponseText = responseText
+
+		attemptStatus := appmodel.AttemptFailed
+		attemptMsg := result.Message
+		if err == nil {
+			attemptStatus = appmodel.AttemptSuccess
+			attemptMsg = "ok"
+		} else {
+			attemptMsg = err.Error()
+		}
+
+		logAttempts = append(logAttempts, appmodel.ChannelAttempt{
+			ChannelID:   channel.ID,
+			ChannelName: channel.Name,
+			ModelName:   item.ModelName,
+			AttemptNum:  attempt,
+			Status:      attemptStatus,
+			Duration:    attemptDuration,
+			Msg:         attemptMsg,
+		})
+
 		if err == nil {
 			result.Passed = true
 			result.Attempts = attempt
@@ -361,7 +401,60 @@ func testGroupModelItem(ctx context.Context, endpointType string, item appmodel.
 		result.Message = err.Error()
 	}
 
+	useTimeMs := int(time.Since(startTime).Milliseconds())
+	recordTestLog(ctx, endpointType, item, result, channel, logAttempts, useTimeMs, requestJSON)
+
 	return result
+}
+
+// recordTestLog 将分组模型测试结果记录到日志系统（issue #82：测试模型可显示日志）。
+// 测试日志以 is_test=true 标记，与正常转发日志区分；RequestAPIKeyName 设为 "[test]"。
+func recordTestLog(ctx context.Context, endpointType string, item appmodel.GroupItem, result GroupModelTestResult, channel appmodel.Channel, attempts []appmodel.ChannelAttempt, useTimeMs int, requestJSON []byte) {
+	normalizedEndpointType := appmodel.NormalizeEndpointType(endpointType)
+
+	channelID := channel.ID
+	channelName := channel.Name
+	// 渠道未找到时，使用 item 中的渠道 ID
+	if channelID == 0 {
+		channelID = item.ChannelID
+	}
+
+	relayLog := appmodel.RelayLog{
+		Time:              time.Now().Unix(),
+		RequestModelName:  item.ModelName,
+		RequestAPIKeyName: "[test]",
+		ClientIP:          "system",
+		EndpointType:      normalizedEndpointType,
+		ChannelId:         channelID,
+		ChannelName:       channelName,
+		ActualModelName:   item.ModelName,
+		UseTime:           useTimeMs,
+		Attempts:          attempts,
+		TotalAttempts:     len(attempts),
+		IsTest:            true,
+	}
+
+	if requestJSON != nil {
+		relayLog.RequestContent = string(requestJSON)
+	}
+	if result.ResponseText != "" {
+		relayLog.ResponseContent = result.ResponseText
+	}
+	if !result.Passed {
+		relayLog.Error = result.Message
+	}
+
+	if logErr := relaylog.RelayLogAdd(ctx, relayLog); logErr != nil {
+		log.Warnf("failed to save test log: %v", logErr)
+	}
+
+	// 把每次尝试落表，使测试失败渠道可按 channel_id 检索（与正常日志一致）。
+	// relayLog.ID 已由 RelayLogAdd 分配。
+	if len(attempts) > 0 {
+		if attemptsErr := relaylog.RelayLogAttemptsAdd(ctx, relayLog.ID, attempts, relayLog.Time); attemptsErr != nil {
+			log.Warnf("failed to save test log attempts: %v", attemptsErr)
+		}
+	}
 }
 
 func appendGroupTestResult(summary *GroupModelTestSummary, progress *GroupModelTestProgress, result GroupModelTestResult) {

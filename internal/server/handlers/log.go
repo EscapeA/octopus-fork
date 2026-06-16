@@ -117,6 +117,19 @@ func listLog(c *gin.Context) {
 			return
 		}
 	}
+	if v := c.Query("is_test"); v != "" {
+		switch strings.ToLower(v) {
+		case "true", "1":
+			b := true
+			filter.IsTest = &b
+		case "false", "0":
+			b := false
+			filter.IsTest = &b
+		default:
+			resp.Error(c, http.StatusBadRequest, "invalid is_test (must be 'true' or 'false')")
+			return
+		}
+	}
 
 	logs, err := relaylog.RelayLogList(c.Request.Context(), filter, page, pageSize)
 	if err != nil {

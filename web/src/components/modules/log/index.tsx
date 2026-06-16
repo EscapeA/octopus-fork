@@ -43,7 +43,8 @@ function LogFilterBar({
         filter.channel_id != null ||
         filter.api_key_id != null ||
         filter.endpoint_type ||
-        filter.status
+        filter.status ||
+        filter.is_test != null
     );
 
     const setModelSearch = useLogModelSearchStore((s) => s.setModelSearch);
@@ -148,6 +149,30 @@ function LogFilterBar({
                     <SelectItem value="__all__">{t('allStatuses')}</SelectItem>
                     <SelectItem value="success">{t('statusSuccess')}</SelectItem>
                     <SelectItem value="error">{t('statusError')}</SelectItem>
+                </SelectContent>
+            </Select>
+
+            <Select
+                value={filter.is_test != null ? String(filter.is_test) : ''}
+                onValueChange={(v) => {
+                    const next = { ...filter };
+                    if (v === 'true') {
+                        next.is_test = true;
+                    } else if (v === 'false') {
+                        next.is_test = false;
+                    } else {
+                        delete next.is_test;
+                    }
+                    onChange(next);
+                }}
+            >
+                <SelectTrigger size="sm" className="h-7 text-xs min-w-[6rem]">
+                    <SelectValue placeholder={t('allLogs')} />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="__all__">{t('allLogs')}</SelectItem>
+                    <SelectItem value="true">{t('testOnly')}</SelectItem>
+                    <SelectItem value="false">{t('nonTest')}</SelectItem>
                 </SelectContent>
             </Select>
 

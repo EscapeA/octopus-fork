@@ -2195,6 +2195,9 @@
       "allStatuses": "All statuses",
       "statusSuccess": "Success",
       "statusError": "Error",
+      "allLogs": "All logs",
+      "testOnly": "Test only",
+      "nonTest": "Non-test",
       "clear": "Clear"
     },
     "viewOptions": {
@@ -2232,6 +2235,7 @@
       "failed": "Failed",
       "requestType": "Request Type",
       "channelFallback": "Channel #{id}",
+      "testLog": "Test",
       "requestTypeLabels": {
         "chat": "Chat",
         "streamingChat": "Streaming Chat",
