@@ -1429,6 +1429,40 @@
       "summary": "Channel disabled {disabled} · Model gone {missing} · Channel deleted {removed}",
       "failed": "Failed to clean up unavailable models"
     },
+    "siteAutomation": {
+      "title": "Site Automation",
+      "autoGroupMode": {
+        "label": "Projected Channel Auto-Group Strategy",
+        "description": "Global strategy overrides per-channel settings",
+        "none": "None",
+        "fuzzy": "Fuzzy Match",
+        "exact": "Exact Match",
+        "regex": "Regex Match"
+      },
+      "syncInterval": {
+        "label": "Auto Sync Interval (hours)",
+        "placeholder": "Enter interval (hours)"
+      },
+      "checkinInterval": {
+        "label": "Auto Check-in Interval (hours)",
+        "placeholder": "Enter interval (hours)"
+      },
+      "manualSync": {
+        "label": "Manual Full Site Sync",
+        "button": "Sync Now",
+        "syncing": "Syncing..."
+      },
+      "manualCheckin": {
+        "label": "Manual Full Site Check-in",
+        "button": "Check in Now",
+        "checking": "Checking in..."
+      },
+      "saveFailed": "Save failed",
+      "syncTriggered": "Full site sync triggered in background",
+      "syncFailed": "Failed to trigger sync",
+      "checkinTriggered": "Full site check-in triggered in background",
+      "checkinFailed": "Failed to trigger check-in"
+    },
     "apiKey": {
       "title": "API Keys",
       "empty": "No API keys",
@@ -1933,7 +1967,7 @@
     "form": {
       "name": "Group Name",
       "matchRegex": "Match Regex",
-      "matchRegexPlaceholder": "Leave empty to use default fuzzy match by group name",
+      "matchRegexPlaceholder": "Leave empty to use default exact match by group name",
       "matchRegexInvalid": "Invalid regex",
       "searchAriaLabel": "Search models",
       "firstTokenTimeOut": "First Token Timeout",

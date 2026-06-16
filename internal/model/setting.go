@@ -137,6 +137,7 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeySiteSyncInterval, Value: "12"},
 		{Key: SettingKeySiteCheckinInterval, Value: "24"},
 		{Key: SettingKeyStatsSiteModelBackfilled, Value: "false"},
+		{Key: SettingKeyProjectedChannelAutoGroupEnabled, Value: "0"}, // 默认不自动分组
 		{Key: SettingKeyResponseFilterEnabled, Value: "false"},
 		{Key: SettingKeyResponseFilterKeywords, Value: "[]"},
 		{Key: SettingKeyResponseFilterAction, Value: "block"},
@@ -339,6 +340,12 @@ func (s *Setting) Validate() error {
 		default:
 			return fmt.Errorf("log level must be one of: debug, info, warn, error")
 		}
+	case SettingKeyProjectedChannelAutoGroupEnabled:
+		_, ok := ParseAutoGroupSettingValue(s.Value)
+		if !ok {
+			return fmt.Errorf("projected channel auto group mode must be 0 (none), 1 (fuzzy), 2 (exact), or 3 (regex)")
+		}
+		return nil
 	}
 
 	return nil

@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import {
     Sun, User, Database, RotateCcw, Zap,
     ScrollText, Monitor, RefreshCw, ChevronsUpDown,
-    Info, Bot, Sparkles, FolderX, Cloud, ShieldAlert, Eraser, Fingerprint,
+    Info, Bot, Sparkles, FolderX, Cloud, ShieldAlert, Eraser, Fingerprint, Globe2,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { SettingAppearance } from './Appearance';
@@ -25,6 +25,7 @@ import { SettingWebAuthn } from './WebAuthn';
 import { SettingRouteGroupDanger } from './RouteGroupDanger';
 import { SettingPurgeUnavailableModels } from './PurgeUnavailableModels';
 import { SettingResponseFilter } from './ResponseFilter';
+import { SettingSiteAutomation } from './SiteAutomation';
 import { DEFAULT_SETTING_ORDER } from './SettingOrder';
 
 type SettingItemDef = {
@@ -51,6 +52,7 @@ const SETTING_ITEM_DEFS: SettingItemDef[] = [
     { id: 'webdav',            icon: <Cloud className="h-5 w-5" />,             titleKey: 'webdav.title',         component: <SettingWebDAV /> },
     { id: 'webauthn',          icon: <Fingerprint className="h-5 w-5" />,      titleKey: 'webauthn.title',       component: <SettingWebAuthn /> },
     { id: 'purge-unavailable', icon: <Eraser className="h-5 w-5" />,           titleKey: 'purgeUnavailable.title', component: <SettingPurgeUnavailableModels /> },
+    { id: 'site-automation',   icon: <Globe2 className="h-5 w-5" />,            titleKey: 'siteAutomation.title',   component: <SettingSiteAutomation /> },
     { id: 'route-group-danger',icon: <FolderX className="h-5 w-5" />,          titleKey: 'routeGroups.title',    component: <SettingRouteGroupDanger /> },
 ];
 

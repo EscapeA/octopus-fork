@@ -31,6 +31,7 @@ export type SettingItemId =
     | 'webdav'
     | 'webauthn'
     | 'purge-unavailable'
+    | 'site-automation'
     | 'route-group-danger';
 
 export const DEFAULT_SETTING_ORDER: SettingItemId[] = [
@@ -50,6 +51,7 @@ export const DEFAULT_SETTING_ORDER: SettingItemId[] = [
     'webdav',
     'webauthn',
     'purge-unavailable',
+    'site-automation',
     'route-group-danger',
 ];
 
@@ -127,6 +129,7 @@ export function SettingOrder() {
             webdav: settingT('webdav.title'),
             webauthn: settingT('webauthn.title'),
             'purge-unavailable': settingT('purgeUnavailable.title'),
+            'site-automation': settingT('siteAutomation.title'),
             'route-group-danger': settingT('routeGroups.title'),
         };
         return map;

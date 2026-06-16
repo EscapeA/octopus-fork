@@ -1429,6 +1429,40 @@
       "summary": "渠道删除 {removed} · 渠道禁用 {disabled} · 模型消失 {missing}",
       "failed": "清理不可用模型失败"
     },
+    "siteAutomation": {
+      "title": "站点自动化",
+      "autoGroupMode": {
+        "label": "投影渠道自动分组策略",
+        "description": "全局策略会覆盖各投影渠道的单独设置",
+        "none": "不自动分组",
+        "fuzzy": "模糊匹配",
+        "exact": "精准匹配",
+        "regex": "正则匹配"
+      },
+      "syncInterval": {
+        "label": "自动同步间隔（小时）",
+        "placeholder": "请输入间隔（小时）"
+      },
+      "checkinInterval": {
+        "label": "自动签到间隔（小时）",
+        "placeholder": "请输入间隔（小时）"
+      },
+      "manualSync": {
+        "label": "手动站点全量同步",
+        "button": "立即同步",
+        "syncing": "同步中..."
+      },
+      "manualCheckin": {
+        "label": "手动站点全量签到",
+        "button": "立即签到",
+        "checking": "签到中..."
+      },
+      "saveFailed": "保存失败",
+      "syncTriggered": "已触发后台站点全量同步",
+      "syncFailed": "触发同步失败",
+      "checkinTriggered": "已触发后台站点全量签到",
+      "checkinFailed": "触发签到失败"
+    },
     "apiKey": {
       "title": "API 密钥",
       "empty": "暂无 API 密钥",
@@ -1933,7 +1967,7 @@
     "form": {
       "name": "分组名称",
       "matchRegex": "匹配正则",
-      "matchRegexPlaceholder": "留空则默认按分组名称模糊匹配",
+      "matchRegexPlaceholder": "留空则默认按分组名称精准匹配",
       "matchRegexInvalid": "正则无效",
       "searchAriaLabel": "搜索模型",
       "firstTokenTimeOut": "首字超时",
