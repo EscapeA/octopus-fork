@@ -568,7 +568,7 @@ export function GroupCard({ group }: { group: Group }) {
         return map;
     }, [testProgress]);
 
-    const isTesting = testDraftGroup.isPending || (!!currentTestId && !testProgress?.done);
+    const isTesting = testDraftGroup.isPending || (currentTestId !== null && testProgress !== undefined && !testProgress.done);
     const completedCount = testProgress?.completed ?? 0;
     const totalCount = testProgress?.total ?? group.items?.length ?? 0;
     const progressValue = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;

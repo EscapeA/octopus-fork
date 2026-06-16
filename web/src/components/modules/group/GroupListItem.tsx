@@ -841,7 +841,7 @@ export function GroupListItem({ group }: { group: Group }) {
 
     const isTesting =
         testDraftGroup.isPending ||
-        (!!currentTestId && !testProgress?.done);
+        (currentTestId !== null && testProgress !== undefined && !testProgress.done);
     const completedCount = testProgress?.completed ?? 0;
     const totalCount = testProgress?.total ?? group.items?.length ?? 0;
     const progressValue =
