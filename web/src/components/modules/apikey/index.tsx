@@ -517,7 +517,7 @@ export function APIKeyPage() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                        <AnimatePresence mode="popLayout">
+                        <AnimatePresence>
                             {filteredKeys.map((key) => (
                                 <APIKeyCard
                                     key={key.id}
