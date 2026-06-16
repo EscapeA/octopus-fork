@@ -1,13 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useChannelList } from '@/api/endpoints/channel';
 import { useAPIKeyList } from '@/api/endpoints/apikey';
 import { useLogs, type LogFilter } from '@/api/endpoints/log';
 import { LogCard } from './Item';
-import { Loader2, Search, X, Columns3 } from 'lucide-react';
+import { Loader2, X, Columns3 } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { useLogFieldVisibilityStore, type LogFieldName } from './ui-store';
+import { useLogFieldVisibilityStore, useLogModelSearchStore, type LogFieldName } from './ui-store';
 import { useTranslations } from 'next-intl';
 import { VirtualizedGrid } from '@/components/common/VirtualizedGrid';
 import { useNavHandoff } from '@/lib/nav-handoff';
@@ -40,52 +40,20 @@ function LogFilterBar({
     const visibility = useLogFieldVisibilityStore((s) => s.visibility);
 
     const hasFilter = !!(
-        filter.model ||
         filter.channel_id != null ||
         filter.api_key_id != null ||
         filter.endpoint_type ||
         filter.status
     );
 
+    const setModelSearch = useLogModelSearchStore((s) => s.setModelSearch);
     const handleClear = useCallback(() => {
         onChange(EMPTY_FILTER);
-    }, [onChange]);
-
-    // 受控输入框文本：与 filter.model 单向同步。用户输入只更新本地缓冲并防抖回写
-    // filter；当 filter.model 被外部重置（如「清除」按钮）时再同步回输入框，
-    // 避免非受控 defaultValue 在清除后仍残留旧文字。
-    const [modelInput, setModelInput] = useState(filter.model ?? '');
-    useEffect(() => {
-        setModelInput(filter.model ?? '');
-    }, [filter.model]);
-
-    // Debounce model input
-    const modelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const handleModelInput = useCallback(
-        (e: React.ChangeEvent<HTMLInputElement>) => {
-            const val = e.target.value;
-            setModelInput(val);
-            if (modelTimer.current) clearTimeout(modelTimer.current);
-            modelTimer.current = setTimeout(() => {
-                const trimmed = val.trim() || undefined;
-                onChange({ ...filter, model: trimmed });
-            }, 400);
-        },
-        [filter, onChange],
-    );
+        setModelSearch('');
+    }, [onChange, setModelSearch]);
 
     return (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/35 bg-card px-3 py-2">
-            <div className="flex items-center gap-1.5 min-w-0">
-                <Search className="size-3.5 shrink-0 text-muted-foreground" />
-                <input
-                    value={modelInput}
-                    onChange={handleModelInput}
-                    placeholder={t('modelPlaceholder')}
-                    className="h-7 min-w-0 w-28 rounded-md border border-border/50 bg-background px-2 text-xs outline-none placeholder:text-muted-foreground/50 focus:border-primary/30 focus:ring-1 focus:ring-primary/20"
-                />
-            </div>
-
+        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto py-1">
             <Select
                 value={filter.channel_id != null ? String(filter.channel_id) : ''}
                 onValueChange={(v) => {
@@ -242,7 +210,13 @@ function LogFilterBar({
 export function Log() {
     const t = useTranslations('log');
     const [filter, setFilter] = useState<LogFilter>(EMPTY_FILTER);
-    const { logs, hasMore, isLoading, isLoadingMore, loadMore } = useLogs({ filter });
+    const modelSearch = useLogModelSearchStore((s) => s.modelSearch);
+    const setModelSearch = useLogModelSearchStore((s) => s.setModelSearch);
+    const combinedFilter = useMemo<LogFilter>(
+        () => (modelSearch ? { ...filter, model: modelSearch } : filter),
+        [filter, modelSearch],
+    );
+    const { logs, hasMore, isLoading, isLoadingMore, loadMore } = useLogs({ filter: combinedFilter });
     const { data: channels = [] } = useChannelList();
 
     // 消费来自其它模块（分析/分组健康）的待处理筛选，实现"点击失败渠道 → 跳转日志并预填"。
@@ -251,9 +225,11 @@ export function Log() {
     useEffect(() => {
         const pending = consumePendingLogFilter();
         if (pending) {
-            setFilter(pending);
+            const { model, ...rest } = pending;
+            setFilter(rest);
+            if (model) setModelSearch(model);
         }
-    }, [pendingLogFilter, consumePendingLogFilter]);
+    }, [pendingLogFilter, consumePendingLogFilter, setModelSearch]);
 
     const channelNameById = useMemo(() => {
         const map = new Map<number, string>();
@@ -291,7 +267,7 @@ export function Log() {
     }, [hasMore, isLoading, isLoadingMore, logs.length, t]);
 
     return (
-        <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden rounded-t-xl pt-2 md:pt-0">
+        <div className="flex h-full min-h-0 flex-col gap-2 overflow-hidden">
             <LogFilterBar filter={filter} onChange={setFilter} />
             {isLoading && logs.length === 0 ? (
                 <div className="flex min-h-[18rem] items-center justify-center rounded-xl border border-border/35 bg-card">

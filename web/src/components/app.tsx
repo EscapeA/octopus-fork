@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from "motion/react"
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Search } from 'lucide-react';
 import { useAuth } from '@/api/endpoints/user';
 import { LoginForm } from '@/components/modules/login';
 import { APIKeyDashboard } from '@/components/modules/apikey-dashboard';
@@ -27,6 +27,7 @@ import { ProxyPoolDialog } from '@/components/modules/proxy-pool/ProxyPoolDialog
 import { useIsMobile } from '@/hooks/use-mobile';
 import type { BootstrapStatusResponse } from '@/api/endpoints/bootstrap';
 import type { NavItem } from '@/components/modules/navbar';
+import { useLogModelSearchStore } from '@/components/modules/log/ui-store';
 
 function timeout(ms: number) {
     return new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -75,6 +76,35 @@ function HeaderActions({ activeItem }: { activeItem: NavItem }) {
             <RefreshCw className={`h-4 w-4 sm:mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
             <span className="sr-only sm:not-sr-only">{t('actions.refresh')}</span>
         </Button>
+    );
+}
+
+function HeaderModelSearch({ activeItem }: { activeItem: NavItem }) {
+    const t = useTranslations('log.filter');
+    const modelSearch = useLogModelSearchStore((s) => s.modelSearch);
+    const setModelSearch = useLogModelSearchStore((s) => s.setModelSearch);
+    const [input, setInput] = useState(modelSearch);
+    const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => { setInput(modelSearch); }, [modelSearch]);
+
+    if (activeItem !== 'log') return null;
+
+    return (
+        <div className="flex items-center gap-1.5 min-w-0">
+            <Search className="size-3.5 shrink-0 text-muted-foreground" />
+            <input
+                value={input}
+                onChange={(e) => {
+                    const val = e.target.value;
+                    setInput(val);
+                    if (timer.current) clearTimeout(timer.current);
+                    timer.current = setTimeout(() => setModelSearch(val.trim()), 400);
+                }}
+                placeholder={t('modelPlaceholder')}
+                className="h-7 min-w-0 w-28 rounded-md border border-border/50 bg-background px-2 text-xs outline-none placeholder:text-muted-foreground/50 focus:border-primary/30 focus:ring-1 focus:ring-primary/20 sm:w-36 lg:w-48"
+            />
+        </div>
     );
 }
 
@@ -437,7 +467,8 @@ export function AppContainer() {
                             </AnimatePresence>
                         </div>
                     </div>
-                    <div className="ml-auto flex shrink-0 items-center justify-end">
+                    <div className="ml-auto flex shrink-0 items-center gap-3 justify-end">
+                        <HeaderModelSearch activeItem={activeItem} />
                         <Toolbar />
                     </div>
                 </header>

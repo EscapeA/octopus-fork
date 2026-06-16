@@ -54,3 +54,14 @@ export const useLogFieldVisibilityStore = create<LogFieldVisibilityState>()(
 export function useLogFieldVisibility() {
     return useLogFieldVisibilityStore((s) => s.visibility);
 }
+
+/**
+ * 日志模型搜索文本，在标题栏搜索框与 Log 组件筛选逻辑之间共享。
+ */
+export const useLogModelSearchStore = create<{
+    modelSearch: string;
+    setModelSearch: (value: string) => void;
+}>()((set) => ({
+    modelSearch: '',
+    setModelSearch: (value) => set({ modelSearch: value }),
+}));
