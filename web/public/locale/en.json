@@ -2270,7 +2270,8 @@
         "costs": "Cost Details",
         "baseUrls": "Base URLs",
         "keys": "Keys",
-        "ccSwitch": "CC Switch"
+        "ccSwitch": "CC Switch",
+        "testModel": "Test Model"
       },
       "noBaseUrls": "No Base URLs",
       "noKeys": "No Keys",
@@ -2319,6 +2320,15 @@
         "deleteUnavailable": "Delete This Channel",
         "deleteUnavailableTitle": "Delete channel with all keys unavailable?",
         "deleteUnavailableDescription": "All {total} keys of this channel failed the check.\nDeleting will permanently remove the channel, its keys and stats, and clear its route items from all route groups.\nThis action cannot be undone. Continue?"
+      },
+      "testModel": {
+        "noModels": "No models available to test for this channel",
+        "selectPlaceholder": "Select a model to test",
+        "test": "Test Model",
+        "testing": "Testing...",
+        "passed": "Test Passed",
+        "failed": "Test Failed",
+        "attempts": "Retried {count} times"
       }
     },
     "create": {

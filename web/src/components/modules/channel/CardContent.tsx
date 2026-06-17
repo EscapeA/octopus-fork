@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     Trash2,
     CheckCircle2,
@@ -13,16 +13,20 @@ import {
     ShieldCheck,
     ShieldAlert,
     Stethoscope,
+    FlaskConical,
     Loader2
 } from 'lucide-react';
 import {
     useUpdateChannel,
     useDeleteChannel,
     useCheckChannelKeys,
+    useTestChannelModel,
+    ChannelType,
     type Channel,
     type UpdateChannelRequest,
     type TestChannelSummary,
 } from '@/api/endpoints/channel';
+import { useGroupTestProgress } from '@/api/endpoints/group';
 import { useSettingList, SettingKey } from '@/api/endpoints/setting';
 import {
     MorphingDialogTitle,
@@ -34,6 +38,13 @@ import { Tabs, TabsContents, TabsContent } from '@/components/animate-ui/compone
 import { type StatsMetricsFormatted } from '@/api/endpoints/stats';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
     ChannelForm,
     getEffectiveRequestRewriteFormData,
@@ -68,6 +79,54 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
     // 此时弹出确认对话框允许直接删除该渠道。
     const [checkResult, setCheckResult] = useState<TestChannelSummary | null>(null);
     const [showUnavailableDelete, setShowUnavailableDelete] = useState(false);
+
+    const testChannelModel = useTestChannelModel();
+
+    // 可测试的模型列表：来自渠道自动同步的 model 与手动添加的 custom_model，去重。
+    const availableModels = useMemo(() => {
+        const splitModels = (models: string) =>
+            models.split(',').map((m) => m.trim()).filter(Boolean);
+        return Array.from(new Set([
+            ...splitModels(channel.model),
+            ...splitModels(channel.custom_model),
+        ]));
+    }, [channel.model, channel.custom_model]);
+
+    const [selectedModel, setSelectedModel] = useState<string>(availableModels[0] ?? '');
+    const [currentTestId, setCurrentTestId] = useState<string | null>(null);
+    const testProgressQuery = useGroupTestProgress(currentTestId);
+    const testProgress = testProgressQuery.data;
+
+    // 切换渠道或模型列表变化时，重置选中模型与测试进度。
+    useEffect(() => {
+        setSelectedModel(availableModels[0] ?? '');
+        setCurrentTestId(null);
+    }, [channel.id, availableModels]);
+
+    const isTestingModel = testChannelModel.isPending
+        || (currentTestId !== null && testProgress !== undefined && !testProgress.done);
+
+    // 根据渠道类型推断探测的 endpoint_type：
+    // OpenAIEmbedding 渠道用 "embeddings"，其余聊天类渠道用 "*"（all）。
+    const inferEndpointType = (type: ChannelType): string =>
+        type === ChannelType.OpenAIEmbedding ? 'embeddings' : '*';
+
+    const handleTestModel = () => {
+        if (!selectedModel || isTestingModel) return;
+        setCurrentTestId(null);
+        testChannelModel.mutate({
+            channel_id: channel.id,
+            model_name: selectedModel,
+            endpoint_type: inferEndpointType(channel.type),
+        }, {
+            onSuccess: (progress) => {
+                setCurrentTestId(progress.id);
+            },
+        });
+    };
+
+    const testResult = testProgress?.results?.[0];
+
     const [formData, setFormData] = useState<ChannelFormData>({
         name: channel.name,
         group_id: channel.group_id,
@@ -505,6 +564,96 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
                                             <div className="rounded-lg border border-dashed border-border/30 bg-card p-4 text-center text-sm text-muted-foreground">{t('noKeys')}</div>
                                         )}
                                     </div>
+                                </section>
+
+                                <section className={sectionClassName}>
+                                    <h4 className="mb-3 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                                        <FlaskConical className="size-3.5" />
+                                        {t('sections.testModel')}
+                                    </h4>
+                                    {availableModels.length === 0 ? (
+                                        <div className="rounded-lg border border-dashed border-border/30 bg-card p-4 text-center text-sm text-muted-foreground">
+                                            {t('testModel.noModels')}
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                                <Select value={selectedModel} onValueChange={setSelectedModel}>
+                                                    <SelectTrigger className="w-full sm:flex-1 h-10">
+                                                        <SelectValue placeholder={t('testModel.selectPlaceholder')} />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {availableModels.map((model) => (
+                                                            <SelectItem key={model} value={model}>{model}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <Button
+                                                    onClick={handleTestModel}
+                                                    disabled={isTestingModel || !selectedModel}
+                                                    variant="outline"
+                                                    className="h-10 sm:w-auto"
+                                                >
+                                                    {isTestingModel
+                                                        ? <Loader2 className="size-4 animate-spin" />
+                                                        : <FlaskConical className="size-4" />}
+                                                    {isTestingModel ? t('testModel.testing') : t('testModel.test')}
+                                                </Button>
+                                            </div>
+
+                                            {isTestingModel && (
+                                                <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/8 px-3 py-2 text-sm text-primary">
+                                                    <Loader2 className="size-4 animate-spin" />
+                                                    <span>{t('testModel.testing')}</span>
+                                                </div>
+                                            )}
+
+                                            {testProgress?.done && testResult && (
+                                                <div
+                                                    className={cn(
+                                                        'flex items-start gap-2 rounded-lg border px-3 py-2 text-sm',
+                                                        testResult.passed
+                                                            ? 'border-emerald-500/30 bg-emerald-500/8 text-emerald-700 dark:text-emerald-300'
+                                                            : 'border-destructive/30 bg-destructive/8 text-destructive',
+                                                    )}
+                                                >
+                                                    {testResult.passed
+                                                        ? <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+                                                        : <XCircle className="mt-0.5 size-4 shrink-0" />}
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <span className="font-medium">
+                                                                {testResult.passed
+                                                                    ? t('testModel.passed')
+                                                                    : t('testModel.failed')}
+                                                            </span>
+                                                            {testResult.status_code !== 0 && (
+                                                                <Badge
+                                                                    variant="secondary"
+                                                                    className={cn(
+                                                                        "h-5 px-1.5 text-[10px]",
+                                                                        testResult.status_code === 200
+                                                                            ? "bg-green-500/15 text-green-700 dark:text-green-400"
+                                                                            : "bg-red-500/15 text-red-700 dark:text-red-400"
+                                                                    )}
+                                                                >
+                                                                    {testResult.status_code}
+                                                                </Badge>
+                                                            )}
+                                                            {testResult.attempts > 1 && (
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    {t('testModel.attempts', { count: testResult.attempts })}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        {testResult.message && testResult.message !== 'ok' && (
+                                                            <p className="mt-1 text-xs break-words opacity-80">{testResult.message}</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </section>
 
                                 <CCSwitchProviderLink

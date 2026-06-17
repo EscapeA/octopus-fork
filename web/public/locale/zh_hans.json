@@ -2270,7 +2270,8 @@
         "costs": "成本详情",
         "baseUrls": "Base URLs",
         "keys": "密钥",
-        "ccSwitch": "CC Switch"
+        "ccSwitch": "CC Switch",
+        "testModel": "测试模型"
       },
       "noBaseUrls": "暂无 Base URL",
       "noKeys": "暂无密钥",
@@ -2319,6 +2320,15 @@
         "deleteUnavailable": "删除此渠道",
         "deleteUnavailableTitle": "删除全部 Key 不可用的渠道？",
         "deleteUnavailableDescription": "该渠道的全部 {total} 个 Key 检查均未通过。\n删除后该渠道及其密钥、统计数据将被永久移除，且会从所有路由分组中清除其路由项。\n此操作不可恢复，是否继续？"
+      },
+      "testModel": {
+        "noModels": "该渠道暂无可测试的模型",
+        "selectPlaceholder": "选择要测试的模型",
+        "test": "测试模型",
+        "testing": "测试中...",
+        "passed": "测试通过",
+        "failed": "测试失败",
+        "attempts": "重试 {count} 次"
       }
     },
     "create": {

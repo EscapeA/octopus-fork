@@ -67,6 +67,11 @@ func init() {
 				Handle(checkChannelKeys),
 		).
 		AddRoute(
+			router.NewRoute("/test-model", http.MethodPost).
+				Use(middleware.RequirePermission(auth.PermChannelsWrite)).
+				Handle(testChannelModel),
+		).
+		AddRoute(
 			router.NewRoute("/group/list", http.MethodGet).
 				Handle(listChannelGroup),
 		).
@@ -275,6 +280,30 @@ func checkChannelKeys(c *gin.Context) {
 		return
 	}
 	resp.Success(c, summary)
+}
+
+// testChannelModel 针对已保存的渠道，用指定的模型名 + 端点类型发起一次真实的
+// chat/embedding 探测请求（经 outbound adapter 转发，与分组测试同源）。异步执行，
+// 返回进度 ID，前端通过 GET /api/v1/group/test/progress/:id 轮询结果。
+func testChannelModel(c *gin.Context) {
+	var req helper.ChannelModelTestRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.Error(c, http.StatusBadRequest, resp.ErrInvalidJSON)
+		return
+	}
+
+	channel, err := ch.Get(req.ChannelID, c.Request.Context())
+	if err != nil {
+		resp.Error(c, http.StatusNotFound, err.Error())
+		return
+	}
+
+	progress, err := helper.StartChannelModelTest(req, *channel)
+	if err != nil {
+		resp.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	resp.Success(c, progress)
 }
 
 type channelRequestPayload struct {

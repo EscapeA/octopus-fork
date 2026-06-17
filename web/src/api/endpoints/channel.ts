@@ -4,6 +4,7 @@ import { REFETCH_INTERVAL_DEFAULT } from '../constants';
 import { logger } from '@/lib/logger';
 import { formatCount, formatMoney, formatTime } from '@/lib/utils';
 import { StatsChannel, type StatsMetricsFormatted } from './stats';
+import { type GroupTestProgress } from './group';
 /**
  * 渠道类型枚举
  */
@@ -479,6 +480,50 @@ export function useCheckChannelKeys() {
         },
         onError: (error) => {
             logger.error('渠道 key 检查失败:', error);
+        },
+    });
+}
+
+/**
+ * 单独测试某渠道中某模型的请求参数。
+ *
+ * 后端复用分组探测管道，对指定的 (channel, model, endpoint_type) 组合发起一次真实的
+ * chat/embedding 探测请求（最多重试 3 次）。异步执行，立即返回进度 ID，
+ * 调用方通过 useGroupTestProgress(progress.id) 轮询结果。
+ *
+ * endpoint_type 推荐按渠道类型传入：OpenAIEmbedding 渠道传 "embeddings"，
+ * 其余聊天类渠道传 "*"（all）。
+ */
+export type ChannelModelTestRequest = {
+    channel_id: number;
+    model_name: string;
+    endpoint_type: string;
+};
+
+/**
+ * 测试指定渠道的指定模型 Hook。
+ *
+ * 后端路由: POST /api/v1/channel/test-model
+ *
+ * @example
+ * const testChannelModel = useTestChannelModel();
+ * const progress = await testChannelModel.mutateAsync({
+ *   channel_id: 1,
+ *   model_name: 'gpt-4o',
+ *   endpoint_type: '*',
+ * });
+ * // 用 useGroupTestProgress(progress.id) 轮询进度
+ */
+export function useTestChannelModel() {
+    return useMutation({
+        mutationFn: async (data: ChannelModelTestRequest) => {
+            return apiClient.post<GroupTestProgress>('/api/v1/channel/test-model', data);
+        },
+        onSuccess: (data) => {
+            logger.log('渠道模型测试已启动:', data);
+        },
+        onError: (error) => {
+            logger.error('渠道模型测试启动失败:', error);
         },
     });
 }
