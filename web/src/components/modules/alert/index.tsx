@@ -383,6 +383,44 @@ export function Alert() {
         return message;
     };
 
+    // Parse the notification outcome persisted by the backend into the alert
+    // history DetailJSON field. Returns null when the legacy entry has no
+    // notification status (so the UI degrades gracefully on older records).
+    const getNotifyStatus = (detailJson?: string): { status: string; detail: string } | null => {
+        if (!detailJson) return null;
+        try {
+            const parsed = JSON.parse(detailJson);
+            if (parsed && typeof parsed === 'object' && parsed.notification) {
+                const n = parsed.notification;
+                if (n && (n.status === 'sent' || n.status === 'skipped' || n.status === 'failed')) {
+                    return { status: n.status, detail: String(n.detail || '') };
+                }
+            }
+        } catch {
+            return null;
+        }
+        return null;
+    };
+
+    const getNotifyBadgeClass = (status: string) => {
+        switch (status) {
+            case 'sent':
+                return 'bg-green-500/10 text-green-600';
+            case 'failed':
+                return 'bg-red-500/10 text-red-500';
+            case 'skipped':
+            default:
+                return 'bg-muted text-muted-foreground';
+        }
+    };
+
+    // Resolve the notification channel bound to a rule (if any). Used to surface
+    // "no channel" rules in the rule list — a leading cause of "test works but
+    // the alert never notifies" reports.
+    const getRuleChannel = (rule: AlertRule): AlertNotifChannel | undefined => {
+        return (channels || []).find((c) => c.id === rule.notif_channel_id);
+    };
+
     const resetNewRule = () => {
         setNewRule(createAlertRuleDraft());
         setShowNewRule(false);
@@ -564,6 +602,9 @@ export function Alert() {
                                         <option key={ch.id} value={ch.id}>{ch.name} ({getChannelTypeLabel(ch.type)})</option>
                                     ))}
                                 </select>
+                                {newRule.notif_channel_id === 0 && (
+                                    <span className="text-[11px] text-red-500">{t('rules.form.noChannelWarn')}</span>
+                                )}
                             </label>
                             <div className="flex gap-2">
                                 <button
@@ -662,6 +703,9 @@ export function Alert() {
                                                                 <option key={ch.id} value={ch.id}>{ch.name} ({getChannelTypeLabel(ch.type)})</option>
                                                             ))}
                                                         </select>
+                                                        {editingRule.notif_channel_id === 0 && (
+                                                            <span className="text-[11px] text-red-500">{t('rules.form.noChannelWarn')}</span>
+                                                        )}
                                                     </label>
                                                     <div className="flex items-center gap-2 flex-wrap">
                                                         <button
@@ -684,6 +728,15 @@ export function Alert() {
                                                     <div className="text-xs text-muted-foreground truncate">
                                                         {getConditionLabel(rule.condition_type)} &ge; {rule.threshold}
                                                         {rule.cooldown_sec > 0 && ` · ${t('rules.cooldown', { seconds: rule.cooldown_sec })}`}
+                                                        {' · '}
+                                                        {(() => {
+                                                            const ch = getRuleChannel(rule);
+                                                            return ch ? (
+                                                                <span>{getChannelTypeLabel(ch.type)}: {ch.name}</span>
+                                                            ) : (
+                                                                <span className="text-red-500 font-medium">{t('rules.noChannelBound')}</span>
+                                                            );
+                                                        })()}
                                                     </div>
                                                 </div>
                                             )}
@@ -898,20 +951,33 @@ export function Alert() {
                         <Loader className="size-6 animate-spin mx-auto mt-4" />
                     ) : (
                         <div className="space-y-2">
-                            {(history || []).map((item) => (
-                                <div key={item.id} className="flex items-start sm:items-center justify-between gap-2 sm:gap-3 p-3 rounded-xl bg-muted/50">
-                                    <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0">
-                                        <div className={`h-2 w-2 rounded-full shrink-0 mt-1.5 sm:mt-0 ${item.state === 1 ? 'bg-red-500' : item.state === 2 ? 'bg-green-500' : 'bg-muted-foreground'}`} />
-                                        <div className="min-w-0">
-                                            <div className="font-medium text-sm truncate">{item.rule_name}</div>
-                                            <div className="text-xs text-muted-foreground truncate">{getHistoryMessage(item.message, item.state)}</div>
+                            {(history || []).map((item) => {
+                                const notify = getNotifyStatus(item.detail_json);
+                                return (
+                                    <div key={item.id} className="flex items-start sm:items-center justify-between gap-2 sm:gap-3 p-3 rounded-xl bg-muted/50">
+                                        <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0">
+                                            <div className={`h-2 w-2 rounded-full shrink-0 mt-1.5 sm:mt-0 ${item.state === 1 ? 'bg-red-500' : item.state === 2 ? 'bg-green-500' : 'bg-muted-foreground'}`} />
+                                            <div className="min-w-0">
+                                                <div className="font-medium text-sm truncate">{item.rule_name}</div>
+                                                <div className="text-xs text-muted-foreground truncate flex items-center gap-1.5 flex-wrap">
+                                                    <span>{getHistoryMessage(item.message, item.state)}</span>
+                                                    {notify && (
+                                                        <span
+                                                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${getNotifyBadgeClass(notify.status)}`}
+                                                            title={notify.detail}
+                                                        >
+                                                            {t(`history.notify.${notify.status}`)}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
+                                        <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap">
+                                            {new Date(item.time).toLocaleString()}
+                                        </span>
                                     </div>
-                                    <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap">
-                                        {new Date(item.time).toLocaleString()}
-                                    </span>
-                                </div>
-                            ))}
+                                );
+                            })}
                             {(!history || history.length === 0) && (
                                 <div className="text-center text-sm text-muted-foreground py-8">
                                     <RefreshCw className="h-6 w-6 mx-auto mb-2 opacity-50" />

@@ -862,6 +862,7 @@
       "empty": "There are no alert rules yet",
       "confirmDelete": "Delete this rule? This cannot be undone.",
       "cooldown": "cooldown {seconds}s",
+      "noChannelBound": "No notification channel",
       "form": {
         "name": "Rule Name",
         "namePlaceholder": "Rule name",
@@ -872,6 +873,7 @@
         "cooldownPlaceholder": "Cooldown seconds",
         "channel": "Notification Channel",
         "noChannel": "No Channel",
+        "noChannelWarn": "No notification channel selected; no notification will be sent when the alert fires",
         "cooldownHint": "Cooldown period after alert fires; no duplicate alerts during this time",
         "thresholdHint": {
           "cost_threshold": "Alert when daily accumulated cost exceeds this amount (USD)",
@@ -916,6 +918,11 @@
       "messages": {
         "triggered": "Alert triggered",
         "resolved": "Alert resolved"
+      },
+      "notify": {
+        "sent": "Notified",
+        "skipped": "Skipped",
+        "failed": "Failed"
       }
     },
     "toast": {

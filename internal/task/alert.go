@@ -2,6 +2,7 @@ package task
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -35,7 +36,7 @@ func EvaluateAlertRules() {
 
 	channels, err := alert.NotifChannelList(ctx)
 	if err != nil {
-		log.Warnf("alert evaluate: failed to list channels: %v", err)
+		log.Errorf("alert evaluate: failed to list notification channels: %v; all alert notifications will be skipped", err)
 		channels = nil
 	}
 	channelMap := make(map[int]*model.AlertNotifChannel)
@@ -57,14 +58,14 @@ func EvaluateAlertRules() {
 		case firing && prevState != model.AlertStateFiring:
 			alert.StateSet(rule.ID, model.AlertStateFiring)
 			currentState = alert.StateGet(rule.ID)
-			notifyAlert(&rule, channelMap, alertStateFiring, currentState)
-			recordHistory(&rule, model.AlertStateFiring, "alert triggered")
+			notify := notifyAlert(&rule, channelMap, alertStateFiring, currentState)
+			recordHistory(&rule, model.AlertStateFiring, "alert triggered", notify)
 
 		case !firing && prevState == model.AlertStateFiring:
 			alert.StateSet(rule.ID, model.AlertStateResolved)
 			currentState = alert.StateGet(rule.ID)
-			notifyAlert(&rule, channelMap, alertStateResolved, currentState)
-			recordHistory(&rule, model.AlertStateResolved, "alert resolved")
+			notify := notifyAlert(&rule, channelMap, alertStateResolved, currentState)
+			recordHistory(&rule, model.AlertStateResolved, "alert resolved", notify)
 
 		default:
 			alert.StateSet(rule.ID, prevState) // update LastCheckedAt
@@ -142,10 +143,20 @@ func evaluateQuotaExceeded(rule *model.AlertRule) bool {
 	return totalCost >= rule.Threshold
 }
 
-func notifyAlert(rule *model.AlertRule, channelMap map[int]*model.AlertNotifChannel, state string, current model.AlertStateRecord) {
+// alertNotifyStatus describes the outcome of an alert notification dispatch.
+// It is persisted into the alert history so users can see why a notification
+// was (or was not) delivered — previously a missing/mismatched channel caused
+// a silent skip while the history still reported "alert triggered".
+type alertNotifyStatus struct {
+	Status string // "sent", "skipped", "failed"
+	Detail string // human-readable detail: channel name+type, skip reason, or error
+}
+
+func notifyAlert(rule *model.AlertRule, channelMap map[int]*model.AlertNotifChannel, state string, current model.AlertStateRecord) alertNotifyStatus {
 	ch, ok := channelMap[rule.NotifChannelID]
 	if !ok || ch == nil {
-		return
+		log.Warnf("alert notify: rule %d references notif_channel_id=%d which was not found; notification skipped", rule.ID, rule.NotifChannelID)
+		return alertNotifyStatus{Status: "skipped", Detail: "notification channel not found"}
 	}
 	language := resolveAlertNotifyLanguage()
 
@@ -161,21 +172,35 @@ func notifyAlert(rule *model.AlertRule, channelMap map[int]*model.AlertNotifChan
 
 	if err := helper.SendNotification(ch, payload); err != nil {
 		log.Warnf("alert notify: failed to send notification via %s for rule %d: %v", ch.Type, rule.ID, err)
+		return alertNotifyStatus{Status: "failed", Detail: err.Error()}
 	}
+	return alertNotifyStatus{Status: "sent", Detail: fmt.Sprintf("%s (%s)", ch.Name, ch.Type)}
 }
 
-func recordHistory(rule *model.AlertRule, state model.AlertState, message string) {
+func recordHistory(rule *model.AlertRule, state model.AlertState, message string, notify alertNotifyStatus) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	entry := &model.AlertHistory{
-		RuleID:   rule.ID,
-		RuleName: rule.Name,
-		State:    state,
-		Message:  message,
+		RuleID:     rule.ID,
+		RuleName:   rule.Name,
+		State:      state,
+		Message:    message,
+		DetailJSON: buildHistoryDetailJSON(notify),
 	}
 	if err := alert.HistoryAdd(ctx, entry); err != nil {
 		log.Warnf("alert history: failed to record for rule %d: %v", rule.ID, err)
 	}
+}
+
+// buildHistoryDetailJSON serializes the notification outcome into the alert
+// history DetailJSON field so the management UI can surface why a notification
+// was sent, skipped, or failed.
+func buildHistoryDetailJSON(notify alertNotifyStatus) string {
+	b, err := json.Marshal(map[string]alertNotifyStatus{"notification": notify})
+	if err != nil {
+		return ""
+	}
+	return string(b)
 }
 
 func resolveAlertNotifyLanguage() string {

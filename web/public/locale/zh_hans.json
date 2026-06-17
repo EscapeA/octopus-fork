@@ -862,6 +862,7 @@
       "empty": "当前没有任何告警规则",
       "confirmDelete": "确认删除该规则吗？此操作不可撤销。",
       "cooldown": "冷却 {seconds} 秒",
+      "noChannelBound": "未绑定通知渠道",
       "form": {
         "name": "规则名称",
         "namePlaceholder": "输入规则名称",
@@ -872,6 +873,7 @@
         "cooldownPlaceholder": "冷却秒数",
         "channel": "通知渠道",
         "noChannel": "不绑定渠道",
+        "noChannelWarn": "未选择通知渠道，告警触发时将不会发送通知",
         "cooldownHint": "触发告警后进入冷却期，期间不会重复告警",
         "thresholdHint": {
           "cost_threshold": "当日累计费用超过该金额时触发告警（元）",
@@ -916,6 +918,11 @@
       "messages": {
         "triggered": "告警已触发",
         "resolved": "告警已恢复"
+      },
+      "notify": {
+        "sent": "已通知",
+        "skipped": "已跳过",
+        "failed": "通知失败"
       }
     },
     "toast": {
