@@ -208,6 +208,65 @@ func TestProjectAccountRewritesGroupItemsBeforeRemovingStaleManagedBindings(t *t
 	}
 }
 
+// Regression test for issue #86: Re-projecting a NewAPI (OpenAI-only)
+// account must not delete GroupItems that target models whose stored
+// SiteModel.RouteType is a native conversation route (Gemini / Anthropic /
+// Volcengine).  On OpenAI-only platforms those routes collapse onto
+// OpenAIChat at projection time; the rewrite path must use the same
+// interpretation so that the GroupItem keeps pointing at the OpenAIChat
+// projected channel instead of being dropped because no native binding
+// exists.
+func TestProjectAccountPreservesGroupItemForOpenAIOnlyNativeRoute(t *testing.T) {
+	ctx := setupProjectTestDB(t)
+	_, account := createProjectionFixture(t, ctx)
+	// Fixture site is NewAPI (IsOpenAIOnlyPlatform=true) and contains a
+	// gemini-2.0-flash SiteModel with RouteType=Gemini stored in DB.
+
+	if _, err := ProjectAccount(ctx, account.ID); err != nil {
+		t.Fatalf("initial ProjectAccount returned error: %v", err)
+	}
+
+	channelsByGroup := loadProjectedChannelsByGroupKey(t, ctx, account.ID)
+	openAIChannel, ok := channelsByGroup["default"]
+	if !ok {
+		t.Fatalf("expected default OpenAIChat projected channel to exist")
+	}
+
+	// Mimic auto-grouping: pin gemini-2.0-flash onto the OpenAIChat channel.
+	group := &model.Group{Name: "gemini-models", Mode: model.GroupModeFailover, MatchRegex: "^gemini-"}
+	if err := op.GroupCreate(group, ctx); err != nil {
+		t.Fatalf("GroupCreate failed: %v", err)
+	}
+	if err := op.GroupItemAdd(&model.GroupItem{
+		GroupID:   group.ID,
+		ChannelID: openAIChannel.ID,
+		ModelName: "gemini-2.0-flash",
+		Priority:  1,
+		Weight:    1,
+	}, ctx); err != nil {
+		t.Fatalf("GroupItemAdd failed: %v", err)
+	}
+
+	// Re-project — this triggers rewriteManagedGroupItemsForAccount.
+	if _, err := ProjectAccount(ctx, account.ID); err != nil {
+		t.Fatalf("second ProjectAccount returned error: %v", err)
+	}
+
+	items, err := op.GroupItemList(group.ID, ctx)
+	if err != nil {
+		t.Fatalf("GroupItemList failed: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected gemini GroupItem to survive re-projection, got %d items", len(items))
+	}
+	if items[0].ChannelID != openAIChannel.ID {
+		t.Fatalf("expected GroupItem to remain on OpenAIChat channel %d, got %d", openAIChannel.ID, items[0].ChannelID)
+	}
+	if items[0].ModelName != "gemini-2.0-flash" {
+		t.Fatalf("expected GroupItem model name preserved, got %q", items[0].ModelName)
+	}
+}
+
 func TestProjectAccountRemovesUnsupportedModelsFromProjectedChannels(t *testing.T) {
 	ctx := setupProjectTestDB(t)
 	_, account := createProjectionFixture(t, ctx)

@@ -80,21 +80,8 @@ func ProjectAccount(ctx context.Context, accountID int) ([]int, error) {
 		}
 		if strings.TrimSpace(string(item.RouteType)) == "" {
 			item.RouteType = model.InferSiteModelRouteType(item.ModelName)
-		} else {
-			item.RouteType = model.NormalizeSiteModelRouteType(item.RouteType)
 		}
-		// Aggregation platforms (new-api, one-api, etc.) only expose
-		// OpenAI-compatible endpoints.  Even when the pricing API or model
-		// name hints at a native Gemini / Anthropic / Volcengine route, the
-		// actual upstream request must use the OpenAI Chat adapter.
-		if model.IsOpenAIOnlyPlatform(siteRecord.Platform) {
-			switch item.RouteType {
-			case model.SiteModelRouteTypeAnthropic,
-				model.SiteModelRouteTypeGemini,
-				model.SiteModelRouteTypeVolcengine:
-				item.RouteType = model.SiteModelRouteTypeOpenAIChat
-			}
-		}
+		item.RouteType = effectiveSiteModelRouteType(item.RouteType, siteRecord.Platform)
 		modelsByGroup[groupKey] = append(modelsByGroup[groupKey], item)
 	}
 	for groupKey, items := range modelsByGroup {
@@ -250,7 +237,7 @@ func ProjectAccount(ctx context.Context, accountID int) ([]int, error) {
 			desiredSet[compositeBindingKey(groupKey, obType, shouldSplit)] = struct{}{}
 		}
 	}
-	if err := rewriteManagedGroupItemsForAccount(ctx, account.ID, shouldSplit, account.Models, bindingChannelByKey); err != nil {
+	if err := rewriteManagedGroupItemsForAccount(ctx, account.ID, shouldSplit, siteRecord.Platform, account.Models, bindingChannelByKey); err != nil {
 		return nil, err
 	}
 	for _, binding := range existingBindings {
@@ -487,6 +474,26 @@ func partitionModelsByOutboundType(modelNames []string, split bool, platform mod
 	return buckets
 }
 
+// effectiveSiteModelRouteType returns the RouteType actually used for
+// projection / channel-binding decisions. Aggregation platforms that only
+// expose OpenAI-compatible endpoints (NewAPI / OneAPI / OneHub / DoneHub /
+// AnyRouter / Sub2API) cannot serve native Anthropic / Gemini / Volcengine
+// requests, so for those platforms native conversation route types are
+// collapsed onto OpenAIChat. Embeddings stay separate because aggregation
+// platforms do expose distinct embedding endpoints.
+func effectiveSiteModelRouteType(routeType model.SiteModelRouteType, platform model.SitePlatform) model.SiteModelRouteType {
+	routeType = model.NormalizeSiteModelRouteType(routeType)
+	if model.IsOpenAIOnlyPlatform(platform) {
+		switch routeType {
+		case model.SiteModelRouteTypeAnthropic,
+			model.SiteModelRouteTypeGemini,
+			model.SiteModelRouteTypeVolcengine:
+			return model.SiteModelRouteTypeOpenAIChat
+		}
+	}
+	return routeType
+}
+
 func partitionSiteModelsByRouteType(items []model.SiteModel, split bool, platform model.SitePlatform) map[model.SiteModelRouteType][]model.SiteModel {
 	if !split {
 		routeType := model.SiteModelRouteTypeFromOutboundType(platformOutboundType(platform))
@@ -560,7 +567,7 @@ func parseCompositeBindingKey(groupKey string) (string, model.SiteModelRouteType
 	return model.ParseSiteChannelBindingKey(groupKey)
 }
 
-func rewriteManagedGroupItemsForAccount(ctx context.Context, accountID int, split bool, accountModels []model.SiteModel, bindingChannelByKey map[string]int) error {
+func rewriteManagedGroupItemsForAccount(ctx context.Context, accountID int, split bool, platform model.SitePlatform, accountModels []model.SiteModel, bindingChannelByKey map[string]int) error {
 	if len(bindingChannelByKey) == 0 {
 		return nil
 	}
@@ -590,7 +597,12 @@ func rewriteManagedGroupItemsForAccount(ctx context.Context, accountID int, spli
 		}
 		key := model.NormalizeSiteGroupKey(item.GroupKey) + "\x00" + strings.TrimSpace(item.ModelName)
 		activeModelKeys[key] = struct{}{}
-		routeType := model.NormalizeSiteModelRouteType(item.RouteType)
+		// Use the same RouteType interpretation as the projection main loop
+		// so that OpenAI-only platforms (NewAPI / OneAPI / ...) collapse
+		// native Anthropic / Gemini / Volcengine routes onto OpenAIChat. Without
+		// this, GroupItems referencing those models would be deleted on every
+		// re-projection because their target binding key would never be found.
+		routeType := effectiveSiteModelRouteType(item.RouteType, platform)
 		if !split || model.IsProjectedSiteModelRouteType(routeType) {
 			modelRouteMap[key] = routeType
 		}
