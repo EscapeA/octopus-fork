@@ -4,7 +4,7 @@ static/out/*
 !static/out/README.md
 .vscode
 docs/superpowers
-.workbuddy/memory
+.workbuddy/
 AGENTS.md
 CLAUDE.md
 .learnings/
