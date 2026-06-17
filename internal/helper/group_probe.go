@@ -299,10 +299,21 @@ func runGroupModelTest(ctx context.Context, group *appmodel.Group, channels map[
 		appendGroupTestResult(summary, progress, result)
 	}
 
+	// 所有 item 处理完毕后，统一计算整体是否通过：仅当全部完成且无任何失败才算通过。
+	// 之前在 appendGroupTestResult 中用 "任一通过即 true" 的增量逻辑，会导致
+	// 只要有一个渠道可用就误报整体可用（issue #89）。
+	summary.Passed = summary.Completed == summary.Total
+	for _, r := range summary.Results {
+		if !r.Passed {
+			summary.Passed = false
+			break
+		}
+	}
+
 	if progress != nil {
+		progress.Passed = summary.Passed
 		finalProgress := cloneGroupModelProgress(progress)
 		finalProgress.Done = true
-		finalProgress.Passed = summary.Passed
 		storeGroupModelProgress(&finalProgress)
 	}
 
@@ -461,18 +472,20 @@ func appendGroupTestResult(summary *GroupModelTestSummary, progress *GroupModelT
 	log.Infof("group test result: item_id=%d channel_id=%d model=%s passed=%t status=%d message=%s", result.ItemID, result.ChannelID, result.ModelName, result.Passed, result.StatusCode, result.Message)
 	summary.Results = append(summary.Results, result)
 	summary.Completed = len(summary.Results)
-	if result.Passed {
-		summary.Passed = true
-	}
+	// summary.Passed 的最终值在 runGroupModelTest 末尾统一计算，
+	// 这里不再增量设置，避免 "任一通过即 true" 的误报语义（issue #89）。
 
 	if progress == nil {
 		return
 	}
 
+	// 同步累积 progress.Results，确保中间与最终 store 的进度都包含全部已完成结果。
+	// 之前只 clone 后 append 当前单个 result，导致 progress.Results 始终为空，
+	// 最终 done=true 但 results=[]，前端误报 "均可用"（issue #89）。
+	progress.Results = append(progress.Results, result)
+	progress.Completed = len(progress.Results)
+
 	next := cloneGroupModelProgress(progress)
-	next.Results = append(next.Results, result)
-	next.Completed = len(next.Results)
-	next.Passed = summary.Passed
 	storeGroupModelProgress(&next)
 }
 
