@@ -73,6 +73,9 @@ export interface AnalyticsGroupHealthItem {
     failing_channels: FailingChannelItem[];
     mode: number;
     channel_ids: number[];
+    // 后端按本组 (channel_id, model_name) 精确过滤后的 Auto 策略快照（仅 Auto 组有值）。
+    // 由后端 buildGroupHealth 组装，替代前端按 channel_ids 客户端过滤（issue #87 Bug 修复）。
+    auto_items?: AutoStrategySnapshotItem[];
 }
 
 export interface FailingChannelItem {

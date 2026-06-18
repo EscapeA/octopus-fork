@@ -214,7 +214,11 @@ func AnalyticsChannelModelBreakdownGet(ctx context.Context, r model.AnalyticsRan
 }
 
 // AnalyticsAutoStrategyGet 返回 Auto 策略运行态快照（滑动窗口内的成功率/样本数/延迟）。
-// groupID 非空时只返回该组包含渠道的条目；为空时返回全部。供"Auto 实时表现"展示（issue #67）。
+// groupID 非空时按该组的 (channel_id, model_name) 精确过滤；为空时返回全部。
+// 供"Auto 实时表现"展示（issue #67）。
+//
+// 注意：早期实现仅按 channel_id 过滤，当同一渠道跨多个分组（如 chat 组 + embeddings 组）
+// 时会把其他组的模型泄漏进来（issue #87 Bug）。现改为按 (channel_id, model_name) 精确匹配。
 func AnalyticsAutoStrategyGet(ctx context.Context, groupID *int) ([]model.AutoStrategySnapshotItem, error) {
 	channels, err := channel.List(ctx)
 	if err != nil {
@@ -225,30 +229,65 @@ func AnalyticsAutoStrategyGet(ctx context.Context, groupID *int) ([]model.AutoSt
 		channelByID[ch.ID] = ch
 	}
 
-	var channelIDs []int
+	// 全量快照（内存操作，开销很小），按需在下面精确过滤。
+	snapshot := balancer.GetAutoStatsSnapshot(nil)
+	minSamples := balancer.GetAutoStrategyMinSamples()
+
+	var scope map[string]struct{}
 	if groupID != nil {
 		groups, err := group.GroupList(ctx)
 		if err != nil {
 			return nil, err
 		}
-		seen := make(map[int]struct{})
 		for _, g := range groups {
 			if g.ID != *groupID {
 				continue
 			}
-			for _, it := range g.Items {
-				if _, ok := seen[it.ChannelID]; ok {
-					continue
-				}
-				seen[it.ChannelID] = struct{}{}
-				channelIDs = append(channelIDs, it.ChannelID)
-			}
+			scope = buildGroupAutoScope(g.Items)
+			break
 		}
 	}
 
-	snapshot := balancer.GetAutoStatsSnapshot(channelIDs)
-	minSamples := balancer.GetAutoStrategyMinSamples()
+	filtered := filterAutoSnapshot(snapshot, scope)
+	return buildAutoStrategyItems(filtered, channelByID, minSamples), nil
+}
 
+// buildGroupAutoScope 根据组 Items 构造 (channelID, normalizedModel) 集合，
+// 用于精确过滤 Auto 快照。model 名归一化以匹配 balancer 内部存储的 key。
+func buildGroupAutoScope(items []model.GroupItem) map[string]struct{} {
+	scope := make(map[string]struct{}, len(items))
+	for _, it := range items {
+		key := strconv.Itoa(it.ChannelID) + "\x00" + normalizeAutoModelName(it.ModelName)
+		scope[key] = struct{}{}
+	}
+	return scope
+}
+
+// normalizeAutoModelName 与 balancer.normalizeAutoStatsModelName 保持一致：
+// lowercase + trim，用于匹配快照里的模型名。
+func normalizeAutoModelName(name string) string {
+	return strings.ToLower(strings.TrimSpace(name))
+}
+
+// filterAutoSnapshot 按 scope 过滤快照。scope 为空时返回全量。
+// key 格式: "channelID\x00normalizedModel"。
+func filterAutoSnapshot(snapshot []balancer.AutoStatsSnapshotItem, scope map[string]struct{}) []balancer.AutoStatsSnapshotItem {
+	if len(scope) == 0 {
+		return snapshot
+	}
+	out := make([]balancer.AutoStatsSnapshotItem, 0, len(snapshot))
+	for _, s := range snapshot {
+		key := strconv.Itoa(s.ChannelID) + "\x00" + normalizeAutoModelName(s.ModelName)
+		if _, ok := scope[key]; ok {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// buildAutoStrategyItems 把 balancer 快照转换为对外 model 并排序。
+// 成功率低的优先（突出问题渠道），其次样本数、渠道名、模型名。
+func buildAutoStrategyItems(snapshot []balancer.AutoStatsSnapshotItem, channelByID map[int]model.Channel, minSamples int) []model.AutoStrategySnapshotItem {
 	items := make([]model.AutoStrategySnapshotItem, 0, len(snapshot))
 	for _, s := range snapshot {
 		var lastActive int64
@@ -275,7 +314,6 @@ func AnalyticsAutoStrategyGet(ctx context.Context, groupID *int) ([]model.AutoSt
 	}
 
 	sort.SliceStable(items, func(i, j int) bool {
-		// 成功率低的优先（突出问题渠道），其次样本数、渠道名、模型名。
 		if items[i].SuccessRate != items[j].SuccessRate {
 			return items[i].SuccessRate < items[j].SuccessRate
 		}
@@ -288,7 +326,7 @@ func AnalyticsAutoStrategyGet(ctx context.Context, groupID *int) ([]model.AutoSt
 		return items[i].ModelName < items[j].ModelName
 	})
 
-	return items, nil
+	return items
 }
 
 func AnalyticsGroupHealthGet(ctx context.Context) ([]model.AnalyticsGroupHealthItem, error) {
@@ -312,7 +350,13 @@ func AnalyticsGroupHealthGet(ctx context.Context) ([]model.AnalyticsGroupHealthI
 		return nil, err
 	}
 
-	return buildGroupHealth(groups, channelByID, failures), nil
+	// 拉取全量 Auto 策略快照（内存操作），交给 buildGroupHealth 按每个组的
+	// (channel_id, model_name) 精确过滤后填入 AutoItems。避免前端按 channel_id
+	// 客户端过滤导致跨组渠道的他组模型泄漏（issue #87 Bug 修复）。
+	autoSnapshot := balancer.GetAutoStatsSnapshot(nil)
+	minSamples := balancer.GetAutoStrategyMinSamples()
+
+	return buildGroupHealth(groups, channelByID, failures, autoSnapshot, minSamples), nil
 }
 
 func AnalyticsEvaluationGet(_ context.Context) (*model.AnalyticsEvaluationSummary, error) {
@@ -614,7 +658,7 @@ func buildChannelModelBreakdown(rows map[string]*analyticsChannelModelAggregateR
 	return items
 }
 
-func buildGroupHealth(groups []model.Group, channelByID map[int]model.Channel, failures map[string]*analyticsFailureAggregateRow) []model.AnalyticsGroupHealthItem {
+func buildGroupHealth(groups []model.Group, channelByID map[int]model.Channel, failures map[string]*analyticsFailureAggregateRow, autoSnapshot []balancer.AutoStatsSnapshotItem, minSamples int) []model.AnalyticsGroupHealthItem {
 	items := make([]model.AnalyticsGroupHealthItem, 0, len(groups))
 	for _, group := range groups {
 		itemCount := len(group.Items)
@@ -743,6 +787,19 @@ func buildGroupHealth(groups []model.Group, channelByID map[int]model.Channel, f
 			channelIDs = append(channelIDs, item.ChannelID)
 		}
 
+		// 仅 Auto 组（mode==5）按本组 (channel_id, model_name) 精确过滤 Auto 快照，
+		// 填入 AutoItems 供前端直接展示。取前 12 条（与前端原逻辑一致）。
+		// 这里按 (channel, model) 精确匹配，避免跨组渠道的他组模型泄漏（issue #87 Bug）。
+		var autoItems []model.AutoStrategySnapshotItem
+		if group.Mode == model.GroupModeAuto {
+			scope := buildGroupAutoScope(group.Items)
+			filtered := filterAutoSnapshot(autoSnapshot, scope)
+			autoItems = buildAutoStrategyItems(filtered, channelByID, minSamples)
+			if len(autoItems) > 12 {
+				autoItems = autoItems[:12]
+			}
+		}
+
 		items = append(items, model.AnalyticsGroupHealthItem{
 			GroupID:           group.ID,
 			GroupName:         group.Name,
@@ -757,6 +814,7 @@ func buildGroupHealth(groups []model.Group, channelByID map[int]model.Channel, f
 			Mode:              int(group.Mode),
 			FailingChannels:   failingChannels,
 			ChannelIDs:        channelIDs,
+			AutoItems:         autoItems,
 		})
 	}
 

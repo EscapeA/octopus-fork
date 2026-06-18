@@ -8,8 +8,11 @@ import (
 
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
+	"github.com/lingyuins/octopus/internal/op/channel"
+	"github.com/lingyuins/octopus/internal/op/group"
 	"github.com/lingyuins/octopus/internal/op/relaylog"
 	"github.com/lingyuins/octopus/internal/op/setting"
+	"github.com/lingyuins/octopus/internal/relay/balancer"
 )
 
 // TestBuildGroupHealth_SurfacesFailingChannelFromAttempts 验证 buildGroupHealth 把
@@ -43,7 +46,7 @@ func TestBuildGroupHealth_SurfacesFailingChannelFromAttempts(t *testing.T) {
 		},
 	}
 
-	items := buildGroupHealth(groups, channelByID, failures)
+	items := buildGroupHealth(groups, channelByID, failures, nil, 0)
 	if len(items) != 1 {
 		t.Fatalf("expected 1 group health item, got %d", len(items))
 	}
@@ -237,5 +240,203 @@ func TestAnalyticsChannelModelBreakdownGet_DBScope(t *testing.T) {
 	}
 	if !foundB {
 		t.Fatalf("channelB row missing from channel-model breakdown")
+	}
+}
+
+// TestBuildGroupHealth_AutoItemsFilteredByChannelModel 验证 Auto 组的 AutoItems 按
+// 本组 (channel_id, model_name) 精确过滤，跨组渠道的他组模型不会泄漏（issue #87 Bug 回归）。
+//
+// 场景：渠道1 同时属于组A（chat，model-X）和组B（embeddings，model-Y）。
+// 修复前：组A 的 AutoItems 会包含 (渠道1, model-Y)——因为只按 channel_id 过滤。
+// 修复后：组A 只含 (渠道1, model-X) 与 (渠道2, model-X)；组B 只含 (渠道1, model-Y)。
+func TestBuildGroupHealth_AutoItemsFilteredByChannelModel(t *testing.T) {
+	groups := []model.Group{
+		{
+			ID:           1,
+			Name:         "chat-group",
+			Mode:         model.GroupModeAuto,
+			EndpointType: "chat",
+			Items: []model.GroupItem{
+				{ChannelID: 1, ModelName: "model-X"},
+				{ChannelID: 2, ModelName: "model-X"},
+			},
+		},
+		{
+			ID:           2,
+			Name:         "embeddings-group",
+			Mode:         model.GroupModeAuto,
+			EndpointType: "embeddings",
+			Items: []model.GroupItem{
+				{ChannelID: 1, ModelName: "model-Y"},
+			},
+		},
+	}
+	channelByID := map[int]model.Channel{
+		1: {ID: 1, Name: "channelShared", Enabled: true},
+		2: {ID: 2, Name: "channelB", Enabled: true},
+	}
+
+	// 全量 Auto 快照：渠道1 在两个模型上都有数据，渠道2 只有 model-X。
+	autoSnapshot := []balancer.AutoStatsSnapshotItem{
+		{ChannelID: 1, ModelName: "model-x", SuccessRate: 0.9, SampleCount: 20, AvgLatencyMs: 100, LastActiveAt: time.Now()},
+		{ChannelID: 1, ModelName: "model-y", SuccessRate: 0.5, SampleCount: 10, AvgLatencyMs: 200, LastActiveAt: time.Now()},
+		{ChannelID: 2, ModelName: "model-x", SuccessRate: 0.8, SampleCount: 15, AvgLatencyMs: 120, LastActiveAt: time.Now()},
+	}
+
+	items := buildGroupHealth(groups, channelByID, nil, autoSnapshot, 10)
+
+	if len(items) != 2 {
+		t.Fatalf("expected 2 group health items, got %d", len(items))
+	}
+
+	byName := make(map[string]model.AnalyticsGroupHealthItem, len(items))
+	for _, it := range items {
+		byName[it.GroupName] = it
+	}
+
+	// 组A（chat-group）：应只含 model-X 的两条（渠道1+渠道2），不含 model-Y。
+	groupA := byName["chat-group"]
+	if len(groupA.AutoItems) != 2 {
+		t.Fatalf("chat-group AutoItems len = %d, want 2 (model-X only)", len(groupA.AutoItems))
+	}
+	for _, ai := range groupA.AutoItems {
+		if ai.ModelName != "model-x" {
+			t.Fatalf("chat-group leaked model %q (channel=%d) — should be model-x only (issue #87)", ai.ModelName, ai.ChannelID)
+		}
+	}
+
+	// 组B（embeddings-group）：应只含 (渠道1, model-Y) 一条，不含 model-X。
+	groupB := byName["embeddings-group"]
+	if len(groupB.AutoItems) != 1 {
+		t.Fatalf("embeddings-group AutoItems len = %d, want 1 (model-Y only)", len(groupB.AutoItems))
+	}
+	if groupB.AutoItems[0].ChannelID != 1 || groupB.AutoItems[0].ModelName != "model-y" {
+		t.Fatalf("embeddings-group AutoItems[0] = (channel=%d, model=%q), want (1, model-y)", groupB.AutoItems[0].ChannelID, groupB.AutoItems[0].ModelName)
+	}
+}
+
+// TestBuildGroupHealth_AutoItemsEmptyForNonAutoGroup 验证非 Auto 组不填充 AutoItems。
+func TestBuildGroupHealth_AutoItemsEmptyForNonAutoGroup(t *testing.T) {
+	groups := []model.Group{
+		{
+			ID:   1,
+			Name: "failover-group",
+			Mode: model.GroupModeFailover,
+			Items: []model.GroupItem{
+				{ChannelID: 1, ModelName: "model-X"},
+			},
+		},
+	}
+	channelByID := map[int]model.Channel{
+		1: {ID: 1, Name: "channelA", Enabled: true},
+	}
+	autoSnapshot := []balancer.AutoStatsSnapshotItem{
+		{ChannelID: 1, ModelName: "model-x", SuccessRate: 0.9, SampleCount: 20, AvgLatencyMs: 100, LastActiveAt: time.Now()},
+	}
+
+	items := buildGroupHealth(groups, channelByID, nil, autoSnapshot, 10)
+	if len(items) != 1 {
+		t.Fatalf("expected 1 group health item, got %d", len(items))
+	}
+	if len(items[0].AutoItems) != 0 {
+		t.Fatalf("non-Auto group AutoItems len = %d, want 0", len(items[0].AutoItems))
+	}
+}
+
+// TestFilterAutoSnapshot_PreciseMatch 验证 filterAutoSnapshot 按 (channel, model) 精确匹配，
+// 模型名大小写归一化后比较。
+func TestFilterAutoSnapshot_PreciseMatch(t *testing.T) {
+	snapshot := []balancer.AutoStatsSnapshotItem{
+		{ChannelID: 1, ModelName: "gpt-4o", SuccessRate: 0.9, SampleCount: 10},
+		{ChannelID: 1, ModelName: "text-embedding-3", SuccessRate: 0.8, SampleCount: 10},
+		{ChannelID: 2, ModelName: "gpt-4o", SuccessRate: 0.7, SampleCount: 10},
+	}
+
+	// scope 用原始大小写，应归一化后匹配小写快照名。
+	scope := buildGroupAutoScope([]model.GroupItem{
+		{ChannelID: 1, ModelName: "GPT-4O"},   // 大写
+		{ChannelID: 2, ModelName: " gpt-4o "}, // 带空格
+	})
+
+	got := filterAutoSnapshot(snapshot, scope)
+	if len(got) != 2 {
+		t.Fatalf("filterAutoSnapshot len = %d, want 2 (both gpt-4o entries)", len(got))
+	}
+	for _, s := range got {
+		if s.ModelName != "gpt-4o" {
+			t.Fatalf("filterAutoSnapshot leaked model %q", s.ModelName)
+		}
+	}
+}
+
+// TestAnalyticsAutoStrategyGet_GroupScopedFiltersByChannelModel 是端到端回归测试：
+// 调用 AnalyticsAutoStrategyGet(ctx, groupID) 时只返回该组 (channel, model) 条目。
+// channel.List 与 group.GroupList 都走内存缓存，故直接注入缓存（与 group_test.go 同做法）。
+func TestAnalyticsAutoStrategyGet_GroupScopedFiltersByChannelModel(t *testing.T) {
+	// 注入渠道缓存：渠道1 同时在两个组、两个模型上有数据；渠道2 仅组A。
+	chCache := channel.GetCache()
+	chCache.Set(1, model.Channel{ID: 1, Name: "channelShared", Enabled: true})
+	chCache.Set(2, model.Channel{ID: 2, Name: "channelB", Enabled: true})
+	t.Cleanup(func() {
+		chCache.Del(1)
+		chCache.Del(2)
+	})
+
+	// 注入分组缓存：组A(chat, model-X) 含渠道1+2；组B(embeddings, model-Y) 仅渠道1。
+	gCache := group.GetCache()
+	gCache.Set(1, model.Group{
+		ID: 1, Name: "chat-group", Mode: model.GroupModeAuto, EndpointType: "chat",
+		Items: []model.GroupItem{
+			{GroupID: 1, ChannelID: 1, ModelName: "model-X"},
+			{GroupID: 1, ChannelID: 2, ModelName: "model-X"},
+		},
+	})
+	gCache.Set(2, model.Group{
+		ID: 2, Name: "embeddings-group", Mode: model.GroupModeAuto, EndpointType: "embeddings",
+		Items: []model.GroupItem{
+			{GroupID: 2, ChannelID: 1, ModelName: "model-Y"},
+		},
+	})
+	t.Cleanup(func() {
+		gCache.Del(1)
+		gCache.Del(2)
+	})
+
+	// 通过公开 API 注入 Auto 快照数据（全局 sync.Map）。
+	balancer.RecordAutoSuccess(1, "model-X")
+	balancer.RecordAutoFailure(1, "model-X")
+	balancer.RecordAutoSuccess(1, "model-Y")
+	balancer.RecordAutoSuccess(2, "model-X")
+	t.Cleanup(func() {
+		balancer.RemoveChannelStats(1)
+		balancer.RemoveChannelStats(2)
+	})
+
+	groupAID := 1
+	itemsA, err := AnalyticsAutoStrategyGet(context.Background(), &groupAID)
+	if err != nil {
+		t.Fatalf("AnalyticsAutoStrategyGet(groupA) error: %v", err)
+	}
+	// 组A 应只含 model-X 的两条（渠道1 + 渠道2），不含 model-Y。
+	if len(itemsA) != 2 {
+		t.Fatalf("groupA items len = %d, want 2 (model-X only); got %+v", len(itemsA), itemsA)
+	}
+	for _, it := range itemsA {
+		if it.ModelName != "model-x" {
+			t.Fatalf("groupA leaked model %q (issue #87)", it.ModelName)
+		}
+	}
+
+	groupBID := 2
+	itemsB, err := AnalyticsAutoStrategyGet(context.Background(), &groupBID)
+	if err != nil {
+		t.Fatalf("AnalyticsAutoStrategyGet(groupB) error: %v", err)
+	}
+	// 组B 应只含 (渠道1, model-Y) 一条。
+	if len(itemsB) != 1 {
+		t.Fatalf("groupB items len = %d, want 1 (model-Y only); got %+v", len(itemsB), itemsB)
+	}
+	if itemsB[0].ChannelID != 1 || itemsB[0].ModelName != "model-y" {
+		t.Fatalf("groupB item = (channel=%d, model=%q), want (1, model-y)", itemsB[0].ChannelID, itemsB[0].ModelName)
 	}
 }

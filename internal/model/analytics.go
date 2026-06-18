@@ -133,6 +133,10 @@ type AnalyticsGroupHealthItem struct {
 	FailingChannels   []FailingChannelItem `json:"failing_channels"`
 	Mode              int                  `json:"mode"`
 	ChannelIDs        []int                `json:"channel_ids"`
+	// AutoItems 是该 Auto 组（mode==5）按本组 (channel_id, model_name) 精确过滤后的
+	// 实时策略快照。后端在 buildGroupHealth 内组装，避免前端按 channel_id 客户端过滤
+	// 导致跨组渠道的他组模型泄漏（issue #87 Bug 修复）。
+	AutoItems []AutoStrategySnapshotItem `json:"auto_items,omitempty"`
 }
 
 // FailingChannelItem 描述组内某个 (渠道,模型) 维度的失败情况，供分组健康下钻展示。

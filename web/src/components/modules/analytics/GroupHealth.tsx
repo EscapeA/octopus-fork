@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Activity, AlertTriangle, CircleOff, ShieldCheck, Radar, ChevronDown, ChevronRight, Gauge } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useAnalyticsGroupHealth, useAnalyticsAutoStrategy } from '@/api/endpoints/analytics';
+import { useAnalyticsGroupHealth } from '@/api/endpoints/analytics';
 import { ObservatorySection, QueryState, StatusBadge, formatUnixTime } from './shared';
 import { useNavStore } from '@/components/modules/navbar/nav-store';
 import { useNavHandoff } from '@/lib/nav-handoff';
@@ -234,30 +234,10 @@ function GroupHealthCard({
 export function GroupHealth() {
     const t = useTranslations('analytics');
     const { data, isLoading, error } = useAnalyticsGroupHealth();
-    // 全量拉取 Auto 策略快照，按 group_id 在卡片内过滤。组数量通常不大，一次请求即可。
-    const { data: autoData } = useAnalyticsAutoStrategy();
 
-    // 把 auto 快照按渠道 ID 建索引，后续 autoItemsForGroup 用后端返回的 channel_ids 过滤。
-    const autoByChannel = new Map<number, AutoStrategySnapshotItem[]>();
-    for (const ai of autoData ?? []) {
-        const list = autoByChannel.get(ai.channel_id) ?? [];
-        list.push(ai);
-        autoByChannel.set(ai.channel_id, list);
-    }
-
-    const autoItemsForGroup = (item: import('@/api/endpoints/analytics').AnalyticsGroupHealthItem): AutoStrategySnapshotItem[] => {
-        if (item.mode !== 5) return [];
-        // 用后端返回的 channel_ids（该组实际包含的渠道集合）过滤 Auto 快照。
-        const channelIds = new Set<number>(item.channel_ids ?? []);
-        if (channelIds.size === 0) return [];
-        const result: AutoStrategySnapshotItem[] = [];
-        for (const [channelId, list] of autoByChannel) {
-            if (channelIds.has(channelId)) {
-                result.push(...list);
-            }
-        }
-        return result.slice(0, 12);
-    };
+    // Auto 策略实时表现现由后端在 AnalyticsGroupHealthGet 内按本组 (channel_id, model_name)
+    // 精确过滤后填入 item.auto_items，前端不再单独请求 /analytics/auto-strategy，也不再在
+    // 客户端按 channel_ids 过滤——后者会把跨组渠道的他组模型泄漏进来（issue #87 Bug 修复）。
 
     return (
         <ObservatorySection
@@ -277,7 +257,7 @@ export function GroupHealth() {
                         <GroupHealthCard
                             key={`${item.group_id}-${item.endpoint_type}`}
                             item={item}
-                            autoItems={autoItemsForGroup(item)}
+                            autoItems={item.auto_items ?? []}
                         />
                     ))}
                 </div>
