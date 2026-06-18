@@ -656,7 +656,9 @@
         "rpm": "RPM",
         "tpm": "TPM",
         "supportedModels": "Supported Models",
-        "perModelQuota": "Per-model Quota"
+        "perModelQuota": "Per-model Quota",
+        "totalTokens": "Total Tokens",
+        "successRate": "Success Rate"
       },
       "statuses": {
         "open": "Open",
@@ -665,7 +667,10 @@
         "expired": "Expired",
         "disabled": "Disabled"
       },
-      "empty": "No API key quota summary is available."
+      "empty": "No API key quota summary is available.",
+      "actions": {
+        "viewKeyDetail": "View Key Detail"
+      }
     },
     "health": {
       "description": "Track database, cache, task configuration, and risky route groups in a single operational summary.",

@@ -86,8 +86,8 @@ export function Evaluation() {
     const hasAiRouteUnavailable = Boolean(runtime.aiRouteTask && runtime.aiRouteError && !aiRoute);
     const hasGroupTestUnavailable = Boolean(runtime.groupTestTask && runtime.groupTestError && !groupTest);
     const groupTestHasFailures = failedCount > 0 || Boolean(groupTest?.message);
-    const aiRouteStatus = hasAiRouteUnavailable ? 'unavailable' : (aiRoute?.status ?? 'idle');
-    const aiRouteStep = aiRoute?.current_step ?? 'idle';
+    const aiRouteStatus = hasAiRouteUnavailable ? 'unavailable' : (aiRoute?.status || 'idle');
+    const aiRouteStep = aiRoute?.current_step || 'idle';
     const groupTestStatus = groupTest
         ? (groupTest.done ? (groupTestHasFailures ? 'failed' : 'completed') : 'running')
         : hasGroupTestUnavailable

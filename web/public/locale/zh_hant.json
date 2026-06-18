@@ -656,7 +656,9 @@
         "rpm": "RPM",
         "tpm": "TPM",
         "supportedModels": "支援模型數",
-        "perModelQuota": "按模型配額"
+        "perModelQuota": "按模型配額",
+        "totalTokens": "總 Token",
+        "successRate": "成功率"
       },
       "statuses": {
         "open": "無限制",
@@ -665,7 +667,10 @@
         "expired": "已過期",
         "disabled": "已停用"
       },
-      "empty": "目前沒有可展示的 API 金鑰配額摘要。"
+      "empty": "目前沒有可展示的 API 金鑰配額摘要。",
+      "actions": {
+        "viewKeyDetail": "查看密鑰詳情"
+      }
     },
     "health": {
       "description": "統一查看資料庫、快取、任務設定與分組風險訊號，優先暴露需要人工關注的問題。",

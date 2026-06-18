@@ -656,7 +656,9 @@
         "rpm": "RPM",
         "tpm": "TPM",
         "supportedModels": "支持模型数",
-        "perModelQuota": "按模型配额"
+        "perModelQuota": "按模型配额",
+        "totalTokens": "总 Token",
+        "successRate": "成功率"
       },
       "statuses": {
         "open": "无限制",
@@ -665,7 +667,10 @@
         "expired": "已过期",
         "disabled": "已停用"
       },
-      "empty": "当前没有可展示的 API Key 配额摘要。"
+      "empty": "当前没有可展示的 API Key 配额摘要。",
+      "actions": {
+        "viewKeyDetail": "查看密钥详情"
+      }
     },
     "health": {
       "description": "统一查看数据库、缓存、任务配置和分组风险信号，优先暴露需要人工关注的问题。",
