@@ -3,7 +3,7 @@
 import { useStatsDaily, useStatsHourly, type StatsDailyFormatted, type StatsHourlyFormatted } from '@/api/endpoints/stats';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { useMemo } from 'react';
-import { Area, AreaChart, CartesianGrid, Line, XAxis, YAxis } from 'recharts';
+import { Area, ComposedChart, CartesianGrid, Line, XAxis, YAxis } from 'recharts';
 import { useTranslations } from 'next-intl';
 import { formatCount, formatMoney } from '@/lib/utils';
 import { formatDateOnly } from '@/lib/time';
@@ -236,7 +236,7 @@ export function StatsChart() {
             </div>
             <div className="relative mx-3 mb-3 overflow-hidden rounded-lg border border-border bg-card pt-3">
                 <ChartContainer config={chartConfig} className="h-[20rem] w-full md:h-[24rem]">
-                <AreaChart accessibilityLayer data={chartData}>
+                <ComposedChart accessibilityLayer data={chartData}>
                     <defs>
                         <linearGradient id="fillMetric1" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={1.0} />
@@ -295,7 +295,7 @@ export function StatsChart() {
                             />
                         ))
                     )}
-                </AreaChart>
+                </ComposedChart>
                 </ChartContainer>
             </div>
         </div>
