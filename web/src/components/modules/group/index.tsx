@@ -107,9 +107,6 @@ export function Group() {
 
     return (
         <div className="flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain rounded-t-xl pb-3 md:pb-4">
-            <div className="flex justify-end px-3 pt-3 pb-1 md:px-4 md:pt-4">
-                <MaintenanceButton />
-            </div>
             <section className="relative min-h-0 flex-1">
                 <VirtualizedGrid
                     items={visibleGroups}

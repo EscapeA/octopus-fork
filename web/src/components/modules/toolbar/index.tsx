@@ -19,7 +19,9 @@ import { CreateDialogContent as ChannelCreateContent } from '@/components/module
 import { ChannelGroupManagerDialog } from '@/components/modules/channel/GroupManager';
 import { CreateDialogContent as GroupCreateContent } from '@/components/modules/group/Create';
 import { CCSwitchLinkButton } from '@/components/modules/group/CCSwitchLinkButton';
+import { MaintenanceButton } from '@/components/modules/group/MaintenanceButton';
 import { CreateDialogContent as ModelCreateContent } from '@/components/modules/model/Create';
+import { useModelViewStore } from '@/components/modules/model/view-store';
 import { useTranslations } from 'next-intl';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSearchStore } from './search-store';
@@ -92,11 +94,15 @@ function getCreateDialogContentClassName(activeItem: ToolbarPage) {
 export function Toolbar() {
     const t = useTranslations('toolbar');
     const navT = useTranslations('navbar');
+    const modelT = useTranslations('model');
+    const endpointsT = useTranslations('endpoints');
     const isMobile = useIsMobile();
     const reduceMotion = useReducedMotion();
     const lightweightMotion = isMobile || reduceMotion;
     const { activeItem } = useNavStore();
     const toolbarItem = isToolbarPage(activeItem) ? activeItem : null;
+    const modelView = useModelViewStore((s) => s.modelView);
+    const setModelView = useModelViewStore((s) => s.setModelView);
     const searchTerm = useSearchStore((s) => (toolbarItem ? s.searchTerms[toolbarItem] || '' : ''));
     const setSearchTerm = useSearchStore((s) => s.setSearchTerm);
     const layout = useToolbarViewOptionsStore((s) => (toolbarItem ? s.getLayout(toolbarItem) : 'grid'));
@@ -281,6 +287,9 @@ export function Toolbar() {
                     )}
                 </div>
 
+                {toolbarItem === 'group' && (
+                    <MaintenanceButton className="hidden sm:inline-flex" />
+                )}
                 {toolbarItem === 'group' && (
                     <CCSwitchLinkButton className="hidden sm:inline-flex" />
                 )}
@@ -487,6 +496,38 @@ export function Toolbar() {
                             buttonVariants({ variant: "ghost", size: "default" }),
                             COMMAND_TEXT_BUTTON_CLASS
                         )} />
+                    ) : null}
+
+                    {/* 模型广场 / 可用端点 切换开关：仅模型页显示，置于添加模型按钮左侧 */}
+                    {toolbarItem === 'model' ? (
+                        <div className="flex items-center gap-0.5 rounded-lg border border-border bg-card p-0.5 sm:gap-1 sm:p-1">
+                            <button
+                                type="button"
+                                onClick={() => setModelView('market')}
+                                aria-pressed={modelView === 'market'}
+                                className={cn(
+                                    'rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:px-4 sm:py-2 sm:text-sm',
+                                    modelView === 'market'
+                                        ? 'bg-primary text-primary-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground',
+                                )}
+                            >
+                                {modelT('marketTitle')}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setModelView('endpoints')}
+                                aria-pressed={modelView === 'endpoints'}
+                                className={cn(
+                                    'rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:px-4 sm:py-2 sm:text-sm',
+                                    modelView === 'endpoints'
+                                        ? 'bg-primary text-primary-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground',
+                                )}
+                            >
+                                {endpointsT('title')}
+                            </button>
+                        </div>
                     ) : null}
 
                     {/* 创建按钮 */}

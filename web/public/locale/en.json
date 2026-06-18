@@ -89,7 +89,7 @@
     "channel": "Channel",
     "group": "Group",
     "key": "Key",
-    "model": "Model Market",
+    "model": "Model Market & Endpoints",
     "analytics": "Analytics",
     "log": "Log",
     "alert": "Alert",
@@ -97,7 +97,7 @@
     "user": "User",
     "setting": "Setting",
     "ariaLabel": "Main navigation",
-    "apikey": "API Keys & Endpoints"
+    "apikey": "API Keys"
   },
   "endpoints": {
     "title": "Available Endpoints",
@@ -2712,6 +2712,10 @@
     "all": "All",
     "dedupe": "Dedupe variants",
     "dedupeHint": "Merge naming variants of the same base model (e.g. kimi-k2.5, moonshotai/kimi-k2.5, dmxapi-kimi-k2.5-cc).",
-    "capabilityLabel": "Capability"
+    "capabilityLabel": "Capability",
+    "filterTitle": "Filter",
+    "filterExpand": "Expand filter",
+    "filterCollapse": "Collapse filter",
+    "filterSummary": "{count, plural, =0 {No filters} one {# filter} other {# filters}} active"
   }
 }

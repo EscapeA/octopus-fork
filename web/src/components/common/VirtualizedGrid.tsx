@@ -32,6 +32,7 @@ interface VirtualizedGridProps<T> {
     overscan?: number;
     getItemKey: (item: T, index: number) => string | number;
     renderItem: (item: T, index: number) => ReactNode;
+    header?: ReactNode;
     footer?: ReactNode;
     onReachEnd?: () => void;
     reachEndEnabled?: boolean;
@@ -61,6 +62,7 @@ export function VirtualizedGrid<T>({
     overscan = 4,
     getItemKey,
     renderItem,
+    header = null,
     footer = null,
     onReachEnd,
     reachEndEnabled = false,
@@ -73,6 +75,8 @@ export function VirtualizedGrid<T>({
         typeof window === 'undefined' ? 1024 : window.innerWidth
     );
     const containerRef = useRef<HTMLDivElement | null>(null);
+    const headerRef = useRef<HTMLDivElement | null>(null);
+    const [headerHeight, setHeaderHeight] = useState(0);
     const reachEndTriggeredRef = useRef(false);
 
     useEffect(() => {
@@ -94,6 +98,28 @@ export function VirtualizedGrid<T>({
             observer.disconnect();
         };
     }, []);
+
+    // Track the header height so the virtualizer can offset its rows past it
+    // (header scrolls together with the list, like the hub overview).
+    useEffect(() => {
+        if (header === null) {
+            setHeaderHeight(0);
+            return;
+        }
+        const el = headerRef.current;
+        if (!el) return;
+        const updateHeight = () => {
+            const nextHeight = el.offsetHeight;
+            setHeaderHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+        };
+        updateHeight();
+        if (typeof ResizeObserver === 'undefined') return;
+        const observer = new ResizeObserver(updateHeight);
+        observer.observe(el);
+        return () => {
+            observer.disconnect();
+        };
+    }, [header]);
 
     const columnCount = useMemo(() => {
         if (layout === 'list' || layout === 'compact') return 1;
@@ -127,6 +153,9 @@ export function VirtualizedGrid<T>({
         getScrollElement: () => containerRef.current,
         getItemKey: getVirtualRowKey,
         estimateSize: () => estimateItemHeight + gap,
+        // Offset rows past the header so the header shares the scroll flow
+        // (scrolls away with the list, like the hub overview).
+        scrollMargin: headerHeight,
         // Use layout height (not transformed visual height) to avoid scale-animation
         // shrinking measurements during page enter transitions.
         measureElement: (element) =>
@@ -159,9 +188,18 @@ export function VirtualizedGrid<T>({
                 ref={containerRef}
                 className={cn('relative h-full w-full overflow-y-auto overscroll-contain rounded-t-3xl touch-pan-y', bottomPaddingClassName)}
             >
+                {header !== null ? (
+                    <div ref={headerRef} className="relative w-full">
+                        {header}
+                    </div>
+                ) : null}
                 {rowCount === 0 ? null : (
                     <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
                         {virtualRows.map((virtualRow) => {
+                            // When a header precedes the list, subtract scrollMargin from the
+                            // translate so rows are positioned within the sizing container
+                            // (which sits below the header), per the @tanstack/virtual docs.
+                            const translateY = virtualRow.start - headerHeight;
                             if (hasFooterRow && virtualRow.index === itemRowCount) {
                                 return (
                                     <div
@@ -170,7 +208,7 @@ export function VirtualizedGrid<T>({
                                         ref={rowVirtualizer.measureElement}
                                         className="absolute left-0 top-0 w-full"
                                         style={{
-                                            transform: `translateY(${virtualRow.start}px)`,
+                                            transform: `translateY(${translateY}px)`,
                                         }}
                                     >
                                         {footer}
@@ -190,7 +228,7 @@ export function VirtualizedGrid<T>({
                                     ref={rowVirtualizer.measureElement}
                                     className="absolute left-0 top-0 w-full"
                                     style={{
-                                        transform: `translateY(${virtualRow.start}px)`,
+                                        transform: `translateY(${translateY}px)`,
                                     }}
                                 >
                                     <div

@@ -89,7 +89,7 @@
     "channel": "渠道",
     "group": "分组",
     "key": "密钥",
-    "model": "模型广场",
+    "model": "模型广场及端点",
     "analytics": "分析中心",
     "log": "日志",
     "alert": "告警",
@@ -97,7 +97,7 @@
     "user": "用户",
     "setting": "设置",
     "ariaLabel": "主导航",
-    "apikey": "API 密钥及端点"
+    "apikey": "API 密钥"
   },
   "endpoints": {
     "title": "可用端点",
@@ -2712,6 +2712,10 @@
     "all": "全部",
     "dedupe": "归一化去重",
     "dedupeHint": "合并同一基础模型的不同命名变体（如 kimi-k2.5、moonshotai/kimi-k2.5、dmxapi-kimi-k2.5-cc）。",
-    "capabilityLabel": "能力"
+    "capabilityLabel": "能力",
+    "filterTitle": "筛选",
+    "filterExpand": "展开筛选",
+    "filterCollapse": "收起筛选",
+    "filterSummary": "已选 {count} 项"
   }
 }
