@@ -1,16 +1,23 @@
 'use client';
 
-import { useStatsDaily, useStatsHourly } from '@/api/endpoints/stats';
+import { useStatsDaily, useStatsHourly, type StatsMetrics } from '@/api/endpoints/stats';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { useMemo } from 'react';
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+import { Area, AreaChart, CartesianGrid, Line, XAxis, YAxis } from 'recharts';
 import { useTranslations } from 'next-intl';
 import { formatCount, formatMoney } from '@/lib/utils';
 import { formatDateOnly } from '@/lib/time';
 import { AnimatedNumber } from '@/components/common/AnimatedNumber';
-import { Tabs, TabsList, TabsTrigger } from '@/components/animate-ui/components/animate/tabs';
 import { useHomeViewStore, type ChartMetricType, type ChartPeriod } from '@/components/modules/home/store';
 import { BarChart3, CalendarClock } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const METRIC_DATA_KEYS: Record<ChartMetricType, string> = {
+    cost: 'total_cost',
+    count: 'request_count',
+    tokens: 'total_token',
+    'success-rate': 'success_rate',
+};
 
 export function StatsChart() {
     const PERIODS: readonly ChartPeriod[] = ['1', '7', '30'];
@@ -18,8 +25,8 @@ export function StatsChart() {
     const { data: statsHourly } = useStatsHourly();
     const t = useTranslations('home.chart');
 
-    const chartMetricType = useHomeViewStore((state) => state.chartMetricType);
-    const setChartMetricType = useHomeViewStore((state) => state.setChartMetricType);
+    const chartMetrics = useHomeViewStore((state) => state.chartMetrics);
+    const toggleChartMetric = useHomeViewStore((state) => state.toggleChartMetric);
     const period = useHomeViewStore((state) => state.chartPeriod);
     const setChartPeriod = useHomeViewStore((state) => state.setChartPeriod);
 
@@ -28,47 +35,42 @@ export function StatsChart() {
         return [...statsDaily].sort((a, b) => a.date.localeCompare(b.date));
     }, [statsDaily]);
 
-    const getChartDataKey = (type: ChartMetricType) => {
-        if (type === 'cost') return 'total_cost';
-        if (type === 'count') return 'request_count';
-        if (type === 'success-rate') return 'success_rate';
-        return 'total_token';
+    const buildPointValue = (type: ChartMetricType, stat?: StatsMetrics): number => {
+        if (!stat) return 0;
+        if (type === 'cost') return stat.total_cost.raw;
+        if (type === 'success-rate') {
+            const total = stat.request_success.raw + stat.request_failed.raw;
+            return total > 0 ? (stat.request_success.raw / total) * 100 : 0;
+        }
+        if (type === 'count') return stat.request_count.raw;
+        return stat.input_token.raw + stat.output_token.raw;
     };
 
     const chartData = useMemo(() => {
-        const dataKey = getChartDataKey(chartMetricType);
         if (period === '1') {
             if (!statsHourly) return [];
-            return statsHourly.map((stat) => ({
-                date: `${stat.hour}:00`,
-                [dataKey]: chartMetricType === 'cost'
-                    ? stat.total_cost.raw
-                    : chartMetricType === 'success-rate'
-                        ? ((stat.request_success.raw + stat.request_failed.raw) > 0
-                            ? (stat.request_success.raw / (stat.request_success.raw + stat.request_failed.raw)) * 100
-                            : 0)
-                    : chartMetricType === 'count'
-                        ? stat.request_count.raw
-                        : (stat.input_token.raw + stat.output_token.raw),
-            }));
+            return statsHourly.map((stat) => {
+                const point: Record<string, number | string> = { date: `${stat.hour}:00` };
+                for (const type of chartMetrics) {
+                    point[METRIC_DATA_KEYS[type]] = buildPointValue(type, stat);
+                }
+                return point;
+            });
         } else {
             const days = Number(period);
-            return sortedDaily.slice(-days).map((stat) => ({
-                date: /^\d{8}$/.test(stat.date)
-                    ? `${stat.date.slice(4, 6)}/${stat.date.slice(6, 8)}`
-                    : formatDateOnly(stat.date, { month: '2-digit', day: '2-digit' }),
-                [dataKey]: chartMetricType === 'cost'
-                    ? stat.total_cost.raw
-                    : chartMetricType === 'success-rate'
-                        ? ((stat.request_success.raw + stat.request_failed.raw) > 0
-                            ? (stat.request_success.raw / (stat.request_success.raw + stat.request_failed.raw)) * 100
-                            : 0)
-                    : chartMetricType === 'count'
-                        ? (stat.request_success.raw + stat.request_failed.raw)
-                        : (stat.input_token.raw + stat.output_token.raw),
-            }));
+            return sortedDaily.slice(-days).map((stat) => {
+                const point: Record<string, number | string> = {
+                    date: /^\d{8}$/.test(stat.date)
+                        ? `${stat.date.slice(4, 6)}/${stat.date.slice(6, 8)}`
+                        : formatDateOnly(stat.date, { month: '2-digit', day: '2-digit' }),
+                };
+                for (const type of chartMetrics) {
+                    point[METRIC_DATA_KEYS[type]] = buildPointValue(type, stat);
+                }
+                return point;
+            });
         }
-    }, [sortedDaily, statsHourly, period, chartMetricType]);
+    }, [sortedDaily, statsHourly, period, chartMetrics]);
 
     const totals = useMemo(() => {
         if (period === '1') {
@@ -102,17 +104,18 @@ export function StatsChart() {
     }, [sortedDaily, statsHourly, period]);
 
     const chartConfig = useMemo(() => {
-        const dataKey = getChartDataKey(chartMetricType);
         const labels = {
             'total_cost': t('totalCost'),
             'request_count': t('totalRequests'),
             'total_token': t('totalTokens'),
             'success_rate': t('successRate'),
         };
-        return {
-            [dataKey]: { label: labels[dataKey] },
-        };
-    }, [chartMetricType, t]);
+        const config: Record<string, { label: string }> = {};
+        for (const type of chartMetrics) {
+            config[METRIC_DATA_KEYS[type]] = { label: labels[METRIC_DATA_KEYS[type] as keyof typeof labels] };
+        }
+        return config;
+    }, [chartMetrics, t]);
 
     const getPeriodLabel = (p: ChartPeriod) => {
         const labels = {
@@ -189,16 +192,31 @@ export function StatsChart() {
                             <span className="font-semibold">{getPeriodLabel(period)}</span>
                         </button>
                     </div>
-                    <Tabs value={chartMetricType} onValueChange={(value) => setChartMetricType(value as ChartMetricType)}>
-                        <div className="w-full overflow-x-auto sm:w-auto">
-                            <TabsList className="flex min-w-full flex-nowrap justify-center rounded-lg border border-border bg-card p-1 sm:min-w-0">
-                                <TabsTrigger value="cost" className="w-auto min-w-fit">{t('metricType.cost')}</TabsTrigger>
-                                <TabsTrigger value="count" className="w-auto min-w-fit">{t('metricType.count')}</TabsTrigger>
-                                <TabsTrigger value="tokens" className="w-auto min-w-fit">{t('metricType.tokens')}</TabsTrigger>
-                                <TabsTrigger value="success-rate" className="w-auto min-w-fit">{t('metricType.successRate')}</TabsTrigger>
-                            </TabsList>
-                        </div>
-                    </Tabs>
+                    <div className="flex flex-wrap gap-1.5" role="group" aria-label={t('title')}>
+                        {(['cost', 'count', 'tokens', 'success-rate'] as ChartMetricType[]).map((type) => {
+                            const active = chartMetrics.includes(type);
+                            return (
+                                <button
+                                    key={type}
+                                    type="button"
+                                    onClick={() => toggleChartMetric(type)}
+                                    aria-pressed={active}
+                                    className={cn(
+                                        'inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
+                                        active
+                                            ? 'border-primary/40 bg-primary/10 text-primary'
+                                            : 'border-border bg-card text-muted-foreground hover:text-foreground',
+                                    )}
+                                >
+                                    <span
+                                        className="h-2 w-2 rounded-full"
+                                        style={{ backgroundColor: getChartStroke(type) }}
+                                    />
+                                    {t(`metricType.${type === 'success-rate' ? 'successRate' : type}`)}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -243,12 +261,13 @@ export function StatsChart() {
                         tickLine={false}
                         axisLine={false}
                         tickFormatter={(value) => {
-                            if (chartMetricType === 'cost') {
+                            const primary = chartMetrics[0] ?? 'cost';
+                            if (primary === 'cost') {
                                 const formatted = formatMoney(value);
                                 return `${formatted.formatted.value}${formatted.formatted.unit}`;
-                            } else if (chartMetricType === 'success-rate') {
+                            } else if (primary === 'success-rate') {
                                 return `${value.toFixed(0)}%`;
-                            } else if (chartMetricType === 'count' || chartMetricType === 'tokens') {
+                            } else if (primary === 'count' || primary === 'tokens') {
                                 const formatted = formatCount(value);
                                 return `${formatted.formatted.value}${formatted.formatted.unit}`;
                             }
@@ -256,12 +275,26 @@ export function StatsChart() {
                         }}
                     />
                     <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
-                    <Area
-                        type="monotone"
-                        dataKey={getChartDataKey(chartMetricType)}
-                        stroke={getChartStroke(chartMetricType)}
-                        fill={getChartFill(chartMetricType)}
-                    />
+                    {chartMetrics.length === 1 ? (
+                        <Area
+                            type="monotone"
+                            dataKey={METRIC_DATA_KEYS[chartMetrics[0]]}
+                            stroke={getChartStroke(chartMetrics[0])}
+                            fill={getChartFill(chartMetrics[0])}
+                            strokeWidth={2}
+                        />
+                    ) : (
+                        chartMetrics.map((type) => (
+                            <Line
+                                key={type}
+                                type="monotone"
+                                dataKey={METRIC_DATA_KEYS[type]}
+                                stroke={getChartStroke(type)}
+                                strokeWidth={2}
+                                dot={false}
+                            />
+                        ))
+                    )}
                 </AreaChart>
                 </ChartContainer>
             </div>

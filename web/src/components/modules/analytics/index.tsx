@@ -23,7 +23,7 @@ const RANGE_OPTIONS: AnalyticsRange[] = ['1d', '7d', '30d', '90d', 'ytd', 'all']
 export function Analytics() {
     const t = useTranslations('analytics');
     const opsT = useTranslations('ops');
-    const [activeTab, setActiveTab] = useState<AnalyticsTab>('cache');
+    const [activeTab, setActiveTab] = useState<AnalyticsTab>('channel-model');
     const [range, setRange] = useState<AnalyticsRange>('7d');
     const { data: overview } = useAnalyticsOverview(range);
     const { data: evaluationData } = useAnalyticsEvaluationSummary();

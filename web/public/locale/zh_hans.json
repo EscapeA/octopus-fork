@@ -117,7 +117,8 @@
       "redemption": "兑换",
       "usage": "用量历史",
       "credential": "凭证",
-      "siteChannels": "站点渠道"
+      "siteChannels": "站点渠道",
+      "automation": "自动化"
     },
     "title": "远程站点",
     "addSite": "添加站点",
@@ -349,8 +350,8 @@
         "description": "统一承载请求量、Token、成本和覆盖范围等总览指标。"
       },
       "utilization": {
-        "title": "利用率",
-        "description": "按渠道、模型与密钥维度查看容量消耗和分布趋势。"
+        "title": "用量明细",
+        "description": "按所选时间窗聚合供应商、模型与密钥的用量分布。"
       },
       "routeHealth": {
         "title": "路由健康",
@@ -398,13 +399,14 @@
       "fallbackRate": "回退率"
     },
     "utilization": {
-      "description": "按供给源、模型和 API 密钥查看当前范围内的请求消耗分布。",
+      "description": "按供应商 / 模型 / API 密钥拆解请求次数、成功率、消耗金额与 Token。金额来自计费请求聚合，与首页图表的实时统计来源不同。",
       "providers": "供给源",
       "models": "模型",
       "apikeys": "API 密钥",
       "enabled": "启用",
       "disabled": "停用",
-      "empty": "当前范围内暂无利用率数据"
+      "empty": "当前范围内暂无用量数据",
+      "noBilling": "此时间窗内无计费数据"
     },
     "routeHealth": {
       "description": "结合当前分组成员状态和近 24 小时失败日志，优先把问题分组排在前面。",
@@ -441,6 +443,20 @@
       "failed": "次失败",
       "disabled": "已停用",
       "scopeAll": "全部分组"
+    },
+    "usageDistribution": {
+      "title": "用量分布占比",
+      "description": "按模型或渠道 × 模型维度查看请求次数、费用与 Token 的占比分布，快速识别高消耗项。",
+      "empty": "所选时间范围内暂无可用分布数据",
+      "others": "其它",
+      "total": "合计",
+      "byModel": "按模型",
+      "byChannelModel": "按渠道×模型",
+      "metric": {
+        "requests": "请求次数",
+        "cost": "费用",
+        "tokens": "Token"
+      }
     },
     "evaluation": {
       "title": "评估",
@@ -559,11 +575,13 @@
       "health": "健康",
       "system": "系统",
       "audit": "审计",
-      "telemetry": "遥测"
+      "telemetry": "遥测",
+      "maintenance": "维护"
     },
     "actions": {
       "openSettings": "前往设置",
-      "manageKeys": "前往设置管理"
+      "manageKeys": "前往设置管理",
+      "viewKeyDetail": "查看密钥详情"
     },
     "states": {
       "loading": "加载中...",
@@ -678,6 +696,9 @@
         "healthScore": "健康分",
         "failureCount": "近 24 小时失败",
         "noIssues": "当前没有高优先级风险分组。"
+      },
+      "actions": {
+        "viewRouteHealth": "查看路由健康详情"
       }
     },
     "system": {
@@ -793,6 +814,9 @@
       "drilldown": {
         "title": "快捷下钻"
       }
+    },
+    "maintenance": {
+      "description": "调整熔断器、重试与输出拦截策略，保障中继健壮性。修改即时生效。"
     }
   },
   "user": {
@@ -1795,7 +1819,8 @@
       "autoGroup": "自动分组",
       "aiRoute": "AI路由",
       "aiRouteGroup": "AI同步当前分组",
-      "aiRouteProgress": "查看进度"
+      "aiRouteProgress": "查看进度",
+      "maintenance": "维护"
     },
     "autoGroup": {
       "confirmTitle": "确认自动分组",
@@ -1949,7 +1974,16 @@
       "testAttempts": "已重试 {count} 次",
       "testUnknownError": "未知错误",
       "testRemovableHint": "你可以编辑该分组并移除上面这些模型。",
-      "endpointType": "API 分类：{value}"
+      "endpointType": "API 分类：{value}",
+      "healthScore": "健康分",
+      "healthLow": "风险"
+    },
+    "healthStatus": {
+      "healthy": "健康",
+      "warning": "波动",
+      "degraded": "降级",
+      "down": "不可用",
+      "empty": "空分组"
     },
     "detail": {
       "availability": {
@@ -2090,6 +2124,7 @@
     "loading": "加载模型广场中...",
     "empty": "当前没有匹配的模型",
     "emptyAll": "当前没有任何模型",
+    "marketTitle": "模型广场",
     "create": {
       "title": "创建模型",
       "name": "模型名称",
@@ -2654,5 +2689,23 @@
       "derivedReferences": "+{count} 个托管渠道"
     },
     "selectRequired": "请选择代理配置。"
+  },
+  "modelFilter": {
+    "capability": {
+      "chat": "对话",
+      "embeddings": "向量",
+      "rerank": "重排",
+      "moderations": "审核",
+      "image_generation": "图像",
+      "audio_speech": "语音合成",
+      "audio_transcription": "语音转写",
+      "video_generation": "视频",
+      "music_generation": "音乐",
+      "search": "搜索"
+    },
+    "provider": "厂商",
+    "all": "全部",
+    "dedupe": "归一化去重",
+    "dedupeHint": "合并同一基础模型的不同命名变体（如 kimi-k2.5、moonshotai/kimi-k2.5、dmxapi-kimi-k2.5-cc）。"
   }
 }

@@ -13,6 +13,7 @@ import { ObservatorySection, QueryState, formatPercent } from './shared';
 import { formatCount, formatMoney, cn } from '@/lib/utils';
 import { useNavStore } from '@/components/modules/navbar/nav-store';
 import { useNavHandoff } from '@/lib/nav-handoff';
+import { UsageDistribution } from './UsageDistribution';
 
 function successRateClass(rate: number) {
     if (rate < 50) return 'text-destructive';
@@ -93,48 +94,51 @@ export function ChannelModel({ range }: { range: AnalyticsRange }) {
     };
 
     return (
-        <ObservatorySection
-            eyebrow={t('cards.channelModel.title')}
-            title={t('cards.channelModel.title')}
-            description={t('channelModel.description')}
-            icon={Boxes}
-            actions={
-                <div className="flex items-center gap-2">
-                    <label className="text-xs text-muted-foreground">{t('channelModel.scopeAll')}</label>
-                    <select
-                        value={groupId ?? ''}
-                        onChange={(e) => {
-                            const v = e.target.value;
-                            setGroupId(v === '' ? undefined : Number(v));
-                        }}
-                        className="h-7 rounded-md border border-border/50 bg-background px-2 text-xs outline-none focus:border-primary/30"
-                    >
-                        <option value="">{t('channelModel.scopeAll')}</option>
-                        {groups.map((g) => (
-                            <option key={g.id} value={g.id}>
-                                {g.name}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-            }
-        >
-            <QueryState
-                loading={isLoading}
-                error={error}
-                empty={!data || data.length === 0}
-                emptyLabel={isLoading ? t('states.loading') : t('channelModel.empty')}
+        <div className="space-y-4">
+            <UsageDistribution range={range} />
+            <ObservatorySection
+                eyebrow={t('cards.channelModel.title')}
+                title={t('cards.channelModel.title')}
+                description={t('channelModel.description')}
+                icon={Boxes}
+                actions={
+                    <div className="flex items-center gap-2">
+                        <label className="text-xs text-muted-foreground">{t('channelModel.scopeAll')}</label>
+                        <select
+                            value={groupId ?? ''}
+                            onChange={(e) => {
+                                const v = e.target.value;
+                                setGroupId(v === '' ? undefined : Number(v));
+                            }}
+                            className="h-7 rounded-md border border-border/50 bg-background px-2 text-xs outline-none focus:border-primary/30"
+                        >
+                            <option value="">{t('channelModel.scopeAll')}</option>
+                            {groups.map((g) => (
+                                <option key={g.id} value={g.id}>
+                                    {g.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                }
             >
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    {(data ?? []).map((item) => (
-                        <ChannelModelRow
-                            key={`${item.channel_id}-${item.model_name}`}
-                            item={item}
-                            onViewLogs={onViewLogs}
-                        />
-                    ))}
-                </div>
-            </QueryState>
-        </ObservatorySection>
+                <QueryState
+                    loading={isLoading}
+                    error={error}
+                    empty={!data || data.length === 0}
+                    emptyLabel={isLoading ? t('states.loading') : t('channelModel.empty')}
+                >
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        {(data ?? []).map((item) => (
+                            <ChannelModelRow
+                                key={`${item.channel_id}-${item.model_name}`}
+                                item={item}
+                                onViewLogs={onViewLogs}
+                            />
+                        ))}
+                    </div>
+                </QueryState>
+            </ObservatorySection>
+        </div>
     );
 }

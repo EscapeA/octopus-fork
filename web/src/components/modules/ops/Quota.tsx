@@ -121,6 +121,19 @@ export function Quota() {
                                             </div>
                                         </div>
                                     <div className="rounded-lg border border-border/40 bg-card p-3">
+                                        <div className="text-xs text-muted-foreground">{t('quota.fields.totalTokens')}</div>
+                                            <div className="mt-2 text-sm font-semibold">
+                                                {formatCount(item.total_tokens).formatted.value}
+                                                {formatCount(item.total_tokens).formatted.unit}
+                                            </div>
+                                        </div>
+                                    <div className="rounded-lg border border-border/40 bg-card p-3">
+                                        <div className="text-xs text-muted-foreground">{t('quota.fields.successRate')}</div>
+                                            <div className="mt-2 text-sm font-semibold">
+                                                {item.success_rate.toFixed(1)}%
+                                            </div>
+                                        </div>
+                                    <div className="rounded-lg border border-border/40 bg-card p-3">
                                         <div className="text-xs text-muted-foreground">{t('quota.fields.rpm')}</div>
                                             <div className="mt-2 text-sm font-semibold">{item.rate_limit_rpm || '-'}</div>
                                         </div>
@@ -130,9 +143,16 @@ export function Quota() {
                                         </div>
                                     </div>
 
-                                    <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                    <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                                         <span>{t('quota.fields.supportedModels')}: {item.supported_model_count || '-'}</span>
                                         <span>{t('quota.fields.perModelQuota')}: {item.has_per_model_quota ? t('system.fields.enabled') : t('system.fields.disabled')}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setActiveItem('apikey')}
+                                            className="ml-auto rounded-md border border-border/50 bg-card px-2 py-1 text-xs font-medium text-foreground transition-colors hover:border-primary/30 hover:text-primary"
+                                        >
+                                            {t('quota.actions.viewKeyDetail')}
+                                        </button>
                                     </div>
                                 </article>
                             ))}

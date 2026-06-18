@@ -113,7 +113,7 @@ func TestSendGroupProbeRequest_EmbeddingsUseEmbeddingPayload(t *testing.T) {
 		BaseUrls: []appmodel.BaseUrl{{URL: server.URL}},
 	}
 
-	statusCode, responseText, err := sendGroupProbeRequest(
+	statusCode, responseText, internalResp, err := sendGroupProbeRequest(
 		context.Background(),
 		outbound.Get(outbound.OutboundTypeOpenAIEmbedding),
 		channel,
@@ -129,6 +129,50 @@ func TestSendGroupProbeRequest_EmbeddingsUseEmbeddingPayload(t *testing.T) {
 	}
 	if responseText == "" {
 		t.Fatal("sendGroupProbeRequest() responseText = empty, want upstream payload")
+	}
+	if internalResp == nil {
+		t.Fatal("sendGroupProbeRequest() internalResp = nil, want parsed response (issue #90)")
+	}
+}
+
+// TestSendGroupProbeRequest_ChatResponseUsageParsed 验证 issue #90 的修复：
+// chat 探测成功后，上游返回的 usage 必须被解析到 InternalLLMResponse.Usage，
+// 使 recordTestLog 能回填 InputTokens/OutputTokens/Cost（不再显示为「未知」）。
+func TestSendGroupProbeRequest_ChatResponseUsageParsed(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		// OpenAI chat completion 响应，含 usage。
+		_, _ = w.Write([]byte(`{"id":"chatcmpl-1","object":"chat.completion","created":1,"model":"gpt-4o-mini","choices":[{"index":0,"message":{"role":"assistant","content":"hi"},"finish_reason":"stop"}],"usage":{"prompt_tokens":5,"completion_tokens":2,"total_tokens":7}}`))
+	}))
+	defer server.Close()
+
+	channel := &appmodel.Channel{
+		Type:     outbound.OutboundTypeOpenAIChat,
+		BaseUrls: []appmodel.BaseUrl{{URL: server.URL}},
+	}
+
+	statusCode, _, internalResp, err := sendGroupProbeRequest(
+		context.Background(),
+		outbound.Get(outbound.OutboundTypeOpenAIChat),
+		channel,
+		"sk-test",
+		appmodel.EndpointTypeChat,
+		"gpt-4o-mini",
+	)
+	if err != nil {
+		t.Fatalf("sendGroupProbeRequest() error = %v", err)
+	}
+	if statusCode != http.StatusOK {
+		t.Fatalf("sendGroupProbeRequest() status = %d, want 200", statusCode)
+	}
+	if internalResp == nil || internalResp.Usage == nil {
+		t.Fatal("sendGroupProbeRequest() usage not parsed, want non-nil Usage (issue #90)")
+	}
+	if internalResp.Usage.PromptTokens != 5 {
+		t.Fatalf("prompt_tokens = %d, want 5", internalResp.Usage.PromptTokens)
+	}
+	if internalResp.Usage.CompletionTokens != 2 {
+		t.Fatalf("completion_tokens = %d, want 2", internalResp.Usage.CompletionTokens)
 	}
 }
 

@@ -27,6 +27,7 @@ import {
     type GroupUpdateRequest,
 } from '@/api/endpoints/group';
 import { useModelChannelList } from '@/api/endpoints/model';
+import { useAnalyticsGroupHealth } from '@/api/endpoints/analytics';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/common/Toast';
@@ -336,6 +337,11 @@ export function GroupListItem({ group }: { group: Group }) {
     const testGroup = useTestGroup();
     const testDraftGroup = useTestDraftGroup();
     const { data: modelChannels = [] } = useModelChannelList();
+    const { data: groupHealthList = [] } = useAnalyticsGroupHealth();
+    const health = useMemo(
+        () => groupHealthList.find((h) => h.group_id === group.id),
+        [groupHealthList, group.id],
+    );
 
     const [expanded, setExpanded] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -964,6 +970,36 @@ export function GroupListItem({ group }: { group: Group }) {
 
                 {/* Right: status + chevron */}
                 <div className="flex shrink-0 items-center gap-2">
+                    {/* Route health badge */}
+                    {health && health.status !== 'healthy' && (
+                        <Tooltip side="top" sideOffset={8} align="center">
+                            <TooltipTrigger asChild>
+                                <span
+                                    className={cn(
+                                        'inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold',
+                                        health.status === 'down'
+                                            ? 'border-destructive/20 bg-destructive/10 text-destructive'
+                                            : health.status === 'degraded'
+                                              ? 'border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                              : 'border-border/40 bg-muted/40 text-muted-foreground',
+                                    )}
+                                >
+                                    {health.status === 'down' ? (
+                                        <CircleX className="size-3" />
+                                    ) : (
+                                        <AlertTriangle className="size-3" />
+                                    )}
+                                    {health.failure_count > 0
+                                        ? health.failure_count
+                                        : t('card.healthLow')}
+                                </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                {t('card.healthScore')}: {health.health_score} · {t(`healthStatus.${health.status}`)}
+                            </TooltipContent>
+                        </Tooltip>
+                    )}
+
                     {/* Status indicator */}
                     <div
                         onClick={(e) => e.stopPropagation()}

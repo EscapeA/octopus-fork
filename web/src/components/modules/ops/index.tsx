@@ -7,10 +7,11 @@ import { Tabs, TabsContents, TabsContent, TabsList, TabsTrigger } from '@/compon
 import { Telemetry } from './Telemetry';
 import { Quota } from './Quota';
 import { Health } from './Health';
+import { Maintenance } from './Maintenance';
 import { System } from './System';
 import { Audit } from './Audit';
 
-type OpsTab = 'telemetry' | 'quota' | 'health' | 'system' | 'audit';
+type OpsTab = 'telemetry' | 'quota' | 'health' | 'maintenance' | 'system' | 'audit';
 
 export function Ops() {
     const t = useTranslations('ops');
@@ -25,6 +26,7 @@ export function Ops() {
                             <TabsTrigger value="telemetry">{t('tabs.telemetry')}</TabsTrigger>
                             <TabsTrigger value="quota">{t('tabs.quota')}</TabsTrigger>
                             <TabsTrigger value="health">{t('tabs.health')}</TabsTrigger>
+                            <TabsTrigger value="maintenance">{t('tabs.maintenance')}</TabsTrigger>
                             <TabsTrigger value="system">{t('tabs.system')}</TabsTrigger>
                             <TabsTrigger value="audit">{t('tabs.audit')}</TabsTrigger>
                         </TabsList>
@@ -40,6 +42,9 @@ export function Ops() {
                     </TabsContent>
                     <TabsContent value="health">
                         <Health />
+                    </TabsContent>
+                    <TabsContent value="maintenance">
+                        <Maintenance />
                     </TabsContent>
                     <TabsContent value="system">
                         <System />

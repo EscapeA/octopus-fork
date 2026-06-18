@@ -10,7 +10,11 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { Input } from '@/components/ui/input';
 import { getModelIcon } from '@/lib/model-icons';
 import { cn } from '@/lib/utils';
-import { AUTO_ENDPOINT, buildEndpointGroups, type EndpointGroup } from './endpoint-grouping';
+import {
+    AUTO_ENDPOINT,
+    buildEndpointGroups,
+    type EndpointGroup,
+} from '@/components/modules/apikey/endpoint-grouping';
 
 function ModelChip({ name }: { name: string }) {
     const { Avatar } = getModelIcon(name);
@@ -93,7 +97,7 @@ function EndpointCard({
     );
 }
 
-export function EndpointsPanel() {
+export function EndpointsView() {
     const t = useTranslations('endpoints');
     const tCapability = useTranslations('group.form.endpointType.options');
     const { data: capabilities, isLoading, error, refetch } = useModelCapabilities();

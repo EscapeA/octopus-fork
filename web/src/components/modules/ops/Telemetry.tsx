@@ -1,8 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import {
     Activity,
+    ArrowDown,
     ArrowRight,
+    ArrowUp,
+    ArrowUpDown,
     Braces,
     Cpu,
     Database,
@@ -196,7 +200,15 @@ function PromptCache({ cache }: { cache: OpsTelemetryPromptCache }) {
     );
 }
 
-function ProviderRow({ provider }: { provider: OpsTelemetryProviderItem }) {
+function ProviderRow({
+    provider,
+    maxLatency,
+    maxRequests,
+}: {
+    provider: OpsTelemetryProviderItem;
+    maxLatency: number;
+    maxRequests: number;
+}) {
     const t = useTranslations('ops');
     const statusTone = provider.health_status === 'healthy'
         ? 'success'
@@ -205,6 +217,10 @@ function ProviderRow({ provider }: { provider: OpsTelemetryProviderItem }) {
             : provider.health_status === 'down'
                 ? 'danger'
                 : 'neutral';
+
+    const latencyPct = maxLatency > 0 ? Math.min(100, (provider.average_latency_ms / maxLatency) * 100) : 0;
+    const requestsPct = maxRequests > 0 ? Math.min(100, (provider.request_count / maxRequests) * 100) : 0;
+    const successPct = Math.min(100, Math.max(0, provider.success_rate));
 
     return (
         <tr className="border-b border-border/40 align-top last:border-0">
@@ -222,17 +238,58 @@ function ProviderRow({ provider }: { provider: OpsTelemetryProviderItem }) {
                     tone={statusTone}
                 />
             </td>
-            <td className="py-3 px-3 text-right">
-                <div className="text-sm font-medium tabular-nums">{provider.average_latency_ms.toFixed(0)} ms</div>
+            <td className="py-3 px-3">
+                <div className="flex items-center justify-end gap-2">
+                    <div className="hidden h-1.5 w-16 overflow-hidden rounded-full bg-muted/60 sm:block">
+                        <div className="h-full bg-amber-500/70" style={{ width: `${latencyPct}%` }} />
+                    </div>
+                    <div className="text-sm font-medium tabular-nums">{provider.average_latency_ms.toFixed(0)} ms</div>
+                </div>
             </td>
-            <td className="py-3 px-3 text-right">
-                <div className="text-sm font-medium tabular-nums">{formatCount(provider.request_count)}</div>
+            <td className="py-3 px-3">
+                <div className="flex items-center justify-end gap-2">
+                    <div className="hidden h-1.5 w-16 overflow-hidden rounded-full bg-muted/60 sm:block">
+                        <div className="h-full bg-primary/70" style={{ width: `${requestsPct}%` }} />
+                    </div>
+                    <div className="text-sm font-medium tabular-nums">{formatCount(provider.request_count)}</div>
+                </div>
             </td>
-            <td className="px-3 py-3 text-right">
-                <div className="text-sm font-semibold tabular-nums">{formatTelemetryPercent(provider.success_rate)}</div>
+            <td className="px-3 py-3">
+                <div className="flex items-center justify-end gap-2">
+                    <div className="hidden h-1.5 w-16 overflow-hidden rounded-full bg-muted/60 sm:block">
+                        <div className="h-full bg-emerald-500/70" style={{ width: `${successPct}%` }} />
+                    </div>
+                    <div className="text-sm font-semibold tabular-nums">{formatTelemetryPercent(provider.success_rate)}</div>
+                </div>
             </td>
         </tr>
     );
+}
+
+type ProviderSortKey = 'name' | 'status' | 'latency' | 'requests' | 'success_rate';
+type ProviderSortOrder = 'asc' | 'desc';
+
+const PROVIDER_STATUS_RANK: Record<string, number> = {
+    down: 0,
+    degraded: 1,
+    warning: 2,
+    disabled: 3,
+    healthy: 4,
+};
+
+function compareProviders(a: OpsTelemetryProviderItem, b: OpsTelemetryProviderItem, key: ProviderSortKey): number {
+    switch (key) {
+        case 'name':
+            return a.channel_name.localeCompare(b.channel_name);
+        case 'status':
+            return (PROVIDER_STATUS_RANK[a.health_status] ?? 99) - (PROVIDER_STATUS_RANK[b.health_status] ?? 99);
+        case 'latency':
+            return a.average_latency_ms - b.average_latency_ms;
+        case 'requests':
+            return a.request_count - b.request_count;
+        case 'success_rate':
+            return a.success_rate - b.success_rate;
+    }
 }
 
 function ProviderHealthTable({
@@ -242,6 +299,44 @@ function ProviderHealthTable({
 }) {
     const t = useTranslations('ops');
     const providers = ph.providers ?? [];
+    const [sortKey, setSortKey] = useState<ProviderSortKey>('name');
+    const [sortOrder, setSortOrder] = useState<ProviderSortOrder>('asc');
+
+    const handleSort = (key: ProviderSortKey) => {
+        if (sortKey === key) {
+            setSortOrder((order) => (order === 'asc' ? 'desc' : 'asc'));
+        } else {
+            setSortKey(key);
+            setSortOrder(key === 'name' || key === 'status' ? 'asc' : 'desc');
+        }
+    };
+
+    const sortedProviders = [...providers].sort((a, b) => {
+        const cmp = compareProviders(a, b, sortKey);
+        return sortOrder === 'asc' ? cmp : -cmp;
+    });
+
+    const maxLatency = providers.reduce((acc, p) => Math.max(acc, p.average_latency_ms), 0);
+    const maxRequests = providers.reduce((acc, p) => Math.max(acc, p.request_count), 0);
+
+    const renderHeader = (key: ProviderSortKey, label: string, align: 'left' | 'right') => {
+        const active = sortKey === key;
+        const Icon = active ? (sortOrder === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
+        return (
+            <th className={`py-2.5 px-3 text-xs font-medium ${align === 'right' ? 'text-right' : 'text-left'}`}>
+                <button
+                    type="button"
+                    onClick={() => handleSort(key)}
+                    className={`inline-flex items-center gap-1 rounded transition-colors ${active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'} ${align === 'right' ? 'flex-row-reverse' : ''}`}
+                    aria-label={`Sort by ${label}`}
+                >
+                    <span>{label}</span>
+                    <Icon className="h-3 w-3" />
+                </button>
+            </th>
+        );
+    };
+
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -257,26 +352,21 @@ function ProviderHealthTable({
                     <table className="w-full min-w-[640px] text-left">
                         <thead>
                             <tr className="border-b border-border/40 bg-muted/30">
-                                <th className="py-2.5 px-3 text-xs font-medium text-muted-foreground">
-                                    {t('telemetry.provider_health.name')}
-                                </th>
-                                <th className="py-2.5 px-3 text-xs font-medium text-muted-foreground">
-                                    {t('telemetry.provider_health.status')}
-                                </th>
-                                <th className="py-2.5 px-3 text-xs font-medium text-muted-foreground text-right">
-                                    {t('telemetry.provider_health.latency')}
-                                </th>
-                                <th className="py-2.5 px-3 text-xs font-medium text-muted-foreground text-right">
-                                    {t('telemetry.provider_health.requests')}
-                                </th>
-                                <th className="py-2.5 px-3 text-xs font-medium text-muted-foreground text-right">
-                                    {t('telemetry.provider_health.success_rate')}
-                                </th>
+                                {renderHeader('name', t('telemetry.provider_health.name'), 'left')}
+                                {renderHeader('status', t('telemetry.provider_health.status'), 'left')}
+                                {renderHeader('latency', t('telemetry.provider_health.latency'), 'right')}
+                                {renderHeader('requests', t('telemetry.provider_health.requests'), 'right')}
+                                {renderHeader('success_rate', t('telemetry.provider_health.success_rate'), 'right')}
                             </tr>
                         </thead>
                         <tbody>
-                            {providers.map((p) => (
-                                <ProviderRow key={p.channel_id} provider={p} />
+                            {sortedProviders.map((p) => (
+                                <ProviderRow
+                                    key={p.channel_id}
+                                    provider={p}
+                                    maxLatency={maxLatency}
+                                    maxRequests={maxRequests}
+                                />
                             ))}
                         </tbody>
                     </table>

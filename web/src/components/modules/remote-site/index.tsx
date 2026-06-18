@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Plus } from 'lucide-react';
 import { PageWrapper } from '@/components/common/PageWrapper';
@@ -8,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContents, TabsContent, TabsList, TabsTrigger } from '@/components/animate-ui/components/animate/tabs';
 import { Site } from '@/components/modules/site';
 import { SiteChannelSection } from '@/components/modules/site-channel';
+import { SettingSiteAutomation } from '@/components/modules/setting/SiteAutomation';
 import { useHubTabStore, type HubTab } from './hub-tab-store';
 import { useSiteUIStore } from '@/components/modules/site/ui-store';
 
@@ -25,6 +25,7 @@ export function RemoteSite() {
                             <TabsList className="w-max min-w-full xl:min-w-0">
                                 <TabsTrigger value="sites">{t('tabs.sites')}</TabsTrigger>
                                 <TabsTrigger value="site-channels">{t('tabs.siteChannels')}</TabsTrigger>
+                                <TabsTrigger value="automation">{t('tabs.automation')}</TabsTrigger>
                             </TabsList>
                         </div>
                         {activeTab === 'sites' && (
@@ -46,6 +47,13 @@ export function RemoteSite() {
                     </TabsContent>
                     <TabsContent value="site-channels">
                         {activeTab === 'site-channels' ? <SiteChannelSection /> : <div />}
+                    </TabsContent>
+                    <TabsContent value="automation">
+                        {activeTab === 'automation' ? (
+                            <div className="mx-auto max-w-2xl">
+                                <SettingSiteAutomation />
+                            </div>
+                        ) : <div />}
                     </TabsContent>
                 </TabsContents>
             </Tabs>

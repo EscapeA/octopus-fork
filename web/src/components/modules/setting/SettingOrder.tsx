@@ -20,19 +20,13 @@ export type SettingItemId =
     | 'auto-strategy'
     | 'account'
     | 'semantic-cache'
-    | 'retry'
     | 'log'
     | 'info'
     | 'system'
     | 'llmsync'
-    | 'circuit-breaker'
-    | 'response-filter'
     | 'backup'
     | 'webdav'
-    | 'webauthn'
-    | 'purge-unavailable'
-    | 'site-automation'
-    | 'route-group-danger';
+    | 'webauthn';
 
 export const DEFAULT_SETTING_ORDER: SettingItemId[] = [
     'info',
@@ -41,18 +35,12 @@ export const DEFAULT_SETTING_ORDER: SettingItemId[] = [
     'auto-strategy',
     'account',
     'semantic-cache',
-    'retry',
     'log',
     'system',
     'llmsync',
-    'circuit-breaker',
-    'response-filter',
     'backup',
     'webdav',
     'webauthn',
-    'purge-unavailable',
-    'site-automation',
-    'route-group-danger',
 ];
 
 export const SETTING_ORDER_STORAGE_KEY = 'octopus-setting-order';
@@ -118,19 +106,13 @@ export function SettingOrder() {
             'auto-strategy': settingT('autoStrategy.title'),
             account: settingT('account.title'),
             'semantic-cache': settingT('semanticCache.title'),
-            retry: settingT('retry.title'),
             log: settingT('log.title'),
             info: settingT('info.title'),
             system: settingT('system'),
             llmsync: settingT('llmSync.title'),
-            'circuit-breaker': settingT('circuitBreaker.title'),
-            'response-filter': settingT('responseFilter.title'),
             backup: settingT('backup.title'),
             webdav: settingT('webdav.title'),
             webauthn: settingT('webauthn.title'),
-            'purge-unavailable': settingT('purgeUnavailable.title'),
-            'site-automation': settingT('siteAutomation.title'),
-            'route-group-danger': settingT('routeGroups.title'),
         };
         return map;
     }, [settingT]);

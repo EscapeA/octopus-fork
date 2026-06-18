@@ -14,7 +14,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/lingyuins/octopus/internal/conf"
 	appmodel "github.com/lingyuins/octopus/internal/model"
+	"github.com/lingyuins/octopus/internal/op/cacheusage"
 	"github.com/lingyuins/octopus/internal/op/relaylog"
+	"github.com/lingyuins/octopus/internal/price"
 	transmodel "github.com/lingyuins/octopus/internal/transformer/model"
 	"github.com/lingyuins/octopus/internal/transformer/outbound"
 	"github.com/lingyuins/octopus/internal/utils/log"
@@ -331,33 +333,33 @@ func testGroupModelItem(ctx context.Context, endpointType string, item appmodel.
 	channel, ok := channels[item.ChannelID]
 	if !ok {
 		result.Message = "channel not found"
-		recordTestLog(ctx, endpointType, item, result, channel, nil, 0, nil)
+		recordTestLog(ctx, endpointType, item, result, channel, nil, 0, nil, nil)
 		return result
 	}
 	result.ChannelName = channel.Name
 	if !channel.Enabled {
 		result.Message = "channel disabled"
-		recordTestLog(ctx, endpointType, item, result, channel, nil, 0, nil)
+		recordTestLog(ctx, endpointType, item, result, channel, nil, 0, nil, nil)
 		return result
 	}
 
 	usedKey := channel.GetChannelKey()
 	if strings.TrimSpace(usedKey.ChannelKey) == "" {
 		result.Message = "no available key"
-		recordTestLog(ctx, endpointType, item, result, channel, nil, 0, nil)
+		recordTestLog(ctx, endpointType, item, result, channel, nil, 0, nil, nil)
 		return result
 	}
 
 	outAdapter := outbound.Get(channel.Type)
 	if outAdapter == nil {
 		result.Message = fmt.Sprintf("unsupported channel type: %d", channel.Type)
-		recordTestLog(ctx, endpointType, item, result, channel, nil, 0, nil)
+		recordTestLog(ctx, endpointType, item, result, channel, nil, 0, nil, nil)
 		return result
 	}
 
 	if err := validateGroupProbeChannelType(endpointType, channel.Type); err != nil {
 		result.Message = err.Error()
-		recordTestLog(ctx, endpointType, item, result, channel, nil, 0, nil)
+		recordTestLog(ctx, endpointType, item, result, channel, nil, 0, nil, nil)
 		return result
 	}
 
@@ -370,6 +372,7 @@ func testGroupModelItem(ctx context.Context, endpointType string, item appmodel.
 
 	startTime := time.Now()
 	var logAttempts []appmodel.ChannelAttempt
+	var lastInternalResp *transmodel.InternalLLMResponse
 
 	for attempt := 1; attempt <= 3; attempt++ {
 		if attempt > 1 && ctx.Err() != nil {
@@ -377,11 +380,14 @@ func testGroupModelItem(ctx context.Context, endpointType string, item appmodel.
 			break
 		}
 		attemptStart := time.Now()
-		statusCode, responseText, err := sendGroupProbeRequest(ctx, outAdapter, &channel, usedKey.ChannelKey, endpointType, item.ModelName)
+		statusCode, responseText, internalResp, err := sendGroupProbeRequest(ctx, outAdapter, &channel, usedKey.ChannelKey, endpointType, item.ModelName)
 		attemptDuration := int(time.Since(attemptStart).Milliseconds())
 
 		result.StatusCode = statusCode
 		result.ResponseText = responseText
+		if internalResp != nil {
+			lastInternalResp = internalResp
+		}
 
 		attemptStatus := appmodel.AttemptFailed
 		attemptMsg := result.Message
@@ -413,14 +419,16 @@ func testGroupModelItem(ctx context.Context, endpointType string, item appmodel.
 	}
 
 	useTimeMs := int(time.Since(startTime).Milliseconds())
-	recordTestLog(ctx, endpointType, item, result, channel, logAttempts, useTimeMs, requestJSON)
+	recordTestLog(ctx, endpointType, item, result, channel, logAttempts, useTimeMs, requestJSON, lastInternalResp)
 
 	return result
 }
 
 // recordTestLog 将分组模型测试结果记录到日志系统（issue #82：测试模型可显示日志）。
 // 测试日志以 is_test=true 标记，与正常转发日志区分；RequestAPIKeyName 设为 "[test]"。
-func recordTestLog(ctx context.Context, endpointType string, item appmodel.GroupItem, result GroupModelTestResult, channel appmodel.Channel, attempts []appmodel.ChannelAttempt, useTimeMs int, requestJSON []byte) {
+// issue #90：从上游响应解析 usage 并回填 InputTokens/OutputTokens/CacheReadTokens/Cost，
+// 使测试日志的输入/输出/费用不再显示为「未知」。
+func recordTestLog(ctx context.Context, endpointType string, item appmodel.GroupItem, result GroupModelTestResult, channel appmodel.Channel, attempts []appmodel.ChannelAttempt, useTimeMs int, requestJSON []byte, internalResp *transmodel.InternalLLMResponse) {
 	normalizedEndpointType := appmodel.NormalizeEndpointType(endpointType)
 
 	channelID := channel.ID
@@ -455,6 +463,39 @@ func recordTestLog(ctx context.Context, endpointType string, item appmodel.Group
 		relayLog.Error = result.Message
 	}
 
+	// Usage / Cost：复用正常转发流程的计算口径（见 relay/metrics.go SetInternalResponse）。
+	// 测试请求不累加到全站统计，只落日志，因此这里仅填充日志字段，不调用 stats.*Update。
+	if internalResp != nil && internalResp.Usage != nil {
+		usage := internalResp.Usage
+		relayLog.InputTokens = int(usage.PromptTokens)
+		relayLog.OutputTokens = int(usage.CompletionTokens)
+
+		modelPrice := price.GetLLMPrice(item.ModelName)
+		if modelPrice != nil {
+			if usage.PromptTokensDetails == nil {
+				usage.PromptTokensDetails = &transmodel.PromptTokensDetails{
+					CachedTokens: 0,
+				}
+			}
+			var inputCost float64
+			if usage.AnthropicUsage {
+				inputCost = (float64(usage.PromptTokensDetails.CachedTokens)*modelPrice.CacheRead +
+					float64(usage.PromptTokens)*modelPrice.Input +
+					float64(usage.CacheCreationInputTokens)*modelPrice.CacheWrite) * 1e-6
+			} else {
+				inputCost = (float64(usage.PromptTokensDetails.CachedTokens)*modelPrice.CacheRead +
+					float64(usage.PromptTokens-usage.PromptTokensDetails.CachedTokens)*modelPrice.Input) * 1e-6
+			}
+			outputCost := float64(usage.CompletionTokens) * modelPrice.Output * 1e-6
+			relayLog.Cost = inputCost + outputCost
+		}
+
+		// 提供方提示缓存命中 Token（与正常日志一致，从响应内容解析）。
+		if !relayLog.SemanticCacheHit {
+			relayLog.CacheReadTokens = opRelayLogCacheReadTokens(relayLog.ResponseContent)
+		}
+	}
+
 	if logErr := relaylog.RelayLogAdd(ctx, relayLog); logErr != nil {
 		log.Warnf("failed to save test log: %v", logErr)
 	}
@@ -466,6 +507,17 @@ func recordTestLog(ctx context.Context, endpointType string, item appmodel.Group
 			log.Warnf("failed to save test log attempts: %v", attemptsErr)
 		}
 	}
+}
+
+// opRelayLogCacheReadTokens 与 internal/relay/metrics.go 中的同名实现一致，
+// 从响应内容解析提供方提示缓存命中 Token。helper 包不能 import internal/relay（会循环），
+// 故在此内联一份等价实现。
+func opRelayLogCacheReadTokens(responseContent string) int {
+	signals, ok := cacheusage.ParseProviderPromptCacheUsageSignals(responseContent)
+	if !ok || signals.SemanticCacheHit || signals.CachedTokens <= 0 {
+		return 0
+	}
+	return int(signals.CachedTokens)
 }
 
 func appendGroupTestResult(summary *GroupModelTestSummary, progress *GroupModelTestProgress, result GroupModelTestResult) {
@@ -527,24 +579,24 @@ func cloneGroupModelProgress(progress *GroupModelTestProgress) GroupModelTestPro
 	return cloned
 }
 
-func sendGroupProbeRequest(ctx context.Context, outAdapter transmodel.Outbound, channel *appmodel.Channel, key, endpointType, modelName string) (int, string, error) {
+func sendGroupProbeRequest(ctx context.Context, outAdapter transmodel.Outbound, channel *appmodel.Channel, key, endpointType, modelName string) (int, string, *transmodel.InternalLLMResponse, error) {
 	if channel == nil {
-		return 0, "", fmt.Errorf("channel is nil")
+		return 0, "", nil, fmt.Errorf("channel is nil")
 	}
 
 	httpClient, err := ChannelHttpClient(channel)
 	if err != nil {
-		return 0, "", err
+		return 0, "", nil, err
 	}
 
 	probeRequest, err := buildGroupProbeRequest(endpointType, modelName)
 	if err != nil {
-		return 0, "", err
+		return 0, "", nil, err
 	}
 
 	req, err := outAdapter.TransformRequest(ctx, probeRequest, channel.GetNormalizedBaseUrl(), key)
 	if err != nil {
-		return 0, "", err
+		return 0, "", nil, err
 	}
 
 	for _, header := range channel.CustomHeader {
@@ -555,7 +607,7 @@ func sendGroupProbeRequest(ctx context.Context, outAdapter transmodel.Outbound, 
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return 0, "", err
+		return 0, "", nil, err
 	}
 	defer resp.Body.Close()
 
@@ -565,20 +617,21 @@ func sendGroupProbeRequest(ctx context.Context, outAdapter transmodel.Outbound, 
 		if bodyText == "" {
 			bodyText = resp.Status
 		}
-		return resp.StatusCode, bodyText, fmt.Errorf("upstream error: %d", resp.StatusCode)
+		return resp.StatusCode, bodyText, nil, fmt.Errorf("upstream error: %d", resp.StatusCode)
 	}
 
-	if _, err := outAdapter.TransformResponse(ctx, &http.Response{
+	internalResp, err := outAdapter.TransformResponse(ctx, &http.Response{
 		Status:        resp.Status,
 		StatusCode:    resp.StatusCode,
 		Header:        resp.Header.Clone(),
 		Body:          io.NopCloser(strings.NewReader(bodyText)),
 		ContentLength: int64(len(bodyText)),
-	}); err != nil {
-		return resp.StatusCode, bodyText, err
+	})
+	if err != nil {
+		return resp.StatusCode, bodyText, nil, err
 	}
 
-	return resp.StatusCode, bodyText, nil
+	return resp.StatusCode, bodyText, internalResp, nil
 }
 
 func buildGroupProbeRequest(endpointType, modelName string) (*transmodel.InternalLLMRequest, error) {

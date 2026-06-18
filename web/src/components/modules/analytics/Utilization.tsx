@@ -15,13 +15,16 @@ function BreakdownCard({
     items,
     getName,
     getMeta,
+    noBillingHint,
 }: {
     title: string;
     icon: typeof Radio;
     items: BreakdownItem[];
     getName: (item: BreakdownItem) => string;
     getMeta?: (item: BreakdownItem) => ReactNode;
+    noBillingHint?: string;
 }) {
+    const allCostZero = items.length > 0 && items.every((item) => item.total_cost === 0);
     return (
         <article className="rounded-lg border border-border/30 bg-card p-4 shadow-sm ">
             <div className="mb-4 flex items-center gap-3">
@@ -57,6 +60,12 @@ function BreakdownCard({
                     </div>
                 ))}
             </div>
+
+            {allCostZero && noBillingHint ? (
+                <p className="mt-3 rounded-lg border border-amber-500/15 bg-amber-500/6 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                    {noBillingHint}
+                </p>
+            ) : null}
         </article>
     );
 }
@@ -101,18 +110,21 @@ export function Utilization({ range }: { range: AnalyticsRange }) {
                                 />
                             );
                         }}
+                        noBillingHint={t('utilization.noBilling')}
                     />
                     <BreakdownCard
                         title={t('utilization.models')}
                         icon={Layers3}
                         items={data?.model_breakdown ?? []}
                         getName={(item) => (item as AnalyticsModelBreakdownItem).model_name}
+                        noBillingHint={t('utilization.noBilling')}
                     />
                     <BreakdownCard
                         title={t('utilization.apikeys')}
                         icon={KeyRound}
                         items={data?.apikey_breakdown ?? []}
                         getName={(item) => (item as AnalyticsAPIKeyBreakdownItem).name}
+                        noBillingHint={t('utilization.noBilling')}
                     />
                 </div>
             </QueryState>

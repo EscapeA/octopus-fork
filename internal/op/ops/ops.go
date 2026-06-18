@@ -41,6 +41,8 @@ var processStartTime = time.Now()
 type opsQuotaUsage struct {
 	RequestCount int64
 	TotalCost    float64
+	TotalTokens  int64
+	SuccessCount int64
 }
 
 type opsProviderPromptCacheUsage struct {
@@ -584,6 +586,8 @@ func buildOpsQuotaSummary(apiKeys []model.APIKey, stats []model.StatsAPIKey, now
 		usageByKeyID[stat.APIKeyID] = opsQuotaUsage{
 			RequestCount: stat.RequestSuccess + stat.RequestFailed,
 			TotalCost:    stat.InputCost + stat.OutputCost,
+			TotalTokens:  stat.InputToken + stat.OutputToken,
+			SuccessCount: stat.RequestSuccess,
 		}
 	}
 
@@ -650,6 +654,10 @@ func buildOpsQuotaSummary(apiKeys []model.APIKey, stats []model.StatsAPIKey, now
 		if name == "" {
 			name = "Key"
 		}
+		successRate := 0.0
+		if usage.RequestCount > 0 {
+			successRate = float64(usage.SuccessCount) / float64(usage.RequestCount) * 100
+		}
 		items = append(items, model.OpsQuotaKeyItem{
 			APIKeyID:            apiKey.ID,
 			Name:                name,
@@ -663,6 +671,8 @@ func buildOpsQuotaSummary(apiKeys []model.APIKey, stats []model.StatsAPIKey, now
 			MaxCost:             apiKey.MaxCost,
 			RequestCount:        usage.RequestCount,
 			TotalCost:           usage.TotalCost,
+			TotalTokens:         usage.TotalTokens,
+			SuccessRate:         successRate,
 		})
 	}
 

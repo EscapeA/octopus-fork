@@ -69,6 +69,8 @@ export interface OpsQuotaKeyItem {
     max_cost: number;
     request_count: number;
     total_cost: number;
+    total_tokens: number;
+    success_rate: number;
 }
 
 export interface OpsQuotaSummary {

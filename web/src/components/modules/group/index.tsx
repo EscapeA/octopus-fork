@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { GroupListItem } from './GroupListItem';
 import { AutoGroupButton } from './AutoGroupButton';
 import { AIRouteButton } from './AIRouteButton';
+import { MaintenanceButton } from './MaintenanceButton';
 import { useGroupList } from '@/api/endpoints/group';
 import { VirtualizedGrid } from '@/components/common/VirtualizedGrid';
 import {
@@ -86,6 +87,7 @@ export function Group() {
                         <div className="flex flex-col gap-3 sm:flex-row">
                             <AutoGroupButton variant="default" className="h-11 rounded-lg justify-start px-4 sm:flex-1" />
                             <AIRouteButton variant="default" className="h-11 rounded-lg justify-start px-4 sm:flex-1" />
+                            <MaintenanceButton className="h-11 rounded-lg justify-start px-4 sm:flex-1" />
                             <MorphingDialog>
                                 <MorphingDialogTrigger className={buttonVariants({ variant: 'outline', className: 'h-11 min-w-0 sm:min-w-36 justify-start rounded-lg border-border bg-card px-4 hover:bg-muted sm:flex-1' })}>
                                     {t('create.submit')}
@@ -105,6 +107,9 @@ export function Group() {
 
     return (
         <div className="flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain rounded-t-xl pb-3 md:pb-4">
+            <div className="flex justify-end px-3 pt-3 pb-1 md:px-4 md:pt-4">
+                <MaintenanceButton />
+            </div>
             <section className="relative min-h-0 flex-1">
                 <VirtualizedGrid
                     items={visibleGroups}

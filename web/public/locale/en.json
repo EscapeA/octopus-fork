@@ -117,7 +117,8 @@
       "redemption": "Redemption",
       "usage": "Usage History",
       "credential": "Credentials",
-      "siteChannels": "Site Channels"
+      "siteChannels": "Site Channels",
+      "automation": "Automation"
     },
     "title": "Remote Sites",
     "addSite": "Add Site",
@@ -349,8 +350,8 @@
         "description": "A shared surface for requests, tokens, cost, and coverage metrics."
       },
       "utilization": {
-        "title": "Utilization",
-        "description": "Track capacity usage and distribution across channels, models, and keys."
+        "title": "Usage Breakdown",
+        "description": "Aggregate usage across providers, models, and keys for the selected range."
       },
       "routeHealth": {
         "title": "Route Health",
@@ -398,13 +399,14 @@
       "fallbackRate": "Fallback Rate"
     },
     "utilization": {
-      "description": "Break down request usage across providers, models, and API keys for the selected range.",
+      "description": "Break down request volume, success rate, cost, and tokens by provider / model / API key. Costs are aggregated from billed requests; the home chart pulls from realtime stats.",
       "providers": "Providers",
       "models": "Models",
       "apikeys": "API Keys",
       "enabled": "Enabled",
       "disabled": "Disabled",
-      "empty": "No utilization data in the selected range"
+      "empty": "No usage data in the selected range",
+      "noBilling": "No billed cost in this range"
     },
     "routeHealth": {
       "description": "Combines current group membership state with failures from the last 24 hours, sorted to surface risky groups first.",
@@ -441,6 +443,20 @@
       "failed": "failed",
       "disabled": "disabled",
       "scopeAll": "All groups"
+    },
+    "usageDistribution": {
+      "title": "Usage Distribution",
+      "description": "View the share of requests, cost, and tokens by model or channel × model to quickly spot top consumers.",
+      "empty": "No distribution data in the selected range",
+      "others": "Others",
+      "total": "Total",
+      "byModel": "By model",
+      "byChannelModel": "By channel×model",
+      "metric": {
+        "requests": "Requests",
+        "cost": "Cost",
+        "tokens": "Tokens"
+      }
     },
     "evaluation": {
       "title": "Evaluation",
@@ -559,11 +575,13 @@
       "health": "Health",
       "system": "System",
       "audit": "Audit",
-      "telemetry": "Telemetry"
+      "telemetry": "Telemetry",
+      "maintenance": "Maintenance"
     },
     "actions": {
       "openSettings": "Open Settings",
-      "manageKeys": "Manage in Settings"
+      "manageKeys": "Manage in Settings",
+      "viewKeyDetail": "View Key Detail"
     },
     "states": {
       "loading": "Loading...",
@@ -678,6 +696,9 @@
         "healthScore": "Health Score",
         "failureCount": "Failures in 24h",
         "noIssues": "No high-priority risky groups at the moment."
+      },
+      "actions": {
+        "viewRouteHealth": "View Route Health"
       }
     },
     "system": {
@@ -793,6 +814,9 @@
       "drilldown": {
         "title": "Drilldown Shortcuts"
       }
+    },
+    "maintenance": {
+      "description": "Tune circuit breaker, retry, and response-filter policies that keep relays resilient. Changes apply immediately."
     }
   },
   "user": {
@@ -1795,7 +1819,8 @@
       "autoGroup": "Auto Group",
       "aiRoute": "AI Route",
       "aiRouteGroup": "AI Sync Current Group",
-      "aiRouteProgress": "View Progress"
+      "aiRouteProgress": "View Progress",
+      "maintenance": "Maintenance"
     },
     "autoGroup": {
       "confirmTitle": "Confirm Auto Grouping",
@@ -1949,7 +1974,16 @@
       "testAttempts": "retried {count} times",
       "testUnknownError": "Unknown error",
       "testRemovableHint": "You can edit this group and remove the models above.",
-      "endpointType": "API Type: {value}"
+      "endpointType": "API Type: {value}",
+      "healthScore": "Health Score",
+      "healthLow": "At risk"
+    },
+    "healthStatus": {
+      "healthy": "Healthy",
+      "warning": "Warning",
+      "degraded": "Degraded",
+      "down": "Down",
+      "empty": "Empty"
     },
     "detail": {
       "availability": {
@@ -2090,6 +2124,7 @@
     "loading": "Loading model market...",
     "empty": "No matching models found",
     "emptyAll": "There are no models yet",
+    "marketTitle": "Model Market",
     "create": {
       "title": "Create Model",
       "name": "Model Name",
@@ -2654,5 +2689,23 @@
       "derivedReferences": "+{count} managed channels"
     },
     "selectRequired": "Please select a proxy configuration."
+  },
+  "modelFilter": {
+    "capability": {
+      "chat": "Chat",
+      "embeddings": "Embeddings",
+      "rerank": "Rerank",
+      "moderations": "Moderations",
+      "image_generation": "Image",
+      "audio_speech": "Audio Speech",
+      "audio_transcription": "Audio Transcription",
+      "video_generation": "Video",
+      "music_generation": "Music",
+      "search": "Search"
+    },
+    "provider": "Provider",
+    "all": "All",
+    "dedupe": "Dedupe variants",
+    "dedupeHint": "Merge naming variants of the same base model (e.g. kimi-k2.5, moonshotai/kimi-k2.5, dmxapi-kimi-k2.5-cc)."
   }
 }

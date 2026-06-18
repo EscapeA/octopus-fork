@@ -21,6 +21,25 @@ function normalizeChartMetricType(value: string | null | undefined): ChartMetric
     return CHART_METRIC_TYPES.includes(value as ChartMetricType) ? (value as ChartMetricType) : 'cost';
 }
 
+function normalizeChartMetrics(value: unknown, fallback: ChartMetricType[] = ['cost']): ChartMetricType[] {
+    const seen = new Set<ChartMetricType>();
+    const result: ChartMetricType[] = [];
+    if (Array.isArray(value)) {
+        for (const item of value) {
+            const key = item as ChartMetricType;
+            if (
+                typeof item === 'string' &&
+                (CHART_METRIC_TYPES as readonly string[]).includes(item) &&
+                !seen.has(key)
+            ) {
+                seen.add(key);
+                result.push(key);
+            }
+        }
+    }
+    return result.length > 0 ? result : [...fallback];
+}
+
 function normalizeChartPeriod(value: string | null | undefined): ChartPeriod {
     return CHART_PERIODS.includes(value as ChartPeriod) ? (value as ChartPeriod) : '1';
 }
@@ -93,12 +112,14 @@ function normalizeOverviewHiddenMetrics(value: unknown): OverviewMetricKey[] {
 interface HomeViewState {
     rankSortMode: RankSortMode;
     chartMetricType: ChartMetricType;
+    chartMetrics: ChartMetricType[];
     chartPeriod: ChartPeriod;
     overviewRange: OverviewRange;
     overviewMetricOrder: OverviewMetricKey[];
     overviewHiddenMetrics: OverviewMetricKey[];
     setRankSortMode: (value: RankSortMode) => void;
     setChartMetricType: (value: ChartMetricType) => void;
+    toggleChartMetric: (value: ChartMetricType) => void;
     setChartPeriod: (value: ChartPeriod) => void;
     setOverviewRange: (value: OverviewRange) => void;
     setOverviewMetricHidden: (key: OverviewMetricKey, hidden: boolean) => void;
@@ -111,12 +132,24 @@ export const useHomeViewStore = create<HomeViewState>()(
         (set) => ({
             rankSortMode: 'cost',
             chartMetricType: 'cost',
+            chartMetrics: ['cost'],
             chartPeriod: '1',
             overviewRange: '7d',
             overviewMetricOrder: [...OVERVIEW_METRIC_KEYS],
             overviewHiddenMetrics: [],
             setRankSortMode: (value) => set({ rankSortMode: normalizeRankSortMode(value) }),
-            setChartMetricType: (value) => set({ chartMetricType: normalizeChartMetricType(value) }),
+            setChartMetricType: (value) => set({
+                chartMetricType: normalizeChartMetricType(value),
+                chartMetrics: [normalizeChartMetricType(value)],
+            }),
+            toggleChartMetric: (value) => set((state) => {
+                const next = state.chartMetrics.includes(value)
+                    ? state.chartMetrics.filter((m) => m !== value)
+                    : [...state.chartMetrics, value];
+                // 至少保留一个指标，避免图表被清空。
+                const metrics = next.length > 0 ? next : state.chartMetrics;
+                return { chartMetrics: metrics, chartMetricType: metrics[0] };
+            }),
             setChartPeriod: (value) => set({ chartPeriod: normalizeChartPeriod(value) }),
             setOverviewRange: (value) => set({ overviewRange: normalizeOverviewRange(value) }),
             setOverviewMetricHidden: (key, hidden) => set((state) => {
@@ -150,6 +183,7 @@ export const useHomeViewStore = create<HomeViewState>()(
             partialize: (state) => ({
                 rankSortMode: state.rankSortMode,
                 chartMetricType: state.chartMetricType,
+                chartMetrics: state.chartMetrics,
                 chartPeriod: state.chartPeriod,
                 overviewRange: state.overviewRange,
                 overviewMetricOrder: state.overviewMetricOrder,
@@ -157,11 +191,14 @@ export const useHomeViewStore = create<HomeViewState>()(
             }),
             merge: (persistedState, currentState) => {
                 const typed = (persistedState as Partial<HomeViewState> | null) ?? null;
+                const legacyMetric = normalizeChartMetricType(typed?.chartMetricType);
+                const metrics = normalizeChartMetrics(typed?.chartMetrics, [legacyMetric]);
                 return {
                     ...currentState,
                     ...typed,
                     rankSortMode: normalizeRankSortMode(typed?.rankSortMode),
-                    chartMetricType: normalizeChartMetricType(typed?.chartMetricType),
+                    chartMetricType: metrics[0] ?? legacyMetric,
+                    chartMetrics: metrics,
                     chartPeriod: normalizeChartPeriod(typed?.chartPeriod),
                     overviewRange: normalizeOverviewRange(typed?.overviewRange),
                     overviewMetricOrder: normalizeOverviewMetricOrder(typed?.overviewMetricOrder),

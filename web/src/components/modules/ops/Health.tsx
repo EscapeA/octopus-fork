@@ -1,8 +1,9 @@
 'use client';
 
-import { Activity, Database, ShieldCheck, TriangleAlert, Workflow } from 'lucide-react';
+import { Activity, Database, ShieldCheck, TriangleAlert, Workflow, ArrowUpRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useOpsHealthStatus } from '@/api/endpoints/ops';
+import { useNavStore } from '@/components/modules/navbar';
 import { MetricCard, QueryState, StatusBadge, formatUnixTime } from '@/components/modules/analytics/shared';
 
 function HealthSignalCard({
@@ -52,6 +53,8 @@ function getHealthTone(status: 'healthy' | 'warning' | 'degraded' | 'down' | 'em
 export function Health() {
     const t = useTranslations('ops');
     const { data, isLoading, error } = useOpsHealthStatus();
+    const { setActiveItem } = useNavStore();
+    const failingCount = (data?.failing_groups ?? []).length;
 
     return (
         <section className="rounded-xl border border-border/35 bg-card p-5 text-card-foreground">
@@ -130,6 +133,16 @@ export function Health() {
                                     {formatUnixTime(data?.checked_at)}
                                 </p>
                             </div>
+                            {failingCount > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveItem('analytics')}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary/30 hover:text-primary"
+                                >
+                                    {t('health.actions.viewRouteHealth')}
+                                    <ArrowUpRight className="size-3.5" />
+                                </button>
+                            )}
                         </div>
 
                         <QueryState

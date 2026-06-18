@@ -64,6 +64,10 @@ type OpsQuotaKeyItem struct {
 	MaxCost             float64 `json:"max_cost"`
 	RequestCount        int64   `json:"request_count"`
 	TotalCost           float64 `json:"total_cost"`
+	// TotalTokens 与 SuccessRate 来自 stats 聚合，使配额页与 API 密钥详情
+	// 共享同一字段集，消除两处数据分散（issue #87 P1-#3）。
+	TotalTokens int64   `json:"total_tokens"`
+	SuccessRate float64 `json:"success_rate"`
 }
 
 type OpsQuotaSummary struct {
@@ -138,6 +142,21 @@ type OpsSystemSummary struct {
 	ChannelCount                 int                        `json:"channel_count"`
 	GroupCount                   int                        `json:"group_count"`
 	APIKeyCount                  int                        `json:"api_key_count"`
+
+	// 维护策略概览（熔断器 / 重试 / 输出拦截），issue #87 P2-#6：
+	// 将这些可操作维护项的状态聚合到运维中心，便于一眼掌握当前生效配置，
+	// 配合「前往设置」入口完成调整，减少在设置页中翻找的成本。
+	RelayRetryCount            int    `json:"relay_retry_count"`
+	RelayRouteRetries          int    `json:"relay_route_retries"`
+	RelayMaxTotalAttempts      int    `json:"relay_max_total_attempts"`
+	RatelimitCooldownSec       int    `json:"ratelimit_cooldown_sec"`
+	CircuitBreakerEnabled      bool   `json:"circuit_breaker_enabled"`
+	CircuitBreakerThreshold    int    `json:"circuit_breaker_threshold"`
+	CircuitBreakerCooldown     int    `json:"circuit_breaker_cooldown"`
+	CircuitBreakerMaxCooldown  int    `json:"circuit_breaker_max_cooldown"`
+	ResponseFilterEnabled      bool   `json:"response_filter_enabled"`
+	ResponseFilterAction       string `json:"response_filter_action"`
+	ResponseFilterKeywordCount int    `json:"response_filter_keyword_count"`
 }
 
 // --- Telemetry ---
