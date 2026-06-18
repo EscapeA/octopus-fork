@@ -253,13 +253,13 @@ export function HomeAnalyticsOverview() {
                             <article
                                 key={card.key}
                                 className={cn(
-                                    'group rounded-lg border border-border bg-card p-3 transition-[transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-border/80 sm:p-4',
+                                    'group rounded-lg border border-border bg-card p-2.5 transition-[transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-border/80 sm:p-4',
                                 )}
                             >
-                                <div className="flex items-start justify-between gap-2 sm:gap-3">
+                                <div className="flex items-start justify-between gap-1.5 sm:gap-3">
                                     <div className="min-w-0">
-                                        <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground sm:mb-3 sm:gap-2">
-                                            <ScanLine className="h-3.5 w-3.5 shrink-0 text-primary/50" strokeWidth={1.5} />
+                                        <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground sm:mb-3 sm:gap-2">
+                                            <ScanLine className="h-3 w-3 shrink-0 text-primary/50 sm:h-3.5 sm:w-3.5" strokeWidth={1.5} />
                                             <span className="truncate">{card.title}</span>
                                         </div>
                                         <div className="flex items-baseline gap-1">
@@ -271,11 +271,11 @@ export function HomeAnalyticsOverview() {
                                     </div>
                                     <div
                                         className={cn(
-                                            'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:h-10 sm:w-10',
+                                            'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:h-10 sm:w-10',
                                             card.accentClassName,
                                         )}
                                     >
-                                        <card.icon className="h-[1.125rem] w-[1.125rem]" strokeWidth={1.5} />
+                                        <card.icon className="h-3.5 w-3.5 sm:h-[1.125rem] sm:w-[1.125rem]" strokeWidth={1.5} />
                                     </div>
                                 </div>
                             </article>
