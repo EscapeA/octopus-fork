@@ -22,11 +22,11 @@ type WebDAVClient struct {
 
 // WebDAVFile WebDAV 文件信息
 type WebDAVFile struct {
-	Name         string
-	Path         string
-	Size         int64
-	LastModified time.Time
-	IsDir        bool
+	Name         string    `json:"name"`
+	Path         string    `json:"path"`
+	Size         int64     `json:"size"`
+	LastModified time.Time `json:"last_modified"`
+	IsDir        bool      `json:"is_dir"`
 }
 
 // NewWebDAVClient 创建 WebDAV 客户端
@@ -228,7 +228,7 @@ func (c *WebDAVClient) Delete(remotePath string) error {
 func parseWebDAVResponse(xmlBody, basePath string) []WebDAVFile {
 	body := stripXMLNamespaces(xmlBody)
 
-	var files []WebDAVFile
+	files := make([]WebDAVFile, 0)
 
 	responses := strings.Split(body, "<response>")
 	for i, resp := range responses {
@@ -261,13 +261,61 @@ func parseWebDAVResponse(xmlBody, basePath string) []WebDAVFile {
 		}
 
 		files = append(files, WebDAVFile{
-			Name:  name,
-			Path:  decodedHref,
-			IsDir: isDir,
+			Name:         name,
+			Path:         decodedHref,
+			Size:         extractContentLength(resp),
+			LastModified: extractLastModified(resp),
+			IsDir:        isDir,
 		})
 	}
 
 	return files
+}
+
+// extractContentLength parses the <getcontentlength>123</getcontentlength>
+// value from a single PROPFIND <response> block. Returns 0 when absent or
+// unparseable (e.g. for directories, which omit the property).
+func extractContentLength(resp string) int64 {
+	const open = "<getcontentlength>"
+	const close = "</getcontentlength>"
+	start := strings.Index(resp, open)
+	if start == -1 {
+		return 0
+	}
+	end := strings.Index(resp[start:], close)
+	if end == -1 {
+		return 0
+	}
+	value := strings.TrimSpace(resp[start+len(open) : start+end])
+	var n int64
+	if _, err := fmt.Sscanf(value, "%d", &n); err != nil {
+		return 0
+	}
+	return n
+}
+
+// extractLastModified parses the HTTP-date in
+// <getlastmodified>...</getlastmodified> from a single PROPFIND <response>
+// block. Returns the zero time when absent or unparseable.
+func extractLastModified(resp string) time.Time {
+	const open = "<getlastmodified>"
+	const close = "</getlastmodified>"
+	start := strings.Index(resp, open)
+	if start == -1 {
+		return time.Time{}
+	}
+	end := strings.Index(resp[start:], close)
+	if end == -1 {
+		return time.Time{}
+	}
+	value := strings.TrimSpace(resp[start+len(open) : start+end])
+	// WebDAV servers return dates in RFC1123 format (e.g.
+	// "Mon, 02 Jan 2006 15:04:05 GMT").
+	t, err := time.Parse(time.RFC1123, value)
+	if err != nil {
+		return time.Time{}
+	}
+	return t
 }
 
 // xmlNSRe matches XML namespace prefixes such as D:, d:, DAV: in element tags.

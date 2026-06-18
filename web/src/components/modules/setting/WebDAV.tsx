@@ -24,7 +24,8 @@ export function SettingWebDAV() {
     const updateConfig = useUpdateWebDAVConfig();
     const testConnection = useTestWebDAVConnection();
     const triggerBackup = useTriggerWebDAVBackup();
-    const { data: files = [] } = useWebDAVFiles();
+    const { data: files } = useWebDAVFiles();
+    const remoteBackups = files ?? [];
     const restoreBackup = useRestoreWebDAVBackup();
     const deleteBackup = useDeleteWebDAVBackup();
 
@@ -250,13 +251,13 @@ export function SettingWebDAV() {
             </div>
 
             {/* Remote backup list */}
-            {files.length > 0 && (
+            {remoteBackups.length > 0 && (
                 <>
                     <div className="h-px bg-border/50" />
                     <div className="space-y-2">
                         <div className="text-sm font-semibold text-card-foreground">{t('webdav.remoteBackups')}</div>
                         <div className="space-y-1 max-h-48 overflow-y-auto">
-                            {files.map((file) => (
+                            {remoteBackups.map((file) => (
                                 <div
                                     key={file.path}
                                     className="flex items-center justify-between gap-2 rounded-lg border border-border/20 px-3 py-2"

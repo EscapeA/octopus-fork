@@ -48,13 +48,27 @@ func SetWebDAVConfig(cfg *WebDAVBackupConfig) error {
 	return setting.SetString(model.SettingKeyWebDAVConfig, string(data))
 }
 
-// PerformWebDAVBackup exports the database and uploads it to the configured WebDAV server.
+// PerformWebDAVBackup exports the database and uploads it to the configured
+// WebDAV server. The enabled flag is only honored for scheduled (automatic)
+// backups; manual invocations skip it so that "Backup Now" works without
+// requiring the auto-backup toggle to be on.
 func PerformWebDAVBackup(ctx context.Context) error {
+	return performWebDAVBackup(ctx, false)
+}
+
+// PerformWebDAVBackupManual runs a one-off backup triggered by the user from
+// the management UI. Unlike the scheduled task it ignores the `enabled`
+// toggle, since the user explicitly requested it.
+func PerformWebDAVBackupManual(ctx context.Context) error {
+	return performWebDAVBackup(ctx, true)
+}
+
+func performWebDAVBackup(ctx context.Context, manual bool) error {
 	cfg, err := GetWebDAVConfig()
 	if err != nil {
 		return fmt.Errorf("read config: %w", err)
 	}
-	if !cfg.Enabled {
+	if !manual && !cfg.Enabled {
 		return nil
 	}
 	if cfg.BaseURL == "" {
@@ -80,7 +94,7 @@ func PerformWebDAVBackup(ctx context.Context) error {
 		return fmt.Errorf("upload %s: %w", remotePath, err)
 	}
 
-	log.Infof("webdav backup uploaded: %s (%d bytes)", remotePath, len(data))
+	log.Infof("webdav backup uploaded: %s (%d bytes, manual=%v)", remotePath, len(data), manual)
 
 	// Cleanup old backups
 	if cfg.MaxBackups > 0 {
@@ -143,7 +157,7 @@ func ListWebDAVBackups() ([]WebDAVFile, error) {
 	}
 
 	// Filter to only backup JSON files, exclude directories
-	var backups []WebDAVFile
+	backups := make([]WebDAVFile, 0, len(files))
 	for _, f := range files {
 		if !f.IsDir && strings.HasSuffix(f.Name, ".json") {
 			backups = append(backups, f)

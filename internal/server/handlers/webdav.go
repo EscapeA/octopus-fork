@@ -151,7 +151,7 @@ func testWebDAVConnection(c *gin.Context) {
 func triggerWebDAVBackup(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Minute)
 	defer cancel()
-	if err := backup.PerformWebDAVBackup(ctx); err != nil {
+	if err := backup.PerformWebDAVBackupManual(ctx); err != nil {
 		resp.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
