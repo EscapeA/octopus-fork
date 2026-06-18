@@ -239,7 +239,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
         const reqTypeKey = displayFields.requestTypeKey;
         if (reqTypeKey) {
             const label = t(`requestTypeLabels.${reqTypeKey}`);
-            if (label && label !== `requestTypeLabels.${reqTypeKey}`) return label;
+            if (label) return label;
         }
         const rawEndpointType = displayFields.endpointType;
         if (!rawEndpointType) return '-';

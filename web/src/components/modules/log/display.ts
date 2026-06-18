@@ -76,7 +76,10 @@ function inferRequestTypeKey(endpointType: string, modelNames: string[], request
     if (normalizedEndpoint === 'deepseek' || normalizedEndpoint === 'chat') {
         return streaming ? 'streamingChat' : 'chat';
     }
-    return normalizedEndpoint ? normalizedEndpoint : (streaming ? 'streamingChat' : 'chat');
+    // Unrecognized endpoint types (rerank, image_generation, ...) have no
+    // dedicated request-type label. Return empty so the caller falls back to
+    // the endpoint-type label instead of triggering a missing i18n key.
+    return normalizedEndpoint ? '' : (streaming ? 'streamingChat' : 'chat');
 }
 function inferEndpointTypeFromModels(modelNames: string[]) {
     const normalizedNames = modelNames

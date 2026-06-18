@@ -191,6 +191,18 @@ test('resolveLogDisplayFields infers embedding request type label', () => {
     assert.equal(result.requestTypeKey, 'embedding');
 });
 
+test('resolveLogDisplayFields returns empty request type key for endpoints without a dedicated label', () => {
+    const log = buildLog({
+        endpoint_type: 'rerank',
+        request_model_name: 'bge-reranker-v2-m3',
+        actual_model_name: 'bge-reranker-v2-m3',
+    });
+
+    const result = resolveLogDisplayFields(log);
+    assert.equal(result.requestTypeKey, '');
+    assert.equal(result.endpointType, 'rerank');
+});
+
 test('formatJsonForCopy pretty-prints minified JSON with two-space indent', () => {
     const result = formatJsonForCopy('{"role":"system","content":"hi"}');
     assert.equal(result, '{\n  "role": "system",\n  "content": "hi"\n}');
