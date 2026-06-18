@@ -1,6 +1,6 @@
 'use client';
 
-import { useStatsDaily, useStatsHourly, type StatsMetrics } from '@/api/endpoints/stats';
+import { useStatsDaily, useStatsHourly, type StatsDailyFormatted, type StatsHourlyFormatted } from '@/api/endpoints/stats';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { useMemo } from 'react';
 import { Area, AreaChart, CartesianGrid, Line, XAxis, YAxis } from 'recharts';
@@ -35,7 +35,7 @@ export function StatsChart() {
         return [...statsDaily].sort((a, b) => a.date.localeCompare(b.date));
     }, [statsDaily]);
 
-    const buildPointValue = (type: ChartMetricType, stat?: StatsMetrics): number => {
+    const buildPointValue = (type: ChartMetricType, stat?: StatsDailyFormatted | StatsHourlyFormatted): number => {
         if (!stat) return 0;
         if (type === 'cost') return stat.total_cost.raw;
         if (type === 'success-rate') {
