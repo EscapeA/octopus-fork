@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.1.6] - 2026-06-18
+
+### 🚀 Features
+- **Analytics (issue #87)**: reorganize data presentation across the management UI.
+  - Analytics default tab switched to "Channel × Model"; usage-distribution share chart added (top-N by model / channel×model, cost/count/tokens metrics).
+  - Quota page merged with API key detail (added total tokens + success rate + "view key detail" jump).
+  - Group list cards show health badges; ops Health → analytics route-health jump.
+  - "Available endpoints" view migrated from API key page to model market.
+  - Ops center gains a "Maintenance" tab (circuit breaker / retry / response filter); setting page slimmed from 18 → 12 entries (site automation → hub automation tab; purge-unavailable / route-group-danger → group maintenance dropdown).
+  - Provider health table: sortable columns + mini bar charts.
+  - Model market: multi-dim filter (capability + provider + normalized-name dedupe, e.g. `kimi-k2.5` / `moonshotai/kimi-k2.5` / `dmxapi-kimi-k2.5-cc` merge).
+  - Utilization renamed to "Usage Breakdown" with no-billing hint.
+  - Home chart: multi-metric overlay (multi-select cost/count/tokens/success-rate on one chart).
+
+### 🐛 Bug Fixes
+- **Issue #90**: test-availability logs no longer show input/output/cost as "unknown" — `sendGroupProbeRequest` now returns the parsed `InternalLLMResponse`, and `recordTestLog` populates `InputTokens`/`OutputTokens`/`CacheReadTokens`/`Cost` using the same `price.GetLLMPrice` calculation as the relay pipeline.
+- **CI**: `TestAllManagementWriteRoutesAreAudited` fixed by adding the read-only `POST /api/v1/channel/test-model` probe route to the audit exemption list.
+
 ## [v2.0.5] - 2026-06
 
 ### 🚀 Features
