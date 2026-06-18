@@ -2711,6 +2711,7 @@
     "provider": "厂商",
     "all": "全部",
     "dedupe": "归一化去重",
-    "dedupeHint": "合并同一基础模型的不同命名变体（如 kimi-k2.5、moonshotai/kimi-k2.5、dmxapi-kimi-k2.5-cc）。"
+    "dedupeHint": "合并同一基础模型的不同命名变体（如 kimi-k2.5、moonshotai/kimi-k2.5、dmxapi-kimi-k2.5-cc）。",
+    "capabilityLabel": "能力"
   }
 }

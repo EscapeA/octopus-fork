@@ -2711,6 +2711,7 @@
     "provider": "Provider",
     "all": "All",
     "dedupe": "Dedupe variants",
-    "dedupeHint": "Merge naming variants of the same base model (e.g. kimi-k2.5, moonshotai/kimi-k2.5, dmxapi-kimi-k2.5-cc)."
+    "dedupeHint": "Merge naming variants of the same base model (e.g. kimi-k2.5, moonshotai/kimi-k2.5, dmxapi-kimi-k2.5-cc).",
+    "capabilityLabel": "Capability"
   }
 }

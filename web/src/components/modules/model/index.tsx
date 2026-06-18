@@ -91,7 +91,7 @@ export function Model() {
             {/* 多维筛选条：能力 / 厂商 / 归一化去重 */}
             <div className="flex flex-col gap-2 rounded-xl border border-border/35 bg-card p-3 text-card-foreground md:p-4">
                 <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="mr-1 text-xs font-medium text-muted-foreground">{tFilter('capability')}</span>
+                    <span className="mr-1 text-xs font-medium text-muted-foreground">{tFilter('capabilityLabel')}</span>
                     {MODEL_CAPABILITY_OPTIONS.map((value) => {
                         const active = capability === value;
                         const labelKey = value === 'all' ? 'all' : value;
