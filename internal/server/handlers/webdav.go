@@ -12,7 +12,6 @@ import (
 	"github.com/lingyuins/octopus/internal/server/middleware"
 	"github.com/lingyuins/octopus/internal/server/resp"
 	"github.com/lingyuins/octopus/internal/server/router"
-	"github.com/lingyuins/octopus/internal/utils/log"
 )
 
 func init() {
@@ -150,15 +149,12 @@ func testWebDAVConnection(c *gin.Context) {
 }
 
 func triggerWebDAVBackup(c *gin.Context) {
-	// Run backup in background with a detached context and a timeout
-	// to prevent goroutine leaks if the WebDAV server is unreachable.
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-		defer cancel()
-		if err := backup.PerformWebDAVBackup(ctx); err != nil {
-			log.Errorf("manual webdav backup failed: %v", err)
-		}
-	}()
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Minute)
+	defer cancel()
+	if err := backup.PerformWebDAVBackup(ctx); err != nil {
+		resp.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
 	resp.Success(c, true)
 }
 

@@ -124,13 +124,16 @@ func RestoreFromWebDAV(ctx context.Context, filename string) (*model.DBImportRes
 }
 
 // ListWebDAVBackups returns available backup files from the remote WebDAV server.
+// Returns an empty list (not an error) when WebDAV is not configured, so that
+// frontend polling does not surface a persistent error toast.
 func ListWebDAVBackups() ([]WebDAVFile, error) {
 	cfg, err := GetWebDAVConfig()
 	if err != nil {
-		return nil, fmt.Errorf("read config: %w", err)
+		log.Warnf("webdav list: read config: %v", err)
+		return nil, nil
 	}
 	if cfg.BaseURL == "" {
-		return nil, fmt.Errorf("webdav base URL is empty")
+		return nil, nil
 	}
 
 	client := NewWebDAVClient(cfg.BaseURL, cfg.Username, cfg.Password)

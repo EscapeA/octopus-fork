@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -38,6 +39,14 @@ func NewWebDAVClient(baseURL, username, password string) *WebDAVClient {
 			Timeout: 30 * time.Second,
 		},
 	}
+}
+
+// longClient returns an HTTP client with no client-level timeout, allowing
+// per-request context deadlines to govern the entire request lifecycle
+// (including body reading). This is necessary for Upload/Download where
+// the default 30-second client timeout would kill large transfers.
+func (c *WebDAVClient) longClient() *http.Client {
+	return &http.Client{}
 }
 
 // Test 测试 WebDAV 连接
@@ -136,7 +145,7 @@ func (c *WebDAVClient) Upload(remotePath string, data []byte) error {
 		req.SetBasicAuth(c.username, c.password)
 	}
 
-	resp, err := c.client.Do(req)
+	resp, err := c.longClient().Do(req)
 	if err != nil {
 		return fmt.Errorf("上传失败: %w", err)
 	}
@@ -166,7 +175,7 @@ func (c *WebDAVClient) Download(remotePath string) ([]byte, error) {
 		req.SetBasicAuth(c.username, c.password)
 	}
 
-	resp, err := c.client.Do(req)
+	resp, err := c.longClient().Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("下载失败: %w", err)
 	}
@@ -213,37 +222,40 @@ func (c *WebDAVClient) Delete(remotePath string) error {
 	return nil
 }
 
-// parseWebDAVResponse 解析 WebDAV PROPFIND 响应（简化版本）
+// parseWebDAVResponse 解析 WebDAV PROPFIND 响应。
+// 先去除 XML 命名空间前缀，以兼容不同 WebDAV 服务器
+// （如 D:、d:、DAV: 或无命名空间前缀）。
 func parseWebDAVResponse(xmlBody, basePath string) []WebDAVFile {
+	body := stripXMLNamespaces(xmlBody)
+
 	var files []WebDAVFile
 
-	// 简化的 XML 解析，实际应该使用 encoding/xml
-	// 这里只是示例，解析 <D:response> 标签
-	responses := strings.Split(xmlBody, "<D:response>")
+	responses := strings.Split(body, "<response>")
 	for i, resp := range responses {
 		if i == 0 {
-			continue // 跳过第一个空字符串
+			continue // skip preamble before the first <response>
 		}
 
-		// 提取 href
-		hrefStart := strings.Index(resp, "<D:href>")
-		hrefEnd := strings.Index(resp, "</D:href>")
-		if hrefStart == -1 || hrefEnd == -1 {
+		// Extract href
+		hrefStart := strings.Index(resp, "<href>")
+		hrefEnd := strings.Index(resp, "</href>")
+		if hrefStart == -1 || hrefEnd == -1 || hrefEnd <= hrefStart+6 {
 			continue
 		}
-		href := resp[hrefStart+8 : hrefEnd]
+		href := resp[hrefStart+6 : hrefEnd]
 
-		// 解码 URL
+		// URL-decode the href
 		decodedHref, _ := url.QueryUnescape(href)
 
-		// 提取文件名
-		parts := strings.Split(strings.TrimSuffix(decodedHref, "/"), "/")
+		// Extract filename from the last path segment
+		trimmed := strings.TrimSuffix(decodedHref, "/")
+		parts := strings.Split(trimmed, "/")
 		name := parts[len(parts)-1]
 
-		// 检查是否是目录
-		isDir := strings.Contains(resp, "<D:collection/>")
+		// Check if the entry is a directory (contains <collection/>)
+		isDir := strings.Contains(resp, "<collection/>")
 
-		// 跳过当前目录本身
+		// Skip the queried directory itself
 		if decodedHref == basePath || decodedHref == basePath+"/" {
 			continue
 		}
@@ -252,9 +264,22 @@ func parseWebDAVResponse(xmlBody, basePath string) []WebDAVFile {
 			Name:  name,
 			Path:  decodedHref,
 			IsDir: isDir,
-			// Size 和 LastModified 需要进一步解析，这里简化处理
 		})
 	}
 
 	return files
+}
+
+// xmlNSRe matches XML namespace prefixes such as D:, d:, DAV: in element tags.
+var xmlNSRe = regexp.MustCompile(`</?[A-Za-z][A-Za-z0-9]*:`)
+
+// stripXMLNamespaces removes namespace prefixes from an XML body so that
+// simple string-based parsing works regardless of the prefix used by the server.
+func stripXMLNamespaces(body string) string {
+	return xmlNSRe.ReplaceAllStringFunc(body, func(match string) string {
+		if len(match) >= 2 && match[1] == '/' {
+			return "</"
+		}
+		return "<"
+	})
 }

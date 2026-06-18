@@ -242,7 +242,7 @@ export function SettingWebDAV() {
                     variant="outline"
                     className="rounded-xl"
                     onClick={onBackup}
-                    disabled={triggerBackup.isPending || !enabled}
+                    disabled={triggerBackup.isPending || !baseURL}
                 >
                     {triggerBackup.isPending ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
                     {t('webdav.backupNow')}
