@@ -61,11 +61,13 @@ export const OUTBOUND_FORMAT_OPTIONS = [
     { labelKey: 'form.outboundFormat.options.auto', value: '' },
     { labelKey: 'form.outboundFormat.options.chat', value: 'chat' },
     { labelKey: 'form.outboundFormat.options.responses', value: 'responses' },
+    { labelKey: 'form.outboundFormat.options.chatOnly', value: 'chat_only' },
+    { labelKey: 'form.outboundFormat.options.responsesOnly', value: 'responses_only' },
 ] as const;
 
 export function normalizeOutboundFormat(value?: string | null) {
     const normalized = value?.trim().toLowerCase();
-    if (normalized === 'chat' || normalized === 'responses') return normalized;
+    if (normalized === 'chat' || normalized === 'responses' || normalized === 'chat_only' || normalized === 'responses_only') return normalized;
     return '';
 }
 

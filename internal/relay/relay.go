@@ -92,6 +92,9 @@ func outboundAttemptTypes(channelType outbound.OutboundType, request *model.Inte
 	// adapter fallback with configurable priority order.
 	// When outboundFormat is "chat", prefer Chat Completions first.
 	// When outboundFormat is "responses", prefer Responses API first.
+	// When outboundFormat is "chat_only" / "responses_only", disable the
+	// cross-format fallback entirely — useful for upstreams that reject the
+	// other format (e.g. public-welfare relays returning 400/404 on Responses).
 	// Default (auto): prefer Chat first, then fall back to Responses.
 	// The internal request/response format abstracts over both API formats, so
 	// the inAdapter handles the final output conversion regardless of which
@@ -100,6 +103,10 @@ func outboundAttemptTypes(channelType outbound.OutboundType, request *model.Inte
 		switch strings.ToLower(strings.TrimSpace(outboundFormat)) {
 		case "responses":
 			return []outbound.OutboundType{outbound.OutboundTypeOpenAIResponse, outbound.OutboundTypeOpenAIChat}
+		case "chat_only":
+			return []outbound.OutboundType{outbound.OutboundTypeOpenAIChat}
+		case "responses_only":
+			return []outbound.OutboundType{outbound.OutboundTypeOpenAIResponse}
 		default: // auto / chat
 			return []outbound.OutboundType{outbound.OutboundTypeOpenAIChat, outbound.OutboundTypeOpenAIResponse}
 		}

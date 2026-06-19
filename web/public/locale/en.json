@@ -2066,11 +2066,13 @@
       },
       "outboundFormat": {
         "label": "Outbound Format",
-        "hint": "Select the preferred outbound API format. Auto will try Chat Completions first then fall back to Responses.",
+        "hint": "Select the preferred outbound API format. Auto tries Chat Completions first then falls back to Responses. Chat-only / Responses-only disable the fallback for upstreams that reject the other format.",
         "options": {
           "auto": "Auto",
           "chat": "Chat Completions",
-          "responses": "Responses"
+          "responses": "Responses",
+          "chat_only": "Chat Completions only",
+          "responses_only": "Responses only"
         }
       }
     },

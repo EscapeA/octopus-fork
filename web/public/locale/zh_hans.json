@@ -2066,11 +2066,13 @@
       },
       "outboundFormat": {
         "label": "出站请求格式",
-        "hint": "选择首选的出站 API 格式。自动模式将优先尝试 Chat Completions，失败后回退到 Responses。",
+        "hint": "选择首选的出站 API 格式。自动模式将优先尝试 Chat Completions，失败后回退到 Responses；「仅」模式不会回退到另一种格式。",
         "options": {
           "auto": "自动",
           "chat": "Chat Completions",
-          "responses": "Responses"
+          "responses": "Responses",
+          "chat_only": "仅 Chat Completions",
+          "responses_only": "仅 Responses"
         }
       }
     },

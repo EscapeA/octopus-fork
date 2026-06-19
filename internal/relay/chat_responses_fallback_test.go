@@ -119,6 +119,56 @@ func TestOutboundAttemptTypesResponsesFormatPrefersResponseFirst(t *testing.T) {
 	}
 }
 
+func TestOutboundAttemptTypesChatOnlyDisablesFallback(t *testing.T) {
+	req := &model.InternalLLMRequest{RawAPIFormat: model.APIFormatOpenAIChatCompletion}
+
+	got := outboundAttemptTypes(outbound.OutboundTypeOpenAIChat, req, "chat_only")
+	want := []outbound.OutboundType{outbound.OutboundTypeOpenAIChat}
+
+	if len(got) != len(want) {
+		t.Fatalf("attempt types len = %d, want %d: %#v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("attempt types = %#v, want %#v", got, want)
+		}
+	}
+}
+
+func TestOutboundAttemptTypesResponsesOnlyDisablesFallback(t *testing.T) {
+	req := &model.InternalLLMRequest{RawAPIFormat: model.APIFormatOpenAIChatCompletion}
+
+	got := outboundAttemptTypes(outbound.OutboundTypeOpenAIChat, req, "responses_only")
+	want := []outbound.OutboundType{outbound.OutboundTypeOpenAIResponse}
+
+	if len(got) != len(want) {
+		t.Fatalf("attempt types len = %d, want %d: %#v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("attempt types = %#v, want %#v", got, want)
+		}
+	}
+}
+
+// Unknown format values fall back to the default auto behavior so a stale or
+// mistyped setting never disables routing entirely.
+func TestOutboundAttemptTypesUnknownFormatFallsBackToAuto(t *testing.T) {
+	req := &model.InternalLLMRequest{RawAPIFormat: model.APIFormatOpenAIChatCompletion}
+
+	got := outboundAttemptTypes(outbound.OutboundTypeOpenAIChat, req, "bogus")
+	want := []outbound.OutboundType{outbound.OutboundTypeOpenAIChat, outbound.OutboundTypeOpenAIResponse}
+
+	if len(got) != len(want) {
+		t.Fatalf("attempt types len = %d, want %d: %#v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("attempt types = %#v, want %#v", got, want)
+		}
+	}
+}
+
 func TestShouldTryAdapterFallbackSkipsSameChannelFailures(t *testing.T) {
 	result := attemptResult{
 		Success:  false,
