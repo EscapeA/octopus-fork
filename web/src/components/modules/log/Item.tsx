@@ -64,6 +64,53 @@ function formatDuration(ms: number): string {
     return `${(ms / 1000).toFixed(2)}s`;
 }
 
+/** Resolve the badge styling and label key for a single attempt status.
+ *
+ * Skipped (cooldown / disabled / no key) and circuit-break attempts never
+ * reached the upstream, so they are rendered with a neutral muted tone instead
+ * of destructive red — otherwise an all-cooldown request looks like a wall of
+ * red failures in the relay log (issue #95 改动6).
+ */
+function attemptStatusBadge(status: ChannelAttempt['status']): {
+    className: string;
+    labelKey: 'success' | 'failed' | 'skipped' | 'circuitBreak';
+} {
+    switch (status) {
+        case 'success':
+            return { className: 'bg-primary/15 text-primary', labelKey: 'success' };
+        case 'circuit_break':
+            return { className: 'bg-amber-500/15 text-amber-600 dark:text-amber-400', labelKey: 'circuitBreak' };
+        case 'skipped':
+            return { className: 'bg-muted text-muted-foreground', labelKey: 'skipped' };
+        case 'failed':
+        default:
+            return { className: 'bg-destructive/15 text-destructive', labelKey: 'failed' };
+    }
+}
+
+/** Resolve the detail-card container and message accent for a single attempt status.
+ *
+ * Only real upstream failures use the destructive red accent. Skipped and
+ * circuit-break attempts use muted/amber tones so cooldown-only requests don't
+ * paint the whole diagnostic panel red (issue #95 改动6).
+ */
+function attemptStatusCard(status: ChannelAttempt['status']): {
+    card: string;
+    msg: string;
+} {
+    switch (status) {
+        case 'success':
+            return { card: 'bg-primary/5 border-primary/20 hover:bg-primary/10', msg: 'text-foreground/80 border-foreground/20' };
+        case 'circuit_break':
+            return { card: 'bg-amber-500/5 border-amber-500/20 hover:bg-amber-500/10', msg: 'text-amber-700 dark:text-amber-300 border-amber-500/30' };
+        case 'skipped':
+            return { card: 'bg-muted/40 border-border/50 hover:bg-muted/60', msg: 'text-muted-foreground border-border/40' };
+        case 'failed':
+        default:
+            return { card: 'bg-destructive/5 border-destructive/20 hover:bg-destructive/10', msg: 'text-destructive/90 border-destructive/30' };
+    }
+}
+
 interface RetryBadgeWithTooltipProps {
     channelName: string;
     brandColor: string;
@@ -90,16 +137,19 @@ function RetryBadgeWithTooltip({ channelName, brandColor, attempts, channelNameB
                 {attempts.map((attempt, idx) => (
                     <div key={idx} className="flex flex-col w-full">
                         <div className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50 transition-colors">
-                            <Badge
-                                className={cn(
-                                    "h-5 shrink-0 px-1.5 text-[10px] font-bold uppercase shadow-none border-0",
-                                    attempt.status === 'success'
-                                        ? "bg-primary/15 text-primary"
-                                        : "bg-destructive/15 text-destructive"
-                                )}
-                            >
-                                {attempt.status === 'success' ? t('success') : t('failed')}
-                            </Badge>
+                            {(() => {
+                                const badge = attemptStatusBadge(attempt.status);
+                                return (
+                                    <Badge
+                                        className={cn(
+                                            "h-5 shrink-0 px-1.5 text-[10px] font-bold uppercase shadow-none border-0",
+                                            badge.className
+                                        )}
+                                    >
+                                        {t(badge.labelKey)}
+                                    </Badge>
+                                );
+                            })()}
                             <div className="flex min-w-0 flex-col flex-1">
                                 <span className="truncate text-xs font-semibold text-foreground">
                                     {attempt.channel_name?.trim() || channelNameById?.get(attempt.channel_id) || `Channel #${attempt.channel_id}`}
@@ -218,6 +268,13 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
     const { detail, isLoading: isDetailLoading, fetchDetail, reset: resetDetail } = useLogDetail();
     const hasError = !!log.error;
     const hasMultipleAttempts = log.attempts && log.attempts.length > 1;
+    // forwardedCount 统计真实发往上游的尝试次数（成功+失败），排除冷却跳过与熔断跳过。
+    // 当它小于总尝试次数时，单独展示以便区分「实际请求报错」与「冷却中未请求」
+    // （issue #95 改动6）。
+    const forwardedCount = useMemo(
+        () => (log.attempts ?? []).filter((a) => a.status === 'success' || a.status === 'failed').length,
+        [log.attempts],
+    );
     const [isDiagnosticExpanded, setIsDiagnosticExpanded] = useState(false);
     const [requestJsonCollapsed, setRequestJsonCollapsed] = useState(false);
     const [responseJsonCollapsed, setResponseJsonCollapsed] = useState(false);
@@ -514,6 +571,15 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                                         {log.total_attempts || log.attempts!.length} {t('attempts')}
                                                     </Badge>
                                                 )}
+                                                {hasMultipleAttempts && forwardedCount < (log.total_attempts || log.attempts!.length) && (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="text-xs border-0 bg-muted/50 text-muted-foreground"
+                                                        title={t('forwardedAttempts', { count: forwardedCount })}
+                                                    >
+                                                        {t('forwardedAttempts', { count: forwardedCount })}
+                                                    </Badge>
+                                                )}
                                                 {isDiagnosticExpanded ? (
                                                     <ChevronUp className="size-4 text-muted-foreground" />
                                                 ) : (
@@ -550,17 +616,26 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
 
                                                         {hasMultipleAttempts && (
                                                             <div className="flex flex-col gap-2">
-                                                                {log.attempts!.map((attempt, idx) => (
+                                                                {log.attempts!.map((attempt, idx) => {
+                                                                    const statusBadge = attemptStatusBadge(attempt.status);
+                                                                    const statusCard = attemptStatusCard(attempt.status);
+                                                                    return (
                                                                     <div
                                                                         key={idx}
                                                                         className={cn(
                                                                             "text-xs p-2.5 rounded-xl border transition-colors flex flex-col gap-2",
-                                                                            attempt.status === 'success'
-                                                                                ? "bg-primary/5 border-primary/20 hover:bg-primary/10"
-                                                                                : "bg-destructive/5 border-destructive/20 hover:bg-destructive/10"
+                                                                            statusCard.card
                                                                         )}
                                                                     >
                                                                         <div className="flex items-center gap-2">
+                                                                            <Badge
+                                                                                className={cn(
+                                                                                    "h-5 shrink-0 px-1.5 text-[10px] font-bold uppercase shadow-none border-0",
+                                                                                    statusBadge.className
+                                                                                )}
+                                                                            >
+                                                                                {t(statusBadge.labelKey)}
+                                                                            </Badge>
                                                                             <span className="font-semibold text-foreground">
                                                                                 {attempt.channel_name?.trim() || channelNameById?.get(attempt.channel_id) || `Channel #${attempt.channel_id}`}
                                                                             </span>
@@ -577,12 +652,16 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                                                             </span>
                                                                         </div>
                                                                         {attempt.msg && (
-                                                                            <div className="text-destructive/90 pl-2 border-l-2 border-destructive/30 text-[11px] leading-relaxed">
+                                                                            <div className={cn(
+                                                                                "pl-2 border-l-2 text-[11px] leading-relaxed",
+                                                                                statusCard.msg
+                                                                            )}>
                                                                                 {attempt.msg}
                                                                             </div>
                                                                         )}
                                                                     </div>
-                                                                ))}
+                                                                    );
+                                                                })}
                                                             </div>
                                                         )}
                                                     </div>

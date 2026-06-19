@@ -1240,7 +1240,13 @@
       "title": "重試配置",
       "count": {
         "label": "單個渠道最大重試次數",
+        "hint": "單個候選渠道內 Key 級重試次數，0 表示不重試（只試一次，失敗即換渠道）。",
         "placeholder": "請輸入重試次數"
+      },
+      "routeRetries": {
+        "label": "路由級重試次數",
+        "hint": "所有候選渠道完整遍歷的輪數，1 表示只遍歷一輪。",
+        "placeholder": "請輸入路由級重試次數"
       },
       "ratelimitCooldown": {
         "label": "Key 冷卻時間（秒）",
@@ -1249,7 +1255,7 @@
       },
       "maxTotalAttempts": {
         "label": "最大總嘗試次數",
-        "hint": "限制一次請求在所有候選渠道上的總轉發次數，0 表示不限制。",
+        "hint": "限制一次請求在所有候選渠道上的總轉發次數（不含冷卻/熔斷跳過），0 表示不限制。",
         "placeholder": "請輸入總嘗試次數"
       }
     },
@@ -2282,6 +2288,9 @@
       "attempts": "次嘗試",
       "success": "成功",
       "failed": "失敗",
+      "skipped": "跳過",
+      "circuitBreak": "熔斷",
+      "forwardedAttempts": "實際轉發 {count} 次",
       "realInput": "真實輸入",
       "requestType": "請求類型",
       "channelFallback": "渠道 #{id}",

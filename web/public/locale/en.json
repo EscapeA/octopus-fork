@@ -1240,7 +1240,13 @@
       "title": "Retry Settings",
       "count": {
         "label": "Max retries per channel",
+        "hint": "Max key-level retries within a single candidate channel. 0 = no retry (try once, then switch channel on failure).",
         "placeholder": "Enter retry count"
+      },
+      "routeRetries": {
+        "label": "Route-level retries",
+        "hint": "How many full rounds all candidate channels are traversed. 1 = traverse all channels once. Larger values retry exhausted channels across rounds.",
+        "placeholder": "Enter route retries"
       },
       "ratelimitCooldown": {
         "label": "Key cooldown (seconds)",
@@ -1249,7 +1255,7 @@
       },
       "maxTotalAttempts": {
         "label": "Max total attempts",
-        "hint": "Limits total forwarded attempts across all candidate channels for one request. 0 means unlimited.",
+        "hint": "Caps real forwarded attempts across all candidate channels for one request. Skipped (cooldown) and circuit-broken attempts do not count. 0 means unlimited.",
         "placeholder": "Enter max total attempts"
       }
     },
@@ -2283,6 +2289,9 @@
       "attempts": "attempts",
       "success": "Success",
       "failed": "Failed",
+      "skipped": "Skipped",
+      "circuitBreak": "Circuit Break",
+      "forwardedAttempts": "{count} forwarded",
       "requestType": "Request Type",
       "channelFallback": "Channel #{id}",
       "testLog": "Test",

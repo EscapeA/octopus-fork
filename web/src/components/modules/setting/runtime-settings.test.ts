@@ -3,11 +3,26 @@ import test from 'node:test';
 
 import { AUTO_STRATEGY_FIELDS, RETRY_FIELDS } from './runtime-settings.ts';
 
-test('retry fields expose cooldown and total-attempt controls', () => {
+test('retry fields expose count, route retries, total attempts and cooldown in order', () => {
     assert.deepEqual(
         RETRY_FIELDS.map((field) => field.key),
-        ['relay_retry_count', 'ratelimit_cooldown', 'relay_max_total_attempts']
+        ['relay_retry_count', 'relay_route_retries', 'relay_max_total_attempts', 'ratelimit_cooldown']
     );
+});
+
+test('retry count allows zero to disable per-channel key retries', () => {
+    const retryCount = RETRY_FIELDS.find((field) => field.key === 'relay_retry_count');
+
+    assert.ok(retryCount);
+    assert.equal(retryCount.min, '0');
+});
+
+test('route retries requires at least one route round', () => {
+    const routeRetries = RETRY_FIELDS.find((field) => field.key === 'relay_route_retries');
+
+    assert.ok(routeRetries);
+    assert.equal(routeRetries.min, '1');
+    assert.ok(routeRetries.hintKey);
 });
 
 test('auto strategy fields expose latency weight with bounded range', () => {
