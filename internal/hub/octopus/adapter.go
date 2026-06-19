@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/singleflight"
+
 	"github.com/lingyuins/octopus/internal/hub"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/utils/crypto"
@@ -33,12 +35,12 @@ type cachedToken struct {
 }
 
 var (
-	tokenMu    sync.Mutex
+	tokenMu    sync.RWMutex
 	tokenCache = make(map[string]*cachedToken) // key: "baseURL:username"
 )
 
 // cleanupTokenCache removes expired entries to prevent unbounded growth.
-// Must be called with tokenMu held.
+// Must be called with tokenMu held (write-locked).
 func cleanupTokenCache() {
 	now := time.Now()
 	for k, v := range tokenCache {
@@ -62,21 +64,55 @@ func cacheKey(site *model.RemoteSite) string {
 	return strings.TrimRight(site.BaseURL, "/") + ":" + site.Username
 }
 
+// loginGroup deduplicates concurrent login requests for the same cache key so
+// a slow upstream only blocks callers hitting that exact key, never all
+// sites/accounts (which a global write lock around the HTTP call would).
+var loginGroup singleflight.Group
+
 func getValidToken(ctx context.Context, site *model.RemoteSite) (string, error) {
 	key := cacheKey(site)
 
-	tokenMu.Lock()
-	defer tokenMu.Unlock()
-
+	// Fast path: serve from cache under a read lock, no I/O.
+	tokenMu.RLock()
 	if cached, ok := tokenCache[key]; ok {
 		if time.Now().Add(time.Minute).Before(cached.expiresAt) {
+			tokenMu.RUnlock()
 			return cached.token, nil
 		}
 	}
+	tokenMu.RUnlock()
 
+	// Slow path: log in. HTTP runs outside any lock.
+	v, err, _ := loginGroup.Do(key, func() (interface{}, error) {
+		return login(ctx, site)
+	})
+	if err != nil {
+		return "", err
+	}
+
+	result := v.(loginResult)
+	tokenMu.Lock()
+	tokenCache[key] = &cachedToken{
+		token:     result.token,
+		expiresAt: result.expiresAt,
+	}
+	cleanupTokenCache()
+	tokenMu.Unlock()
+	return result.token, nil
+}
+
+type loginResult struct {
+	token     string
+	expiresAt time.Time
+}
+
+// login performs the upstream login HTTP call. It must not hold tokenMu so
+// that concurrent logins for different keys proceed in parallel and a slow
+// upstream cannot block unrelated callers.
+func login(ctx context.Context, site *model.RemoteSite) (loginResult, error) {
 	password, err := crypto.Decrypt(site.Password)
 	if err != nil {
-		return "", fmt.Errorf("decrypt password: %w", err)
+		return loginResult{}, fmt.Errorf("decrypt password: %w", err)
 	}
 
 	body, err := json.Marshal(loginRequest{
@@ -84,29 +120,29 @@ func getValidToken(ctx context.Context, site *model.RemoteSite) (string, error) 
 		Password: password,
 	})
 	if err != nil {
-		return "", err
+		return loginResult{}, err
 	}
 
 	url := strings.TrimRight(site.BaseURL, "/") + "/api/v1/user/login"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(string(body)))
 	if err != nil {
-		return "", err
+		return loginResult{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := hub.AdapterHTTPClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("login request: %w", err)
+		return loginResult{}, fmt.Errorf("login request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("read login response: %w", err)
+		return loginResult{}, fmt.Errorf("read login response: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("login failed (HTTP %d): %s", resp.StatusCode, truncate(string(respBody), 200))
+		return loginResult{}, fmt.Errorf("login failed (HTTP %d): %s", resp.StatusCode, truncate(string(respBody), 200))
 	}
 
 	var envelope struct {
@@ -115,10 +151,10 @@ func getValidToken(ctx context.Context, site *model.RemoteSite) (string, error) 
 		Data    *loginResponse `json:"data"`
 	}
 	if err := json.Unmarshal(respBody, &envelope); err != nil {
-		return "", fmt.Errorf("parse login response: %w", err)
+		return loginResult{}, fmt.Errorf("parse login response: %w", err)
 	}
 	if envelope.Code != 200 || envelope.Data == nil {
-		return "", fmt.Errorf("login error: %s", envelope.Message)
+		return loginResult{}, fmt.Errorf("login error: %s", envelope.Message)
 	}
 
 	expiresAt, _ := time.Parse(time.RFC3339, envelope.Data.ExpireAt)
@@ -126,12 +162,7 @@ func getValidToken(ctx context.Context, site *model.RemoteSite) (string, error) 
 		expiresAt = time.Now().Add(15 * time.Minute)
 	}
 
-	tokenCache[key] = &cachedToken{
-		token:     envelope.Data.Token,
-		expiresAt: expiresAt,
-	}
-	cleanupTokenCache()
-	return envelope.Data.Token, nil
+	return loginResult{token: envelope.Data.Token, expiresAt: expiresAt}, nil
 }
 
 // octopusFetch wraps the standard fetch with JWT auth instead of Bearer token.

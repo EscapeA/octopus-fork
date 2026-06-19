@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/singleflight"
+
 	"github.com/lingyuins/octopus/internal/hub"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/utils/crypto"
@@ -32,12 +34,12 @@ type cachedToken struct {
 }
 
 var (
-	tokenMu    sync.Mutex
+	tokenMu    sync.RWMutex
 	tokenCache = make(map[string]*cachedToken) // key: "baseURL|email"
 )
 
 // cleanupTokenCache removes expired entries to prevent unbounded growth.
-// Must be called with tokenMu held.
+// Must be called with tokenMu held (write-locked).
 func cleanupTokenCache() {
 	now := time.Now()
 	for k, v := range tokenCache {
@@ -51,18 +53,47 @@ func cacheKey(site *model.RemoteSite) string {
 	return strings.TrimRight(site.BaseURL, "/") + "|" + site.Username
 }
 
+// loginGroup deduplicates concurrent signin requests for the same cache key
+// so a slow upstream only blocks callers hitting that exact key, never all
+// sites/accounts (which a global write lock around the HTTP call would).
+var loginGroup singleflight.Group
+
 func getValidToken(ctx context.Context, site *model.RemoteSite) (string, error) {
 	key := cacheKey(site)
 
-	tokenMu.Lock()
-	defer tokenMu.Unlock()
-
+	// Fast path: serve from cache under a read lock, no I/O.
+	tokenMu.RLock()
 	if cached, ok := tokenCache[key]; ok {
 		if time.Now().Add(time.Minute).Before(cached.expiresAt) {
+			tokenMu.RUnlock()
 			return cached.token, nil
 		}
 	}
+	tokenMu.RUnlock()
 
+	// Slow path: sign in. HTTP runs outside any lock.
+	v, err, _ := loginGroup.Do(key, func() (interface{}, error) {
+		return signin(ctx, site)
+	})
+	if err != nil {
+		return "", err
+	}
+
+	token := v.(string)
+	tokenMu.Lock()
+	tokenCache[key] = &cachedToken{
+		token:     token,
+		expiresAt: time.Now().Add(15 * time.Minute),
+	}
+	cleanupTokenCache()
+	tokenMu.Unlock()
+	return token, nil
+}
+
+// signin performs the upstream sign-in HTTP call. It must not hold tokenMu so
+// that concurrent sign-ins for different keys proceed in parallel and a slow
+// upstream cannot block unrelated callers.
+func signin(ctx context.Context, site *model.RemoteSite) (string, error) {
 	password, err := crypto.Decrypt(site.Password)
 	if err != nil {
 		return "", fmt.Errorf("decrypt password: %w", err)
@@ -105,11 +136,6 @@ func getValidToken(ctx context.Context, site *model.RemoteSite) (string, error) 
 		return "", fmt.Errorf("signin returned empty token")
 	}
 
-	tokenCache[key] = &cachedToken{
-		token:     result.Token,
-		expiresAt: time.Now().Add(15 * time.Minute),
-	}
-	cleanupTokenCache()
 	return result.Token, nil
 }
 

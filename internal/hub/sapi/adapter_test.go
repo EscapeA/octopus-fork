@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/lingyuins/octopus/internal/hub"
 	"github.com/lingyuins/octopus/internal/model"
@@ -123,5 +125,93 @@ func TestSAPIAdapterIsRegistered(t *testing.T) {
 	}
 	if _, ok := adapter.(*Adapter); !ok {
 		t.Fatalf("adapter type = %T", adapter)
+	}
+}
+
+// TestGetValidTokenDeduplicatesConcurrentLogins verifies that concurrent
+// callers for the same cache key share a single login request (singleflight)
+// and that the login HTTP call happens outside the token mutex so unrelated
+// keys are not serialized behind a slow upstream.
+func TestGetValidTokenDeduplicatesConcurrentLogins(t *testing.T) {
+	// Reset global cache state so the test is self-contained.
+	tokenMu.Lock()
+	tokenCache = make(map[string]*cachedToken)
+	tokenMu.Unlock()
+	t.Cleanup(func() {
+		tokenMu.Lock()
+		tokenCache = make(map[string]*cachedToken)
+		tokenMu.Unlock()
+	})
+
+	var loginCalls int
+	var loginMu sync.Mutex
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/auth/login" {
+			http.NotFound(w, r)
+			return
+		}
+		loginMu.Lock()
+		loginCalls++
+		loginMu.Unlock()
+		// Simulate a slow upstream; if logins were serialized under a global
+		// lock, this test would take ~calls*delay instead of ~delay.
+		time.Sleep(100 * time.Millisecond)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"role":  "user",
+			"token": "jwt-concurrent",
+			"user": map[string]interface{}{
+				"id": "usr_c", "username": "carol", "name": "Carol",
+				"email": "carol@example.com", "enabled": true, "apiKey": "sk-c",
+			},
+		})
+	}))
+	defer server.Close()
+
+	site := &model.RemoteSite{
+		BaseURL:  server.URL,
+		Username: "carol",
+	}
+	// sapi requires an encrypted password; encrypt a known plaintext.
+	enc, err := crypto.Encrypt("pw")
+	if err != nil {
+		t.Fatalf("encrypt: %v", err)
+	}
+	site.Password = enc
+
+	const callers = 8
+	var wg sync.WaitGroup
+	start := time.Now()
+	tokens := make([]string, callers)
+	for i := 0; i < callers; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			tok, err := getValidToken(context.Background(), site)
+			if err != nil {
+				t.Errorf("getValidToken[%d]: %v", i, err)
+				return
+			}
+			tokens[i] = tok
+		}(i)
+	}
+	wg.Wait()
+	elapsed := time.Since(start)
+
+	loginMu.Lock()
+	calls := loginCalls
+	loginMu.Unlock()
+	if calls != 1 {
+		t.Fatalf("login calls = %d, want 1 (singleflight should dedupe)", calls)
+	}
+	for i, tok := range tokens {
+		if tok != "jwt-concurrent" {
+			t.Fatalf("tokens[%d] = %q, want jwt-concurrent", i, tok)
+		}
+	}
+	// 8 concurrent callers sharing one 100ms login must finish in well under
+	// 8*100ms. Allow generous slack for scheduling. This guards against a
+	// regression to a global-lock-around-HTTP design.
+	if elapsed > 600*time.Millisecond {
+		t.Fatalf("elapsed = %v, want < 600ms (login should not serialize callers)", elapsed)
 	}
 }

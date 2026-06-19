@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/singleflight"
+
 	"github.com/lingyuins/octopus/internal/hub"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/utils/crypto"
@@ -33,12 +35,12 @@ type cachedToken struct {
 }
 
 var (
-	tokenMu    sync.Mutex
+	tokenMu    sync.RWMutex
 	tokenCache = make(map[string]*cachedToken) // key: "baseURL:username"
 )
 
 // cleanupTokenCache removes expired entries to prevent unbounded growth.
-// Must be called with tokenMu held.
+// Must be called with tokenMu held (write-locked).
 func cleanupTokenCache() {
 	now := time.Now()
 	for k, v := range tokenCache {
@@ -59,54 +61,87 @@ func cacheKey(site *model.RemoteSite) string {
 	return strings.TrimRight(site.BaseURL, "/") + ":" + site.Username
 }
 
+// tokenGroup deduplicates concurrent token acquisition for the same cache key
+// so a slow upstream only blocks callers hitting that exact key, never all
+// sites/accounts (which a global write lock around the HTTP call would).
+var tokenGroup singleflight.Group
+
 // getValidToken returns a valid access token, refreshing if needed.
 // Sub2API stores access_token in site.AccessToken (encrypted) and refresh_token in site.Password (encrypted).
 func getValidToken(ctx context.Context, site *model.RemoteSite) (string, error) {
 	key := cacheKey(site)
 
-	tokenMu.Lock()
-	defer tokenMu.Unlock()
+	// Fast path: serve from cache under a read lock, no I/O. A token that is
+	// still valid (with a 120s safety margin) is returned immediately.
+	tokenMu.RLock()
+	if cached, ok := tokenCache[key]; ok && time.Now().Add(120*time.Second).Before(cached.expiresAt) {
+		tokenMu.RUnlock()
+		return cached.accessToken, nil
+	}
+	tokenMu.RUnlock()
 
+	// Slow path: refresh or re-login. HTTP runs outside any lock.
+	v, err, _ := tokenGroup.Do(key, func() (interface{}, error) {
+		return fetchToken(ctx, site, key)
+	})
+	if err != nil {
+		return "", err
+	}
+
+	newToken := v.(*cachedToken)
+	tokenMu.Lock()
+	tokenCache[key] = newToken
+	cleanupTokenCache()
+	tokenMu.Unlock()
+	return newToken.accessToken, nil
+}
+
+// fetchToken acquires a fresh token without holding tokenMu. It mirrors the
+// original precedence: (1) refresh via the cached refresh token, (2) refresh
+// via the stored (encrypted) refresh token, (3) fall back to the stored
+// access token with a short validity. Every HTTP call happens here, outside
+// any lock, so a slow upstream cannot block unrelated callers.
+func fetchToken(ctx context.Context, site *model.RemoteSite, key string) (*cachedToken, error) {
+	// Re-check the cache: another goroutine may have just populated it, or a
+	// concurrent refresh for this key may have already succeeded.
+	tokenMu.RLock()
 	if cached, ok := tokenCache[key]; ok {
-		// Proactive refresh: if within 120 seconds of expiry
 		if time.Now().Add(120 * time.Second).Before(cached.expiresAt) {
-			return cached.accessToken, nil
+			tokenMu.RUnlock()
+			return cached, nil
 		}
-		// Try refresh token flow
-		newToken, err := refreshToken(ctx, site, cached.refreshToken)
-		if err == nil {
-			tokenCache[key] = newToken
-			cleanupTokenCache()
-			return newToken.accessToken, nil
+		// Cached but near expiry: try refreshing with the cached refresh token.
+		cachedRefresh := cached.refreshToken
+		tokenMu.RUnlock()
+		if cachedRefresh != "" {
+			if newToken, err := refreshToken(ctx, site, cachedRefresh); err == nil {
+				return newToken, nil
+			}
 		}
-		// Refresh failed, fall through to try stored token
+	} else {
+		tokenMu.RUnlock()
 	}
 
 	// Use stored access token
 	accessToken, err := crypto.Decrypt(site.AccessToken)
 	if err != nil {
-		return "", fmt.Errorf("decrypt access token: %w", err)
+		return nil, fmt.Errorf("decrypt access token: %w", err)
 	}
 
 	// Try stored refresh token to get a fresh access token
 	refreshTokenStr, _ := crypto.Decrypt(site.Password) // Password field stores refresh token
 	if refreshTokenStr != "" {
-		newToken, err := refreshToken(ctx, site, refreshTokenStr)
-		if err == nil {
-			tokenCache[key] = newToken
-			cleanupTokenCache()
-			return newToken.accessToken, nil
+		if newToken, err := refreshToken(ctx, site, refreshTokenStr); err == nil {
+			return newToken, nil
 		}
 	}
 
 	// Fallback to stored access token
-	tokenCache[key] = &cachedToken{
+	return &cachedToken{
 		accessToken:  accessToken,
 		refreshToken: refreshTokenStr,
 		expiresAt:    time.Now().Add(5 * time.Minute), // assume 5 min validity
-	}
-	cleanupTokenCache()
-	return accessToken, nil
+	}, nil
 }
 
 type refreshResponse struct {

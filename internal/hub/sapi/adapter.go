@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/singleflight"
+
 	"github.com/lingyuins/octopus/internal/hub"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/utils/crypto"
@@ -30,12 +32,12 @@ type cachedToken struct {
 }
 
 var (
-	tokenMu    sync.Mutex
+	tokenMu    sync.RWMutex
 	tokenCache = make(map[string]*cachedToken)
 )
 
 // cleanupTokenCache removes expired entries to prevent unbounded growth.
-// Must be called with tokenMu held.
+// Must be called with tokenMu held (write-locked).
 func cleanupTokenCache() {
 	now := time.Now()
 	for k, v := range tokenCache {
@@ -217,13 +219,42 @@ func fetchJSONWithHeaders[T any](ctx context.Context, site *model.RemoteSite, me
 	return result, nil
 }
 
+// loginGroup deduplicates concurrent login requests for the same cache key so
+// a slow upstream only blocks callers hitting that exact key, never all
+// sites/accounts (which a global write lock around the HTTP call would).
+var loginGroup singleflight.Group
+
 func getValidToken(ctx context.Context, site *model.RemoteSite) (string, error) {
 	key := cacheKey(site)
-	tokenMu.Lock()
-	defer tokenMu.Unlock()
+
+	// Fast path: serve from cache under a read lock, no I/O.
+	tokenMu.RLock()
 	if cached, ok := tokenCache[key]; ok && time.Now().Add(time.Minute).Before(cached.expiresAt) {
+		tokenMu.RUnlock()
 		return cached.token, nil
 	}
+	tokenMu.RUnlock()
+
+	// Slow path: log in. HTTP runs outside any lock.
+	v, err, _ := loginGroup.Do(key, func() (interface{}, error) {
+		return login(ctx, site)
+	})
+	if err != nil {
+		return "", err
+	}
+
+	token := v.(string)
+	tokenMu.Lock()
+	tokenCache[key] = &cachedToken{token: token, expiresAt: time.Now().Add(12 * time.Hour)}
+	cleanupTokenCache()
+	tokenMu.Unlock()
+	return token, nil
+}
+
+// login performs the upstream login HTTP call. It must not hold tokenMu so
+// that concurrent logins for different keys proceed in parallel and a slow
+// upstream cannot block unrelated callers.
+func login(ctx context.Context, site *model.RemoteSite) (string, error) {
 	password, err := crypto.Decrypt(site.Password)
 	if err != nil {
 		return "", fmt.Errorf("decrypt password: %w", err)
@@ -231,19 +262,17 @@ func getValidToken(ctx context.Context, site *model.RemoteSite) (string, error) 
 	if site.Username == "" || password == "" {
 		return "", fmt.Errorf("username and password are required")
 	}
-	login, err := fetchJSONWithHeaders[loginResponse](ctx, site, http.MethodPost, "/api/auth/login", loginRequest{
+	resp, err := fetchJSONWithHeaders[loginResponse](ctx, site, http.MethodPost, "/api/auth/login", loginRequest{
 		Username: site.Username,
 		Password: password,
 	}, map[string]string{"Content-Type": "application/json"})
 	if err != nil {
 		return "", fmt.Errorf("login: %w", err)
 	}
-	if login.Token == "" {
+	if resp.Token == "" {
 		return "", fmt.Errorf("login response missing token")
 	}
-	tokenCache[key] = &cachedToken{token: login.Token, expiresAt: time.Now().Add(12 * time.Hour)}
-	cleanupTokenCache()
-	return login.Token, nil
+	return resp.Token, nil
 }
 
 func mapUserInfo(user sapiUser) *hub.UserInfoResult {
