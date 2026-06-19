@@ -281,7 +281,12 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 				}
 
 				ch.KeyUpdate(usedKey)
-				span.End(dbmodel.AttemptFailed, statusCode, decision.String())
+				// 决策摘要 + 上游原始错误，使 relay log 能区分 429 等错误的真实成因（issue #93）。
+				mediaFailMsg := decision.String()
+				if upstreamErr := extractUpstreamErrorDetail(fwdErr); upstreamErr != "" {
+					mediaFailMsg = fmt.Sprintf("%s: %s", mediaFailMsg, upstreamErr)
+				}
+				span.End(dbmodel.AttemptFailed, statusCode, mediaFailMsg)
 				st.ChannelUpdate(channel.ID, dbmodel.StatsMetrics{
 					WaitTime:      span.Duration().Milliseconds(),
 					RequestFailed: 1,
