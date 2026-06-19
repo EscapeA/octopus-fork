@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
@@ -76,6 +77,16 @@ func TestRelayLogCleanupAll(t *testing.T) {
 		t.Fatalf("seed relay logs failed: %v", err)
 	}
 
+	// Seed matching attempts so we can assert they are cleared together with
+	// relay_logs (no orphaned rows left behind).
+	seedAttempts := []model.RelayLogAttempt{
+		{ID: 1, RelayLogID: 401, ChannelID: 10, Time: 1, Status: string(model.AttemptSuccess)},
+		{ID: 2, RelayLogID: 402, ChannelID: 11, Time: 2, Status: string(model.AttemptFailed)},
+	}
+	if err := db.GetDB().Create(&seedAttempts).Error; err != nil {
+		t.Fatalf("seed relay log attempts failed: %v", err)
+	}
+
 	var before int64
 	db.GetDB().Model(&model.RelayLog{}).Count(&before)
 	if before != 3 {
@@ -92,6 +103,98 @@ func TestRelayLogCleanupAll(t *testing.T) {
 	}
 	if after != 0 {
 		t.Fatalf("relay log count = %d, want 0 (all logs should be deleted)", after)
+	}
+
+	// attempts must be cleared too, otherwise they become orphans that the
+	// analytics INNER JOIN silently drops.
+	var attemptAfter int64
+	if err := db.GetDB().Model(&model.RelayLogAttempt{}).Count(&attemptAfter).Error; err != nil {
+		t.Fatalf("count attempts after cleanup failed: %v", err)
+	}
+	if attemptAfter != 0 {
+		t.Fatalf("relay_log_attempts count = %d, want 0 (no orphaned attempts)", attemptAfter)
+	}
+}
+
+// TestRelayLogCleanupDeletesAttemptsWithDaysPeriod 验证按天清理（keepPeriod）删除
+// 过期 relay_logs 时同步删除对应的 relay_log_attempts，避免留下孤儿行被 analytics
+// 的 INNER JOIN 排除（issue #93：渠道×模型/利用率卡片数据随旧日志清理逐渐消失）。
+func TestRelayLogCleanupDeletesAttemptsWithDaysPeriod(t *testing.T) {
+	dsn := filepath.Join(t.TempDir(), "relaylog-cleanup-days.db")
+	if err := db.InitDB("sqlite", dsn, false); err != nil {
+		t.Fatalf("InitDB failed: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := setting.RefreshCache(context.Background()); err != nil {
+		t.Fatalf("RefreshCache failed: %v", err)
+	}
+
+	// keepCount=0 走按天分支；keepPeriod=1 仅保留最近 1 天。
+	if err := setting.SetString(model.SettingKeyRelayLogKeepCount, "0"); err != nil {
+		t.Fatalf("set keep count failed: %v", err)
+	}
+	if err := setting.SetString(model.SettingKeyRelayLogKeepPeriod, "1"); err != nil {
+		t.Fatalf("set keep period failed: %v", err)
+	}
+
+	// 旧日志（早于 1 天阈值）会被清理，新日志保留。
+	cutoff := time.Now().Add(-1 * 24 * time.Hour).Unix()
+	oldTime := cutoff - 3600
+	newTime := time.Now().Unix()
+
+	oldLogs := []model.RelayLog{
+		{ID: 501, Time: oldTime, RequestModelName: "old-model-a", ChannelId: 10},
+		{ID: 502, Time: oldTime, RequestModelName: "old-model-b", ChannelId: 11},
+	}
+	newLog := model.RelayLog{ID: 503, Time: newTime, RequestModelName: "new-model", ChannelId: 12}
+	if err := db.GetDB().Create(&oldLogs).Error; err != nil {
+		t.Fatalf("seed old relay logs failed: %v", err)
+	}
+	if err := db.GetDB().Create(&newLog).Error; err != nil {
+		t.Fatalf("seed new relay log failed: %v", err)
+	}
+
+	// 旧日志各带一条 attempt，新日志带一条 attempt。
+	seedAttempts := []model.RelayLogAttempt{
+		{ID: 1, RelayLogID: 501, ChannelID: 10, ModelName: "old-model-a", Time: oldTime, Status: string(model.AttemptFailed)},
+		{ID: 2, RelayLogID: 502, ChannelID: 11, ModelName: "old-model-b", Time: oldTime, Status: string(model.AttemptSuccess)},
+		{ID: 3, RelayLogID: 503, ChannelID: 12, ModelName: "new-model", Time: newTime, Status: string(model.AttemptSuccess)},
+	}
+	if err := db.GetDB().Create(&seedAttempts).Error; err != nil {
+		t.Fatalf("seed attempts failed: %v", err)
+	}
+
+	if err := relayLogCleanup(context.Background()); err != nil {
+		t.Fatalf("relayLogCleanup returned error: %v", err)
+	}
+
+	// relay_logs：旧的两条删除，新的保留。
+	var logCount int64
+	if err := db.GetDB().Model(&model.RelayLog{}).Count(&logCount).Error; err != nil {
+		t.Fatalf("count relay logs failed: %v", err)
+	}
+	if logCount != 1 {
+		t.Fatalf("relay log count = %d, want 1 (only the new log survives)", logCount)
+	}
+
+	// relay_log_attempts：旧的两条同步删除，无孤儿，新的保留。
+	var attemptCount int64
+	if err := db.GetDB().Model(&model.RelayLogAttempt{}).Count(&attemptCount).Error; err != nil {
+		t.Fatalf("count attempts failed: %v", err)
+	}
+	if attemptCount != 1 {
+		t.Fatalf("relay_log_attempts count = %d, want 1 (old attempts deleted with their logs)", attemptCount)
+	}
+
+	// 关键断言：无孤儿——每条剩余 attempt 都能 JOIN 到 relay_logs。
+	var orphanCount int64
+	if err := db.GetDB().Raw(`SELECT COUNT(*) FROM relay_log_attempts a
+		LEFT JOIN relay_logs l ON l.id = a.relay_log_id
+		WHERE l.id IS NULL`).Scan(&orphanCount).Error; err != nil {
+		t.Fatalf("count orphan attempts failed: %v", err)
+	}
+	if orphanCount != 0 {
+		t.Fatalf("orphan attempt count = %d, want 0 (no attempts without a matching relay_log)", orphanCount)
 	}
 }
 

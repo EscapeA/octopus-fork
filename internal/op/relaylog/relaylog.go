@@ -394,6 +394,14 @@ func relayLogCleanup(ctx context.Context) error {
 		if thresholdID == 0 {
 			return nil
 		}
+		// 同步删除关联的 relay_log_attempts，避免 relay_logs 行被删后留下孤儿
+		// attempts（无外键级联）。否则 analytics 的 INNER JOIN 会排除这些孤儿，
+		// 表现为"数据消失"（issue #93）。
+		if err := conn.WithContext(ctx).
+			Where("relay_log_id < ?", thresholdID).
+			Delete(&model.RelayLogAttempt{}).Error; err != nil {
+			return err
+		}
 		return conn.WithContext(ctx).
 			Where("id < ?", thresholdID).
 			Delete(&model.RelayLog{}).Error
@@ -410,6 +418,14 @@ func relayLogCleanup(ctx context.Context) error {
 	}
 
 	cutoffTime := time.Now().Add(-time.Duration(keepPeriod) * 24 * time.Hour).Unix()
+	// 先删 relay_log_attempts 中早于阈值的行，再删 relay_logs。两表无外键级联，
+	// 若只删 relay_logs 会留下指向已删 id 的孤儿 attempts 行，导致 analytics 的
+	// INNER JOIN 聚合查不到数据（渠道×模型/利用率卡片随旧日志清理逐渐清空）。
+	if err := conn.WithContext(ctx).
+		Where("time < ?", cutoffTime).
+		Delete(&model.RelayLogAttempt{}).Error; err != nil {
+		return err
+	}
 	return conn.WithContext(ctx).Where("time < ?", cutoffTime).Delete(&model.RelayLog{}).Error
 }
 
@@ -417,11 +433,18 @@ func relayLogCleanup(ctx context.Context) error {
 //
 // 使用 db.FastClearTable（TRUNCATE / DROP+重建）而非逐行 DELETE：百万级日志在
 // SQLite + WAL + 单连接下逐行删可能耗时数十分钟，整表清空近乎瞬时。
+//
+// relay_log_attempts 与 relay_logs 无外键级联，必须显式清空，否则关闭日志后
+// 残留的 attempts 孤儿行会在重新开启日志后被 analytics 的 INNER JOIN 排除，
+// 造成"渠道×模型/利用率查不到历史数据"的假象。
 func relayLogCleanupAll(ctx context.Context) error {
 	conn := db.GetLogDB()
 	if conn == nil {
 		// 独立日志库已断开（日志关闭场景）：无需清理。
 		return nil
+	}
+	if err := db.FastClearTable(conn.WithContext(ctx), &model.RelayLogAttempt{}, "relay_log_attempts"); err != nil {
+		return err
 	}
 	return db.FastClearTable(conn.WithContext(ctx), &model.RelayLog{}, "relay_logs")
 }
@@ -739,6 +762,11 @@ func RelayLogClear(ctx context.Context) error {
 		return nil
 	}
 	// 整表清空走 FastClearTable，避免百万级逐行 DELETE 卡住数十分钟。
+	// 同步清空 relay_log_attempts，避免残留孤儿行（其 relay_log_id 指向已删
+	// 的 relay_logs）被 analytics 的 INNER JOIN 排除，造成统计莫名消失。
+	if err := db.FastClearTable(conn.WithContext(ctx), &model.RelayLogAttempt{}, "relay_log_attempts"); err != nil {
+		return err
+	}
 	return db.FastClearTable(conn.WithContext(ctx), &model.RelayLog{}, "relay_logs")
 }
 
