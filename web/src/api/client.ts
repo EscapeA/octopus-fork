@@ -101,7 +101,13 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
     // 如果是标准的 ApiResponse 格式，返回 data 字段
     if (data && typeof data === 'object' && 'data' in data) {
-        return data.data as T;
+        // 后端用 nil 切片/指针装箱到 interface{} 时会序列化为 "data":null
+        // （非 nil interface，omitempty 不省略）。解构默认值 `const { data: x =
+        // [] } = ...` 只对 undefined 生效，对 null 无效，会导致后续 .map()/.length
+        // 崩溃。把成功的 null data 统一归一化为 undefined，让所有依赖默认值的
+        // 消费端拿到安全的空值。
+        const inner = (data as { data: unknown }).data;
+        return (inner === null ? undefined : inner) as T;
     }
 
     return data as T;
