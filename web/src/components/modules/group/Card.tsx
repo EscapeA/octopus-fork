@@ -86,7 +86,7 @@ function EditDialogContent({
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-{group.id && supportsGroupTest(group.endpoint_type) ? (
+                        {group.id && supportsGroupTest(group.endpoint_type) ? (
                             <AIRouteButton
                                 scope="group"
                                 groupId={group.id}
@@ -95,118 +95,22 @@ function EditDialogContent({
                                 onSuccess={() => setIsOpen(false)}
                             />
                         ) : null}
+                        {group.id && supportsGroupTest(group.endpoint_type) && !isTestingAvailability && !availabilitySummary ? (
+                            <button
+                                type="button"
+                                onClick={onTestAvailability}
+                                className="inline-flex h-10 items-center gap-2 rounded-lg border border-primary/20 bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:opacity-90"
+                            >
+                                <TestTubeDiagonal className="size-4" />
+                                {t('detail.availability.testAll')}
+                            </button>
+                        ) : null}
                         <MorphingDialogClose className="relative right-0 top-0" />
                     </div>
                 </header>
             </MorphingDialogTitle>
-            <MorphingDialogDescription className="flex flex-1 min-h-0 flex-col gap-4 overflow-hidden pr-1">
-                {group.id ? (
-                    <section className="shrink-0 rounded-lg border border-border/25 bg-card p-4">
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                                <div className="space-y-1">
-                                    <h3 className="text-sm font-semibold text-foreground">{t('detail.availability.title')}</h3>
-                                    <p className="text-xs text-muted-foreground">{t('detail.availability.description')}</p>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    {canRemoveFailedModels ? (
-                                        <button
-                                            type="button"
-                                            onClick={onRemoveFailedModels}
-                                            className="inline-flex h-9 items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/8 px-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/12"
-                                        >
-                                            <Trash2 className="size-4" />
-                                            {t('detail.actions.removeFailedModels')}
-                                        </button>
-                                    ) : null}
-                                    <button
-                                        type="button"
-                                        onClick={onTestAvailability}
-                                        disabled={isTestingAvailability || !group.id}
-                                        className={cn(
-                                            'inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors',
-                                            isTestingAvailability
-                                                ? 'cursor-not-allowed border-border/25 bg-muted text-muted-foreground'
-                                                : 'border-primary/20 bg-primary text-primary-foreground hover:opacity-90'
-                                        )}
-                                    >
-                                        {isTestingAvailability ? <Loader2 className="size-4 animate-spin" /> : <TestTubeDiagonal className="size-4" />}
-                                        {t('detail.availability.testAll')}
-                                    </button>
-                                </div>
-                            </div>
-                            {(isTestingAvailability || availabilitySummary) ? (
-                                <div className="mt-4 max-h-[40vh] space-y-3 overflow-y-auto pr-1">
-                                    <Progress value={testProgressValue} className="h-2" />
-                                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                                        <span>{t('card.testProgressCount', { completed: testProgressCompleted, total: testProgressTotal || editMembers.length })}</span>
-                                        {availabilitySummary?.fullyMatched ? (
-                                            <span className={cn(
-                                                'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium',
-                                                availabilitySummary.allAvailable
-                                                    ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600'
-                                                    : 'border-destructive/20 bg-destructive/10 text-destructive'
-                                            )}>
-                                                {availabilitySummary.allAvailable ? t('toast.testAllPassed') : t('toast.testPartialFailed')}
-                                            </span>
-                                        ) : null}
-                                        {availabilitySummary?.fullyMatched ? (
-                                            <span className="text-destructive">
-                                                {t('detail.availability.unavailableCount', { count: availabilitySummary.unavailableCount })}
-                                            </span>
-                                        ) : null}
-                                    </div>
-                                    <div className="rounded-lg border border-border/20 bg-background/40">
-                                        <MemberList
-                                            members={editMembers}
-                                            onReorder={() => undefined}
-                                            onRemove={() => undefined}
-                                            autoScrollOnAdd={false}
-                                            showConfirmDelete={false}
-                                            showWeight={(MODE_LABELS[group.mode] ? group.mode : GroupMode.Auto) === GroupMode.Weighted || (MODE_LABELS[group.mode] ? group.mode : GroupMode.Auto) === GroupMode.Auto}
-                                            availabilityById={availabilityByMemberId}
-                                        />
-                                    </div>
-                                    {testResults.length > 0 ? (
-                                        <div className="rounded-lg border border-border/20 bg-background/50 p-3">
-                                            <div className="mb-2 text-xs font-medium text-foreground">{t('detail.availability.resultTitle')}</div>
-                                            <div className="space-y-2">
-                                                {testResults.map((result) => (
-                                                    <div
-                                                        key={result.client_id || `${result.item_id}-${result.channel_id}-${result.model_name}`}
-                                                        className={cn(
-                                                            'rounded-md border px-3 py-2 text-xs',
-                                                            result.passed
-                                                                ? 'border-emerald-500/15 bg-emerald-500/5'
-                                                                : 'border-destructive/15 bg-destructive/5'
-                                                        )}
-                                                    >
-                                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                                            <span className="font-medium text-foreground">{result.model_name}</span>
-                                                            <span className="text-muted-foreground">@ {result.channel_name}</span>
-                                                            <span className={cn(result.passed ? 'text-emerald-600' : 'text-destructive')}>
-                                                                {result.passed ? t('detail.availability.resultPassed') : t('detail.availability.resultFailed')}
-                                                            </span>
-                                                            {result.status_code > 0 ? (
-                                                                <span className="text-muted-foreground">HTTP {result.status_code}</span>
-                                                            ) : null}
-                                                            <span className="text-muted-foreground">{t('detail.availability.resultAttempts', { count: result.attempts })}</span>
-                                                        </div>
-                                                        {result.message ? (
-                                                            <div className="mt-1 break-all text-muted-foreground">{result.message}</div>
-                                                        ) : null}
-                                                        {!result.passed && result.response_text ? (
-                                                            <div className="mt-1 break-all text-muted-foreground/90">{result.response_text}</div>
-                                                        ) : null}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ) : null}
-                                </div>
-                            ) : null}
-                        </section>
-                    ) : null}
-
+            <MorphingDialogDescription className="flex flex-1 min-h-0 flex-col gap-4 overflow-x-hidden pr-1 2xl:flex-row">
+                <div className="flex-1 min-h-0 min-w-0">
                     <GroupEditor
                         key={`edit-group-${group.id}`}
                         className="flex-1 min-h-0"
@@ -228,6 +132,111 @@ function EditDialogContent({
                         onCancel={() => setIsOpen(false)}
                         onSubmit={(v) => onSubmit(v, () => setIsOpen(false))}
                     />
+                </div>
+                {group.id && (isTestingAvailability || availabilitySummary) ? (
+                    <section className="w-full max-h-[40vh] overflow-y-auto rounded-lg border border-border/25 bg-card p-4 2xl:max-h-none 2xl:w-80 2xl:shrink-0">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="space-y-1">
+                                <h3 className="text-sm font-semibold text-foreground">{t('detail.availability.title')}</h3>
+                                <p className="text-xs text-muted-foreground">{t('detail.availability.description')}</p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                {canRemoveFailedModels ? (
+                                    <button
+                                        type="button"
+                                        onClick={onRemoveFailedModels}
+                                        className="inline-flex h-9 items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/8 px-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/12"
+                                    >
+                                        <Trash2 className="size-4" />
+                                        {t('detail.actions.removeFailedModels')}
+                                    </button>
+                                ) : null}
+                                <button
+                                    type="button"
+                                    onClick={onTestAvailability}
+                                    disabled={isTestingAvailability || !group.id}
+                                    className={cn(
+                                        'inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors',
+                                        isTestingAvailability
+                                            ? 'cursor-not-allowed border-border/25 bg-muted text-muted-foreground'
+                                            : 'border-primary/20 bg-primary text-primary-foreground hover:opacity-90'
+                                    )}
+                                >
+                                    {isTestingAvailability ? <Loader2 className="size-4 animate-spin" /> : <TestTubeDiagonal className="size-4" />}
+                                    {t('detail.availability.testAll')}
+                                </button>
+                            </div>
+                        </div>
+                        <div className="mt-4 space-y-3 pr-1">
+                            <Progress value={testProgressValue} className="h-2" />
+                            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                                <span>{t('card.testProgressCount', { completed: testProgressCompleted, total: testProgressTotal || editMembers.length })}</span>
+                                {availabilitySummary?.fullyMatched ? (
+                                    <span className={cn(
+                                        'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                                        availabilitySummary.allAvailable
+                                            ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600'
+                                            : 'border-destructive/20 bg-destructive/10 text-destructive'
+                                    )}>
+                                        {availabilitySummary.allAvailable ? t('toast.testAllPassed') : t('toast.testPartialFailed')}
+                                    </span>
+                                ) : null}
+                                {availabilitySummary?.fullyMatched ? (
+                                    <span className="text-destructive">
+                                        {t('detail.availability.unavailableCount', { count: availabilitySummary.unavailableCount })}
+                                    </span>
+                                ) : null}
+                            </div>
+                            <div className="rounded-lg border border-border/20 bg-background/40">
+                                <MemberList
+                                    members={editMembers}
+                                    onReorder={() => undefined}
+                                    onRemove={() => undefined}
+                                    autoScrollOnAdd={false}
+                                    showConfirmDelete={false}
+                                    showWeight={(MODE_LABELS[group.mode] ? group.mode : GroupMode.Auto) === GroupMode.Weighted || (MODE_LABELS[group.mode] ? group.mode : GroupMode.Auto) === GroupMode.Auto}
+                                    availabilityById={availabilityByMemberId}
+                                />
+                            </div>
+                            {testResults.length > 0 ? (
+                                <div className="rounded-lg border border-border/20 bg-background/50 p-3">
+                                    <div className="mb-2 text-xs font-medium text-foreground">{t('detail.availability.resultTitle')}</div>
+                                    <div className="space-y-2">
+                                        {testResults.map((result) => (
+                                            <div
+                                                key={result.client_id || `${result.item_id}-${result.channel_id}-${result.model_name}`}
+                                                className={cn(
+                                                    'rounded-md border px-3 py-2 text-xs',
+                                                    result.passed
+                                                        ? 'border-emerald-500/15 bg-emerald-500/5'
+                                                        : 'border-destructive/15 bg-destructive/5'
+                                                )}
+                                            >
+                                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                                    <span className="font-medium text-foreground">{result.model_name}</span>
+                                                    <span className="text-muted-foreground">@ {result.channel_name}</span>
+                                                    <span className={cn(result.passed ? 'text-emerald-600' : 'text-destructive')}>
+                                                        {result.passed ? t('detail.availability.resultPassed') : t('detail.availability.resultFailed')}
+                                                    </span>
+                                                    {result.status_code > 0 ? (
+                                                        <span className="text-muted-foreground">HTTP {result.status_code}</span>
+                                                    ) : null}
+                                                    <span className="text-muted-foreground">{t('detail.availability.resultAttempts', { count: result.attempts })}</span>
+                                                </div>
+                                                {result.message ? (
+                                                    <div className="mt-1 break-all text-muted-foreground">{result.message}</div>
+                                                ) : null}
+                                                {!result.passed && result.response_text ? (
+                                                    <div className="mt-1 break-all text-muted-foreground/90">{result.response_text}</div>
+                                                ) : null}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null}
+                        </div>
+                    </section>
+                ) : null}
             </MorphingDialogDescription>
         </div>
     );
@@ -660,7 +669,7 @@ export function GroupCard({ group }: { group: Group }) {
                         </MorphingDialogTrigger>
 
                         <MorphingDialogContainer>
-                            <MorphingDialogContent className="max-h-[calc(100dvh-2.5rem)] sm:max-h-[calc(100dvh-3rem)] max-w-full sm:max-w-full h-[calc(100dvh-2.5rem)] w-[min(100vw-2rem,92rem)] flex-col overflow-hidden rounded-xl border border-border bg-card px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] text-card-foreground md:h-[calc(100dvh-3rem)] md:px-6 md:py-5">
+                            <MorphingDialogContent className="max-h-[calc(100dvh-6rem)] sm:max-h-[calc(100dvh-3rem)] lg:max-h-[calc(100dvh-1.5rem)] max-w-full sm:max-w-[92rem] lg:max-w-full h-[calc(100dvh-6rem)] w-[min(100vw-2rem,92rem)] lg:w-full lg:h-[calc(100dvh-1.5rem)] flex-col overflow-hidden rounded-xl border border-border bg-card px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] text-card-foreground md:h-[calc(100dvh-3rem)] md:px-6 md:py-5">
                                 <EditDialogContent
                                     group={group}
                                     editMembers={members}
