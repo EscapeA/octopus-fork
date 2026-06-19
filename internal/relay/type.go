@@ -42,7 +42,9 @@ func init() {
 
 func getMaxRetryPerCandidate() int {
 	v, err := setting.GetInt(dbmodel.SettingKeyRelayRetryCount)
-	if err != nil || v < 1 {
+	// 允许设为 0：此时 maxAttemptsPerCandidate = 1，Key 循环只跑一次，
+	// 失败直接跳到下一个渠道。负数或读取失败才回退默认值（见 issue #95）。
+	if err != nil || v < 0 {
 		return defaultMaxRetryPerCandidate
 	}
 	return v

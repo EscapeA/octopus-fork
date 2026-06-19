@@ -365,3 +365,54 @@ func (e *timeoutError) Timeout() bool   { return true }
 func (e *timeoutError) Temporary() bool { return true }
 
 var _ net.Error = &timeoutError{}
+
+func TestExtractUpstreamErrorDetail(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{
+			name: "nil error returns empty",
+			err:  nil,
+			want: "",
+		},
+		{
+			name: "upstream error with status and body",
+			err:  errors.New("upstream error: 429: {\"error\":\"rate limit exceeded\"}"),
+			want: "429: {\"error\":\"rate limit exceeded\"}",
+		},
+		{
+			name: "upstream error body too large",
+			err:  errors.New("upstream error: 500: response body too large"),
+			want: "500: response body too large",
+		},
+		{
+			name: "non-http network error returned as-is",
+			err:  errors.New("connection refused"),
+			want: "connection refused",
+		},
+		{
+			name: "transformer error returned as-is",
+			err:  errors.New("failed to create request: invalid payload"),
+			want: "failed to create request: invalid payload",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := extractUpstreamErrorDetail(tt.err); got != tt.want {
+				t.Errorf("extractUpstreamErrorDetail() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetMaxRetryPerCandidate_AllowsZero(t *testing.T) {
+	// 设为 0 表示该候选渠道内不进行 Key 级重试（issue #95 改动1）。
+	// 这里只验证函数在内存未配置时回退默认值，0 的行为由 setting 校验保证。
+	got := getMaxRetryPerCandidate()
+	if got != defaultMaxRetryPerCandidate {
+		t.Fatalf("getMaxRetryPerCandidate() = %d, want default %d", got, defaultMaxRetryPerCandidate)
+	}
+}

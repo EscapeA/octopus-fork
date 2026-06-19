@@ -464,8 +464,14 @@ func (ra *relayAttempt) attempt() attemptResult {
 	// ====== 失败 ======
 	ch.KeyUpdate(ra.usedKey)
 
-	// 构造日志消息
+	// 构造日志消息：决策摘要 + 上游原始错误（issue #93）。
+	// fwdErr 形如 "upstream error: 429: {\"error\":...}"，已包含上游真实响应体，
+	// 直接附在决策摘要后，便于在 relay log 中区分 429 的不同成因（资源耗尽 / RPM 限制等），
+	// 而不是只看到笼统的 "rate limited, try another key"。
 	msg := decision.String()
+	if upstreamErr := extractUpstreamErrorDetail(fwdErr); upstreamErr != "" {
+		msg = fmt.Sprintf("%s: %s", msg, upstreamErr)
+	}
 	if ra.tryTotal > 1 {
 		msg = fmt.Sprintf("attempt %d/%d: %s", ra.tryIndex, ra.tryTotal, msg)
 	}
@@ -594,6 +600,26 @@ func (ra *relayAttempt) handleForwardResponse(response *http.Response) (int, err
 		return response.StatusCode, fmt.Errorf("upstream error: %d: response body too large", response.StatusCode)
 	}
 	return response.StatusCode, fmt.Errorf("upstream error: %d: %s", response.StatusCode, string(body))
+}
+
+// upstreamErrorDetailPrefix 是 handleForwardResponse 生成的上游错误前缀。
+const upstreamErrorDetailPrefix = "upstream error: "
+
+// extractUpstreamErrorDetail 从 forward()/handleForwardResponse 产出的错误信息中
+// 抽取上游真实错误（含状态码与响应体），用于 relay log 的 msg 字段，使 429 等错误能
+// 原样展示上游响应，而不是只看到笼统的决策摘要（issue #93）。
+//
+// 错误形如 "upstream error: 429: {\"error\":...}"，这里返回 "429: {\"error\":...}"；
+// 非 HTTP 错误（如网络错误、transformer 错误）则直接返回错误文本本身。
+func extractUpstreamErrorDetail(err error) string {
+	if err == nil {
+		return ""
+	}
+	s := err.Error()
+	if trimmed, ok := strings.CutPrefix(s, upstreamErrorDetailPrefix); ok {
+		return trimmed
+	}
+	return s
 }
 
 // copyHeaders 复制请求头，过滤 hop-by-hop 头
@@ -1032,10 +1058,29 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 	var allAttempts []dbmodel.ChannelAttempt
 	var lastErr error
 
+	// forwardedBase 记录进入当前路由轮次之前已经发生的真实转发次数（跨轮次累加）。
+	// 最大总尝试次数的检查使用 forwardedBase + 当前迭代器的 ForwardedAttempts()，
+	// 这样冷却跳过（skipped）和熔断跳过（circuit_break）不计入配额，只有真正发往
+	// 上游的请求才占用「最大总尝试次数」的额度（见 issue #95 改动5）。
+	forwardedBase := 0
+	// reachedMaxTotalAttempts 判断当前累计转发次数是否已达到「最大总尝试次数」上限。
+	// 传入当前路由迭代器以统计其真实转发记录；0 表示不限制（见 issue #95 改动2/5）。
+	reachedMaxTotalAttempts := func(iter *balancer.Iterator) bool {
+		if maxTotalAttempts <= 0 {
+			return false
+		}
+		return forwardedBase+iter.ForwardedAttempts() >= maxTotalAttempts
+	}
+	// roundAppended 标记当前路由轮次迭代器的决策记录是否已并入 allAttempts。
+	// goto exhausted 可能在轮次中途触发（达到最大总尝试次数），此时需要补齐当前迭代器
+	// 的记录以保证 relay log 完整；而正常轮次结束已通过累加语句并入，避免重复。
+	roundAppended := false
+
 	// 应用全局模型映射表（Phase 7）
 	requestModel = modelmapping.Resolve(req.operationCtx, requestModel, group.ID)
 
 	for routeRound := 1; routeRound <= maxRouteRetries; routeRound++ {
+		roundAppended = false
 		if isClientDisconnected(req.clientCtx) {
 			return nil, handleClientDisconnect(req, allAttempts)
 		}
@@ -1050,7 +1095,7 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 		req.iter = routeIter
 
 		for routeIter.Next() {
-			if maxTotalAttempts > 0 && len(allAttempts) >= maxTotalAttempts {
+			if reachedMaxTotalAttempts(routeIter) {
 				lastErr = fmt.Errorf("reached relay max total attempts: %d", maxTotalAttempts)
 				goto exhausted
 			}
@@ -1106,7 +1151,7 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 			req.internalRequest.Model = resolvedModelName
 			var failedKeyIDs []int
 			for keyRound := 1; keyRound <= maxKeyRetriesPerRoute; keyRound++ {
-				if maxTotalAttempts > 0 && len(allAttempts) >= maxTotalAttempts {
+				if reachedMaxTotalAttempts(routeIter) {
 					lastErr = fmt.Errorf("reached relay max total attempts: %d", maxTotalAttempts)
 					goto exhausted
 				}
@@ -1231,10 +1276,20 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 				}
 			}
 		}
+		// 轮次正常结束：把本轮迭代器的全部决策记录累加到 allAttempts（用于日志/metrics），
+		// 并把本轮真实转发次数累加到 forwardedBase，供下一轮的最大总尝试次数检查。
 		allAttempts = append(allAttempts, routeIter.Attempts()...)
+		forwardedBase += routeIter.ForwardedAttempts()
+		roundAppended = true
 	}
 
 exhausted:
+	// 若 exhausted 由轮次中途触发（达到最大总尝试次数），当前迭代器的决策记录尚未累加，
+	// 这里补齐最新的记录，保证 relay log 能完整展示冷却/熔断跳过与真实失败的链路
+	// （见 issue #95 改动2/6）。正常结束的轮次已通过上方累加语句并入，不重复追加。
+	if !roundAppended && req.iter != nil {
+		allAttempts = append(allAttempts, req.iter.Attempts()...)
+	}
 	req.metrics.Save(false, lastErr, allAttempts)
 	log.Warnf("[%s] all channels exhausted: model=%s, attempts=%d, last_error=%v",
 		req.internalRequest.RawAPIFormat, requestModel, len(allAttempts), lastErr)

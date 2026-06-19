@@ -171,11 +171,12 @@ func (s *Setting) Validate() error {
 		if err != nil {
 			return fmt.Errorf("setting value must be an integer")
 		}
-		if s.Key == SettingKeyRelayRetryCount && v < 1 {
-			return fmt.Errorf("relay retry count must be greater than 0")
+		// 允许设为 0：0 表示该候选渠道内不进行 Key 级重试（只试一次，失败即换渠道）。
+		if s.Key == SettingKeyRelayRetryCount && v < 0 {
+			return fmt.Errorf("relay retry count must be greater than or equal to 0")
 		}
 		if s.Key == SettingKeyRelayRouteRetries && v < 1 {
-			return fmt.Errorf("relay route retries must be greater than 0")
+			return fmt.Errorf("relay route retries must be greater than or equal to 1")
 		}
 		if (s.Key == SettingKeyRatelimitCooldown || s.Key == SettingKeyRelayMaxTotalAttempts) && v < 0 {
 			return fmt.Errorf("setting value must be greater than or equal to 0")
