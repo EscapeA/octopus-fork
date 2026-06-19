@@ -2071,8 +2071,8 @@
           "auto": "自动",
           "chat": "Chat Completions",
           "responses": "Responses",
-          "chat_only": "仅 Chat Completions",
-          "responses_only": "仅 Responses"
+          "chatOnly": "仅 Chat Completions",
+          "responsesOnly": "仅 Responses"
         }
       }
     },

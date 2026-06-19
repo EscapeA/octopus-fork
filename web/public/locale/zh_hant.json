@@ -2064,8 +2064,8 @@
           "auto": "自動",
           "chat": "Chat Completions",
           "responses": "Responses",
-          "chat_only": "僅 Chat Completions",
-          "responses_only": "僅 Responses"
+          "chatOnly": "僅 Chat Completions",
+          "responsesOnly": "僅 Responses"
         }
       }
     },
