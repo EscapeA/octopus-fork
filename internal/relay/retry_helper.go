@@ -44,7 +44,7 @@ func PrepareCandidate(
 		return result
 	}
 
-	usedKey := channel.GetChannelKeyWithCooldown(ratelimitCooldown)
+	usedKey := channel.GetChannelKeyWithCooldown(requestModel, ratelimitCooldown)
 	if usedKey.ChannelKey == "" {
 		result.SkipReason = "no available key"
 		result.SkipStatus = dbmodel.AttemptSkipped
@@ -88,7 +88,7 @@ func PrepareCandidateForRetry(
 	ratelimitCooldown int,
 	modelName string,
 ) (dbmodel.ChannelKey, string) {
-	usedKey := channel.GetChannelKeyExcludingWithCooldown(failedKeyIDs, ratelimitCooldown)
+	usedKey := channel.GetChannelKeyExcludingWithCooldown(failedKeyIDs, modelName, ratelimitCooldown)
 	if usedKey.ChannelKey == "" {
 		return dbmodel.ChannelKey{}, "no more keys to retry"
 	}

@@ -220,9 +220,9 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 
 				var usedKey dbmodel.ChannelKey
 				if keyRound == 1 {
-					usedKey = channel.GetChannelKeyWithCooldown(ratelimitCooldown)
+					usedKey = channel.GetChannelKeyWithCooldown(resolvedModel, ratelimitCooldown)
 				} else {
-					usedKey = channel.GetChannelKeyExcludingWithCooldown(failedKeyIDs, ratelimitCooldown)
+					usedKey = channel.GetChannelKeyExcludingWithCooldown(failedKeyIDs, resolvedModel, ratelimitCooldown)
 				}
 				if usedKey.ChannelKey == "" {
 					// When the key loop exits via break without forwarding
@@ -257,8 +257,11 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 				written := c.Writer.Written()
 				decision := ClassifyRelayError(statusCode, fwdErr, written)
 
-				usedKey.StatusCode = statusCode
-				usedKey.LastUseTimeStamp = time.Now().Unix()
+				// key 冷却按 (channelID, keyID, model) 维度记录（见 issue #94），不再写整 key 共享的
+				// StatusCode/LastUseTimeStamp —— 那样会让某模型 429 拖累该 key 上其他模型。
+				if statusCode >= 400 {
+					balancer.RecordKeyCooldown(channel.ID, usedKey.ID, resolvedModel, statusCode)
+				}
 
 				if decision.Scope == ScopeNone && !decision.IsError {
 					ch.KeyUpdate(usedKey)

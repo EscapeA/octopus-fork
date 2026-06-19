@@ -98,6 +98,10 @@ func Init() {
 		balancer.PurgeIdleStats(balancerIdleThreshold)
 		balancer.PurgeIdleSessions(balancerIdleThreshold)
 
+		// 清理过期的按模型 key 冷却条目（见 issue #94）。key 维度含客户端 model 名，
+		// 缺少周期回收会在刷量/随机 model 名下无界增长。
+		balancer.PurgeExpiredKeyCooldowns()
+
 		if db.IsSQLite() {
 			db.EnqueueWrite(db.WriteJob{Name: "relay_log_save", Fn: func(_ context.Context) error {
 				return relaylog.RelayLogSaveDBTask(context.Background())

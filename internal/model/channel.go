@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/lingyuins/octopus/internal/transformer/outbound"
 )
@@ -118,6 +117,13 @@ type ChannelKey struct {
 	TotalCost        float64 `json:"total_cost"`
 	Remark           string  `json:"remark"`
 }
+
+// KeyCooldownFunc 由 balancer 包在启动时注入，用于查询某 (channelID, keyID, modelName)
+// 是否处于按模型粒度的冷却期。返回 true 表示该 key 对当前 model 应被跳过。
+// model 包不能导入 internal/relay/balancer（会形成循环依赖），故用函数变量解耦。
+// 冷却时长由 balancer 内部从 SettingKeyRatelimitCooldown 读取，与熔断器一致。
+// nil 表示冷却机制未启用（一律放行），后台任务场景也会传空 modelName 跳过。
+var KeyCooldownFunc func(channelID, keyID int, modelName string) bool
 
 // ChannelUpdateRequest 渠道更新请求 - 仅包含变更的数据
 type ChannelUpdateRequest struct {
@@ -329,8 +335,10 @@ func appendBaseURLPathIfMissing(rawURL, lowerURL, suffix string) string {
 	return rawURL + suffix
 }
 
+// GetChannelKey 选择一个可用的渠道 Key，用于后台探测/拉模型等不涉及冷却的场景。
+// 这些场景的 model 维度冷却语义较弱，故传空 model 跳过按模型冷却（仅按成本排序）。
 func (c *Channel) GetChannelKey() ChannelKey {
-	return c.GetChannelKeyWithCooldown(300)
+	return c.GetChannelKeyWithCooldown("", 300)
 }
 
 // EnabledKeyCount returns the number of enabled keys with non-empty ChannelKey.
@@ -347,15 +355,25 @@ func (c *Channel) EnabledKeyCount() int {
 	return count
 }
 
+// GetChannelKeyExcluding 选择一个未被排除的可用 Key，用于后台任务（不涉及冷却）。
 func (c *Channel) GetChannelKeyExcluding(excludeKeyIDs []int) ChannelKey {
-	return c.GetChannelKeyExcludingWithCooldown(excludeKeyIDs, 300)
+	return c.GetChannelKeyExcludingWithCooldown(excludeKeyIDs, "", 300)
 }
 
-func (c *Channel) GetChannelKeyWithCooldown(ratelimitCooldownSec int) ChannelKey {
-	return c.GetChannelKeyExcludingWithCooldown(nil, ratelimitCooldownSec)
+// GetChannelKeyWithCooldown 选择一个可用 Key，按模型粒度冷却过滤。
+// modelName 为空时跳过冷却判断（后台探测/拉模型等场景），仅按成本排序。
+func (c *Channel) GetChannelKeyWithCooldown(modelName string, ratelimitCooldownSec int) ChannelKey {
+	return c.GetChannelKeyExcludingWithCooldown(nil, modelName, ratelimitCooldownSec)
 }
 
-func (c *Channel) GetChannelKeyExcludingWithCooldown(excludeKeyIDs []int, ratelimitCooldownSec int) ChannelKey {
+// GetChannelKeyExcludingWithCooldown 选择一个未被排除的可用 Key，按模型粒度冷却过滤。
+// key 冷却改为按 (channelID, keyID, modelName) 维度记录在内存中（见 balancer.RecordKeyCooldown），
+// 避免某 key 对一个模型触发 ≥400 错误后，连带冷却该 key 对其他所有模型的使用——
+// 公益站「部分模型出问题、其他模型没问题」的常见场景下，旧逻辑会浪费可用 Key。
+// KeyCooldownFunc 由 relay/balancer 包在 init 时注入，用于按 (channelID, keyID, modelName)
+// 维度查询某个 Key 是否处于冷却期。model 包不能反向依赖 balancer（存在循环导入），
+// 故通过函数变量解耦。未注入时返回 false（不冷却），保持后台任务等场景可用。
+func (c *Channel) GetChannelKeyExcludingWithCooldown(excludeKeyIDs []int, modelName string, ratelimitCooldownSec int) ChannelKey {
 	if c == nil || len(c.Keys) == 0 {
 		return ChannelKey{}
 	}
@@ -365,7 +383,10 @@ func (c *Channel) GetChannelKeyExcludingWithCooldown(excludeKeyIDs []int, rateli
 		excludeSet[id] = struct{}{}
 	}
 
-	nowSec := time.Now().Unix()
+	// 冷却时长由 balancer 层从 SettingKeyRatelimitCooldown 读取（见 IsKeyOnCooldown），
+	// ratelimitCooldownSec 参数保留以兼容调用方，不再在此处直接使用。
+	_ = ratelimitCooldownSec
+	modelName = strings.TrimSpace(modelName)
 
 	best := ChannelKey{}
 	bestCost := 0.0
@@ -378,10 +399,11 @@ func (c *Channel) GetChannelKeyExcludingWithCooldown(excludeKeyIDs []int, rateli
 		if _, excluded := excludeSet[k.ID]; excluded {
 			continue
 		}
-		if ratelimitCooldownSec > 0 && k.LastUseTimeStamp > 0 && k.StatusCode >= 400 {
-			if nowSec-k.LastUseTimeStamp < int64(ratelimitCooldownSec) {
-				continue
-			}
+		// 按模型粒度冷却：仅当该 (channelID, keyID, modelName) 处于冷却期时跳过。
+		// modelName 为空（后台任务）时不跳过。通过 KeyCooldownFunc 间接调用 balancer，
+		// 避免 model → balancer 循环依赖；冷却时长由 balancer 内部读取设置决定。
+		if modelName != "" && KeyCooldownFunc != nil && KeyCooldownFunc(c.ID, k.ID, modelName) {
+			continue
 		}
 		if !bestSet || k.TotalCost < bestCost {
 			best = k

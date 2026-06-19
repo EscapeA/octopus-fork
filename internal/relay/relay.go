@@ -423,9 +423,11 @@ func (ra *relayAttempt) attempt() attemptResult {
 	// 使用错误分类驱动决策
 	decision := ClassifyRelayError(statusCode, fwdErr, written)
 
-	// 更新 channel key 状态
-	ra.usedKey.StatusCode = statusCode
-	ra.usedKey.LastUseTimeStamp = time.Now().Unix()
+	// 记录按模型粒度的 key 冷却：某模型触发错误时，仅冷却该 (keyID, model) 组合，
+	// 不影响该 key 上其它模型的可用性（见 issue #94）。仅错误响应（≥400）才冷却。
+	if statusCode >= 400 {
+		balancer.RecordKeyCooldown(ra.channel.ID, ra.usedKey.ID, ra.internalRequest.Model, statusCode)
+	}
 
 	if decision.Scope == ScopeNone && !decision.IsError {
 		// ====== 成功 ======
@@ -1120,7 +1122,7 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 
 				var usedKey dbmodel.ChannelKey
 				if keyRound == 1 {
-					usedKey = channel.GetChannelKeyWithCooldown(ratelimitCooldown)
+					usedKey = channel.GetChannelKeyWithCooldown(resolvedModelName, ratelimitCooldown)
 				} else {
 					usedKey, _ = PrepareCandidateForRetry(channel, failedKeyIDs, routeIter, ratelimitCooldown, resolvedModelName)
 				}
