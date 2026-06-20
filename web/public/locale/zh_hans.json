@@ -1641,6 +1641,76 @@
       "syncSuccess": "渠道同步成功",
       "syncFailed": "渠道同步失败"
     },
+    "normalize": {
+      "title": "模型名归一化",
+      "description": "将模型名变体（如 dmxapi-kimi-k2.5、kimi-k2.5-cc）合并为基础名（kimi-k2.5），用于聚合与去重。仅用于展示，不会改写请求。",
+      "saved": "归一化规则已保存",
+      "saveFailed": "保存归一化规则失败",
+      "saving": "保存中...",
+      "save": "保存",
+      "duplicate": "规则已存在",
+      "addedFromAnalysis": "已从分析结果添加",
+      "add": "添加",
+      "removeHint": "点击移除",
+      "routerPrefixes": {
+        "title": "路由前缀",
+        "hint": "从模型名开头剥离的前缀（如 dmxapi-），大小写不敏感。输入时带尾部连字符。",
+        "placeholder": "如 dmxapi-",
+        "empty": "暂无自定义路由前缀，使用内置默认"
+      },
+      "functionalSuffixes": {
+        "title": "功能后缀",
+        "hint": "从模型名末尾剥离的后缀（如 -cc、-latest），大小写不敏感，叠加后缀会反复剥离。输入时带前导连字符。",
+        "placeholder": "如 -cc",
+        "empty": "暂无自定义功能后缀，使用内置默认"
+      },
+      "explicitMappings": {
+        "title": "显式映射",
+        "hint": "变体→基准名的点对点映射，优先于前缀/后缀规则。主要由离线 AI 分析后导入；可删除单条。",
+        "empty": "暂无显式映射"
+      },
+      "workflow": {
+        "title": "离线 AI 归一化工作流",
+        "description": "导出含变体的渠道模型名 → 离线用 AI/agent 分析变体关系 → 导入产出的归一化规则。"
+      },
+      "export": {
+        "title": "导出渠道模型名",
+        "hint": "导出所有渠道声明的模型名（含变体），供离线 AI 分析变体归并关系。",
+        "button": "导出 JSON",
+        "exporting": "导出中...",
+        "empty": "没有可导出的渠道模型名",
+        "success": "导出成功",
+        "failed": "导出失败",
+        "count": "共 {count} 条渠道模型名"
+      },
+      "import": {
+        "title": "导入归一化规则",
+        "hint": "上传 AI 产出的规则文件（JSON），含 router_prefixes / functional_suffixes / explicit_mappings 三类（均可选）。导入后合并到当前规则，需点保存落库。",
+        "button": "选择文件",
+        "preview": "导入预览",
+        "apply": "应用",
+        "cancel": "取消",
+        "noRules": "文件中未找到任何归一化规则",
+        "parseFailed": "解析规则文件失败",
+        "applied": "已合并到当前规则，请点击保存以生效"
+      },
+      "analysis": {
+        "title": "覆盖分析",
+        "description": "用当前规则分析渠道模型名。展示已归并的簇（规则生效）和疑似漏归并的簇（可补为前缀/后缀的候选）。",
+        "button": "分析",
+        "analyzing": "分析中...",
+        "empty": "没有可分析的渠道模型名",
+        "failed": "分析失败",
+        "channelCount": "共 {count} 个渠道模型名",
+        "merged": "已归并 {count} 组",
+        "suspected": "疑似漏归并 {count} 组",
+        "mergedEmpty": "暂无被归并的变体",
+        "suspectedEmpty": "未发现疑似漏归并的变体",
+        "addPrefix": "加入前缀",
+        "addSuffix": "加入后缀",
+        "disclaimer": "疑似簇基于前缀/后缀关系推断，可能存在误报（如 gpt-4o 与 gpt-4o-mini）。加入前请审查。"
+      }
+    },
     "webauthn": {
       "title": "Passkey(WebAuthn)",
       "description": "配置 Passkey 登录所依赖的 Relying Party 信息",

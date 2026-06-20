@@ -14,6 +14,7 @@ import { VirtualizedGrid } from '@/components/common/VirtualizedGrid';
 import { sortModelMarketItems } from './sort';
 import { useModelFilters, MODEL_CAPABILITY_OPTIONS, type ModelCapabilityFilter } from './useModelFilters';
 import { useModelViewStore } from './view-store';
+import { useNormalizeRulesSync } from './useNormalizeRulesSync';
 import { cn } from '@/lib/utils';
 
 const FILTER_COLLAPSED_STORAGE_KEY = 'model-filter-collapsed';
@@ -40,6 +41,8 @@ export function Model() {
     const t = useTranslations('model');
     const tFilter = useTranslations('modelFilter');
     const { data: market } = useModelMarket();
+    // 归一化去重依赖运行时规则（来自 DB Setting），需在筛选前注入。
+    useNormalizeRulesSync();
     const isMobile = useIsMobile();
     const view = useModelViewStore((s) => s.modelView);
     const pageKey = 'model' as const;

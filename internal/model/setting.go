@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 type SettingKey string
@@ -71,6 +72,9 @@ const (
 	SettingKeyResponseFilterErrorMessage           SettingKey = "response_filter_error_message"            // 阻断时返回的错误信息
 	SettingKeyLogLevel                             SettingKey = "log_level"                                // 应用日志级别: debug, info, warn, error
 	SettingKeyLogExcludedGroups                    SettingKey = "log_excluded_groups"                      // 在日志列表/实时流中屏蔽的分组名称列表(JSON 数组)
+	SettingKeyModelNormalizeRouterPrefixes         SettingKey = "model_normalize_router_prefixes"          // 模型名归一化: 路由商/平台前缀列表(JSON 数组，元素如 "dmxapi-")
+	SettingKeyModelNormalizeFunctionalSuffixes     SettingKey = "model_normalize_functional_suffixes"      // 模型名归一化: 功能性后缀列表(JSON 数组，元素如 "-cc")
+	SettingKeyModelNormalizeExplicitMappings       SettingKey = "model_normalize_explicit_mappings"        // 模型名归一化: 显式变体→基准名映射(JSON 数组，元素如 {"variant":"...","canonical":"..."})
 	SettingKeyWebAuthnRPID                         SettingKey = "webauthn_rp_id"                           // WebAuthn RP ID（域名，不含协议/端口）
 	SettingKeyWebAuthnRPName                       SettingKey = "webauthn_rp_name"                         // WebAuthn RP 展示名
 	SettingKeyWebAuthnOrigins                      SettingKey = "webauthn_origins"                         // WebAuthn 允许的 Origin 列表（逗号分隔，完整 scheme://host[:port]）
@@ -144,6 +148,9 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyResponseFilterErrorMessage, Value: "The response contains blocked keywords and has been intercepted."},
 		{Key: SettingKeyLogLevel, Value: "info"},
 		{Key: SettingKeyLogExcludedGroups, Value: "[]"},
+		{Key: SettingKeyModelNormalizeRouterPrefixes, Value: "[]"},     // 默认无自定义路由前缀，回退到前端内置默认
+		{Key: SettingKeyModelNormalizeFunctionalSuffixes, Value: "[]"}, // 默认无自定义功能后缀，回退到前端内置默认
+		{Key: SettingKeyModelNormalizeExplicitMappings, Value: "[]"},   // 默认无显式变体→基准名映射
 		{Key: SettingKeyWebAuthnRPID, Value: ""},
 		{Key: SettingKeyWebAuthnRPName, Value: "Octopus"},
 		{Key: SettingKeyWebAuthnOrigins, Value: ""},
@@ -323,6 +330,25 @@ func (s *Setting) Validate() error {
 		var groups []string
 		if err := json.Unmarshal([]byte(s.Value), &groups); err != nil {
 			return fmt.Errorf("log excluded groups must be a valid JSON array of strings")
+		}
+		return nil
+	case SettingKeyModelNormalizeRouterPrefixes, SettingKeyModelNormalizeFunctionalSuffixes:
+		var items []string
+		if err := json.Unmarshal([]byte(s.Value), &items); err != nil {
+			return fmt.Errorf("model normalize rules must be a valid JSON array of strings")
+		}
+		return nil
+	case SettingKeyModelNormalizeExplicitMappings:
+		// 显式归一映射：[{ "variant": "...", "canonical": "..." }]。
+		// 校验为对象数组且每条含非空 variant / canonical 字符串。
+		var mappings []map[string]string
+		if err := json.Unmarshal([]byte(s.Value), &mappings); err != nil {
+			return fmt.Errorf("model normalize explicit mappings must be a valid JSON array of objects")
+		}
+		for _, m := range mappings {
+			if strings.TrimSpace(m["variant"]) == "" || strings.TrimSpace(m["canonical"]) == "" {
+				return fmt.Errorf("each explicit mapping must have non-empty variant and canonical")
+			}
 		}
 		return nil
 	case SettingKeyResponseFilterAction:
