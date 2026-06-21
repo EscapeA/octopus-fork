@@ -29,6 +29,21 @@ type Database struct {
 	// 配置后，relay_logs 落到独立库，可通过直接删库/断连实现秒级清理与卸载。
 	LogType string `mapstructure:"log_type"`
 	LogPath string `mapstructure:"log_path"`
+	// SQLite 为主库且 type=sqlite 时生效的 per-connection PRAGMA 调优（见 issue #97）。
+	// 日志库为 SQLite 时复用同一组值。
+	SQLite SQLiteConfig `mapstructure:"sqlite"`
+}
+
+// SQLiteConfig 暴露 SQLite 运行时可调的 PRAGMA。这些值通过 glebarez/go-sqlite
+// 驱动 DSN 的 _pragma 参数下发（驱动只认 _pragma/_txlock/_time_format/vfs 四种
+// query 参数）。配置项默认面向低内存安全：禁用 mmap、cache 约 20MB。
+type SQLiteConfig struct {
+	// CacheSize 对应 PRAGMA cache_size。负值按 KB 计（如 -20000≈20MB），
+	// 正值按页计（每页 4KB）。0 表示使用 internal/db.DefaultSQLiteCacheSize。
+	CacheSize int `mapstructure:"cache_size"`
+	// MMapSize 对应 PRAGMA mmap_size。0 表示禁用 mmap（低内存环境安全默认值，
+	// 直接规避 mmap 缺页导致的磁盘 IO），正值按字节计。
+	MMapSize int64 `mapstructure:"mmap_size"`
 }
 
 type Auth struct {
@@ -140,6 +155,11 @@ func setDefaults() {
 	// 日志库默认留空：留空表示与主库共用连接（向后兼容）。
 	viper.SetDefault("database.log_type", "")
 	viper.SetDefault("database.log_path", "")
+	// SQLite per-connection PRAGMA 调优（见 issue #97：低内存环境持续高磁盘 IO）。
+	// cache_size 默认 -20000KB（≈20MB），与 internal/db.DefaultSQLiteCacheSize 对齐；
+	// mmap_size 默认 0（禁用 mmap，避免物理内存 < 库大小时空洞缺页导致的持续读盘）。
+	viper.SetDefault("database.sqlite.cache_size", -20000)
+	viper.SetDefault("database.sqlite.mmap_size", int64(0))
 	viper.SetDefault("log.level", "info")
 	viper.SetDefault("auth.jwt_secret", "")
 	viper.SetDefault("relay.max_json_body_bytes", int64(64<<20))

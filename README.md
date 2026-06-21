@@ -217,6 +217,8 @@ Most operational knobs are not stored in `config.json`. Retry policy, circuit br
 | `server.port` | Server port | `8080` |
 | `database.type` | Database type | `sqlite` |
 | `database.path` | Database connection string | `data/data.db` |
+| `database.sqlite.cache_size` | SQLite `PRAGMA cache_size` (negative = KB, e.g. `-20000` ≈ 20 MB; positive = pages). Only used when `database.type` is `sqlite`. | `-20000` (≈ 20 MB) |
+| `database.sqlite.mmap_size` | SQLite `PRAGMA mmap_size` in bytes. `0` disables mmap (safe default for low-memory hosts). | `0` (disabled) |
 | `log.level` | Log level | `info` |
 | `auth.jwt_secret` | JWT signing secret | empty (ephemeral secret generated at startup if unset) |
 | `security.encryption_key` | Encryption key for sensitive stored data (credential profiles, site passwords, etc.) | empty (falls back to JWT secret) |
@@ -259,6 +261,30 @@ Three database types are supported:
 
 > 💡 **Tip**: MySQL and PostgreSQL require manual database creation. The application will automatically create the table structure.
 
+**SQLite Tuning (Low-Memory Environments):**
+
+For SQLite deployments, two per-connection PRAGMAs are configurable via `database.sqlite.*` (issue #97: low-memory hosts saw sustained disk IO because the cache was too small and mmap thrashing). Both default to memory-safe values: mmap disabled, cache ≈ 20 MB.
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `database.sqlite.cache_size` | `PRAGMA cache_size`. Negative = KB (e.g. `-20000` ≈ 20 MB); positive = pages (4 KB each). `0` falls back to the built-in default. | `-20000` |
+| `database.sqlite.mmap_size` | `PRAGMA mmap_size` in bytes. `0` disables mmap (recommended on hosts where RAM < DB size). Set a positive value on memory-rich hosts with a large DB to cut `read` syscalls. | `0` |
+
+Recommended config for a ~1.6 GB RAM host with a few-hundred-MB DB (mmap off, modest cache):
+
+```json
+{
+  "database": {
+    "type": "sqlite",
+    "path": "data/data.db",
+    "sqlite": {
+      "cache_size": -20000,
+      "mmap_size": 0
+    }
+  }
+}
+```
+
 ### 🌐 Environment Variables
 
 All configuration options can be overridden via environment variables using the format `OCTOPUS_` + configuration path (joined with `_`):
@@ -269,6 +295,8 @@ All configuration options can be overridden via environment variables using the 
 | `OCTOPUS_SERVER_HOST` | `server.host` |
 | `OCTOPUS_DATABASE_TYPE` | `database.type` |
 | `OCTOPUS_DATABASE_PATH` | `database.path` |
+| `OCTOPUS_DATABASE_SQLITE_CACHE_SIZE` | `database.sqlite.cache_size` (SQLite page cache; negative = KB, e.g. `-20000` ≈ 20MB) |
+| `OCTOPUS_DATABASE_SQLITE_MMAP_SIZE` | `database.sqlite.mmap_size` (SQLite mmap size in bytes; `0` disables mmap — safe default for low-RAM hosts) |
 | `OCTOPUS_DATA_DIR` | Default directory for `config.json` and the SQLite DB when `database.path` is not explicitly set |
 | `OCTOPUS_LOG_LEVEL` | `log.level` |
 | `OCTOPUS_AUTH_JWT_SECRET` | `auth.jwt_secret` |

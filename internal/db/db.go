@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -22,6 +23,35 @@ import (
 var db *gorm.DB
 var currentDBType string
 
+// SQLiteOptions 承载 SQLite per-connection PRAGMA 的可配置项。
+//
+// 背景：glebarez/go-sqlite 驱动只认 DSN 中的 _pragma / _txlock / _time_format /
+// vfs 查询参数，其余形如 _cache_size / _mmap_size 的键会被静默忽略。此前 initSQLite
+// 拼的就是后者，导致 cache_size / mmap_size / synchronous 等全部停留在 SQLite 默认值，
+// 无法通过配置调整（见 issue #97：低内存环境下 SQLite 持续高磁盘 IO）。
+// 这里改为通过 _pragma=xxx(yyy) 真正下发，并把 cache_size / mmap_size 暴露给配置。
+type SQLiteOptions struct {
+	// CacheSize 对应 PRAGMA cache_size。负值按 KB 解释（如 -20000 ≈ 20MB），
+	// 正值按页数解释。0 表示使用包内默认值 DefaultSQLiteCacheSize。
+	CacheSize int
+	// MMapSize 对应 PRAGMA mmap_size。0 表示禁用 mmap（SQLite 默认即 0），
+	// 低内存环境推荐保持 0；内存充裕且库较大时可显式开启以减少 read 系统调用。
+	MMapSize int64
+}
+
+// DefaultSQLiteCacheSize 是 cache_size 的默认值（≈20MB）。
+// 选 -20000KB 而非 SQLite 默认的 2MB：合理扩大页缓存能显著降低重复读 IO，
+// 又远小于典型部署的可用内存，可被配置覆盖。
+const DefaultSQLiteCacheSize = -20000
+
+// DefaultSQLiteOptions 返回面向低内存安全的默认 PRAGMA 选项。
+func DefaultSQLiteOptions() SQLiteOptions {
+	return SQLiteOptions{
+		CacheSize: DefaultSQLiteCacheSize,
+		MMapSize:  0, // 禁用 mmap，避免在物理内存 < 库大小时空洞缺页导致持续磁盘 IO
+	}
+}
+
 // 独立日志库（仅承载 relay_logs）。当配置了 database.log_type/log_path 时启用，
 // 否则 logDB 保持 nil，GetLogDB() 回落到主库——与旧版行为完全一致。
 //
@@ -34,6 +64,7 @@ var (
 	logDBType        string // 配置的日志库类型（用于 Reopen），空表示共用主库
 	logDBPath        string // 配置的日志库路径（用于 Reopen）
 	logDBDebug       bool
+	logDBOptions     SQLiteOptions // 配置的日志库 SQLite 选项（用于 Reopen），仅 logType=sqlite 时生效
 	logDBLock        sync.RWMutex
 )
 
@@ -61,9 +92,16 @@ func IsLogSQLite() bool {
 }
 
 func InitDB(dbType, dsn string, debug bool) error {
+	return InitDBWithOptions(dbType, dsn, debug, DefaultSQLiteOptions())
+}
+
+// InitDBWithOptions 与 InitDB 相同，但允许调用方传入 SQLite per-connection PRAGMA
+// 选项（cache_size / mmap_size）。非 SQLite 类型时 opts 被忽略。供启动流程从
+// config.json 注入低内存调优使用（见 issue #97）。
+func InitDBWithOptions(dbType, dsn string, debug bool, opts SQLiteOptions) error {
 	currentDBType = dbType
 	var err error
-	db, err = OpenStandalone(dbType, dsn, debug)
+	db, err = OpenStandaloneWithOptions(dbType, dsn, debug, opts)
 	if err != nil {
 		return err
 	}
@@ -72,8 +110,15 @@ func InitDB(dbType, dsn string, debug bool) error {
 
 // InitLogDB 初始化独立日志库。logType/logPath 任一为空时视为「共用主库」，
 // 不建立独立连接（GetLogDB 将回落到主库）。配置完整时打开独立连接并只迁移
-// relay_logs 表结构。必须在 InitDB 之后调用。
+// relay_logs 表结构。必须在 InitDB 之后调用。SQLite 时使用默认 PRAGMA 选项。
 func InitLogDB(logType, logPath string, debug bool) error {
+	return InitLogDBWithOptions(logType, logPath, debug, DefaultSQLiteOptions())
+}
+
+// InitLogDBWithOptions 同 InitLogDB，但允许指定 SQLite PRAGMA 选项。日志库通常
+// 承担高频写入（relay_logs），与主库共享同一套 cache_size/mmap_size 调优诉求。
+// 非 SQLite 类型忽略 opts。
+func InitLogDBWithOptions(logType, logPath string, debug bool, opts SQLiteOptions) error {
 	logType = strings.TrimSpace(logType)
 	logPath = strings.TrimSpace(logPath)
 	if logType == "postgresql" {
@@ -87,6 +132,7 @@ func InitLogDB(logType, logPath string, debug bool) error {
 	logDBType = logType
 	logDBPath = logPath
 	logDBDebug = debug
+	logDBOptions = opts
 
 	if logType == "" || logPath == "" {
 		// 共用主库：不建立独立连接。
@@ -96,7 +142,7 @@ func InitLogDB(logType, logPath string, debug bool) error {
 		return nil
 	}
 
-	conn, err := OpenStandalone(logType, logPath, debug)
+	conn, err := OpenStandaloneWithOptions(logType, logPath, debug, opts)
 	if err != nil {
 		return fmt.Errorf("open log database: %w", err)
 	}
@@ -149,7 +195,8 @@ func CloseLogDB() error {
 }
 
 // ReopenLogDB 重新打开独立日志库连接（用于重新开启后台日志）。
-// 共用主库模式下为空操作。若连接已存在则直接返回。
+// 共用主库模式下为空操作。若连接已存在则直接返回。复用 InitLogDB 时保存的
+// SQLite PRAGMA 选项（logDBOptions），保证重连后 cache_size / mmap_size 等一致。
 func ReopenLogDB() error {
 	logDBLock.Lock()
 	defer logDBLock.Unlock()
@@ -159,7 +206,7 @@ func ReopenLogDB() error {
 	if logDB != nil {
 		return nil
 	}
-	conn, err := OpenStandalone(logDBType, logDBPath, logDBDebug)
+	conn, err := OpenStandaloneWithOptions(logDBType, logDBPath, logDBDebug, logDBOptions)
 	if err != nil {
 		return fmt.Errorf("reopen log database: %w", err)
 	}
@@ -180,7 +227,16 @@ func closeConn(conn *gorm.DB) error {
 	return sqlDB.Close()
 }
 
+// OpenStandalone 打开一个独立 DB 连接，使用默认 SQLite PRAGMA 选项。
+// 保留旧签名以兼容现有调用方（测试、dbmigration 等）。需要自定义 PRAGMA 时
+// 调用 OpenStandaloneWithOptions。
 func OpenStandalone(dbType, dsn string, debug bool) (*gorm.DB, error) {
+	return OpenStandaloneWithOptions(dbType, dsn, debug, DefaultSQLiteOptions())
+}
+
+// OpenStandaloneWithOptions 打开一个独立 DB 连接，SQLite 时应用指定 PRAGMA 选项。
+// 非 SQLite 类型忽略 opts。
+func OpenStandaloneWithOptions(dbType, dsn string, debug bool, opts SQLiteOptions) (*gorm.DB, error) {
 	gormConfig := gorm.Config{Logger: logger.Discard}
 	if debug {
 		gormConfig.Logger = logger.Default.LogMode(logger.Info)
@@ -190,7 +246,7 @@ func OpenStandalone(dbType, dsn string, debug bool) (*gorm.DB, error) {
 	var err error
 	switch dbType {
 	case "sqlite":
-		conn, err = initSQLite(dsn, &gormConfig)
+		conn, err = initSQLite(dsn, &gormConfig, opts)
 	case "mysql":
 		conn, err = initMySQL(dsn, &gormConfig)
 	case "postgres", "postgresql":
@@ -293,27 +349,53 @@ func configureConnectionPool(sqlDB *sql.DB, dbType string) {
 	sqlDB.SetConnMaxIdleTime(10 * time.Minute)
 }
 
-func initSQLite(path string, config *gorm.Config) (*gorm.DB, error) {
+// sqlitePragmaParams 根据 SQLiteOptions 生成 glebarez/go-sqlite 驱动认识的 DSN
+// query 参数切片。驱动只认 _pragma / _txlock / _time_format / vfs（见
+// go-sqlite/sqlite.go applyQueryParams）；形如 _cache_size=... 的键会被静默忽略。
+// 抽成独立纯函数便于单测 DSN 形状（见 issue #97）。
+func sqlitePragmaParams(opts SQLiteOptions) []string {
+	cacheSize := opts.CacheSize
+	if cacheSize == 0 {
+		cacheSize = DefaultSQLiteCacheSize
+	}
+	// _pragma 值不需要 URL 编码：cache_size/mmap_size 只含数字与负号，其余为
+	// 大写标识符，均属 url.Query 的合法字符集，驱动直接拼成 "PRAGMA xxx(yyy)"。
+	return []string{
+		"_txlock=immediate",
+		"_pragma=journal_mode(WAL)",
+		"_pragma=synchronous(NORMAL)",
+		"_pragma=cache_size(" + strconv.Itoa(cacheSize) + ")",
+		"_pragma=mmap_size(" + strconv.FormatInt(opts.MMapSize, 10) + ")",
+		"_pragma=busy_timeout(5000)",
+		"_pragma=foreign_keys(ON)",
+		"_pragma=auto_vacuum(INCREMENTAL)",
+	}
+}
+
+// initSQLite 打开 SQLite 连接并下发 per-connection PRAGMA。
+//
+// glebarez/go-sqlite 驱动只认 DSN 中的 _pragma / _txlock / _time_format / vfs
+// query 参数（见 go-sqlite/sqlite.go applyQueryParams）；形如 _cache_size=...、
+// _mmap_size=... 的键会被静默忽略。此前这里拼的正是后者，导致 cache_size、
+// mmap_size、synchronous、foreign_keys、auto_vacuum 全部停留在 SQLite 默认值，
+// 配置无法生效（见 issue #97：低内存环境下 SQLite 持续高磁盘 IO）。这里改为
+// 通过 _pragma=xxx(yyy) 真正下发，并把 cache_size / mmap_size 暴露为可配置项。
+//
+// journal_mode / auto_vacuum 会持久化在 DB 文件里（设一次即可），但 per-connection
+// 重复设置是无害且幂等的；cache_size / synchronous / mmap_size / foreign_keys /
+// busy_timeout 是 per-connection，SQLite 连接池又是 MaxOpenConns=1，每次新连接
+// 由驱动的 _pragma 处理自动应用，完全契合。
+func initSQLite(path string, config *gorm.Config, opts SQLiteOptions) (*gorm.DB, error) {
 	dsn, err := sqliteDSN(path)
 	if err != nil {
 		return nil, err
 	}
-	params := []string{
-		"_txlock=immediate",
-		"_journal_mode=WAL",
-		"_synchronous=NORMAL",
-		"_cache_size=10000",
-		"_busy_timeout=5000",
-		"_foreign_keys=ON",
-		"_auto_vacuum=INCREMENTAL",
-		"_mmap_size=268435456",
-		"_locking_mode=NORMAL",
-	}
-	db, err := gorm.Open(sqlite.Open(dsn+sqliteDSNSeparator(dsn)+strings.Join(params, "&")), config)
+	fullDSN := dsn + sqliteDSNSeparator(dsn) + strings.Join(sqlitePragmaParams(opts), "&")
+	conn, err := gorm.Open(sqlite.Open(fullDSN), config)
 	if err != nil {
 		return nil, wrapSQLitePathError("failed to open sqlite database", dsn, err)
 	}
-	return db, nil
+	return conn, nil
 }
 
 func initMySQL(dsn string, config *gorm.Config) (*gorm.DB, error) {

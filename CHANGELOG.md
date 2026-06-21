@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🐛 Bug Fixes
+- **Issue #97** (low-memory SQLite IO): the SQLite per-connection PRAGMAs (`cache_size`, `mmap_size`, `synchronous`, `foreign_keys`, `auto_vacuum`, `journal_mode`) were previously emitted as `_cache_size=...`-style DSN keys, which the `glebarez/go-sqlite` driver silently ignores (it only honors `_pragma`/`_txlock`/`_time_format`/`vfs`). As a result every PRAGMA stayed at the SQLite default — `cache_size` ≈ 2 MB, `synchronous=FULL` — so on memory-constrained hosts (e.g. 1.6 GB) the page cache was far smaller than the database and idle IO stayed high. PRAGMAs are now emitted as `_pragma=xxx(yyy)`, so they actually take effect, and two are exposed via `config.json`: `database.sqlite.cache_size` (default `-20000` ≈ 20 MB) and `database.sqlite.mmap_size` (default `0`, i.e. mmap disabled — the low-memory-safe default). Both are overridable via `OCTOPUS_DATABASE_SQLITE_CACHE_SIZE` / `OCTOPUS_DATABASE_SQLITE_MMAP_SIZE`.
+
 ## [v2.1.6] - 2026-06-18
 
 ### 🚀 Features

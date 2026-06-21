@@ -45,12 +45,18 @@ func runStart() error {
 		crypto.Init(secret)
 	}
 
-	if err := db.InitDB(conf.AppConfig.Database.Type, conf.AppConfig.Database.Path, conf.IsDebug()); err != nil {
+	// SQLite per-connection PRAGMA（cache_size / mmap_size）从 config.json 注入。
+	// 默认禁用 mmap、cache 约 20MB，面向低内存环境（见 issue #97）。非 SQLite 类型时被忽略。
+	sqliteOpts := db.SQLiteOptions{
+		CacheSize: conf.AppConfig.Database.SQLite.CacheSize,
+		MMapSize:  conf.AppConfig.Database.SQLite.MMapSize,
+	}
+	if err := db.InitDBWithOptions(conf.AppConfig.Database.Type, conf.AppConfig.Database.Path, conf.IsDebug(), sqliteOpts); err != nil {
 		return fmt.Errorf("database init error: %w", err)
 	}
 	// 独立日志库（仅承载 relay_logs）。log_type/log_path 留空时回落到主库，
-	// 行为与旧版一致。必须在主库 InitDB 之后调用。
-	if err := db.InitLogDB(conf.AppConfig.Database.LogType, conf.AppConfig.Database.LogPath, conf.IsDebug()); err != nil {
+	// 行为与旧版一致。必须在主库 InitDB 之后调用。日志库为 SQLite 时复用同一组 PRAGMA。
+	if err := db.InitLogDBWithOptions(conf.AppConfig.Database.LogType, conf.AppConfig.Database.LogPath, conf.IsDebug(), sqliteOpts); err != nil {
 		return fmt.Errorf("log database init error: %w", err)
 	}
 	shutdown.Register(db.Close)
