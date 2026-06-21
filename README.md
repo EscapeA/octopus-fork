@@ -342,7 +342,7 @@ The embedded management UI currently ships with these top-level modules:
 | Module | What it covers |
 |--------|----------------|
 | Home | Version, runtime status, high-level summaries, trend chart, activity heatmap, and ranking panel |
-| Hub | Remote site management with tabs: Sites (with balance chart & prediction), Check-in, Announcement, Redemption, Usage, Credential, and Site Channels |
+| Hub | Upstream relay platform management with 3 tabs: Sites (multi-account cards with inline balance / sync / check-in status, archive/restore, batch edit, and bulk import from AllAPIHub / MetAPI), Site Channels (projected channel bindings), and Automation (auto-sync and auto-checkin intervals) |
 | Channel | Upstream provider configuration, keys, headers, sync, latency probing, proxy mode, and request rewrite profiles |
 | Group | Model routing, load-balancing strategies, sticky sessions, group test, AI route generation, endpoint provider, zashboard-style collapsible group list, and CC Switch deep link |
 | Model Market | Model catalog, custom pricing, channel coverage, enabled key counts, latency, success metrics, and capabilities dual-view |
@@ -623,15 +623,16 @@ The Capabilities panel shows per-model endpoint support declarations, conversati
 
 ### 📈 Analytics
 
-The Analytics module is a read-oriented operations view with five tabs:
+The Analytics module is a read-oriented operations view with six tabs. The default tab is **Channel × Model** so the most-watched data shows first:
 
 | Tab | What it shows |
 |-----|---------------|
-| Cache | Semantic cache effectiveness and provider-side prompt-cache analytics (cache rate, reuse ratio, estimated cost savings per provider) |
-| Utilization | Provider, model, and API key breakdowns for the selected time range |
+| Channel × Model | Channel×model usage matrix, usage-distribution share chart (top-N by model / channel×model, cost/count/tokens metrics) |
+| Usage Breakdown | Provider, model, and API key breakdowns for the selected time range (renamed from "Utilization" with a no-billing hint when cost data is empty) |
 | Route Health | Health score, enabled / disabled item counts, and recent failure pressure for each group |
-| Evaluation | Group readiness, AI route progress, group test progress, and semantic-cache effectiveness |
 | Latency | Request latency metrics (Avg, P50, P95, P99), first-token-user-time (FTUT) metrics, and latency distribution histogram |
+| Evaluation | Group readiness, AI route progress, group test progress, and semantic-cache effectiveness |
+| Cache | Semantic cache effectiveness and provider-side prompt-cache analytics (cache rate, reuse ratio, estimated cost savings per provider) |
 
 **Time ranges:** `1d`, `7d`, `30d`, `90d`, `ytd`, and `all`
 
@@ -651,9 +652,10 @@ The Ops module focuses on runtime posture and operational diagnostics:
 
 | Tab | What it shows |
 |-----|---------------|
-| Telemetry | Hero metrics (uptime, total requests, avg latency, error rate, active connections, memory usage), P95 latency, throughput RPS, database health, session & quota activity, semantic cache snapshot, provider health table with success rates |
-| Quota | API key limit posture across RPM, TPM, max-cost, and per-model quota settings |
-| Health | Database reachability, cache readiness, task-runtime sanity, recent error count, and failing groups |
+| Telemetry | Hero metrics (uptime, total requests, avg latency, error rate, active connections, memory usage), P95 latency, throughput RPS, database health, session & quota activity, semantic cache snapshot, provider health table (sortable columns + mini bar charts) |
+| Quota | API key limit posture across RPM, TPM, max-cost, and per-model quota settings, merged with total tokens + success rate + "view key detail" jump |
+| Health | Database reachability, cache readiness, task-runtime sanity, recent error count, and failing groups (with jump to Analytics → Route Health) |
+| Maintenance | Actionable runtime tuning: Retry, Circuit Breaker, and Response Filter settings consolidated in one tab (moved out of the Settings page) |
 | System | Build metadata, database type, public API base URL, proxy, retention intervals, AI route mode, and AI route services |
 | Audit | Paginated audit history for management-side write operations |
 
@@ -687,26 +689,27 @@ Since the program handles numerous statistics, writing to the database on every 
 - Both are saved periodically using the same interval as statistics persistence
 - Both are also saved during graceful shutdown
 
-**Key settings cards in the current UI:**
+**Key settings cards in the current UI (12 cards after slimming):**
 
 | Card | Purpose |
 |------|---------|
 | Info | Current version, latest release lookup, cache-mismatch detection, and in-place self-update entry with version mismatch notification |
 | Appearance | Theme, locale, alert language, drag-and-drop top-level navigation order, and per-page visibility toggles |
-| System | Public API base URL, proxy URL, CORS allowlist (tag-style management), and stats persistence interval |
+| AI Route | Default compatibility group, timeout, parallelism, and service-pool configuration |
+| Auto Strategy | Auto strategy tuning (minimum samples, time window, sliding window size, latency weight) |
 | Account | Login-session/account preferences and application timezone selection (10 time zones) |
 | Semantic Cache | Enablement, TTL, similarity threshold, max entries, embedding base URL / API key / model / timeout |
-| AI Route | Default compatibility group, timeout, parallelism, and service-pool configuration |
-| API Key | API key creation defaults and quota-related controls |
-| Retry / Auto Strategy / Circuit Breaker | Relay retry and candidate-selection tuning |
-| Log / LLM Price / LLM Sync | Retention (time-based and count-based), price refresh cadence, and upstream model synchronization |
-| Site Automation | Auto-sync interval, auto-checkin interval, and manual sync / checkin triggers for remote sites |
-| WebDAV Backup | WebDAV cloud backup configuration: connection settings, auto-backup interval, max backups retention, manual trigger, remote file listing, restore, and delete |
+| Log | Retention (time-based and count-based) and log level |
+| System | Public API base URL, proxy URL, CORS allowlist (tag-style management), and stats persistence interval |
+| LLM Sync | Upstream model synchronization and price refresh cadence |
 | Backup | Database export, import, and live database migration between SQLite / MySQL / PostgreSQL with connection testing and per-table row count results |
-| Route Group Danger | Delete all route groups with explicit confirmation |
+| WebDAV Backup | WebDAV cloud backup configuration: connection settings, auto-backup interval, max backups retention, manual trigger, remote file listing, restore, and delete |
 | WebAuthn / Passkey | RP ID, RP name, allowed origins configuration |
-| Response Filter | Keyword-based output filtering (block/replace), filter keywords, and error message |
-| Log Level | Application log level and excluded groups for relay log display |
+
+> **Note:** The following settings have been relocated to more relevant modules (issue #87):
+> - **Retry / Circuit Breaker / Response Filter** → `Ops → Maintenance` tab
+> - **Site Automation** → `Hub → Automation` tab
+> - **Purge Unavailable Models / Delete All Route Groups** → `Group` page "Maintenance" dropdown button
 
 **Semantic Cache Scope:**
 
@@ -735,27 +738,30 @@ The Backup settings card includes a live database migration feature beyond simpl
 
 **Settings Card Order:**
 
-The Settings page supports drag-and-drop reordering of its 14+ card sections, with order persisted to local storage. A "Reset to Default" button restores the original order.
+The Settings page supports drag-and-drop reordering of its 12 card sections, with order persisted to local storage. A "Reset to Default" button restores the original order.
 
 > ⚠️ **Important**: When exiting the program, use proper shutdown methods (like `Ctrl+C` or sending `SIGTERM` signal) to ensure in-memory statistics are correctly written to the database. **Do NOT use `kill -9` or other forced termination methods**, as this may result in statistics data loss.
 
 ---
 
-### 🔗 Site Management
+### 🔗 Site Management (Hub → Sites)
 
-The Site module manages upstream relay platforms as a first-class entity, distinct from the Hub (remote site connections). Sites represent platforms like New-API, One-API, One-Hub, Done-Hub, Sub2API, AnyRouter, OpenAI, Claude, and Gemini.
+The Hub module's **Sites** tab manages upstream relay platforms as a first-class entity. Sites represent platforms like New-API, One-API, One-Hub, Done-Hub, Sub2API, OpenAI, Claude, Gemini, and SAPI. Each site renders as a multi-account card with inline balance, sync status, and check-in status, replacing the previous multi-tab Hub layout.
 
 **Features:**
 
 - Multi-account support per site with username/password, access_token, or api_key credentials
 - Auto-sync of channels, tokens, and models at configurable intervals
-- Auto-checkin with configurable intervals and random time windows
-- **Projected channels**: automatically creates local Octopus channels from site account groups with per-group key management, model routing, and history tracking
+- Auto-checkin with configurable intervals and random time windows (per-account toggle)
+- Inline per-account actions: sync, check-in, enable/disable, edit, delete
+- Site-level actions: pin, archive / restore, batch edit (enable / disable / delete), import
+- **Projected channels**: automatically creates local Octopus channels from site account groups with per-group key management, model routing, and history tracking (viewable in the **Site Channels** tab)
 - Route type inference per model (openai_chat, openai_response, anthropic, gemini, volcengine, embedding)
 - Manual model add / delete and route type override
-- Source key and projected key management with model history tracking
-- Bulk import from AllAPIHub and MetAPI formats
+- Bulk import from AllAPIHub and MetAPI formats (file upload or paste JSON)
 - Proxy pool integration with per-site, per-account, and per-channel proxy selection
+- Archive sites (keeps accounts/keys/models, takes projected channels offline) and restore from the archived list
+- **Automation** tab consolidates auto-sync and auto-checkin interval configuration
 
 ---
 
@@ -923,7 +929,7 @@ internal/
 ├── conf/               # Configuration loading & build metadata
 ├── client/             # HTTP client utilities
 ├── db/                 # Database connection & migrations (SQLite/MySQL/PostgreSQL)
-│   └── migrate/        # Versioned schema migrations (001-014)
+│   └── migrate/        # Versioned schema migrations (001-015)
 ├── model/              # Domain types (Channel, Group, APIKey, User, Site, ProxyConfiguration, ModelMapping, …)
 ├── op/                 # Business logic operations split by domain
 │   ├── airoute/        # AI route generation, progress tracking, service pool, and compatibility helpers
@@ -993,18 +999,19 @@ For streaming, the same pipeline processes each SSE event through `TransformStre
 
 **Hub adapters:**
 
-The Hub remote site management uses an adapter-based architecture with 8 registered site adapters:
+The Hub remote site management uses an adapter-based architecture with 7 adapter packages handling 12 site types:
 
-| Adapter | Site Type |
+| Adapter | Site Type(s) |
 |---------|-----------|
-| `common` | `new-api` (fallback for One API / New API family) |
+| `common` | `new-api`, `veloera`, `done-hub`, `one-hub`, `anyrouter`, `unknown` (One API / New API family fallback) |
 | `octopus` | `octopus` (self-aware adapter) |
 | `aihubmix` | `aihubmix` |
 | `axonhub` | `axonhub` |
 | `claudecodehub` | `claude-code-hub` |
-| `ldoh` | `ldoh` |
 | `sub2api` | `sub2api` |
 | `sapi` | `sapi` (user account/password login with token caching) |
+
+The `ldoh` package provides public site discovery (not an adapter).
 
 Each adapter implements the 15-method `SiteAdapter` interface covering user info, check-in, models, pricing, tokens, channels, announcements, status, redemption, and usage logs.
 

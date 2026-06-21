@@ -208,22 +208,20 @@ Hub 数据已纳入数据库备份/恢复体系（`internal/op/backup/`）：
 
 ## 前端模块
 
-Hub 在侧边栏中作为单一入口，内部通过标签页组织 7 个子面板：
+Hub 在侧边栏中作为单一入口，内部通过标签页组织 3 个子面板：
 
 | 路由 ID | 路径 | 说明 |
 |---------|------|------|
-| `hub` | 侧边栏 Hub | Hub 标签页容器，包含 7 个子面板 |
+| `hub` | 侧边栏 Hub | Hub 标签页容器，包含 3 个子面板 |
 
 **Hub 内部标签页：**
-- **站点 (Sites)** — 站点卡片网格、CRUD、刷新、发现
-- **签到 (Check-in)** — 签到状态与历史
-- **公告 (Announcement)** — 公告聚合列表
-- **兑换 (Redemption)** — 兑换码管理
-- **用量 (Usage)** — 远程用量历史
-- **凭证 (Credential)** — API 凭据管理、验证、CLI 导出
-- **站点渠道 (Site Channels)** — 远程站点渠道管理
+- **站点 (Sites)** — 多账号站点卡片网格（`web/src/components/modules/site/`），内联展示余额、同步状态、签到状态；支持置顶、归档/恢复、批量编辑、AllAPIHub/MetAPI 批量导入；账号级操作含同步、签到、启用/停用、编辑、删除
+- **站点渠道 (Site Channels)** — 远程站点投射渠道管理（`web/src/components/modules/site-channel/`）
+- **自动化 (Automation)** — 自动同步与自动签到间隔配置（复用 `SettingSiteAutomation` 组件）
 
-站点详情页内嵌余额历史图表（BalanceChart）。远程 Token 管理功能已从前端移除，但后端 API 仍保留用于备份系统。
+> **注意：** 此前 Hub 的 7 标签页布局（Sites / Check-in / Announcement / Redemption / Usage / Credential / Site Channels）已精简为 3 标签页。签到、公告、兑换、用量、凭证功能已内联进站点卡片或通过 API 访问。`web/src/components/modules/remote-site/` 下仍保留 `CheckInPanel.tsx` / `AnnouncementPanel.tsx` / `RedemptionPanel.tsx` / `UsageHistoryPanel.tsx` / `CredentialPanel.tsx` / `BalanceChart.tsx` 等历史文件，但已不再被前端引用（后端 API 仍保留供备份系统使用）。
+
+后端的远程 Token 管理 API 端点保留供备份系统使用，但前端已移除对应 UI。
 
 ## 测试
 
