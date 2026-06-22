@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { MotionConfig, AnimatePresence, motion } from 'motion/react';
 import { ChevronDown } from 'lucide-react';
 import { useModelMarket } from '@/api/endpoints/model';
+import { useSettingList, SettingKey } from '@/api/endpoints/setting';
 import { useTranslations } from 'next-intl';
 import { ModelItem } from './Item';
 import { MobileModelItem } from './MobileModelItem';
@@ -41,6 +42,7 @@ export function Model() {
     const t = useTranslations('model');
     const tFilter = useTranslations('modelFilter');
     const { data: market } = useModelMarket();
+    const { data: settings } = useSettingList();
     // 归一化去重依赖运行时规则（来自 DB Setting），需在筛选前注入。
     useNormalizeRulesSync();
     const isMobile = useIsMobile();
@@ -56,6 +58,15 @@ export function Model() {
     const [capability, setCapability] = useState<ModelCapabilityFilter>('all');
     const [provider, setProvider] = useState<string>('');
     const [dedupe, setDedupe] = useState(false);
+    // 首次拿到 setting 时，用「模型广场默认开启归一化去重」初始化 dedupe，
+    // 之后用户手动切换不再被覆盖（用 ref 保证只同步一次）。
+    const dedupeInitializedRef = useRef(false);
+    useEffect(() => {
+        if (dedupeInitializedRef.current || !settings) return;
+        dedupeInitializedRef.current = true;
+        const raw = settings.find((s) => s.key === SettingKey.ModelNormalizeMarketDedupeDefault)?.value;
+        if (raw === 'true') setDedupe(true);
+    }, [settings]);
     // 筛选条折叠状态（默认展开，随内容滚动上滑，可手动收起腾出空间）。
     const [filterCollapsed, setFilterCollapsed] = useState<boolean>(readFilterCollapsed);
 

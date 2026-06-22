@@ -2,14 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Wand2, Save, Loader2, Plus, X, Search, CheckCircle2, AlertCircle, Download, Check } from 'lucide-react';
+import { Wand2, Save, Loader2, Plus, X, Search, CheckCircle2, AlertCircle, Download, Check, ClipboardCopy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { SettingKey, useSetSetting, useSettingList } from '@/api/endpoints/setting';
 import { useModelChannelList, type LLMChannel } from '@/api/endpoints/model';
 import { toast } from '@/components/common/Toast';
 import { setNormalizeRules, type ExplicitMapping } from '@/components/modules/model/normalize';
+import { writeClipboardText } from '@/lib/clipboard';
 import { cn } from '@/lib/utils';
 
 // AI 离线分析后导入的规则文件结构。
@@ -304,10 +306,13 @@ export function SettingNormalize() {
     const [routerPrefixes, setRouterPrefixes] = useState<string[]>([]);
     const [functionalSuffixes, setFunctionalSuffixes] = useState<string[]>([]);
     const [explicitMappings, setExplicitMappings] = useState<ExplicitMapping[]>([]);
+    // 模型广场是否默认开启归一化去重。独立于上述规则，单独持久化与保存。
+    const [marketDedupeDefault, setMarketDedupeDefault] = useState(false);
     const [loaded, setLoaded] = useState(false);
     const [saving, setSaving] = useState(false);
     const [analyzing, setAnalyzing] = useState(false);
     const [exporting, setExporting] = useState(false);
+    const [copyingPrompt, setCopyingPrompt] = useState(false);
     const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
     const importFileRef = useRef<HTMLInputElement | null>(null);
     const [analysis, setAnalysis] = useState<{ merged: MergedCluster[]; suspected: SuspectedCluster[] } | null>(null);
@@ -318,6 +323,7 @@ export function SettingNormalize() {
         setRouterPrefixes(parseStringArray(settings.find((s) => s.key === SettingKey.ModelNormalizeRouterPrefixes)?.value));
         setFunctionalSuffixes(parseStringArray(settings.find((s) => s.key === SettingKey.ModelNormalizeFunctionalSuffixes)?.value));
         setExplicitMappings(parseExplicitMappings(settings.find((s) => s.key === SettingKey.ModelNormalizeExplicitMappings)?.value));
+        setMarketDedupeDefault(settings.find((s) => s.key === SettingKey.ModelNormalizeMarketDedupeDefault)?.value === 'true');
         setLoaded(true);
     }, [settings, loaded]);
 
@@ -347,6 +353,7 @@ export function SettingNormalize() {
             await setSetting.mutateAsync({ key: SettingKey.ModelNormalizeRouterPrefixes, value: JSON.stringify(routerPrefixes) });
             await setSetting.mutateAsync({ key: SettingKey.ModelNormalizeFunctionalSuffixes, value: JSON.stringify(functionalSuffixes) });
             await setSetting.mutateAsync({ key: SettingKey.ModelNormalizeExplicitMappings, value: JSON.stringify(explicitMappings) });
+            await setSetting.mutateAsync({ key: SettingKey.ModelNormalizeMarketDedupeDefault, value: marketDedupeDefault ? 'true' : 'false' });
             // 立即注入运行时，无需等设置列表刷新。
             setNormalizeRules({ routerPrefixes, functionalSuffixes, explicitMappings });
             toast.success(t('normalize.saved'));
@@ -389,6 +396,21 @@ export function SettingNormalize() {
         if (functionalSuffixes.includes(v)) return;
         setFunctionalSuffixes((prev) => [...prev, v]);
         toast.success(t('normalize.addedFromAnalysis'));
+    };
+
+    // 复制离线 AI 分析提示词到剪贴板。提示词指导 AI 把导出的渠道模型名 JSON
+    // 归并为基础名，并产出 router_prefixes / functional_suffixes / explicit_mappings。
+    const handleCopyPrompt = async () => {
+        setCopyingPrompt(true);
+        try {
+            await writeClipboardText(t('normalize.workflow.prompt'));
+            toast.success(t('normalize.workflow.promptCopied'));
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : t('normalize.workflow.promptCopyFailed'));
+        } finally {
+            // 保持「已复制」勾选状态短暂可见，再恢复按钮文案。
+            setTimeout(() => setCopyingPrompt(false), 1500);
+        }
     };
 
     // 导出含变体的渠道模型名，供离线 AI/agent 分析变体关系。
@@ -470,10 +492,12 @@ export function SettingNormalize() {
         const savedPrefixes = JSON.stringify(parseStringArray(settings.find((s) => s.key === SettingKey.ModelNormalizeRouterPrefixes)?.value));
         const savedSuffixes = JSON.stringify(parseStringArray(settings.find((s) => s.key === SettingKey.ModelNormalizeFunctionalSuffixes)?.value));
         const savedMappings = JSON.stringify(parseExplicitMappings(settings.find((s) => s.key === SettingKey.ModelNormalizeExplicitMappings)?.value));
+        const savedMarketDedupe = settings.find((s) => s.key === SettingKey.ModelNormalizeMarketDedupeDefault)?.value === 'true';
         return JSON.stringify(routerPrefixes) !== savedPrefixes
             || JSON.stringify(functionalSuffixes) !== savedSuffixes
-            || JSON.stringify(explicitMappings) !== savedMappings;
-    }, [loaded, settings, routerPrefixes, functionalSuffixes, explicitMappings]);
+            || JSON.stringify(explicitMappings) !== savedMappings
+            || marketDedupeDefault !== savedMarketDedupe;
+    }, [loaded, settings, routerPrefixes, functionalSuffixes, explicitMappings, marketDedupeDefault]);
 
     return (
         <div className="rounded-xl border-border/35 bg-card p-4 sm:p-6 space-y-4 sm:space-y-5 text-card-foreground shadow-md">
@@ -483,6 +507,15 @@ export function SettingNormalize() {
                     {t('normalize.title')}
                 </h2>
                 <p className="text-sm text-muted-foreground">{t('normalize.description')}</p>
+            </div>
+
+            {/* 模型广场默认开启归一化去重：独立于规则编辑，随保存按钮一起落库。 */}
+            <div className="flex items-center justify-between gap-3 rounded-lg border-border/30 bg-card p-3 sm:p-4 shadow-sm">
+                <div className="space-y-0.5">
+                    <div className="text-sm font-semibold text-card-foreground">{t('normalize.marketDedupeDefault.title')}</div>
+                    <p className="text-xs leading-5 text-muted-foreground">{t('normalize.marketDedupeDefault.hint')}</p>
+                </div>
+                <Switch checked={marketDedupeDefault} onCheckedChange={setMarketDedupeDefault} aria-label={t('normalize.marketDedupeDefault.title')} />
             </div>
 
             {/* 路由前缀 */}
@@ -572,6 +605,25 @@ export function SettingNormalize() {
                     </div>
                     <p className="text-xs leading-5 text-muted-foreground">{t('normalize.workflow.description')}</p>
                 </div>
+
+                {/* 复制分析提示词：供用户粘贴到离线 AI，指导其分析导出的渠道模型名 JSON */}
+                <div className="space-y-1.5">
+                    <div className="text-xs font-medium text-muted-foreground">{t('normalize.workflow.promptTitle')}</div>
+                    <p className="text-[11px] text-muted-foreground/70">{t('normalize.workflow.promptHint')}</p>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full rounded-xl"
+                        onClick={handleCopyPrompt}
+                        disabled={copyingPrompt}
+                    >
+                        {copyingPrompt ? <Check className="size-3.5" /> : <ClipboardCopy className="size-3.5" />}
+                        {copyingPrompt ? t('normalize.workflow.promptCopied') : t('normalize.workflow.promptCopy')}
+                    </Button>
+                </div>
+
+                <div className="h-px bg-border/30" />
 
                 {/* 导出：含变体的渠道模型名，供离线 AI 分析 */}
                 <div className="space-y-1.5">

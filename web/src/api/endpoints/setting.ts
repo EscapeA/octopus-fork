@@ -76,6 +76,7 @@ export const SettingKey = {
     ModelNormalizeRouterPrefixes: 'model_normalize_router_prefixes',
     ModelNormalizeFunctionalSuffixes: 'model_normalize_functional_suffixes',
     ModelNormalizeExplicitMappings: 'model_normalize_explicit_mappings',
+    ModelNormalizeMarketDedupeDefault: 'model_normalize_market_dedupe_default',
     WebAuthnRPID: 'webauthn_rp_id',
     WebAuthnRPName: 'webauthn_rp_name',
     WebAuthnOrigins: 'webauthn_origins',

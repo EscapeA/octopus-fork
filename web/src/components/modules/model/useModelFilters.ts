@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { useModelCapabilities } from '@/api/endpoints/model';
 import { getModelIcon } from '@/lib/model-icons';
-import { normalizeModelName } from './normalize';
+import { normalizeModelName, useNormalizeRulesVersion } from './normalize';
 import type { ModelMarketItem } from '@/api/endpoints/model';
 
 /** 模型支持的 endpoint 能力类型。 */
@@ -55,6 +55,8 @@ interface FilterResult {
  */
 export function useModelFilters({ items, searchTerm, capability, provider, dedupe }: FilterInputs): FilterResult {
     const { data: capabilities } = useModelCapabilities();
+    // 归一化规则保存在模块级变量里，需订阅其版本号才能在规则变更时让下方 useMemo 失效重算。
+    const rulesVersion = useNormalizeRulesVersion();
 
     const capabilityByName = useMemo(() => {
         const map = new Map<string, string[]>();
@@ -73,6 +75,8 @@ export function useModelFilters({ items, searchTerm, capability, provider, dedup
     }, [items]);
 
     const visible = useMemo(() => {
+        // 归一化规则版本：normalizeModelName 读取模块级规则，需把它纳入依赖以在规则变更时重算。
+        void rulesVersion;
         const term = searchTerm.toLowerCase().trim();
         let result = items;
 
@@ -95,6 +99,7 @@ export function useModelFilters({ items, searchTerm, capability, provider, dedup
             result = result.filter((m) => inferModelProvider(m.name) === provider);
         }
 
+        // dedupe 分支调用 normalizeModelName，依赖 rulesVersion 才能在规则变更时重算。
         if (dedupe) {
             const seen = new Set<string>();
             result = result.filter((m) => {
@@ -106,7 +111,7 @@ export function useModelFilters({ items, searchTerm, capability, provider, dedup
         }
 
         return result;
-    }, [items, searchTerm, capability, provider, dedupe, capabilityByName]);
+    }, [items, searchTerm, capability, provider, dedupe, capabilityByName, rulesVersion]);
 
     return { visible, providers };
 }

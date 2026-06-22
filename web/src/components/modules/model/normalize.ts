@@ -19,7 +19,12 @@
  *   2. 内置默认（BUILTIN_ROUTER_PREFIXES / BUILTIN_FUNCTIONAL_SUFFIXES）—— 编译期兜底。
  *   3. 运行时覆盖（setNormalizeRules 注入）—— 来自 DB Setting，用户可在设置页增删。
  * 注入为空数组 / null 时回退到内置默认，保证未配置时行为与历史一致。
+ *
+ * 规则变化通过订阅机制对外广播，使依赖归一化结果的 React memo 能在规则更新时
+ * 失效重算（见 useNormalizeRulesVersion）。
  */
+
+import { useSyncExternalStore } from 'react';
 
 export interface NormalizeExplicitMapping {
     variant: string;
@@ -56,28 +61,80 @@ let runtimeFunctionalSuffixes: string[] | null = null;
 // variant(小写) → canonical。空表示未配置显式映射。
 let runtimeExplicitMappings: Map<string, string> | null = null;
 
+// 规则版本号：每次 setNormalizeRules 改变规则时自增，供订阅者判断是否需要重算。
+let rulesVersion = 0;
+// 订阅者集合，规则变化时逐个通知。
+const subscribers = new Set<() => void>();
+
+function notifyRulesChange() {
+    rulesVersion += 1;
+    for (const sub of subscribers) {
+        try {
+            sub();
+        } catch {
+            /* 单个订阅者异常不影响其他订阅者 */
+        }
+    }
+}
+
 /**
  * 注入运行时归一化规则（来自 DB Setting）。
  * 传入空数组或 null/undefined 表示清除对应覆盖，前缀/后缀回退到内置默认。
  * 显式映射无内置默认，空表示不启用。
+ *
+ * 规则发生实质变化时会自增版本号并通知订阅者，使依赖该规则的 React memo
+ * 失效重算（避免规则已更新但视图仍按旧规则去重的 bug）。
  */
 export function setNormalizeRules(rules?: {
     routerPrefixes?: string[] | null;
     functionalSuffixes?: string[] | null;
     explicitMappings?: ExplicitMapping[] | null;
 }) {
-    runtimeRouterPrefixes = rules?.routerPrefixes && rules.routerPrefixes.length > 0
+    const nextRouterPrefixes = rules?.routerPrefixes && rules.routerPrefixes.length > 0
         ? rules.routerPrefixes
         : null;
-    runtimeFunctionalSuffixes = rules?.functionalSuffixes && rules.functionalSuffixes.length > 0
+    const nextFunctionalSuffixes = rules?.functionalSuffixes && rules.functionalSuffixes.length > 0
         ? rules.functionalSuffixes
         : null;
     const mappings = rules?.explicitMappings && rules.explicitMappings.length > 0
         ? rules.explicitMappings
         : null;
-    runtimeExplicitMappings = mappings
+    const nextExplicitMappings = mappings
         ? new Map(mappings.map((m) => [m.variant.toLowerCase(), m.canonical]))
         : null;
+
+    // 只有规则实质变化时才广播，避免设置列表 refetch 触发的无效重算。
+    if (runtimeRouterPrefixes === nextRouterPrefixes
+        && runtimeFunctionalSuffixes === nextFunctionalSuffixes
+        && runtimeExplicitMappings === nextExplicitMappings) {
+        return;
+    }
+    runtimeRouterPrefixes = nextRouterPrefixes;
+    runtimeFunctionalSuffixes = nextFunctionalSuffixes;
+    runtimeExplicitMappings = nextExplicitMappings;
+    notifyRulesChange();
+}
+
+function subscribeRulesVersion(callback: () => void): () => void {
+    subscribers.add(callback);
+    return () => {
+        subscribers.delete(callback);
+    };
+}
+
+function getRulesVersionSnapshot(): number {
+    return rulesVersion;
+}
+
+/**
+ * 订阅归一化规则版本号的 React hook。
+ *
+ * 规则保存在模块级可变变量里，本身在 React 体系之外。本 hook 通过
+ * useSyncExternalStore 把版本号接入 React，使依赖归一化结果的 useMemo
+ * 能把返回值加进依赖数组，规则一变即失效重算。
+ */
+export function useNormalizeRulesVersion(): number {
+    return useSyncExternalStore(subscribeRulesVersion, getRulesVersionSnapshot, getRulesVersionSnapshot);
 }
 
 /**

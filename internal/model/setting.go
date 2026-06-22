@@ -75,6 +75,7 @@ const (
 	SettingKeyModelNormalizeRouterPrefixes         SettingKey = "model_normalize_router_prefixes"          // 模型名归一化: 路由商/平台前缀列表(JSON 数组，元素如 "dmxapi-")
 	SettingKeyModelNormalizeFunctionalSuffixes     SettingKey = "model_normalize_functional_suffixes"      // 模型名归一化: 功能性后缀列表(JSON 数组，元素如 "-cc")
 	SettingKeyModelNormalizeExplicitMappings       SettingKey = "model_normalize_explicit_mappings"        // 模型名归一化: 显式变体→基准名映射(JSON 数组，元素如 {"variant":"...","canonical":"..."})
+	SettingKeyModelNormalizeMarketDedupeDefault    SettingKey = "model_normalize_market_dedupe_default"    // 模型名归一化: 模型广场默认开启归一化去重("true"/"false")
 	SettingKeyWebAuthnRPID                         SettingKey = "webauthn_rp_id"                           // WebAuthn RP ID（域名，不含协议/端口）
 	SettingKeyWebAuthnRPName                       SettingKey = "webauthn_rp_name"                         // WebAuthn RP 展示名
 	SettingKeyWebAuthnOrigins                      SettingKey = "webauthn_origins"                         // WebAuthn 允许的 Origin 列表（逗号分隔，完整 scheme://host[:port]）
@@ -148,9 +149,10 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyResponseFilterErrorMessage, Value: "The response contains blocked keywords and has been intercepted."},
 		{Key: SettingKeyLogLevel, Value: "info"},
 		{Key: SettingKeyLogExcludedGroups, Value: "[]"},
-		{Key: SettingKeyModelNormalizeRouterPrefixes, Value: "[]"},     // 默认无自定义路由前缀，回退到前端内置默认
-		{Key: SettingKeyModelNormalizeFunctionalSuffixes, Value: "[]"}, // 默认无自定义功能后缀，回退到前端内置默认
-		{Key: SettingKeyModelNormalizeExplicitMappings, Value: "[]"},   // 默认无显式变体→基准名映射
+		{Key: SettingKeyModelNormalizeRouterPrefixes, Value: "[]"},         // 默认无自定义路由前缀，回退到前端内置默认
+		{Key: SettingKeyModelNormalizeFunctionalSuffixes, Value: "[]"},     // 默认无自定义功能后缀，回退到前端内置默认
+		{Key: SettingKeyModelNormalizeExplicitMappings, Value: "[]"},       // 默认无显式变体→基准名映射
+		{Key: SettingKeyModelNormalizeMarketDedupeDefault, Value: "false"}, // 默认不在模型广场自动开启归一化去重
 		{Key: SettingKeyWebAuthnRPID, Value: ""},
 		{Key: SettingKeyWebAuthnRPName, Value: "Octopus"},
 		{Key: SettingKeyWebAuthnOrigins, Value: ""},
@@ -229,7 +231,7 @@ func (s *Setting) Validate() error {
 			}
 		}
 		return nil
-	case SettingKeyRelayLogKeepEnabled, SettingKeySemanticCacheEnabled:
+	case SettingKeyRelayLogKeepEnabled, SettingKeySemanticCacheEnabled, SettingKeyModelNormalizeMarketDedupeDefault:
 		if s.Value != "true" && s.Value != "false" {
 			return fmt.Errorf("setting value must be true or false")
 		}

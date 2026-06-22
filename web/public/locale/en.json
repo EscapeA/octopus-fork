@@ -1652,6 +1652,10 @@
       "addedFromAnalysis": "Added from analysis",
       "add": "Add",
       "removeHint": "Click to remove",
+      "marketDedupeDefault": {
+        "title": "Dedup by default in Model Market",
+        "hint": "When enabled, the Model Market page opens with normalization-based dedup turned on, so variant model names are merged into a single entry automatically. You can still toggle it off per session."
+      },
       "routerPrefixes": {
         "title": "Router Prefixes",
         "hint": "Prefixes stripped from the start of a model name (e.g. dmxapi-). Case-insensitive. Enter with trailing dash.",
@@ -1671,7 +1675,12 @@
       },
       "workflow": {
         "title": "Offline AI Normalization Workflow",
-        "description": "Export channel model names (with variants) for offline AI/agent analysis, then import the AI-produced normalization rules."
+        "description": "Export channel model names (with variants) for offline AI/agent analysis, then import the AI-produced normalization rules.",
+        "promptTitle": "Copy Analysis Prompt",
+        "promptHint": "Copy this prompt and paste it into your offline AI chat along with the exported channel model names JSON. The AI will produce normalization rules in the expected format.",
+        "promptCopy": "Copy Prompt",
+        "promptCopied": "Copied",
+        "prompt": "You are a model name normalization assistant. I will give you a JSON whose `channels` array contains objects with a `name` field (channel-declared model names, possibly with variants). Analyze these names, find naming variants of the same base model, and produce normalization rules.\n\nRules come in three categories:\n1. router_prefixes: router/platform prefixes at the start of a model name that are unrelated to the underlying model, e.g. \"dmxapi-\", \"agent-\". Each entry must end with a hyphen.\n2. functional_suffixes: functional suffixes at the end of a model name unrelated to the model itself, e.g. \"-cc\", \"-fast\", \"-thinking\". Each entry must start with a hyphen.\n3. explicit_mappings: point-to-point variant→canonical mappings for cases prefix/suffix rules cannot cover, e.g. {\"variant\":\"claude-3.5-sonnet\",\"canonical\":\"claude-3-5-sonnet\"}.\n\nPrinciples:\n- Only merge variants that truly belong to the same base model; avoid false merges (e.g. gpt-4o and gpt-4o-mini are different models and must not be merged).\n- Provider path prefixes (e.g. moonshotai/, @cf/org/) are stripped automatically and need not be listed in router_prefixes.\n- Prefer prefix/suffix rules; use explicit_mappings only when prefix/suffix cannot express the relationship.\n\nOutput ONLY a single JSON object, no explanation, in this format:\n{\n  \"router_prefixes\": [\"...\"],\n  \"functional_suffixes\": [\"...\"],\n  \"explicit_mappings\": [{\"variant\":\"...\",\"canonical\":\"...\"}]\n}"
       },
       "export": {
         "title": "Export Channel Model Names",
@@ -1717,7 +1726,12 @@
       },
       "workflow": {
         "title": "Offline AI Workflow",
-        "description": "Export channel model names (with variants) for offline AI/agent analysis, then import the produced normalization rules."
+        "description": "Export channel model names (with variants) for offline AI/agent analysis, then import the produced normalization rules.",
+        "promptTitle": "Copy Analysis Prompt",
+        "promptHint": "Copy this prompt and paste it into your offline AI chat along with the exported channel model names JSON. The AI will produce normalization rules in the expected format.",
+        "promptCopy": "Copy Prompt",
+        "promptCopied": "Copied",
+        "prompt": "You are a model name normalization assistant. I will give you a JSON whose `channels` array contains objects with a `name` field (channel-declared model names, possibly with variants). Analyze these names, find naming variants of the same base model, and produce normalization rules.\n\nRules come in three categories:\n1. router_prefixes: router/platform prefixes at the start of a model name that are unrelated to the underlying model, e.g. \"dmxapi-\", \"agent-\". Each entry must end with a hyphen.\n2. functional_suffixes: functional suffixes at the end of a model name unrelated to the model itself, e.g. \"-cc\", \"-fast\", \"-thinking\". Each entry must start with a hyphen.\n3. explicit_mappings: point-to-point variant→canonical mappings for cases prefix/suffix rules cannot cover, e.g. {\"variant\":\"claude-3.5-sonnet\",\"canonical\":\"claude-3-5-sonnet\"}.\n\nPrinciples:\n- Only merge variants that truly belong to the same base model; avoid false merges (e.g. gpt-4o and gpt-4o-mini are different models and must not be merged).\n- Provider path prefixes (e.g. moonshotai/, @cf/org/) are stripped automatically and need not be listed in router_prefixes.\n- Prefer prefix/suffix rules; use explicit_mappings only when prefix/suffix cannot express the relationship.\n\nOutput ONLY a single JSON object, no explanation, in this format:\n{\n  \"router_prefixes\": [\"...\"],\n  \"functional_suffixes\": [\"...\"],\n  \"explicit_mappings\": [{\"variant\":\"...\",\"canonical\":\"...\"}]\n}"
       },
       "export": {
         "title": "Export Channel Model Names",

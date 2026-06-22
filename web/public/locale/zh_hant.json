@@ -1652,6 +1652,10 @@
       "addedFromAnalysis": "已從分析加入",
       "add": "加入",
       "removeHint": "點擊移除",
+      "marketDedupeDefault": {
+        "title": "模型廣場預設開啟歸一化去重",
+        "hint": "開啟後，進入模型廣場時自動套用歸一化去重，把同一基礎模型的變體合併顯示。仍可在廣場篩選條手動關閉。"
+      },
       "routerPrefixes": {
         "title": "路由商前綴",
         "hint": "從模型名稱開頭剝離的前綴（如 dmxapi-）。不分大小寫，輸入時帶末尾連字號。",
@@ -1671,7 +1675,12 @@
       },
       "workflow": {
         "title": "離線 AI 歸一化工作流",
-        "description": "匯出含變體的渠道模型名稱供離線 AI/agent 分析變體關係，再將 AI 產出的規則匯入。"
+        "description": "匯出含變體的渠道模型名稱供離線 AI/agent 分析變體關係，再將 AI 產出的規則匯入。",
+        "promptTitle": "複製分析提示詞",
+        "promptHint": "複製後貼到離線 AI 對話，配合上方匯出的渠道模型名稱 JSON 一起使用，讓 AI 按指定格式產出歸一化規則。",
+        "promptCopy": "複製提示詞",
+        "promptCopied": "已複製",
+        "prompt": "你是一個模型名稱歸一化分析助手。我會給你一份 JSON，其中 channels 陣列的每個元素含 name 欄位（渠道宣告的模型名稱，可能含變體）。請分析這些模型名稱，找出同一基礎模型在不同渠道下的命名變體，並產出歸一化規則。\n\n歸一化規則分三類：\n1. router_prefixes：路由商/平台前綴（出現在模型名稱開頭，與底層模型無關），如 \"dmxapi-\"、\"agent-\"。元素需帶末尾連字號。\n2. functional_suffixes：功能性後綴（出現在模型名稱結尾，與模型本體無關），如 \"-cc\"、\"-fast\"、\"-thinking\"。元素需帶前導連字號。\n3. explicit_mappings：點對點變體→基準名映射，用於前綴/後綴規則無法覆蓋的情況，如 {\"variant\":\"claude-3.5-sonnet\",\"canonical\":\"claude-3-5-sonnet\"}。\n\n分析原則：\n- 只把確實屬於同一基礎模型的變體歸併，避免誤併（如 gpt-4o 與 gpt-4o-mini 是不同模型，不可歸併）。\n- provider 路徑前綴（如 moonshotai/、@cf/org/）會被自動剝離，無需列入 router_prefixes。\n- 優先用前綴/後綴規則；僅當無法用前綴/後綴表達時才用 explicit_mappings。\n\n請僅輸出一個 JSON 物件，不要解釋，格式如下：\n{\n  \"router_prefixes\": [\"...\"],\n  \"functional_suffixes\": [\"...\"],\n  \"explicit_mappings\": [{\"variant\":\"...\",\"canonical\":\"...\"}]\n}"
       },
       "export": {
         "title": "匯出渠道模型名",
