@@ -953,6 +953,68 @@ func loadAnalyticsChannelModelRows(ctx context.Context, r model.AnalyticsRange, 
 					},
 				}
 			}
+
+			// 补充历史日志：issue #67 修复部署前的 relay_logs 没有 attempts 行，
+			// 仅靠上面的 attempts 聚合会让这些历史数据在渠道×模型页面消失（issue #87）。
+			// 取无 attempts 行的 relay_logs 顶层列聚合，只填充 attempts 分支未覆盖的
+			// (channelID, modelName) 组合，避免与 attempts 数据重复计算。
+			// 用显式 gorm column tag 的中间结构体扫描，避免 GORM 对嵌入匿名结构体
+			// （analyticsAggregateMetrics）在聚合查询下列映射不稳定导致数值为零。
+			type legacyRow struct {
+				ChannelID    int     `gorm:"column:channel_id"`
+				ChannelName  string  `gorm:"column:channel_name"`
+				ModelName    string  `gorm:"column:model_name"`
+				InputTokens  int64   `gorm:"column:input_tokens"`
+				OutputTokens int64   `gorm:"column:output_tokens"`
+				TotalCost    float64 `gorm:"column:total_cost"`
+				Success      int64   `gorm:"column:request_success"`
+				Failed       int64   `gorm:"column:request_failed"`
+			}
+			var legacyRows []legacyRow
+			modelExpr := "COALESCE(NULLIF(relay_logs.actual_model_name, ''), relay_logs.request_model_name)"
+			legacyQuery := attemptsConn.WithContext(ctx).
+				Model(&model.RelayLog{}).
+				Select(`
+					relay_logs.channel_id AS channel_id,
+					relay_logs.channel_name AS channel_name,
+					` + modelExpr + ` AS model_name,
+					COALESCE(SUM(relay_logs.input_tokens), 0) AS input_tokens,
+					COALESCE(SUM(relay_logs.output_tokens), 0) AS output_tokens,
+					COALESCE(SUM(relay_logs.cost), 0) AS total_cost,
+					COALESCE(SUM(CASE WHEN relay_logs.error = '' THEN 1 ELSE 0 END), 0) AS request_success,
+					COALESCE(SUM(CASE WHEN relay_logs.error <> '' THEN 1 ELSE 0 END), 0) AS request_failed
+				`).
+				Joins("LEFT JOIN relay_log_attempts AS a ON a.relay_log_id = relay_logs.id").
+				Where("a.id IS NULL").
+				Group("relay_logs.channel_id, relay_logs.channel_name, " + modelExpr)
+			if startUnix != nil {
+				legacyQuery = legacyQuery.Where("relay_logs.time >= ?", *startUnix)
+			}
+			if err := legacyQuery.Scan(&legacyRows).Error; err != nil {
+				return nil, err
+			}
+			for _, lr := range legacyRows {
+				modelName := strings.TrimSpace(lr.ModelName)
+				if modelName == "" || !inScope(lr.ChannelID, modelName) {
+					continue
+				}
+				key := strconv.Itoa(lr.ChannelID) + "\x00" + modelName
+				if _, exists := rows[key]; exists {
+					continue // attempts 分支已覆盖，不覆盖
+				}
+				rows[key] = &analyticsChannelModelAggregateRow{
+					ChannelID:   lr.ChannelID,
+					ChannelName: lr.ChannelName,
+					ModelName:   modelName,
+					analyticsAggregateMetrics: analyticsAggregateMetrics{
+						InputTokens:    lr.InputTokens,
+						OutputTokens:   lr.OutputTokens,
+						TotalCost:      lr.TotalCost,
+						RequestSuccess: lr.Success,
+						RequestFailed:  lr.Failed,
+					},
+				}
+			}
 		} else {
 			// 最终回退：LogDB 和主库均无 attempts 表时用顶层列（与历史利用率一致）。
 			// 注意：顶层列只能看到最终渠道的成败，无法捕获中间重试失败。

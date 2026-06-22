@@ -440,3 +440,60 @@ func TestAnalyticsAutoStrategyGet_GroupScopedFiltersByChannelModel(t *testing.T)
 		t.Fatalf("groupB item = (channel=%d, model=%q), want (1, model-y)", itemsB[0].ChannelID, itemsB[0].ModelName)
 	}
 }
+
+// TestAnalyticsChannelModelBreakdownGet_LegacyLogWithoutAttempts 验证 issue #87 修复：
+// relay_log_attempts 表存在时，没有 attempts 行的历史 relay_logs（issue #67 修复部署前
+// 的日志）仍能被渠道×模型聚合覆盖，不会因只查 attempts 表而消失。
+func TestAnalyticsChannelModelBreakdownGet_LegacyLogWithoutAttempts(t *testing.T) {
+	dsn := filepath.Join(t.TempDir(), "analytics-legacy.db")
+	if err := db.InitDB("sqlite", dsn, false); err != nil {
+		t.Fatalf("InitDB failed: %v", err)
+	}
+	if err := db.InitLogDB("", "", false); err != nil {
+		t.Fatalf("InitLogDB(shared) failed: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := setting.RefreshCache(context.Background()); err != nil {
+		t.Fatalf("RefreshCache failed: %v", err)
+	}
+	if err := setting.SetString(model.SettingKeyRelayLogKeepEnabled, "true"); err != nil {
+		t.Fatalf("enable relay log keep failed: %v", err)
+	}
+
+	// 历史日志：无 attempts 行（模拟 issue #67 修复前的数据），整体成功。
+	legacyLog := model.RelayLog{
+		ID: 9001, Time: time.Now().Unix(),
+		RequestModelName: "gpt-4o", ActualModelName: "gpt-4o",
+		ChannelId: 33, ChannelName: "legacyChannel", Error: "",
+		InputTokens: 77, OutputTokens: 23, Cost: 0.5,
+	}
+	if err := db.GetLogDB().Create(&legacyLog).Error; err != nil {
+		t.Fatalf("seed legacy relay log failed: %v", err)
+	}
+	// 故意不调用 RelayLogAttemptsAdd —— 模拟修复部署前的历史数据。
+
+	restore := relaylog.SetCacheForTest(nil)
+	t.Cleanup(restore)
+
+	items, err := AnalyticsChannelModelBreakdownGet(context.Background(), model.AnalyticsRange7D, nil)
+	if err != nil {
+		t.Fatalf("AnalyticsChannelModelBreakdownGet error: %v", err)
+	}
+
+	// 历史日志应出现在渠道×模型聚合中（修复前会因只查 attempts 表而丢失）。
+	var found bool
+	for _, it := range items {
+		if it.ChannelID == 33 && it.ModelName == "gpt-4o" {
+			found = true
+			if it.RequestCount != 1 || it.SuccessRate < 99.9 {
+				t.Fatalf("legacy log request_count=%d success_rate=%f, want 1/~100", it.RequestCount, it.SuccessRate)
+			}
+			if it.InputTokens != 77 || it.OutputTokens != 23 {
+				t.Fatalf("legacy log tokens in=%d out=%d, want 77/23", it.InputTokens, it.OutputTokens)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("legacy log (no attempts row) missing from channel-model breakdown (issue #87)")
+	}
+}
