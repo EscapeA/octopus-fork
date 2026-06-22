@@ -1918,7 +1918,16 @@ export function Site() {
             </div>
           </section>
         ) : (
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl"
+              onClick={() => setArchivedDialogOpen(true)}
+            >
+              <Archive className="size-4" />
+              <span className="hidden sm:inline">归档站点</span>
+            </Button>
             <Button
               variant="outline"
               size="sm"
