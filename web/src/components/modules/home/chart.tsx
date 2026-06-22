@@ -3,7 +3,7 @@
 import { useStatsDaily, useStatsHourly, type StatsDailyFormatted, type StatsHourlyFormatted } from '@/api/endpoints/stats';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { useMemo } from 'react';
-import { Area, ComposedChart, CartesianGrid, Line, XAxis, YAxis } from 'recharts';
+import { Area, ComposedChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { useTranslations } from 'next-intl';
 import { formatCount, formatMoney } from '@/lib/utils';
 import { formatDateOnly } from '@/lib/time';
@@ -275,26 +275,13 @@ export function StatsChart() {
                         }}
                     />
                     <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
-                    {chartMetrics.length === 1 ? (
-                        <Area
-                            type="monotone"
-                            dataKey={METRIC_DATA_KEYS[chartMetrics[0]]}
-                            stroke={getChartStroke(chartMetrics[0])}
-                            fill={getChartFill(chartMetrics[0])}
-                            strokeWidth={2}
-                        />
-                    ) : (
-                        chartMetrics.map((type) => (
-                            <Line
-                                key={type}
-                                type="monotone"
-                                dataKey={METRIC_DATA_KEYS[type]}
-                                stroke={getChartStroke(type)}
-                                strokeWidth={2}
-                                dot={false}
-                            />
-                        ))
-                    )}
+                    <Area
+                        type="monotone"
+                        dataKey={METRIC_DATA_KEYS[chartMetrics[0]]}
+                        stroke={getChartStroke(chartMetrics[0])}
+                        fill={getChartFill(chartMetrics[0])}
+                        strokeWidth={2}
+                    />
                 </ComposedChart>
                 </ChartContainer>
             </div>

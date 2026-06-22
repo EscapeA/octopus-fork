@@ -142,13 +142,9 @@ export const useHomeViewStore = create<HomeViewState>()(
                 chartMetricType: normalizeChartMetricType(value),
                 chartMetrics: [normalizeChartMetricType(value)],
             }),
-            toggleChartMetric: (value) => set((state) => {
-                const next = state.chartMetrics.includes(value)
-                    ? state.chartMetrics.filter((m) => m !== value)
-                    : [...state.chartMetrics, value];
-                // 至少保留一个指标，避免图表被清空。
-                const metrics = next.length > 0 ? next : state.chartMetrics;
-                return { chartMetrics: metrics, chartMetricType: metrics[0] };
+            toggleChartMetric: (value) => set({
+                chartMetricType: value,
+                chartMetrics: [value],
             }),
             setChartPeriod: (value) => set({ chartPeriod: normalizeChartPeriod(value) }),
             setOverviewRange: (value) => set({ overviewRange: normalizeOverviewRange(value) }),
