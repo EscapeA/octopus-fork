@@ -293,7 +293,7 @@ func SendFeishu(channel *model.AlertNotifChannel, payload AlertWebhookPayload) e
 		StatusCode int `json:"StatusCode"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err == nil {
-		if result.Code != 0 && result.StatusCode != 0 {
+		if result.Code != 0 || result.StatusCode != 0 {
 			return fmt.Errorf("feishu API error: code=%d statusCode=%d", result.Code, result.StatusCode)
 		}
 	}

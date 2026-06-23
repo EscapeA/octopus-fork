@@ -131,7 +131,7 @@ func evaluateChannelDown(ctx context.Context, rule *model.AlertRule) bool {
 			return !ch.Enabled
 		}
 	}
-	return true // channel not found = down
+	return false // channel not found = deleted, not down
 }
 
 func evaluateQuotaExceeded(rule *model.AlertRule) bool {
