@@ -12,6 +12,7 @@ import (
 	"github.com/lingyuins/octopus/internal/server/middleware"
 	"github.com/lingyuins/octopus/internal/server/resp"
 	"github.com/lingyuins/octopus/internal/server/router"
+	"github.com/lingyuins/octopus/internal/utils/xurl"
 )
 
 func init() {
@@ -139,6 +140,10 @@ func testWebDAVConnection(c *gin.Context) {
 		return
 	}
 
+	if err := xurl.AssertSafeURL(baseURL); err != nil {
+		resp.Error(c, http.StatusBadRequest, "invalid base_url: "+err.Error())
+		return
+	}
 	client := backup.NewWebDAVClient(baseURL, username, password)
 	if err := client.Test(); err != nil {
 		resp.Error(c, http.StatusBadRequest, err.Error())
