@@ -106,8 +106,21 @@ func performWebDAVBackup(ctx context.Context, manual bool) error {
 	return nil
 }
 
+// validateBackupFilename rejects filenames containing path separators or
+// traversal sequences, preventing path-traversal via user-supplied filenames
+// in WebDAV restore/delete operations (2C-02).
+func validateBackupFilename(name string) error {
+	if name == "" || strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
+		return fmt.Errorf("invalid backup filename: %q", name)
+	}
+	return nil
+}
+
 // RestoreFromWebDAV downloads a backup file from WebDAV and imports it.
 func RestoreFromWebDAV(ctx context.Context, filename string) (*model.DBImportResult, error) {
+	if err := validateBackupFilename(filename); err != nil {
+		return nil, err
+	}
 	cfg, err := GetWebDAVConfig()
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
@@ -174,6 +187,9 @@ func ListWebDAVBackups() ([]WebDAVFile, error) {
 
 // DeleteWebDAVBackup removes a specific backup file from the remote server.
 func DeleteWebDAVBackup(filename string) error {
+	if err := validateBackupFilename(filename); err != nil {
+		return err
+	}
 	cfg, err := GetWebDAVConfig()
 	if err != nil {
 		return fmt.Errorf("read config: %w", err)
