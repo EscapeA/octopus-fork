@@ -131,6 +131,7 @@ func importMetAPI(c *gin.Context) {
 }
 
 func readImportPayload(c *gin.Context) ([]byte, error) {
+	const maxImportPayloadSize = 32 << 20 // 32MB
 	contentType := c.GetHeader("Content-Type")
 	if strings.Contains(contentType, "multipart/form-data") {
 		fileHeader, err := c.FormFile("file")
@@ -142,9 +143,9 @@ func readImportPayload(c *gin.Context) ([]byte, error) {
 			return nil, apperror.Wrap(op.CodeSiteImportEmptyPayload, "site import empty payload", err).WithStatus(http.StatusBadRequest)
 		}
 		defer file.Close()
-		return io.ReadAll(file)
+		return io.ReadAll(io.LimitReader(file, maxImportPayloadSize))
 	}
-	return io.ReadAll(c.Request.Body)
+	return io.ReadAll(io.LimitReader(c.Request.Body, maxImportPayloadSize))
 }
 
 func createSite(c *gin.Context) {
