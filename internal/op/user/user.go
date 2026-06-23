@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/lingyuins/octopus/internal/db"
@@ -13,7 +14,10 @@ import (
 	"gorm.io/gorm"
 )
 
-var adminCache model.User
+var (
+	adminCache   model.User
+	adminCacheMu sync.RWMutex
+)
 
 const minInitialAdminPasswordLength = 12
 
@@ -23,12 +27,22 @@ var (
 )
 
 // GetAdminCache returns the cached admin user (for backward compatibility).
-func GetAdminCache() model.User { return adminCache }
+func GetAdminCache() model.User {
+	adminCacheMu.RLock()
+	defer adminCacheMu.RUnlock()
+	return adminCache
+}
 
 // SetCache sets the admin cache value (for backward compatibility with tests).
-func SetCache(u model.User) { adminCache = u }
+func SetCache(u model.User) {
+	adminCacheMu.Lock()
+	defer adminCacheMu.Unlock()
+	adminCache = u
+}
 
 func Ready() bool {
+	adminCacheMu.RLock()
+	defer adminCacheMu.RUnlock()
 	return adminCache.ID != 0
 }
 
@@ -64,9 +78,11 @@ func DeleteLegacyAdmin(targetUsername string) error {
 		return nil
 	}
 
+	adminCacheMu.Lock()
 	if adminCache.Username == "admin" {
 		adminCache = model.User{}
 	}
+	adminCacheMu.Unlock()
 	return nil
 }
 
@@ -82,15 +98,19 @@ func Init() error {
 		return err
 	}
 
+	adminCacheMu.Lock()
 	result := db.GetDB().First(&adminCache)
 	if result.Error == nil {
+		adminCacheMu.Unlock()
 		return nil
 	}
 	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		adminCacheMu.Unlock()
 		return result.Error
 	}
 
 	adminCache = model.User{}
+	adminCacheMu.Unlock()
 	return nil
 }
 
@@ -109,8 +129,13 @@ func bootstrapFromEnv() error {
 		return err
 	}
 
-	if Ready() && adminCache.Username == username {
-		return nil
+	if Ready() {
+		adminCacheMu.RLock()
+		match := adminCache.Username == username
+		adminCacheMu.RUnlock()
+		if match {
+			return nil
+		}
 	}
 
 	if err := BootstrapCreate(username, password); err != nil {
@@ -132,9 +157,11 @@ func deleteLegacyAdmin(targetUsername string) error {
 		return nil
 	}
 
+	adminCacheMu.Lock()
 	if adminCache.Username == "admin" {
 		adminCache = model.User{}
 	}
+	adminCacheMu.Unlock()
 	return nil
 }
 
@@ -162,7 +189,9 @@ func BootstrapCreate(username, password string) error {
 	if err := db.GetDB().Create(&user).Error; err != nil {
 		return err
 	}
+	adminCacheMu.Lock()
 	adminCache = user
+	adminCacheMu.Unlock()
 	return nil
 }
 
@@ -230,9 +259,11 @@ func ChangePassword(userID uint, oldPassword, newPassword string) error {
 	if err := db.GetDB().Model(&user).Update("password", user.Password).Error; err != nil {
 		return fmt.Errorf("failed to update password: %w", err)
 	}
+	adminCacheMu.Lock()
 	if adminCache.ID == user.ID {
 		adminCache.Password = user.Password
 	}
+	adminCacheMu.Unlock()
 	return nil
 }
 
@@ -264,9 +295,11 @@ func ChangeUsername(userID uint, newUsername string) error {
 	if err := db.GetDB().Model(&user).Update("username", user.Username).Error; err != nil {
 		return fmt.Errorf("failed to update username: %w", err)
 	}
+	adminCacheMu.Lock()
 	if adminCache.ID == user.ID {
 		adminCache.Username = user.Username
 	}
+	adminCacheMu.Unlock()
 	return nil
 }
 
@@ -288,6 +321,8 @@ func Verify(username, password string) (model.User, error) {
 }
 
 func GetCurrent() model.User {
+	adminCacheMu.RLock()
+	defer adminCacheMu.RUnlock()
 	return adminCache
 }
 
@@ -328,9 +363,11 @@ func UpdateRole(id uint, role string, ctx context.Context) error {
 	if res.RowsAffected == 0 {
 		return fmt.Errorf("user not found")
 	}
+	adminCacheMu.Lock()
 	if adminCache.ID == id {
 		adminCache.Role = role
 	}
+	adminCacheMu.Unlock()
 	return nil
 }
 
@@ -345,7 +382,10 @@ func Delete(id uint, currentUserID uint, ctx context.Context) error {
 	if res.RowsAffected == 0 {
 		return fmt.Errorf("user not found")
 	}
-	if adminCache.ID == id {
+	adminCacheMu.RLock()
+	match := adminCache.ID == id
+	adminCacheMu.RUnlock()
+	if match {
 		_ = Init()
 	}
 	return nil
