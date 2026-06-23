@@ -2,6 +2,7 @@ package auth
 
 import (
 	"crypto/rand"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -65,16 +66,16 @@ func VerifyJWTToken(token string) (bool, uint, string) {
 	return true, claims.UserID, claims.Role
 }
 
-func GenerateAPIKey() string {
+func GenerateAPIKey() (string, error) {
 	const keyChars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	b := make([]byte, 48)
 	maxI := big.NewInt(int64(len(keyChars)))
 	for i := range b {
 		n, err := rand.Int(rand.Reader, maxI)
 		if err != nil {
-			return ""
+			return "", fmt.Errorf("generate api key: %w", err)
 		}
 		b[i] = keyChars[n.Int64()]
 	}
-	return "sk-" + conf.APP_NAME + "-" + string(b)
+	return "sk-" + conf.APP_NAME + "-" + string(b), nil
 }

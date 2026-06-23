@@ -64,7 +64,12 @@ func createAPIKey(c *gin.Context) {
 	apiKey.ID = 0
 	// Use custom key if provided; otherwise auto-generate.
 	if strings.TrimSpace(apiKey.APIKey) == "" {
-		apiKey.APIKey = auth.GenerateAPIKey()
+		key, err := auth.GenerateAPIKey()
+		if err != nil {
+			resp.InternalError(c)
+			return
+		}
+		apiKey.APIKey = key
 	} else {
 		apiKey.APIKey = normalizeAPIKeyPrefix(apiKey.APIKey)
 	}
