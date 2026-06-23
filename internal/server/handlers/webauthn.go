@@ -26,7 +26,9 @@ func init() {
 		router.NewRoute("/status", http.MethodGet).Handle(webauthnStatus),
 	)
 	publicWebAuthn.AddRoute(
-		router.NewRoute("/login/begin", http.MethodPost).Handle(webauthnLoginBegin),
+		router.NewRoute("/login/begin", http.MethodPost).
+			Use(middleware.LoginRateLimit()).
+			Handle(webauthnLoginBegin),
 	)
 	publicWebAuthn.AddRoute(
 		router.NewRoute("/login/finish", http.MethodPost).
