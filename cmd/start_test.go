@@ -22,6 +22,11 @@ func TestRunStartReturnsStartupError(t *testing.T) {
 			Type: "invalid",
 			Path: "ignored",
 		},
+		Security: conf.Security{
+			// Provide a persistent key so runStart reaches the DB init step
+			// instead of failing on the encryption-key guard.
+			EncryptionKey: "test-encryption-key-not-ephemeral",
+		},
 	}
 
 	err := runStart()

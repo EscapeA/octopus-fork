@@ -41,8 +41,14 @@ func runStart() error {
 
 	if key := conf.AppConfig.Security.EncryptionKey; key != "" {
 		crypto.Init(key)
-	} else if secret := conf.AppConfig.Auth.JWTSecret; secret != "" {
+	} else if secret := conf.AppConfig.Auth.JWTSecret; secret != "" && !conf.IsEphemeralJWTSecret() {
 		crypto.Init(secret)
+	} else {
+		// Refuse to derive an AES key from an ephemeral JWT secret: the key
+		// would change every restart, making previously encrypted fields
+		// (access tokens, passwords, channel keys) permanently unrecoverable.
+		log.Errorf("security.encryption_key (or a persistent auth.jwt_secret) is required; refusing to start to prevent data loss on restart")
+		return fmt.Errorf("encryption key not configured: set OCTOPUS_SECURITY_ENCRYPTION_KEY or security.encryption_key")
 	}
 
 	// SQLite per-connection PRAGMA（cache_size / mmap_size）从 config.json 注入。

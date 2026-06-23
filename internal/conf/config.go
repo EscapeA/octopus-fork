@@ -77,6 +77,17 @@ type Config struct {
 
 var AppConfig Config
 
+// ephemeralJWTSecret marks whether the JWT secret was generated ephemerally
+// during Load() (because it was empty or a known placeholder). When true the
+// secret is NOT safe to derive an AES encryption key from — using it would
+// cause encrypted data to become unrecoverable after the next restart.
+var ephemeralJWTSecret bool
+
+// IsEphemeralJWTSecret reports whether the current JWT secret was generated
+// ephemerally this process (i.e. not persisted to config). Callers that need a
+// durable key (such as crypto.Init) should refuse to use it.
+func IsEphemeralJWTSecret() bool { return ephemeralJWTSecret }
+
 func Load(path string) error {
 	configFile := path
 	if path != "" {
@@ -119,6 +130,7 @@ func Load(path string) error {
 			return fmt.Errorf("failed to generate JWT secret: %w", err)
 		}
 		AppConfig.Auth.JWTSecret = secret
+		ephemeralJWTSecret = true
 		log.Warnf("auth.jwt_secret is empty, generated an ephemeral secret for this process; configure OCTOPUS_AUTH_JWT_SECRET or auth.jwt_secret to keep tokens valid across restarts")
 	} else if isKnownPlaceholderJWTSecret(AppConfig.Auth.JWTSecret) {
 		secret, err := generateJWTSecret()
@@ -126,6 +138,7 @@ func Load(path string) error {
 			return fmt.Errorf("failed to generate JWT secret: %w", err)
 		}
 		AppConfig.Auth.JWTSecret = secret
+		ephemeralJWTSecret = true
 		log.Warnf("auth.jwt_secret is a known placeholder value; generated an ephemeral secret instead. Set a unique value to keep tokens valid across restarts")
 	}
 	return nil
