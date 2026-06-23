@@ -31,6 +31,11 @@ func Start() error {
 	}
 
 	r := gin.New()
+	// Disable trust of all proxies by default: only the direct remote address
+	// is used for c.ClientIP(), preventing X-Forwarded-For spoofing that could
+	// bypass login rate-limiting and API-key IP allowlists (C-01). Deployments
+	// behind a reverse proxy must configure the actual proxy CIDR.
+	_ = r.SetTrustedProxies(nil)
 	r.Use(gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
 		resp.Error(c, http.StatusInternalServerError, resp.ErrInternalServer)
 		c.Abort()
