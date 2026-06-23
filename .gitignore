@@ -36,7 +36,7 @@ frontend_err.txt
 frontend_out.txt
 
 # planning & docs
-docs/plan/
+docs/
 
 # git hooks (husky)
 .husky/
