@@ -6,11 +6,12 @@ import (
 	"math"
 )
 
-// GenerateEmbedding creates a 64-dimension embedding from the input text.
-// Currently uses a SHA-256 hash for deterministic caching — identical
-// requests produce identical embeddings, while similar (but not identical)
-// requests will not match. A future upgrade can replace this with a real
-// embedding model via the system's embedding relay pipeline.
+// GenerateEmbedding produces a deterministic 64-dimension vector from the
+// input text via SHA-256. NOTE: this is NOT a semantic embedding — it only
+// supports exact-match caching (identical inputs produce identical vectors;
+// similar-but-different inputs will NOT match). The name "embedding" is
+// retained for API compatibility. A future upgrade should replace this with
+// a real embedding model via the system's embedding relay pipeline (H-42).
 func GenerateEmbedding(text string) []float64 {
 	h := sha256.Sum256([]byte(text))
 	embedding := make([]float64, 64)
