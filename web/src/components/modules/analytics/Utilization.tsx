@@ -84,7 +84,6 @@ export function Utilization({ range }: { range: AnalyticsRange }) {
 
     return (
         <ObservatorySection
-            eyebrow={t('cards.utilization.title')}
             title={t('cards.utilization.title')}
             description={t('utilization.description')}
             icon={Waves}

@@ -241,7 +241,6 @@ export function GroupHealth() {
 
     return (
         <ObservatorySection
-            eyebrow={t('cards.routeHealth.title')}
             title={t('cards.routeHealth.title')}
             description={t('routeHealth.description')}
             icon={Radar}

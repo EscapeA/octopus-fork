@@ -190,7 +190,9 @@ func AnalyticsChannelModelBreakdownGet(ctx context.Context, r model.AnalyticsRan
 	}
 
 	// 可选：按分组 scope 过滤 (channelID, modelName) 集合。
-	scope := make(map[string]struct{})
+	// zen/空 ModelName 的组项无法预先确定实际模型名（取决于请求的 zen/<model>），
+	// 故按 channel 维度做通配匹配，避免失败重试渠道被错误丢弃（issue #103）。
+	scope := channelModelScope{precise: map[string]struct{}{}, wildcardChannels: map[int]struct{}{}}
 	if groupID != nil {
 		groups, err := group.GroupList(ctx)
 		if err != nil {
@@ -201,7 +203,12 @@ func AnalyticsChannelModelBreakdownGet(ctx context.Context, r model.AnalyticsRan
 				continue
 			}
 			for _, it := range g.Items {
-				scope[strconv.Itoa(it.ChannelID)+"\x00"+it.ModelName] = struct{}{}
+				mn := strings.TrimSpace(it.ModelName)
+				if mn == "" || strings.EqualFold(mn, "zen") {
+					scope.wildcardChannels[it.ChannelID] = struct{}{}
+					continue
+				}
+				scope.precise[strconv.Itoa(it.ChannelID)+"\x00"+mn] = struct{}{}
 			}
 		}
 	}
@@ -871,11 +878,36 @@ func loadAnalyticsSummary(ctx context.Context, r model.AnalyticsRange) (*analyti
 	return row, nil
 }
 
+// channelModelScope 描述分组维度下的 (渠道,模型) 过滤集合。
+// precise 为精确匹配的 "channelID\x00modelName" 集合；wildcardChannels 收集
+// zen/空 ModelName 的组项所在渠道——这些渠道的实际模型名取决于请求的
+// zen/<model> 前缀，无法预先确定，故按 channel 维度通配（issue #103）。
+type channelModelScope struct {
+	precise          map[string]struct{}
+	wildcardChannels map[int]struct{}
+}
+
+// inScope 报告 (channelID, modelName) 是否落在 scope 内。scope 为空（未按分组
+// 过滤）时全部保留。
+func (s channelModelScope) inScope(channelID int, modelName string) bool {
+	if len(s.precise) == 0 && len(s.wildcardChannels) == 0 {
+		return true
+	}
+	if _, ok := s.precise[strconv.Itoa(channelID)+"\x00"+modelName]; ok {
+		return true
+	}
+	if _, ok := s.wildcardChannels[channelID]; ok {
+		return true
+	}
+	return false
+}
+
 // loadAnalyticsChannelModelRows 聚合 (渠道,模型) 维度的成功/失败/token/cost。
 // 成功/失败按单次尝试（relay_log_attempts）统计；token/cost 取自 relay_logs 且仅在
 // 该请求最终成功时计入（避免把整体失败的请求 token 重复计入多个渠道）。
-// scope 非空时只保留其中的 (channelID,modelName) 组合。
-func loadAnalyticsChannelModelRows(ctx context.Context, r model.AnalyticsRange, scope map[string]struct{}) (map[string]*analyticsChannelModelAggregateRow, error) {
+// scope 非空时只保留其中的 (channelID,modelName) 组合；zen/空 ModelName 的组项
+// 按 channel 维度通配（issue #103）。
+func loadAnalyticsChannelModelRows(ctx context.Context, r model.AnalyticsRange, scope channelModelScope) (map[string]*analyticsChannelModelAggregateRow, error) {
 	startUnix := analyticsRangeStartUnix(r, stats.Now())
 	rows := make(map[string]*analyticsChannelModelAggregateRow)
 
@@ -884,13 +916,7 @@ func loadAnalyticsChannelModelRows(ctx context.Context, r model.AnalyticsRange, 
 		return nil, err
 	}
 
-	inScope := func(channelID int, modelName string) bool {
-		if len(scope) == 0 {
-			return true
-		}
-		_, ok := scope[strconv.Itoa(channelID)+"\x00"+modelName]
-		return ok
-	}
+	inScope := scope.inScope
 
 	if keepEnabled {
 		// 优先从 relay_log_attempts 按尝试维度聚合，使"渠道A 失败→重试到B 成功"
@@ -955,65 +981,25 @@ func loadAnalyticsChannelModelRows(ctx context.Context, r model.AnalyticsRange, 
 			}
 
 			// 补充历史日志：issue #67 修复部署前的 relay_logs 没有 attempts 行，
-			// 仅靠上面的 attempts 聚合会让这些历史数据在渠道×模型页面消失（issue #87）。
-			// 取无 attempts 行的 relay_logs 顶层列聚合，只填充 attempts 分支未覆盖的
-			// (channelID, modelName) 组合，避免与 attempts 数据重复计算。
-			// 用显式 gorm column tag 的中间结构体扫描，避免 GORM 对嵌入匿名结构体
-			// （analyticsAggregateMetrics）在聚合查询下列映射不稳定导致数值为零。
-			type legacyRow struct {
-				ChannelID    int     `gorm:"column:channel_id"`
-				ChannelName  string  `gorm:"column:channel_name"`
-				ModelName    string  `gorm:"column:model_name"`
-				InputTokens  int64   `gorm:"column:input_tokens"`
-				OutputTokens int64   `gorm:"column:output_tokens"`
-				TotalCost    float64 `gorm:"column:total_cost"`
-				Success      int64   `gorm:"column:request_success"`
-				Failed       int64   `gorm:"column:request_failed"`
-			}
-			var legacyRows []legacyRow
-			modelExpr := "COALESCE(NULLIF(relay_logs.actual_model_name, ''), relay_logs.request_model_name)"
+			// 或 keepEnabled 从 false 切回 true 后旧日志的 attempts JSON 未落库到
+			// 关联表。仅靠上面的 attempts 聚合会让这些日志的失败重试渠道在渠道×模型
+			// 页面消失（issue #87 / #103）。取无 attempts 关联行的 relay_logs，
+			// 优先解析其 attempts JSON 按尝试维度聚合（捕获中间重试失败），JSON 为空
+			// 时回退到顶层列。只填充 attempts 分支未覆盖的请求，避免重复计算。
+			var legacyLogs []model.RelayLog
 			legacyQuery := attemptsConn.WithContext(ctx).
 				Model(&model.RelayLog{}).
-				Select(`
-					relay_logs.channel_id AS channel_id,
-					relay_logs.channel_name AS channel_name,
-					` + modelExpr + ` AS model_name,
-					COALESCE(SUM(relay_logs.input_tokens), 0) AS input_tokens,
-					COALESCE(SUM(relay_logs.output_tokens), 0) AS output_tokens,
-					COALESCE(SUM(relay_logs.cost), 0) AS total_cost,
-					COALESCE(SUM(CASE WHEN relay_logs.error = '' THEN 1 ELSE 0 END), 0) AS request_success,
-					COALESCE(SUM(CASE WHEN relay_logs.error <> '' THEN 1 ELSE 0 END), 0) AS request_failed
-				`).
+				Select("relay_logs.id, relay_logs.time, relay_logs.channel_id, relay_logs.channel_name, relay_logs.request_model_name, relay_logs.actual_model_name, relay_logs.input_tokens, relay_logs.output_tokens, relay_logs.cost, relay_logs.error, relay_logs.attempts").
 				Joins("LEFT JOIN relay_log_attempts AS a ON a.relay_log_id = relay_logs.id").
-				Where("a.id IS NULL").
-				Group("relay_logs.channel_id, relay_logs.channel_name, " + modelExpr)
+				Where("a.id IS NULL")
 			if startUnix != nil {
 				legacyQuery = legacyQuery.Where("relay_logs.time >= ?", *startUnix)
 			}
-			if err := legacyQuery.Scan(&legacyRows).Error; err != nil {
+			if err := legacyQuery.Scan(&legacyLogs).Error; err != nil {
 				return nil, err
 			}
-			for _, lr := range legacyRows {
-				modelName := strings.TrimSpace(lr.ModelName)
-				if modelName == "" || !inScope(lr.ChannelID, modelName) {
-					continue
-				}
-				key := strconv.Itoa(lr.ChannelID) + "\x00" + modelName
-				if _, exists := rows[key]; exists {
-					continue // attempts 分支已覆盖，不覆盖
-				}
-				rows[key] = &analyticsChannelModelAggregateRow{
-					ChannelID:   lr.ChannelID,
-					ChannelName: lr.ChannelName,
-					ModelName:   modelName,
-					analyticsAggregateMetrics: analyticsAggregateMetrics{
-						InputTokens:    lr.InputTokens,
-						OutputTokens:   lr.OutputTokens,
-						TotalCost:      lr.TotalCost,
-						RequestSuccess: lr.Success,
-						RequestFailed:  lr.Failed,
-					},
-				}
+			for i := range legacyLogs {
+				mergeRelayLogIntoChannelModelRows(rows, &legacyLogs[i], inScope)
 			}
 		} else {
 			// 最终回退：LogDB 和主库均无 attempts 表时用顶层列（与历史利用率一致）。
@@ -1062,17 +1048,32 @@ func loadAnalyticsChannelModelRows(ctx context.Context, r model.AnalyticsRange, 
 		if startUnix != nil && logItem.Time < *startUnix {
 			continue
 		}
-		success := logItem.Error == ""
-		for _, a := range logItem.Attempts {
+		mergeRelayLogIntoChannelModelRows(rows, &logItem, inScope)
+	}
+	lock.Unlock()
+
+	return rows, nil
+}
+
+// mergeRelayLogIntoChannelModelRows 把单条 RelayLog 的尝试维度聚合进 rows。
+// 优先解析 log.Attempts（JSON 反序列化后的切片）按尝试维度统计成败，使"渠道A
+// 失败→重试到B 成功"中的渠道A 失败可见（issue #67/#103）。log.Attempts 为空时
+// 回退到顶层列（只反映最终渠道成败）。token/cost 仅在整体成功时计入该渠道，
+// 避免把整体失败的请求 token 重复计入多个渠道。inScope 控制 (channelID,modelName)
+// 过滤，为空时全部保留。
+func mergeRelayLogIntoChannelModelRows(rows map[string]*analyticsChannelModelAggregateRow, log *model.RelayLog, inScope func(int, string) bool) {
+	success := log.Error == ""
+	if len(log.Attempts) > 0 {
+		for _, a := range log.Attempts {
 			if a.ChannelID == 0 {
 				continue
 			}
 			modelName := strings.TrimSpace(a.ModelName)
 			if modelName == "" {
-				modelName = strings.TrimSpace(logItem.ActualModelName)
+				modelName = strings.TrimSpace(log.ActualModelName)
 			}
 			if modelName == "" {
-				modelName = strings.TrimSpace(logItem.RequestModelName)
+				modelName = strings.TrimSpace(log.RequestModelName)
 			}
 			if !inScope(a.ChannelID, modelName) {
 				continue
@@ -1091,19 +1092,42 @@ func loadAnalyticsChannelModelRows(ctx context.Context, r model.AnalyticsRange, 
 				row.RequestSuccess++
 				// token/cost 仅在整体成功时计入该渠道（避免重复计入）。
 				if success {
-					row.InputTokens += int64(logItem.InputTokens)
-					row.OutputTokens += int64(logItem.OutputTokens)
-					row.TotalCost += logItem.Cost
+					row.InputTokens += int64(log.InputTokens)
+					row.OutputTokens += int64(log.OutputTokens)
+					row.TotalCost += log.Cost
 				}
 			}
 			if row.ChannelName == "" {
 				row.ChannelName = a.ChannelName
 			}
 		}
+		return
 	}
-	lock.Unlock()
-
-	return rows, nil
+	// 回退：无尝试记录的历史日志，用顶层列（只反映最终渠道成败）。
+	modelName := strings.TrimSpace(log.ActualModelName)
+	if modelName == "" {
+		modelName = strings.TrimSpace(log.RequestModelName)
+	}
+	if modelName == "" || log.ChannelId == 0 || !inScope(log.ChannelId, modelName) {
+		return
+	}
+	key := strconv.Itoa(log.ChannelId) + "\x00" + modelName
+	row, ok := rows[key]
+	if !ok {
+		row = &analyticsChannelModelAggregateRow{ChannelID: log.ChannelId, ModelName: modelName}
+		rows[key] = row
+	}
+	if success {
+		row.RequestSuccess++
+		row.InputTokens += int64(log.InputTokens)
+		row.OutputTokens += int64(log.OutputTokens)
+		row.TotalCost += log.Cost
+	} else {
+		row.RequestFailed++
+	}
+	if row.ChannelName == "" {
+		row.ChannelName = log.ChannelName
+	}
 }
 
 func loadAnalyticsProviderRows(ctx context.Context, r model.AnalyticsRange) (map[int]*analyticsProviderAggregateRow, error) {

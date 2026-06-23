@@ -104,7 +104,6 @@ export function Evaluation() {
 
     return (
         <ObservatorySection
-            eyebrow={t('evaluation.title')}
             title={t('evaluation.title')}
             description={sectionDescription}
             icon={Radar}

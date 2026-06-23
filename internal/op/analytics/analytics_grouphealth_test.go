@@ -148,7 +148,7 @@ func TestLoadAnalyticsChannelModelRows_CountsPerAttemptFailures(t *testing.T) {
 		}
 	}()
 
-	rows, err := loadAnalyticsChannelModelRows(context.Background(), model.AnalyticsRange7D, nil)
+	rows, err := loadAnalyticsChannelModelRows(context.Background(), model.AnalyticsRange7D, channelModelScope{})
 	if err != nil {
 		t.Fatalf("loadAnalyticsChannelModelRows error: %v", err)
 	}

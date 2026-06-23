@@ -97,7 +97,6 @@ export function ChannelModel({ range }: { range: AnalyticsRange }) {
         <div className="space-y-4">
             <UsageDistribution range={range} />
             <ObservatorySection
-                eyebrow={t('cards.channelModel.title')}
                 title={t('cards.channelModel.title')}
                 description={t('channelModel.description')}
                 icon={Boxes}
