@@ -2,6 +2,7 @@ package relay
 
 import (
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -28,6 +29,7 @@ type RuntimeTrendSnapshot struct {
 var (
 	trendSnapshots   [trendPoints]RuntimeTrendSnapshot
 	trendSnapshotIdx int
+	trendMu          sync.RWMutex
 	trendTotalReqs   int64
 	trendFailedReqs  int64
 	trendTotalLatMs  int64
@@ -58,7 +60,7 @@ func sampleTrendSnapshot() {
 
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
-
+	trendMu.Lock()
 	idx := trendSnapshotIdx % trendPoints
 	trendSnapshots[idx] = RuntimeTrendSnapshot{
 		Timestamp:    time.Now(),
@@ -68,6 +70,7 @@ func sampleTrendSnapshot() {
 		MemoryMB:     int64(mem.Alloc / (1024 * 1024)),
 	}
 	trendSnapshotIdx++
+	trendMu.Unlock()
 }
 
 func InflightCount() int64 {
@@ -95,6 +98,8 @@ func ProcessMemoryMB() int64 {
 }
 
 func TrendSnapshots() []RuntimeTrendSnapshot {
+	trendMu.RLock()
+	defer trendMu.RUnlock()
 	count := trendSnapshotIdx
 	if count > trendPoints {
 		count = trendPoints
