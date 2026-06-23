@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -13,6 +14,11 @@ import (
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/utils/crypto"
 )
+
+func TestMain(m *testing.M) {
+	crypto.Init("test-encryption-key")
+	os.Exit(m.Run())
+}
 
 func TestFetchUserInfoLogsInAndMapsSAPIUser(t *testing.T) {
 	loginCalls := 0
