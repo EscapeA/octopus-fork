@@ -371,6 +371,15 @@ func Handler(endpointType string, inboundType inbound.InboundType, c *gin.Contex
 					}
 					if resp := cloneInternalResponse(outcome.internalResp); resp != nil {
 						metrics.SetInternalResponse(resp, outcome.actualModel)
+						// Cache miss: the leader already wrote its own response.
+						// Transform the internal response to the inbound format and
+						// write it to the shared caller's context so the client
+						// receives a complete body instead of an empty 200 (4C-01).
+						if inResponse, terr := req.inAdapter.TransformResponse(req.clientCtx, resp); terr == nil && len(inResponse) > 0 {
+							c.Data(http.StatusOK, "application/json", inResponse)
+						} else if terr != nil {
+							logRelayErrorfByContext(terr, "shared caller transform response: %v", terr)
+						}
 					}
 					metrics.Save(true, nil, outcome.attempts)
 					return
