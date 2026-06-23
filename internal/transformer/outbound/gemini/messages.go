@@ -179,6 +179,21 @@ func convertLLMToGeminiRequest(request *model.InternalLLMRequest) *model.GeminiG
 	// Convert messages
 	var systemInstruction *model.GeminiContent
 
+	// Build a tool-call-ID → function-name map from assistant messages so
+	// tool-result messages can resolve the function name Gemini requires
+	// (C-12): Gemini's FunctionResponse.Name must be the function name, not
+	// the tool-call ID.
+	toolCallIDToName := make(map[string]string)
+	for _, m := range request.Messages {
+		if m.Role != "assistant" {
+			continue
+		}
+		for _, tc := range m.ToolCalls {
+			if tc.ID != "" && tc.Function.Name != "" {
+				toolCallIDToName[tc.ID] = tc.Function.Name
+			}
+		}
+	}
 	for _, msg := range request.Messages {
 		switch msg.Role {
 		case "system", "developer":
@@ -283,7 +298,7 @@ func convertLLMToGeminiRequest(request *model.InternalLLMRequest) *model.GeminiG
 
 		case "tool":
 			// Tool result
-			content := convertLLMToolResultToGeminiContent(&msg)
+			content := convertLLMToolResultToGeminiContent(&msg, toolCallIDToName)
 			geminiReq.Contents = append(geminiReq.Contents, content)
 		}
 	}
@@ -442,7 +457,7 @@ func convertLLMToGeminiRequest(request *model.InternalLLMRequest) *model.GeminiG
 
 }
 
-func convertLLMToolResultToGeminiContent(msg *model.Message) *model.GeminiContent {
+func convertLLMToolResultToGeminiContent(msg *model.Message, toolCallIDToName map[string]string) *model.GeminiContent {
 	content := &model.GeminiContent{
 		Role: "user", // Function responses come from user role in Gemini
 	}
@@ -458,8 +473,22 @@ func convertLLMToolResultToGeminiContent(msg *model.Message) *model.GeminiConten
 		responseData = map[string]any{"result": lo.FromPtrOr(msg.Content.Content, "")}
 	}
 
+	// Gemini's FunctionResponse.Name must be the function name, not the
+	// tool-call ID (C-12). Resolve via the ID→name map built from prior
+	// assistant messages; fall back to ToolCallName, then to the ID itself.
+	funcName := lo.FromPtrOr(msg.ToolCallName, "")
+	if funcName == "" {
+		if id := lo.FromPtrOr(msg.ToolCallID, ""); id != "" {
+			if name, ok := toolCallIDToName[id]; ok {
+				funcName = name
+			} else {
+				funcName = id
+			}
+		}
+	}
+
 	fp := &model.GeminiFunctionResponse{
-		Name:     lo.FromPtrOr(msg.ToolCallID, ""),
+		Name:     funcName,
 		Response: responseData,
 	}
 
