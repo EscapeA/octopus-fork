@@ -526,6 +526,10 @@ func parseRequest(inboundType inbound.InboundType, c *gin.Context) (*model.Inter
 	}
 
 	inAdapter := inbound.Get(inboundType)
+	if inAdapter == nil {
+		resp.Error(c, http.StatusBadRequest, fmt.Sprintf("unsupported inbound type: %d", inboundType))
+		return nil, nil, fmt.Errorf("unsupported inbound type: %d", inboundType)
+	}
 	internalRequest, err := inAdapter.TransformRequest(c.Request.Context(), body)
 	if err != nil {
 		resp.Error(c, http.StatusInternalServerError, err.Error())
