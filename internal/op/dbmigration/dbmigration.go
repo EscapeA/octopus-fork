@@ -3,6 +3,7 @@ package dbmigration
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/lingyuins/octopus/internal/conf"
@@ -32,6 +33,23 @@ func ValidateRequest(req model.DatabaseMigrationRequest) (model.DatabaseMigratio
 	}
 	if req.Path == "" {
 		return req, fmt.Errorf("database path is required")
+	}
+	// For SQLite, constrain the path to within the data directory to prevent
+	// arbitrary file read/write via path traversal (2C-03). MySQL/Postgres
+	// use network addresses, not filesystem paths, so they are not constrained.
+	if req.Type == "sqlite" {
+		absPath, err := filepath.Abs(req.Path)
+		if err != nil {
+			return req, fmt.Errorf("resolve db path: %w", err)
+		}
+		dataDir, err := filepath.Abs(conf.DataDir())
+		if err != nil {
+			return req, fmt.Errorf("resolve data dir: %w", err)
+		}
+		rel, err := filepath.Rel(dataDir, absPath)
+		if err != nil || strings.HasPrefix(rel, "..") || rel == ".." {
+			return req, fmt.Errorf("sqlite path must be within the data directory (%s)", dataDir)
+		}
 	}
 	return req, nil
 }

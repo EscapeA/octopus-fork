@@ -190,6 +190,13 @@ func defaultDataDir() string {
 	return "data"
 }
 
+// DataDir returns the resolved data directory (from OCTOPUS_DATA_DIR env or
+// "data" fallback). Exported so other packages can constrain file operations
+// (e.g. SQLite migration paths) to within the data directory.
+func DataDir() string {
+	return defaultDataDir()
+}
+
 func defaultConfigPath() string {
 	return filepath.Join(defaultDataDir(), "config.json")
 }

@@ -12,6 +12,11 @@ import (
 )
 
 func TestMigrateCopiesCoreDataAndSkipsLogsStatsByDefault(t *testing.T) {
+	// Constrain the data directory to a temp dir so the SQLite target path
+	// (which ValidateRequest now requires to live inside the data dir) is valid.
+	dataDir := t.TempDir()
+	t.Setenv("OCTOPUS_DATA_DIR", dataDir)
+
 	sourceDSN := fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name()+"-source")
 	if err := db.InitDB("sqlite", sourceDSN, false); err != nil {
 		t.Fatalf("init source db: %v", err)
@@ -30,7 +35,7 @@ func TestMigrateCopiesCoreDataAndSkipsLogsStatsByDefault(t *testing.T) {
 		t.Fatalf("seed stats daily: %v", err)
 	}
 
-	targetPath := filepath.Join(t.TempDir(), "target.db")
+	targetPath := filepath.Join(dataDir, "target.db")
 	var savedType, savedPath string
 	restore := SetSaveDatabaseConfigFuncForTest(func(dbType, path string) error {
 		savedType = dbType
