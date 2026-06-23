@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"errors"
 	"sync"
 	"testing"
 )
@@ -70,15 +71,20 @@ func TestLegacyPassthrough(t *testing.T) {
 	}
 }
 
-func TestNoKeyPassthrough(t *testing.T) {
+func TestNoKeyReturnsError(t *testing.T) {
 	resetKey()
 
 	plain := "secret"
 	enc, err := Encrypt(plain)
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, ErrNoKey) {
+		t.Fatalf("without key, Encrypt should return ErrNoKey, got enc=%q err=%v", enc, err)
 	}
-	if enc != plain {
-		t.Fatal("without key, Encrypt should return plaintext")
+	if enc != "" {
+		t.Fatalf("without key, Encrypt should return empty string, got %q", enc)
+	}
+
+	// Empty plaintext still passes through (no key needed).
+	if enc, err := Encrypt(""); err != nil || enc != "" {
+		t.Fatalf("empty plaintext should pass through, got enc=%q err=%v", enc, err)
 	}
 }

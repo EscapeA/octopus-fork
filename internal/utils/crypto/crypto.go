@@ -33,12 +33,17 @@ func Init(rawSecret string) {
 }
 
 // Encrypt returns the AES-GCM ciphertext as a base64 string prefixed with
-// "enc:". If plaintext is empty or the key was never initialized, the
-// plaintext is returned unchanged so callers can treat empty and legacy values
-// transparently.
+// "enc:". An empty plaintext is returned as-is. If the key was never
+// initialized (crypto.Init not called) and the plaintext is non-empty, Encrypt
+// returns ErrNoKey rather than silently storing the value in plaintext — this
+// prevents encrypted fields (tokens, passwords, API keys) from being persisted
+// unencrypted when the process started without a configured key.
 func Encrypt(plaintext string) (string, error) {
-	if plaintext == "" || globalKey == nil {
+	if plaintext == "" {
 		return plaintext, nil
+	}
+	if globalKey == nil {
+		return "", ErrNoKey
 	}
 	block, err := aes.NewCipher(globalKey)
 	if err != nil {
