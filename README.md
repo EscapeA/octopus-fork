@@ -379,7 +379,7 @@ The embedded management UI currently ships with these top-level modules:
 | Alert | Alert rules, notification channels (webhook, Gotify, email, Telegram, Feishu, DingTalk, WeCom, ntfy), state, and history |
 | Ops | Telemetry (hero metrics, P95 latency, provider health, prompt-cache analytics), quota, health, system, and audit trail |
 | APIKey | API key create, edit, delete, supported-model allowlists, expiry, max-cost caps, RPM / TPM quotas, IP allowlists, and per-model quotas |
-| Setting | Version/update info, appearance and nav preferences (order + visibility), runtime tuning, semantic cache, AI route services, API key defaults, WebAuthn/Passkey, database migration, WebDAV backup, site automation, backup/restore, and dangerous operations |
+| Setting | Version/update info, appearance and nav preferences (order + visibility), runtime tuning, semantic cache, AI route services, API key defaults, WebAuthn/Passkey, database migration, WebDAV backup, site automation, backup/restore, model-name normalization rules, and dangerous operations |
 | User | Admin user management and roles |
 
 Additionally, the following features are accessible from the app shell toolbar or within other modules:
@@ -447,6 +447,10 @@ Header and message strategies:
 | Header Profile | `none`, `codex` | Codex-specific header shaping |
 | Tool Role | `keep`, `stringify_to_user` | How to handle tool role messages |
 | System Message | `keep`, `merge` | How to handle system messages |
+
+**Skip Model Availability Test:**
+
+Each channel has a `skip_model_test` toggle (issue #98). When enabled, the channel is excluded from group/model availability probes — useful for upstreams that deduct quota or ban accounts on low-byte probe requests. Skipped channels are recorded as a non-passing attempt in the test log with a clear reason instead of sending a real request upstream.
 
 ### 🌐 Public Relay Endpoints
 
@@ -564,6 +568,8 @@ Groups aggregate multiple channels into a unified external model name.
 - **Session Keep Time**: unit in seconds, keeps using the same channel for the same API key + model within the configured session window, `0` means disabled
 - **Condition (JSON)**: optional AND rules currently evaluated in the main LLM relay path; the built-in request context currently includes `model`, `api_key_id`, and `hour`
 - **Endpoint Provider**: provider-aware request rewriting that adapts requests for upstream compatibility per endpoint type. Chat providers (`openai`, `deepseek`, `mimo`, `siliconflow`, `newapi`) strip incompatible reasoning fields; music providers (`newapi`, `minimax`) rewrite the request body and path; video provider (`agnes`) rewrites the upstream path; audio speech provider (`mimo`) converts the request format and path
+- **Outbound Format**: controls cross-format adapter fallback. `""` (auto), `chat`, and `responses` set the Chat/Responses attempt order; `chat_only` and `responses_only` disable the fallback entirely — useful for upstreams (e.g. public-welfare relays) that reject the other format with 400/404
+- **Key Cooldown**: rate-limit cooldown is tracked per `(keyID, model)` (issue #94), so a single model's 429 no longer blocks the same key's other models. Per-channel retry count can be set to `0` (try once, then move to the next channel); the max-total-attempts quota counts only real upstream forwards (cooldown/circuit-breaker skips do not consume it)
 
 **Load Balancing Modes:**
 
@@ -717,7 +723,7 @@ Since the program handles numerous statistics, writing to the database on every 
 - Both are saved periodically using the same interval as statistics persistence
 - Both are also saved during graceful shutdown
 
-**Key settings cards in the current UI (12 cards after slimming):**
+**Key settings cards in the current UI (13 cards):**
 
 | Card | Purpose |
 |------|---------|
@@ -733,6 +739,7 @@ Since the program handles numerous statistics, writing to the database on every 
 | Backup | Database export, import, and live database migration between SQLite / MySQL / PostgreSQL with connection testing and per-table row count results |
 | WebDAV Backup | WebDAV cloud backup configuration: connection settings, auto-backup interval, max backups retention, manual trigger, remote file listing, restore, and delete |
 | WebAuthn / Passkey | RP ID, RP name, allowed origins configuration |
+| Normalize | Model-name normalization rules: router prefixes, functional suffixes, and explicit variant→canonical mappings (runtime-configurable, with an offline AI-assisted normalization workflow) |
 
 > **Note:** The following settings have been relocated to more relevant modules (issue #87):
 > - **Retry / Circuit Breaker / Response Filter** → `Ops → Maintenance` tab
@@ -766,7 +773,7 @@ The Backup settings card includes a live database migration feature beyond simpl
 
 **Settings Card Order:**
 
-The Settings page supports drag-and-drop reordering of its 12 card sections, with order persisted to local storage. A "Reset to Default" button restores the original order.
+The Settings page supports drag-and-drop reordering of its 13 card sections, with order persisted to local storage. A "Reset to Default" button restores the original order.
 
 > ⚠️ **Important**: When exiting the program, use proper shutdown methods (like `Ctrl+C` or sending `SIGTERM` signal) to ensure in-memory statistics are correctly written to the database. **Do NOT use `kill -9` or other forced termination methods**, as this may result in statistics data loss.
 
@@ -957,7 +964,7 @@ internal/
 ├── conf/               # Configuration loading & build metadata
 ├── client/             # HTTP client utilities
 ├── db/                 # Database connection & migrations (SQLite/MySQL/PostgreSQL)
-│   └── migrate/        # Versioned schema migrations (001-015)
+│   └── migrate/        # Versioned schema migrations (001-016)
 ├── model/              # Domain types (Channel, Group, APIKey, User, Site, ProxyConfiguration, ModelMapping, …)
 ├── op/                 # Business logic operations split by domain
 │   ├── airoute/        # AI route generation, progress tracking, service pool, and compatibility helpers

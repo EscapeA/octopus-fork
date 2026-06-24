@@ -14,6 +14,7 @@ import { formatCount, formatMoney, cn } from '@/lib/utils';
 import { useNavStore } from '@/components/modules/navbar/nav-store';
 import { useNavHandoff } from '@/lib/nav-handoff';
 import { UsageDistribution } from './UsageDistribution';
+import { useAnalyticsCacheTtl } from './cache-context';
 
 function successRateClass(rate: number) {
     if (rate < 50) return 'text-destructive';
@@ -78,7 +79,8 @@ export function ChannelModel({ range }: { range: AnalyticsRange }) {
     const t = useTranslations('analytics');
     const { data: groups = [] } = useGroupList();
     const [groupId, setGroupId] = useState<number | undefined>(undefined);
-    const { data, isLoading, error } = useAnalyticsChannelModel(range, groupId);
+    const cacheTtl = useAnalyticsCacheTtl();
+    const { data, isLoading, error } = useAnalyticsChannelModel(range, groupId, cacheTtl);
 
     const setActiveItem = useNavStore((s) => s.setActiveItem);
     const setPendingLogFilter = useNavHandoff((s) => s.setPendingLogFilter);

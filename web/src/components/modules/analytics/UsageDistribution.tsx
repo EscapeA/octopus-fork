@@ -13,6 +13,7 @@ import {
 import { ObservatorySection, QueryState } from './shared';
 import { formatCount, formatMoney, cn } from '@/lib/utils';
 import { Tabs, TabsList, TabsTrigger } from '@/components/animate-ui/components/animate/tabs';
+import { useAnalyticsCacheTtl } from './cache-context';
 
 type Metric = 'request_count' | 'total_cost' | 'total_tokens';
 
@@ -33,11 +34,12 @@ function formatMetricValue(value: number, metric: Metric): string {
 
 export function UsageDistribution({ range }: { range: AnalyticsRange }) {
     const t = useTranslations('analytics');
+    const cacheTtl = useAnalyticsCacheTtl();
     const [metric, setMetric] = useState<Metric>('request_count');
     const [dimension, setDimension] = useState<'model' | 'channel-model'>('model');
 
-    const { data: utilization, isLoading: isUtilLoading, error: utilError } = useAnalyticsUtilization(range);
-    const { data: channelModel, isLoading: isCmLoading, error: cmError } = useAnalyticsChannelModel(range);
+    const { data: utilization, isLoading: isUtilLoading, error: utilError } = useAnalyticsUtilization(range, cacheTtl);
+    const { data: channelModel, isLoading: isCmLoading, error: cmError } = useAnalyticsChannelModel(range, undefined, cacheTtl);
 
     const isLoading = dimension === 'model' ? isUtilLoading : isCmLoading;
     const error = dimension === 'model' ? utilError : cmError;

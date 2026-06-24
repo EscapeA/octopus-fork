@@ -7,9 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🚀 Features
+- **Channel (issue #98)**: per-channel "skip model availability test" toggle (`skip_model_test`) so channels that penalize low-byte probe requests (deduct quota / ban) can opt out of group/model availability probes. Migration `016` adds the column idempotently across SQLite/MySQL/Postgres.
+- **Relay (issue #94)**: key cooldown moved from per-key to per-`(keyID, model)` granularity so a single model's 429 no longer drags down the same key's other models. Expired cooldowns are purged by the relay-log periodic task. The `model` package receives the cooldown query via an init-time injection (breaking the `model → balancer` import cycle).
+- **Relay (issue #95)**: per-channel retry count can now be set to `0` (try once, then move to the next channel). Route-level retry count is exposed on the Ops Maintenance panel, and the max-total-attempts check now counts only real upstream forwards (cooldown/circuit-breaker skips no longer consume the quota). Relay-log attempt badges distinguish skipped vs. real-failed attempts and show a separate "forwarded" count.
+- **Relay (issue #93)**: error logs now append the raw upstream error response body (status + body) to the decision summary, so 429s etc. can be distinguished by cause (resource exhaustion vs. RPM limit) instead of a generic "rate limited" message. Applied to both LLM and media relay paths.
+- **Group**: outbound format gained `chat_only` and `responses_only` modes that disable cross-format adapter fallback entirely — useful for upstreams (e.g. public-welfare relays) that reject the other format with 400/404.
+- **Model normalization**: model-name normalization rules (router prefixes, functional suffixes, explicit variant→canonical mappings) are now runtime-configurable via DB settings and a new Settings "Normalize" card, with an offline AI-assisted normalization workflow (export channel model variants → analyze → upload rules). A default-dedupe toggle and AI analysis prompt were added.
+
 ### 🐛 Bug Fixes
 - **Issue #97** (low-memory SQLite IO): the SQLite per-connection PRAGMAs (`cache_size`, `mmap_size`, `synchronous`, `foreign_keys`, `auto_vacuum`, `journal_mode`) were previously emitted as `_cache_size=...`-style DSN keys, which the `glebarez/go-sqlite` driver silently ignores (it only honors `_pragma`/`_txlock`/`_time_format`/`vfs`). As a result every PRAGMA stayed at the SQLite default — `cache_size` ≈ 2 MB, `synchronous=FULL` — so on memory-constrained hosts (e.g. 1.6 GB) the page cache was far smaller than the database and idle IO stayed high. PRAGMAs are now emitted as `_pragma=xxx(yyy)`, so they actually take effect, and two are exposed via `config.json`: `database.sqlite.cache_size` (default `-20000` ≈ 20 MB) and `database.sqlite.mmap_size` (default `0`, i.e. mmap disabled — the low-memory-safe default). Both are overridable via `OCTOPUS_DATABASE_SQLITE_CACHE_SIZE` / `OCTOPUS_DATABASE_SQLITE_MMAP_SIZE`.
-
+- **Security hardening (2C-01)**: refuse to start without a persistent encryption key — `cmd/start.go` now fails fast when `security.encryption_key` is unset instead of silently falling back, preventing data loss on restart.
+- **Security hardening**: disabled trusted proxies by default to prevent IP spoofing (C-01); protected `adminCache` with an RWMutex (C-03); constrained SQLite migration paths to the data directory (2C-03); validated WebDAV backup filenames and `base_url` against path traversal / SSRF (2C-02, C-05); limited site import payload size to prevent memory exhaustion (C-07); applied rate limiting to the WebAuthn login/begin endpoint (C-18); returned an error from `GenerateAPIKey` on rand failure (C-16).
+- **Relay**: guarded against nil inbound adapter to prevent panic (C-13); wrote response body to singleflight shared callers on cache miss (4C-01); corrected unicode byte offset in the response filter (H-04); protected trend snapshots with an RWMutex (C-14); circuit breaker no longer resets the cooldown timer on failure in the Open state (C-04).
+- **Gemini**: used function name instead of tool call id in `FunctionResponse` (C-12).
+- **Hub/sapi**: test initialization now configures the encryption key, fixing "encryption key not configured" (268ad5a).
+- **Analytics (issue #87, #101, #103)**: channel×model now aggregates historical logs to fix pre-deployment data disappearing; retry-failed channels now display and duplicate titles are removed; usage-distribution-by-model empty data and top-five-only share bars fixed. Log cleanup now also deletes `relay_log_attempts` rows to prevent orphan rows from making stats vanish.
+- **Notify/alert**: Feishu error detection now uses OR semantics, and deleted channels no longer trigger "channel down" alerts (H-24, H-27).
+- **Sitesync**: removed variable shadowing in `createSub2APIToken` (3M-01).
+- **Docs**: clarified that the semantic cache is exact-match, not semantic (H-42).
+- **Web**: normalized `data:null` to `undefined` to prevent destructuring defaults from failing; home chart metric selection restricted to single; added an entry button for the archived-sites dialog; i18n `outboundFormat` option keys corrected to camelCase.
 ## [v2.1.6] - 2026-06-18
 
 ### 🚀 Features

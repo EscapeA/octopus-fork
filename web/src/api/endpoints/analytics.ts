@@ -22,6 +22,22 @@ import {
 
 export type AnalyticsRange = '1d' | '7d' | '30d' | '90d' | 'ytd' | 'all';
 
+/** 分析中心查询结果缓存 TTL。off=禁用（每次直查 DB）。 */
+export type AnalyticsCacheTtl = '10s' | '30s' | '1m' | 'off';
+
+/** 缓存 TTL 对应的毫秒数，用于设置 TanStack Query 的 refetchInterval。off=0。 */
+const CACHE_TTL_MS: Record<AnalyticsCacheTtl, number> = {
+    '10s': 10_000,
+    '30s': 30_000,
+    '1m': 60_000,
+    off: 0,
+};
+
+/** 缓存 TTL 对应的后端 query 参数值。 */
+function cacheTtlParam(ttl: AnalyticsCacheTtl): Record<string, string> {
+    return { cache_ttl: ttl };
+}
+
 export interface AnalyticsMetrics {
     request_count: number;
     total_tokens: number;
@@ -204,29 +220,29 @@ export function useAnalyticsEvaluationRuntime(): AnalyticsEvaluationRuntime {
     };
 }
 
-export function useAnalyticsOverview(range: AnalyticsRange) {
+export function useAnalyticsOverview(range: AnalyticsRange, cacheTtl: AnalyticsCacheTtl = '30s') {
     return useQuery({
-        queryKey: ['analytics', 'overview', range],
-        queryFn: async () => apiClient.get<AnalyticsOverview>('/api/v1/analytics/overview', { range }),
-        refetchInterval: REFETCH_INTERVAL_CONFIG,
+        queryKey: ['analytics', 'overview', range, cacheTtl],
+        queryFn: async () => apiClient.get<AnalyticsOverview>('/api/v1/analytics/overview', { range, ...cacheTtlParam(cacheTtl) }),
+        refetchInterval: CACHE_TTL_MS[cacheTtl],
         refetchOnMount: 'always',
     });
 }
 
-export function useAnalyticsUtilization(range: AnalyticsRange) {
+export function useAnalyticsUtilization(range: AnalyticsRange, cacheTtl: AnalyticsCacheTtl = '30s') {
     return useQuery({
-        queryKey: ['analytics', 'utilization', range],
-        queryFn: async () => apiClient.get<AnalyticsUtilization>('/api/v1/analytics/utilization', { range }),
-        refetchInterval: REFETCH_INTERVAL_CONFIG,
+        queryKey: ['analytics', 'utilization', range, cacheTtl],
+        queryFn: async () => apiClient.get<AnalyticsUtilization>('/api/v1/analytics/utilization', { range, ...cacheTtlParam(cacheTtl) }),
+        refetchInterval: CACHE_TTL_MS[cacheTtl],
         refetchOnMount: 'always',
     });
 }
 
-export function useAnalyticsGroupHealth() {
+export function useAnalyticsGroupHealth(cacheTtl: AnalyticsCacheTtl = '30s') {
     return useQuery({
-        queryKey: ['analytics', 'group-health'],
-        queryFn: async () => apiClient.get<AnalyticsGroupHealthItem[]>('/api/v1/analytics/group-health'),
-        refetchInterval: REFETCH_INTERVAL_CONFIG,
+        queryKey: ['analytics', 'group-health', cacheTtl],
+        queryFn: async () => apiClient.get<AnalyticsGroupHealthItem[]>('/api/v1/analytics/group-health', cacheTtlParam(cacheTtl)),
+        refetchInterval: CACHE_TTL_MS[cacheTtl],
         refetchOnMount: 'always',
     });
 }
@@ -258,24 +274,25 @@ export interface LatencyDistribution {
     buckets: HistogramBucket[];
 }
 
-export function useAnalyticsLatencyDistribution(range: AnalyticsRange) {
+export function useAnalyticsLatencyDistribution(range: AnalyticsRange, cacheTtl: AnalyticsCacheTtl = '30s') {
     return useQuery({
-        queryKey: ['analytics', 'latency-distribution', range],
-        queryFn: async () => apiClient.get<LatencyDistribution>('/api/v1/analytics/latency-distribution', { range }),
-        refetchInterval: REFETCH_INTERVAL_CONFIG,
+        queryKey: ['analytics', 'latency-distribution', range, cacheTtl],
+        queryFn: async () => apiClient.get<LatencyDistribution>('/api/v1/analytics/latency-distribution', { range, ...cacheTtlParam(cacheTtl) }),
+        refetchInterval: CACHE_TTL_MS[cacheTtl],
         refetchOnMount: 'always',
     });
 }
 
-export function useAnalyticsChannelModel(range: AnalyticsRange, groupId?: number) {
+export function useAnalyticsChannelModel(range: AnalyticsRange, groupId: number | undefined, cacheTtl: AnalyticsCacheTtl = '30s') {
     return useQuery({
-        queryKey: ['analytics', 'channel-model', range, groupId ?? null],
+        queryKey: ['analytics', 'channel-model', range, groupId ?? null, cacheTtl],
         queryFn: async () =>
             apiClient.get<AnalyticsChannelModelItem[]>('/api/v1/analytics/channel-model', {
                 range,
                 ...(groupId != null ? { group_id: groupId } : {}),
+                ...cacheTtlParam(cacheTtl),
             }),
-        refetchInterval: REFETCH_INTERVAL_CONFIG,
+        refetchInterval: CACHE_TTL_MS[cacheTtl],
         refetchOnMount: 'always',
     });
 }

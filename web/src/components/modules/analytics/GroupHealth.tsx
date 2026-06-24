@@ -5,6 +5,7 @@ import { Activity, AlertTriangle, CircleOff, ShieldCheck, Radar, ChevronDown, Ch
 import { useTranslations } from 'next-intl';
 import { useAnalyticsGroupHealth } from '@/api/endpoints/analytics';
 import { ObservatorySection, QueryState, StatusBadge, formatUnixTime } from './shared';
+import { useAnalyticsCacheTtl } from './cache-context';
 import { useNavStore } from '@/components/modules/navbar/nav-store';
 import { useNavHandoff } from '@/lib/nav-handoff';
 import { cn } from '@/lib/utils';
@@ -233,7 +234,8 @@ function GroupHealthCard({
 
 export function GroupHealth() {
     const t = useTranslations('analytics');
-    const { data, isLoading, error } = useAnalyticsGroupHealth();
+    const cacheTtl = useAnalyticsCacheTtl();
+    const { data, isLoading, error } = useAnalyticsGroupHealth(cacheTtl);
 
     // Auto 策略实时表现现由后端在 AnalyticsGroupHealthGet 内按本组 (channel_id, model_name)
     // 精确过滤后填入 item.auto_items，前端不再单独请求 /analytics/auto-strategy，也不再在

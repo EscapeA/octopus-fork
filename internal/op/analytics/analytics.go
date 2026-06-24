@@ -989,26 +989,52 @@ func loadAnalyticsChannelModelRows(ctx context.Context, r model.AnalyticsRange, 
 				}
 			}
 
-			// 补充历史日志：issue #67 修复部署前的 relay_logs 没有 attempts 行，
-			// 或 keepEnabled 从 false 切回 true 后旧日志的 attempts JSON 未落库到
-			// 关联表。仅靠上面的 attempts 聚合会让这些日志的失败重试渠道在渠道×模型
-			// 页面消失（issue #87 / #103）。取无 attempts 关联行的 relay_logs，
-			// 优先解析其 attempts JSON 按尝试维度聚合（捕获中间重试失败），JSON 为空
-			// 时回退到顶层列。只填充 attempts 分支未覆盖的请求，避免重复计算。
-			var legacyLogs []model.RelayLog
+			// 补充历史日志：issue #67 修复部署前、或 keepEnabled 从 false 切回 true 之前的
+			// relay_logs 没有 attempts 关联行。仅靠上面的 attempts 聚合会让这些日志在
+			// 渠道×模型页面消失（issue #87）。取无 attempts 关联行的 relay_logs，在 DB 端
+			// 按顶层列 GROUP BY 聚合（与 loadAnalyticsFailureRows legacy 分支一致）。
+			//
+			// 注意：顶层列只记录最终渠道的成败，无法捕获中间重试失败。但这些是有限存量
+			// 日志（部署后新日志均写 attempts 表），且早期实现即如此——为避免整行加载
+			// （含 attempts JSON 大字段）导致的内存爆炸与磁盘读飙升，此处不再在 Go 层
+			// 解析 JSON。新日志的中间重试失败已由上方 attempts 表分支完整覆盖。
+			// 只填充 attempts 分支未覆盖的 (channelID, modelName)，避免重复计算：
+			// GROUP BY 后按 key 写入 rows，若 key 已存在则跳过（attempts 分支优先）。
+			var legacyRows []analyticsChannelModelAggregateRow
+			legacyModelExpr := "COALESCE(NULLIF(relay_logs.actual_model_name, ''), relay_logs.request_model_name)"
 			legacyQuery := attemptsConn.WithContext(ctx).
-				Model(&model.RelayLog{}).
-				Select("relay_logs.id, relay_logs.time, relay_logs.channel_id, relay_logs.channel_name, relay_logs.request_model_name, relay_logs.actual_model_name, relay_logs.input_tokens, relay_logs.output_tokens, relay_logs.cost, relay_logs.error, relay_logs.attempts").
+				Table("relay_logs").
+				Select(`
+					relay_logs.channel_id,
+					relay_logs.channel_name,
+					` + legacyModelExpr + ` AS model_name,
+					COALESCE(SUM(relay_logs.input_tokens), 0) AS input_tokens,
+					COALESCE(SUM(relay_logs.output_tokens), 0) AS output_tokens,
+					COALESCE(SUM(relay_logs.cost), 0) AS total_cost,
+					COALESCE(SUM(CASE WHEN relay_logs.error = '' THEN 1 ELSE 0 END), 0) AS request_success,
+					COALESCE(SUM(CASE WHEN relay_logs.error <> '' THEN 1 ELSE 0 END), 0) AS request_failed
+				`).
 				Joins("LEFT JOIN relay_log_attempts AS a ON a.relay_log_id = relay_logs.id").
-				Where("a.id IS NULL")
+				Where("a.id IS NULL").
+				Group("relay_logs.channel_id, relay_logs.channel_name, " + legacyModelExpr)
 			if startUnix != nil {
 				legacyQuery = legacyQuery.Where("relay_logs.time >= ?", *startUnix)
 			}
-			if err := legacyQuery.Scan(&legacyLogs).Error; err != nil {
+			if err := legacyQuery.Scan(&legacyRows).Error; err != nil {
 				return nil, err
 			}
-			for i := range legacyLogs {
-				mergeRelayLogIntoChannelModelRows(rows, &legacyLogs[i], inScope)
+			for _, row := range legacyRows {
+				modelName := strings.TrimSpace(row.ModelName)
+				if modelName == "" || !inScope(row.ChannelID, modelName) {
+					continue
+				}
+				key := strconv.Itoa(row.ChannelID) + "\x00" + modelName
+				if _, exists := rows[key]; exists {
+					continue // attempts 分支已覆盖该 (渠道,模型)，跳过避免重复
+				}
+				rowCopy := row
+				rowCopy.ModelName = modelName
+				rows[key] = &rowCopy
 			}
 		} else {
 			// 最终回退：LogDB 和主库均无 attempts 表时用顶层列（与历史利用率一致）。

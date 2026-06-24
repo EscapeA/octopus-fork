@@ -65,7 +65,7 @@ func getAnalyticsOverview(c *gin.Context) {
 		return
 	}
 
-	data, err := analytics.AnalyticsOverviewGet(c.Request.Context(), analyticsRange)
+	data, err := analytics.CachedAnalyticsOverviewGet(c.Request.Context(), analyticsRange, parseCacheTTL(c))
 	if err != nil {
 		resp.InternalError(c)
 		return
@@ -79,7 +79,7 @@ func getAnalyticsUtilization(c *gin.Context) {
 		return
 	}
 
-	data, err := analytics.AnalyticsUtilizationGet(c.Request.Context(), analyticsRange)
+	data, err := analytics.CachedAnalyticsUtilizationGet(c.Request.Context(), analyticsRange, parseCacheTTL(c))
 	if err != nil {
 		resp.InternalError(c)
 		return
@@ -97,7 +97,7 @@ func getAnalyticsEvaluation(c *gin.Context) {
 }
 
 func getAnalyticsGroupHealth(c *gin.Context) {
-	data, err := analytics.AnalyticsGroupHealthGet(c.Request.Context())
+	data, err := analytics.CachedAnalyticsGroupHealthGet(c.Request.Context(), parseCacheTTL(c))
 	if err != nil {
 		resp.InternalError(c)
 		return
@@ -111,7 +111,7 @@ func getAnalyticsProviderBreakdown(c *gin.Context) {
 		return
 	}
 
-	data, err := analytics.AnalyticsProviderBreakdownGet(c.Request.Context(), analyticsRange)
+	data, err := analytics.CachedAnalyticsProviderBreakdownGet(c.Request.Context(), analyticsRange, parseCacheTTL(c))
 	if err != nil {
 		resp.InternalError(c)
 		return
@@ -125,7 +125,7 @@ func getAnalyticsModelBreakdown(c *gin.Context) {
 		return
 	}
 
-	data, err := analytics.AnalyticsModelBreakdownGet(c.Request.Context(), analyticsRange)
+	data, err := analytics.CachedAnalyticsModelBreakdownGet(c.Request.Context(), analyticsRange, parseCacheTTL(c))
 	if err != nil {
 		resp.InternalError(c)
 		return
@@ -148,7 +148,7 @@ func getAnalyticsChannelModel(c *gin.Context) {
 		groupID = &n
 	}
 
-	data, err := analytics.AnalyticsChannelModelBreakdownGet(c.Request.Context(), analyticsRange, groupID)
+	data, err := analytics.CachedAnalyticsChannelModelBreakdownGet(c.Request.Context(), analyticsRange, groupID, parseCacheTTL(c))
 	if err != nil {
 		resp.InternalError(c)
 		return
@@ -181,7 +181,7 @@ func getAnalyticsAPIKeyBreakdown(c *gin.Context) {
 		return
 	}
 
-	data, err := analytics.AnalyticsAPIKeyBreakdownGet(c.Request.Context(), analyticsRange)
+	data, err := analytics.CachedAnalyticsAPIKeyBreakdownGet(c.Request.Context(), analyticsRange, parseCacheTTL(c))
 	if err != nil {
 		resp.InternalError(c)
 		return
@@ -194,7 +194,7 @@ func getAnalyticsLatencyDistribution(c *gin.Context) {
 	if !ok {
 		return
 	}
-	data, err := analytics.AnalyticsLatencyDistributionGet(c.Request.Context(), analyticsRange)
+	data, err := analytics.CachedAnalyticsLatencyDistributionGet(c.Request.Context(), analyticsRange, parseCacheTTL(c))
 	if err != nil {
 		resp.InternalError(c)
 		return
@@ -209,4 +209,9 @@ func parseAnalyticsRange(c *gin.Context) (model.AnalyticsRange, bool) {
 		return "", false
 	}
 	return analyticsRange, true
+}
+
+// parseCacheTTL 解析 cache_ttl 查询参数（10s/30s/1m/off）。空值回退到默认 30s。
+func parseCacheTTL(c *gin.Context) analytics.CacheTTL {
+	return analytics.ParseCacheTTL(c.Query("cache_ttl"))
 }

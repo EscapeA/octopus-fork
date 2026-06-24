@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useAnalyticsUtilization, type AnalyticsRange, type AnalyticsProviderBreakdownItem, type AnalyticsModelBreakdownItem, type AnalyticsAPIKeyBreakdownItem } from '@/api/endpoints/analytics';
 import { formatCount, formatMoney } from '@/lib/utils';
 import { ObservatorySection, QueryState, StatusBadge, formatPercent } from './shared';
+import { useAnalyticsCacheTtl } from './cache-context';
 
 type BreakdownItem = AnalyticsProviderBreakdownItem | AnalyticsModelBreakdownItem | AnalyticsAPIKeyBreakdownItem;
 
@@ -72,7 +73,8 @@ function BreakdownCard({
 
 export function Utilization({ range }: { range: AnalyticsRange }) {
     const t = useTranslations('analytics');
-    const { data, isLoading, error } = useAnalyticsUtilization(range);
+    const cacheTtl = useAnalyticsCacheTtl();
+    const { data, isLoading, error } = useAnalyticsUtilization(range, cacheTtl);
 
     const isEmpty =
         !data ||

@@ -5,10 +5,12 @@ import { useTranslations } from 'next-intl';
 import { useAnalyticsOverview, type AnalyticsRange } from '@/api/endpoints/analytics';
 import { formatCount, formatMoney } from '@/lib/utils';
 import { MetricCard, QueryState, formatPercent } from './shared';
+import { useAnalyticsCacheTtl } from './cache-context';
 
 export function Overview({ range }: { range: AnalyticsRange }) {
     const t = useTranslations('analytics');
-    const { data, isLoading, error } = useAnalyticsOverview(range);
+    const cacheTtl = useAnalyticsCacheTtl();
+    const { data, isLoading, error } = useAnalyticsOverview(range, cacheTtl);
     const description = t('overview.description');
 
     const cards = data ? [

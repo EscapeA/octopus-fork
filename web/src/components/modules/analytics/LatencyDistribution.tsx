@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { useAnalyticsLatencyDistribution, type AnalyticsRange } from '@/api/endpoints/analytics';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAnalyticsCacheTtl } from './cache-context';
 
 function MetricCard({ label, value, unit }: { label: string; value: number; unit: string }) {
     return (
@@ -18,7 +19,8 @@ function MetricCard({ label, value, unit }: { label: string; value: number; unit
 
 export function LatencyDistribution({ range }: { range: AnalyticsRange }) {
     const t = useTranslations('analytics');
-    const { data, isLoading, error } = useAnalyticsLatencyDistribution(range);
+    const cacheTtl = useAnalyticsCacheTtl();
+    const { data, isLoading, error } = useAnalyticsLatencyDistribution(range, cacheTtl);
 
     if (isLoading) {
         return (
