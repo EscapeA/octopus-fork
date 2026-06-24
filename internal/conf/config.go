@@ -15,6 +15,12 @@ import (
 type Server struct {
 	Host string `mapstructure:"host"`
 	Port int    `mapstructure:"port"`
+	// TrustedProxies 控制信任的反向代理 CIDR/IP 列表（逗号分隔），用于解析
+	// X-Forwarded-For / X-Real-IP 取得真实客户端 IP。空值（默认）表示不信任
+	// 任何代理，c.ClientIP() 只返回 TCP 直连地址（安全默认，防 XFF 伪造）。
+	// 反代/Docker 部署应配置实际代理网段，例如 "172.17.0.0/16"。
+	// "*" 表示信任所有来源（等价于 Gin 旧行为，仅开发用，有安全风险）。
+	TrustedProxies string `mapstructure:"trusted_proxies"`
 }
 
 type Log struct {

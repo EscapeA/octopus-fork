@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -31,11 +32,11 @@ func Start() error {
 	}
 
 	r := gin.New()
-	// Disable trust of all proxies by default: only the direct remote address
-	// is used for c.ClientIP(), preventing X-Forwarded-For spoofing that could
-	// bypass login rate-limiting and API-key IP allowlists (C-01). Deployments
-	// behind a reverse proxy must configure the actual proxy CIDR.
-	_ = r.SetTrustedProxies(nil)
+	// 默认不信任任何代理：c.ClientIP() 只返回 TCP 直连地址，防止 X-Forwarded-For
+	// 伪造绕过登录限流和 API Key IP 白名单（C-01）。反代/Docker 部署需通过
+	// server.trusted_proxies（或 OCTOPUS_SERVER_TRUSTED_PROXIES）配置实际代理网段，
+	// 否则日志/限流/白名单看到的都是网关地址（如 Docker 的 172.17.0.1）。
+	_ = setTrustedProxies(r)
 	r.Use(gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
 		resp.Error(c, http.StatusInternalServerError, resp.ErrInternalServer)
 		c.Abort()
@@ -79,6 +80,33 @@ func Start() error {
 	return nil
 }
 
+// setTrustedProxies 根据配置配置可信代理 CIDR 列表。
+//   - 空值（默认）：不信任任何代理，c.ClientIP() 只返回 TCP 直连地址。
+//   - "*"：信任所有来源（等价于 Gin 旧行为，仅开发用）。
+//   - CIDR/IP 逗号分隔列表（如 "172.17.0.0/16,10.0.0.0/8"）：仅信任这些网段。
+func setTrustedProxies(r *gin.Engine) error {
+	raw := strings.TrimSpace(conf.AppConfig.Server.TrustedProxies)
+	if raw == "" {
+		return r.SetTrustedProxies(nil)
+	}
+	if raw == "*" {
+		return r.SetTrustedProxies([]string{"0.0.0.0/0", "::/0"})
+	}
+	var proxies []string
+	for _, p := range strings.Split(raw, ",") {
+		if v := strings.TrimSpace(p); v != "" {
+			proxies = append(proxies, v)
+		}
+	}
+	if len(proxies) == 0 {
+		return r.SetTrustedProxies(nil)
+	}
+	if err := r.SetTrustedProxies(proxies); err != nil {
+		return fmt.Errorf("invalid trusted_proxies config %q: %w", raw, err)
+	}
+	log.Infof("trusted proxies configured: %v", proxies)
+	return nil
+}
 func Close() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
