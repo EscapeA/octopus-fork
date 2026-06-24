@@ -99,6 +99,8 @@ docker compose up -d
 
 如果是从旧版前端升级，升级后浏览器若仍出现旧页面脚本报错，请清理一次站点数据 / Service Worker 缓存，确保加载到最新嵌入式前端资源。
 
+> **🔗 反向代理部署：** Octopus 默认不信任任何代理，`c.ClientIP()` 只返回 TCP 直连地址。在 Docker bridge 网络或反代后，这个地址是网关（如 `172.17.0.1`）而非真实客户端 IP——中继日志、登录限流、API Key IP 白名单看到的都是网关地址。设置 `OCTOPUS_SERVER_TRUSTED_PROXIES` 为代理所在 CIDR（默认 Docker bridge 用 `172.17.0.0/16`）即可从 `X-Forwarded-For` 解析真实客户端 IP。
+
 
 ### 📦 从 Release 下载
 
@@ -215,6 +217,7 @@ http://localhost:3000
 |--------|------|--------|
 | `server.host` | 监听地址 | `0.0.0.0` |
 | `server.port` | 服务端口 | `8080` |
+| `server.trusted_proxies` | 信任的反向代理 CIDR/IP 列表（逗号分隔），用于从 `X-Forwarded-For` 解析真实客户端 IP。空值=不信任任何代理（安全默认，`c.ClientIP()` 返回 TCP 直连地址）；`*`=信任全部（仅开发用，有 XFF 伪造风险） | 空 |
 | `database.type` | 数据库类型 | `sqlite` |
 | `database.path` | 数据库连接地址 | `data/data.db` |
 | `log.level` | 日志级别 | `info` |
@@ -267,6 +270,7 @@ http://localhost:3000
 |----------|-----------|
 | `OCTOPUS_SERVER_PORT` | `server.port` |
 | `OCTOPUS_SERVER_HOST` | `server.host` |
+| `OCTOPUS_SERVER_TRUSTED_PROXIES` | `server.trusted_proxies` |
 | `OCTOPUS_DATABASE_TYPE` | `database.type` |
 | `OCTOPUS_DATABASE_PATH` | `database.path` |
 | `OCTOPUS_DATA_DIR` | 在未显式设置 `database.path` 时，`config.json` 和 SQLite 数据库的默认目录 |

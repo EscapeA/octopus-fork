@@ -99,6 +99,8 @@ The official Docker image rebuilds the frontend during image build and embeds th
 
 If you are upgrading from an older web build and still see stale frontend errors in the browser, clear the site data / service worker cache once after upgrading so the latest embedded assets are loaded.
 
+> **🔗 Behind a reverse proxy:** By default Octopus does not trust any proxy, so `c.ClientIP()` returns the direct TCP address. Behind Docker bridge networking or a reverse proxy this is the gateway (e.g. `172.17.0.1`), not the real client — relay logs, login rate-limiting, and API-key IP allowlists all see the gateway IP. Set `OCTOPUS_SERVER_TRUSTED_PROXIES` to the proxy's CIDR (e.g. `172.17.0.0/16` for the default Docker bridge) to resolve the real client IP from `X-Forwarded-For`.
+
 
 ### 📦 Download from Release
 
@@ -215,6 +217,7 @@ Most operational knobs are not stored in `config.json`. Retry policy, circuit br
 |--------|-------------|---------|
 | `server.host` | Listen address | `0.0.0.0` |
 | `server.port` | Server port | `8080` |
+| `server.trusted_proxies` | Comma-separated trusted reverse-proxy CIDRs/IPs for resolving real client IP from `X-Forwarded-For`. Empty = trust none (safe default; `c.ClientIP()` returns the direct TCP address). `*` = trust all (dev only; XFF spoofing risk). | empty |
 | `database.type` | Database type | `sqlite` |
 | `database.path` | Database connection string | `data/data.db` |
 | `database.sqlite.cache_size` | SQLite `PRAGMA cache_size` (negative = KB, e.g. `-20000` ≈ 20 MB; positive = pages). Only used when `database.type` is `sqlite`. | `-20000` (≈ 20 MB) |
@@ -293,6 +296,7 @@ All configuration options can be overridden via environment variables using the 
 |---------------------|---------------------|
 | `OCTOPUS_SERVER_PORT` | `server.port` |
 | `OCTOPUS_SERVER_HOST` | `server.host` |
+| `OCTOPUS_SERVER_TRUSTED_PROXIES` | `server.trusted_proxies` |
 | `OCTOPUS_DATABASE_TYPE` | `database.type` |
 | `OCTOPUS_DATABASE_PATH` | `database.path` |
 | `OCTOPUS_DATABASE_SQLITE_CACHE_SIZE` | `database.sqlite.cache_size` (SQLite page cache; negative = KB, e.g. `-20000` ≈ 20MB) |
