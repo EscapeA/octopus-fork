@@ -69,26 +69,22 @@ func TestBuildAnalyticsOverview_ZeroDivision(t *testing.T) {
 func TestBuildProviderBreakdown_SortsByRequestsDesc(t *testing.T) {
 	rows := map[int]*analyticsProviderAggregateRow{
 		2: {
-			ChannelID:   2,
-			ChannelName: "beta",
-			analyticsAggregateMetrics: analyticsAggregateMetrics{
-				InputTokens:    40,
-				OutputTokens:   60,
-				TotalCost:      2,
-				RequestSuccess: 2,
-				RequestFailed:  1,
-			},
+			ChannelID:      2,
+			ChannelName:    "beta",
+			InputTokens:    40,
+			OutputTokens:   60,
+			TotalCost:      2,
+			RequestSuccess: 2,
+			RequestFailed:  1,
 		},
 		1: {
-			ChannelID:   1,
-			ChannelName: "alpha",
-			analyticsAggregateMetrics: analyticsAggregateMetrics{
-				InputTokens:    10,
-				OutputTokens:   20,
-				TotalCost:      5,
-				RequestSuccess: 1,
-				RequestFailed:  0,
-			},
+			ChannelID:      1,
+			ChannelName:    "alpha",
+			InputTokens:    10,
+			OutputTokens:   20,
+			TotalCost:      5,
+			RequestSuccess: 1,
+			RequestFailed:  0,
 		},
 	}
 
@@ -117,15 +113,13 @@ func TestBuildProviderBreakdown_SortsByRequestsDesc(t *testing.T) {
 func TestBuildProviderBreakdown_PreservesHistoricalUsageFromStats(t *testing.T) {
 	rows := map[int]*analyticsProviderAggregateRow{
 		1: {
-			ChannelID:   1,
-			ChannelName: "alpha",
-			analyticsAggregateMetrics: analyticsAggregateMetrics{
-				InputTokens:    120,
-				OutputTokens:   80,
-				TotalCost:      3.5,
-				RequestSuccess: 5,
-				RequestFailed:  1,
-			},
+			ChannelID:      1,
+			ChannelName:    "alpha",
+			InputTokens:    120,
+			OutputTokens:   80,
+			TotalCost:      3.5,
+			RequestSuccess: 5,
+			RequestFailed:  1,
 		},
 	}
 
@@ -151,11 +145,9 @@ func TestBuildProviderBreakdown_PreservesHistoricalUsageFromStats(t *testing.T) 
 func TestBuildProviderBreakdown_UnknownChannel(t *testing.T) {
 	rows := map[int]*analyticsProviderAggregateRow{
 		99: {
-			ChannelID:   99,
-			ChannelName: "",
-			analyticsAggregateMetrics: analyticsAggregateMetrics{
-				RequestSuccess: 1,
-			},
+			ChannelID:      99,
+			ChannelName:    "",
+			RequestSuccess: 1,
 		},
 	}
 
@@ -176,24 +168,20 @@ func TestBuildProviderBreakdown_UnknownChannel(t *testing.T) {
 func TestBuildModelBreakdown_SortsByRequestsDesc(t *testing.T) {
 	rows := map[string]*analyticsModelAggregateRow{
 		"gpt-4": {
-			ModelName: "gpt-4",
-			analyticsAggregateMetrics: analyticsAggregateMetrics{
-				RequestSuccess: 5,
-				RequestFailed:  1,
-				InputTokens:    100,
-				OutputTokens:   50,
-				TotalCost:      1.0,
-			},
+			ModelName:      "gpt-4",
+			RequestSuccess: 5,
+			RequestFailed:  1,
+			InputTokens:    100,
+			OutputTokens:   50,
+			TotalCost:      1.0,
 		},
 		"gpt-3.5": {
-			ModelName: "gpt-3.5",
-			analyticsAggregateMetrics: analyticsAggregateMetrics{
-				RequestSuccess: 2,
-				RequestFailed:  0,
-				InputTokens:    20,
-				OutputTokens:   10,
-				TotalCost:      0.1,
-			},
+			ModelName:      "gpt-3.5",
+			RequestSuccess: 2,
+			RequestFailed:  0,
+			InputTokens:    20,
+			OutputTokens:   10,
+			TotalCost:      0.1,
 		},
 	}
 
@@ -212,10 +200,8 @@ func TestBuildModelBreakdown_SortsByRequestsDesc(t *testing.T) {
 func TestBuildModelBreakdown_SkipsEmptyName(t *testing.T) {
 	rows := map[string]*analyticsModelAggregateRow{
 		"": {
-			ModelName: "",
-			analyticsAggregateMetrics: analyticsAggregateMetrics{
-				RequestSuccess: 1,
-			},
+			ModelName:      "",
+			RequestSuccess: 1,
 		},
 	}
 
@@ -230,19 +216,15 @@ func TestBuildModelBreakdown_SkipsEmptyName(t *testing.T) {
 func TestBuildAPIKeyBreakdown_KeepsDuplicateNamesSeparatedByID(t *testing.T) {
 	rows := map[string]*analyticsAPIKeyAggregateRow{
 		"id:11": {
-			APIKeyID: 11,
-			Name:     "shared",
-			analyticsAggregateMetrics: analyticsAggregateMetrics{
-				RequestSuccess: 3,
-			},
+			APIKeyID:       11,
+			Name:           "shared",
+			RequestSuccess: 3,
 		},
 		"id:22": {
-			APIKeyID: 22,
-			Name:     "shared",
-			analyticsAggregateMetrics: analyticsAggregateMetrics{
-				RequestSuccess: 1,
-				RequestFailed:  1,
-			},
+			APIKeyID:       22,
+			Name:           "shared",
+			RequestSuccess: 1,
+			RequestFailed:  1,
 		},
 	}
 
@@ -261,11 +243,9 @@ func TestBuildAPIKeyBreakdown_KeepsDuplicateNamesSeparatedByID(t *testing.T) {
 func TestBuildAPIKeyBreakdown_UnknownKey(t *testing.T) {
 	rows := map[string]*analyticsAPIKeyAggregateRow{
 		"name:guest": {
-			APIKeyID: 0,
-			Name:     "guest",
-			analyticsAggregateMetrics: analyticsAggregateMetrics{
-				RequestSuccess: 1,
-			},
+			APIKeyID:       0,
+			Name:           "guest",
+			RequestSuccess: 1,
 		},
 	}
 
@@ -339,7 +319,7 @@ func TestMergeAnalyticsDailyWithToday_ReplacesExistingDate(t *testing.T) {
 		{Date: "20260102", StatsMetrics: model.StatsMetrics{RequestSuccess: 3}},
 	}
 	today := model.StatsDaily{
-		Date: "20260102",
+		Date:         "20260102",
 		StatsMetrics: model.StatsMetrics{RequestSuccess: 10, RequestFailed: 1},
 	}
 
@@ -366,7 +346,7 @@ func TestMergeAnalyticsDailyWithToday_AppendsNewDate(t *testing.T) {
 		{Date: "20260101", StatsMetrics: model.StatsMetrics{RequestSuccess: 5}},
 	}
 	today := model.StatsDaily{
-		Date: "20260103",
+		Date:         "20260103",
 		StatsMetrics: model.StatsMetrics{RequestSuccess: 2},
 	}
 
@@ -492,4 +472,3 @@ func TestAnalyticsStartTime_UsesProvidedLocationBoundary(t *testing.T) {
 	}
 }
 func timePtr(t time.Time) *time.Time { return &t }
-

@@ -24,42 +24,54 @@ import (
 
 const analyticsRouteHealthFailureWindow = 24 * time.Hour
 
-type analyticsAggregateMetrics struct {
-	InputTokens    int64
-	OutputTokens   int64
-	TotalCost      float64
-	RequestSuccess int64
-	RequestFailed  int64
-}
-
 type analyticsSummaryRow struct {
-	analyticsAggregateMetrics
-	RequestCount  int64
-	FallbackCount int64
+	InputTokens    int64   `gorm:"column:input_tokens"`
+	OutputTokens   int64   `gorm:"column:output_tokens"`
+	TotalCost      float64 `gorm:"column:total_cost"`
+	RequestSuccess int64   `gorm:"column:request_success"`
+	RequestFailed  int64   `gorm:"column:request_failed"`
+	RequestCount   int64   `gorm:"column:request_count"`
+	FallbackCount  int64   `gorm:"column:fallback_count"`
 }
 
 type analyticsProviderAggregateRow struct {
-	ChannelID   int
-	ChannelName string
-	analyticsAggregateMetrics
+	ChannelID      int     `gorm:"column:channel_id"`
+	ChannelName    string  `gorm:"column:channel_name"`
+	InputTokens    int64   `gorm:"column:input_tokens"`
+	OutputTokens   int64   `gorm:"column:output_tokens"`
+	TotalCost      float64 `gorm:"column:total_cost"`
+	RequestSuccess int64   `gorm:"column:request_success"`
+	RequestFailed  int64   `gorm:"column:request_failed"`
 }
 
 type analyticsModelAggregateRow struct {
-	ModelName string
-	analyticsAggregateMetrics
+	ModelName      string  `gorm:"column:model_name"`
+	InputTokens    int64   `gorm:"column:input_tokens"`
+	OutputTokens   int64   `gorm:"column:output_tokens"`
+	TotalCost      float64 `gorm:"column:total_cost"`
+	RequestSuccess int64   `gorm:"column:request_success"`
+	RequestFailed  int64   `gorm:"column:request_failed"`
 }
 
 type analyticsAPIKeyAggregateRow struct {
-	APIKeyID int
-	Name     string
-	analyticsAggregateMetrics
+	APIKeyID       int     `gorm:"column:api_key_id"`
+	Name           string  `gorm:"column:name"`
+	InputTokens    int64   `gorm:"column:input_tokens"`
+	OutputTokens   int64   `gorm:"column:output_tokens"`
+	TotalCost      float64 `gorm:"column:total_cost"`
+	RequestSuccess int64   `gorm:"column:request_success"`
+	RequestFailed  int64   `gorm:"column:request_failed"`
 }
 
 type analyticsChannelModelAggregateRow struct {
-	ChannelID   int
-	ChannelName string
-	ModelName   string
-	analyticsAggregateMetrics
+	ChannelID      int     `gorm:"column:channel_id"`
+	ChannelName    string  `gorm:"column:channel_name"`
+	ModelName      string  `gorm:"column:model_name"`
+	InputTokens    int64   `gorm:"column:input_tokens"`
+	OutputTokens   int64   `gorm:"column:output_tokens"`
+	TotalCost      float64 `gorm:"column:total_cost"`
+	RequestSuccess int64   `gorm:"column:request_success"`
+	RequestFailed  int64   `gorm:"column:request_failed"`
 }
 
 type analyticsFailureAggregateRow struct {
@@ -848,8 +860,7 @@ func loadAnalyticsSummary(ctx context.Context, r model.AnalyticsRange) (*analyti
 	}
 
 	if keepEnabled {
-		query := db.GetDB().WithContext(ctx).
-			Model(&model.RelayLog{}).
+		query := relayLogReadConn().WithContext(ctx).Model(&model.RelayLog{}).
 			Select(`
 				COUNT(*) AS request_count,
 				COALESCE(SUM(CASE WHEN total_attempts > 1 THEN 1 ELSE 0 END), 0) AS fallback_count
@@ -968,15 +979,13 @@ func loadAnalyticsChannelModelRows(ctx context.Context, r model.AnalyticsRange, 
 				}
 				key := strconv.Itoa(ar.ChannelID) + "\x00" + ar.ModelName
 				rows[key] = &analyticsChannelModelAggregateRow{
-					ChannelID: ar.ChannelID,
-					ModelName: ar.ModelName,
-					analyticsAggregateMetrics: analyticsAggregateMetrics{
-						InputTokens:    ar.InputTokens,
-						OutputTokens:   ar.OutputTokens,
-						TotalCost:      ar.TotalCost,
-						RequestSuccess: ar.Success,
-						RequestFailed:  ar.Failed,
-					},
+					ChannelID:      ar.ChannelID,
+					ModelName:      ar.ModelName,
+					InputTokens:    ar.InputTokens,
+					OutputTokens:   ar.OutputTokens,
+					TotalCost:      ar.TotalCost,
+					RequestSuccess: ar.Success,
+					RequestFailed:  ar.Failed,
 				}
 			}
 
@@ -1141,8 +1150,7 @@ func loadAnalyticsProviderRows(ctx context.Context, r model.AnalyticsRange) (map
 
 	if keepEnabled {
 		var dbRows []analyticsProviderAggregateRow
-		query := db.GetDB().WithContext(ctx).
-			Model(&model.RelayLog{}).
+		query := relayLogReadConn().WithContext(ctx).Model(&model.RelayLog{}).
 			Select(`
 				channel_id,
 				channel_name,
@@ -1208,8 +1216,7 @@ func loadAnalyticsModelRows(ctx context.Context, r model.AnalyticsRange) (map[st
 	if keepEnabled {
 		var dbRows []analyticsModelAggregateRow
 		modelExpr := "COALESCE(NULLIF(actual_model_name, ''), request_model_name)"
-		query := db.GetDB().WithContext(ctx).
-			Model(&model.RelayLog{}).
+		query := relayLogReadConn().WithContext(ctx).Model(&model.RelayLog{}).
 			Select(`
 				` + modelExpr + ` AS model_name,
 				COALESCE(SUM(input_tokens), 0) AS input_tokens,
@@ -1280,8 +1287,7 @@ func loadAnalyticsAPIKeyRows(ctx context.Context, r model.AnalyticsRange) (map[s
 
 	if keepEnabled {
 		var dbRows []analyticsAPIKeyAggregateRow
-		query := db.GetDB().WithContext(ctx).
-			Model(&model.RelayLog{}).
+		query := relayLogReadConn().WithContext(ctx).Model(&model.RelayLog{}).
 			Select(`
 				request_api_key_id AS api_key_id,
 				request_api_key_name AS name,
@@ -1480,6 +1486,18 @@ func connHasRelayLogAttempts(conn *gorm.DB) bool {
 	return conn.Migrator().HasTable(&model.RelayLogAttempt{})
 }
 
+// relayLogReadConn 返回承载 relay_logs 数据的连接。
+// 独立日志库模式下 relay_logs 写入 LogDB（见 relaylog.relayLogFlushToDB），
+// 主库的 relay_logs 表为空。若仍用 db.GetDB() 读取，则除内存缓存外的历史
+// 日志全部缺失——表现为「按模型/按渠道/按 API Key/延迟分布」在 1d 偶有数据、
+// 7d 起无数据（issue #101）。优先取 LogDB，缺失时回退主库，与共用主库模式一致。
+func relayLogReadConn() *gorm.DB {
+	if conn := db.GetLogDB(); conn != nil {
+		return conn
+	}
+	return db.GetDB()
+}
+
 func analyticsRangeStartUnix(r model.AnalyticsRange, now time.Time) *int64 {
 	startDate := analyticsStartTime(r, now)
 	if startDate == nil {
@@ -1557,8 +1575,7 @@ func loadLatencyDistribution(ctx context.Context, r model.AnalyticsRange) (*mode
 			Ftut    int `json:"ftut"`
 		}
 		var dbRows []latencyRow
-		query := db.GetDB().WithContext(ctx).
-			Model(&model.RelayLog{}).
+		query := relayLogReadConn().WithContext(ctx).Model(&model.RelayLog{}).
 			Select("use_time, ftut")
 		if startUnix != nil {
 			query = query.Where("time >= ?", *startUnix)

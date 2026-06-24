@@ -81,10 +81,10 @@ export function UsageDistribution({ range }: { range: AnalyticsRange }) {
         'var(--chart-3)',
         'var(--chart-4)',
         'var(--chart-5)',
-        'hsl(var(--primary))',
-        'hsl(var(--muted-foreground))',
-        'hsl(var(--accent))',
-        'hsl(var(--secondary))',
+        'oklch(0.62 0.10 200)',
+        'oklch(0.70 0.10 145)',
+        'oklch(0.60 0.10 20)',
+        'oklch(0.68 0.08 300)',
     ];
 
     return (
