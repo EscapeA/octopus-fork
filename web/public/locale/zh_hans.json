@@ -2465,7 +2465,8 @@
         "testing": "测试中...",
         "passed": "测试通过",
         "failed": "测试失败",
-        "attempts": "重试 {count} 次"
+        "attempts": "重试 {count} 次",
+        "skipped": "该渠道已设置跳过模型可用性测试（部分上游会因低字节探测请求扣额度/封禁），测试已禁用。"
       }
     },
     "create": {
@@ -2636,6 +2637,7 @@
       "typeVolcengine": "火山引擎",
       "typeMimo": "MiMo",
       "autoSync": "自动同步",
+      "skipModelTest": "跳过模型测试",
       "autoGroup": "自动分组",
       "autoGroupNone": "不自动分组",
       "autoGroupFuzzy": "模糊匹配",

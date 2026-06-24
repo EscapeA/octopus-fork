@@ -86,6 +86,7 @@ type Channel struct {
 	Proxy          bool                  `json:"-" gorm:"default:false"`
 	AutoSync       bool                  `json:"auto_sync" gorm:"default:false"`
 	AutoGroup      AutoGroupType         `json:"auto_group" gorm:"default:0"`
+	SkipModelTest  bool                  `json:"skip_model_test" gorm:"default:false"`
 	CustomHeader   []CustomHeader        `json:"custom_header" gorm:"serializer:json"`
 	ParamOverride  *string               `json:"param_override"`
 	ChannelProxy   *string               `json:"-" gorm:"column:channel_proxy"`
@@ -139,6 +140,7 @@ type ChannelUpdateRequest struct {
 	ProxyConfigID  *int                   `json:"proxy_config_id,omitempty"`
 	Proxy          *bool                  `json:"proxy,omitempty"`
 	AutoSync       *bool                  `json:"auto_sync,omitempty"`
+	SkipModelTest  *bool                  `json:"skip_model_test,omitempty"`
 	AutoGroup      *AutoGroupType         `json:"auto_group,omitempty"`
 	CustomHeader   *[]CustomHeader        `json:"custom_header,omitempty"`
 	ChannelProxy   *string                `json:"channel_proxy,omitempty"`

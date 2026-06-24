@@ -2500,7 +2500,8 @@
         "testing": "Testing...",
         "passed": "Test Passed",
         "failed": "Test Failed",
-        "attempts": "Retried {count} times"
+        "attempts": "Retried {count} times",
+        "skipped": "This channel is set to skip model availability tests (some upstream providers penalize low-byte probe requests). Testing is disabled."
       }
     },
     "create": {
@@ -2671,6 +2672,7 @@
       "typeVolcengine": "Volcengine",
       "typeMimo": "MiMo",
       "autoSync": "Auto Sync",
+      "skipModelTest": "Skip Model Test",
       "autoGroup": "Auto Group",
       "autoGroupNone": "None",
       "autoGroupFuzzy": "Fuzzy",

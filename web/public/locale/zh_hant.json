@@ -2465,7 +2465,8 @@
         "testing": "測試中...",
         "passed": "測試通過",
         "failed": "測試失敗",
-        "attempts": "重試 {count} 次"
+        "attempts": "重試 {count} 次",
+        "skipped": "該供應源已設定跳過模型可用性測試（部分上游會因低字節探測請求扣額度/封禁），測試已停用。"
       }
     },
     "create": {
@@ -2636,6 +2637,7 @@
       "typeVolcengine": "火山引擎",
       "typeMimo": "MiMo",
       "autoSync": "自動同步",
+      "skipModelTest": "跳過模型測試",
       "autoGroup": "自動分組",
       "autoGroupNone": "不自動分組",
       "autoGroupFuzzy": "模糊比對",

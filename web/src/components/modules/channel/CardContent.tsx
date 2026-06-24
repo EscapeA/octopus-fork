@@ -153,6 +153,7 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
         proxy: channel.proxy,
         auto_sync: channel.auto_sync,
         auto_group: channel.auto_group,
+        skip_model_test: channel.skip_model_test,
         match_regex: channel.match_regex ?? '',
     });
     const t = useTranslations('channel.detail');
@@ -189,6 +190,7 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
         if (formData.custom_model !== channel.custom_model) req.custom_model = formData.custom_model;
         if (formData.proxy !== channel.proxy) req.proxy = formData.proxy;
         if (formData.auto_sync !== channel.auto_sync) req.auto_sync = formData.auto_sync;
+        if (formData.skip_model_test !== channel.skip_model_test) req.skip_model_test = formData.skip_model_test;
         if (formData.auto_group !== channel.auto_group) req.auto_group = formData.auto_group;
 
         if (!headersEqual(formData.custom_header, channel.custom_header)) {
@@ -571,6 +573,11 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
                                         <FlaskConical className="size-3.5" />
                                         {t('sections.testModel')}
                                     </h4>
+                                    {channel.skip_model_test && (
+                                        <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/8 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+                                            {t('testModel.skipped')}
+                                        </div>
+                                    )}
                                     {availableModels.length === 0 ? (
                                         <div className="rounded-lg border border-dashed border-border/30 bg-card p-4 text-center text-sm text-muted-foreground">
                                             {t('testModel.noModels')}

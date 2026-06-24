@@ -298,6 +298,12 @@ func testChannelModel(c *gin.Context) {
 		return
 	}
 
+	// issue #98：部分上游渠道会因低字节请求扣额度/封禁，允许按渠道排除模型可用性测试。
+	if channel.SkipModelTest {
+		resp.Error(c, http.StatusBadRequest, "该渠道已设置跳过模型可用性测试（issue #98），可在渠道编辑中关闭该开关后重试")
+		return
+	}
+
 	progress, err := helper.StartChannelModelTest(req, *channel)
 	if err != nil {
 		resp.Error(c, http.StatusBadRequest, err.Error())
@@ -319,6 +325,7 @@ type channelRequestPayload struct {
 	Proxy          bool                        `json:"proxy"`
 	AutoSync       bool                        `json:"auto_sync"`
 	AutoGroup      model.AutoGroupType         `json:"auto_group"`
+	SkipModelTest  bool                        `json:"skip_model_test"`
 	CustomHeader   []model.CustomHeader        `json:"custom_header"`
 	ParamOverride  *string                     `json:"param_override"`
 	ChannelProxy   *string                     `json:"channel_proxy"`
@@ -361,6 +368,7 @@ func (p channelRequestPayload) toChannel() model.Channel {
 		CustomModel:    p.CustomModel,
 		Proxy:          p.Proxy,
 		AutoSync:       p.AutoSync,
+		SkipModelTest:  p.SkipModelTest,
 		AutoGroup:      p.AutoGroup,
 		CustomHeader:   p.CustomHeader,
 		ParamOverride:  p.ParamOverride,
