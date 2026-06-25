@@ -604,12 +604,12 @@ func (ra *relayAttempt) forward() (int, error) {
 	// 处理响应
 	if ra.internalRequest.Stream != nil && *ra.internalRequest.Stream {
 		if err := ra.handleStreamResponse(ctx, response); err != nil {
-			return 0, err
+			return response.StatusCode, err
 		}
 		return response.StatusCode, nil
 	}
 	if err := ra.handleResponse(ctx, response); err != nil {
-		return 0, err
+		return response.StatusCode, err
 	}
 	return response.StatusCode, nil
 }
@@ -811,6 +811,16 @@ func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http
 					ra.streamSession.Finish(nil)
 				}
 				log.Infof("stream end")
+				// 空流检测（issue #106）：整个流式响应没有产生任何有效数据（firstToken 仍为 true），
+				// 说明上游返回了空 SSE 流。此时客户端尚未收到任何数据（Written()=false），
+				// 可以安全重试。仅当启用空输出重试时触发。
+				if isRetryEmptyOutputEnabled() && firstToken {
+					log.Infof("channel %s returned empty stream (no data chunks), will retry", ra.channel.Name)
+					if ra.streamSession != nil {
+						ra.streamSession.Finish(nil)
+					}
+					return errEmptyOutput
+				}
 				return nil
 			}
 			if r.err != nil {

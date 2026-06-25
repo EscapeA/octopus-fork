@@ -1267,7 +1267,7 @@
       },
       "emptyOutput": {
         "label": "空输出自动重试",
-        "hint": "当上游返回成功但输出为空（CompletionTokens=0 且无内容）时自动重试。仅对非流式请求生效。"
+        "hint": "当上游返回成功但输出为空（非流式：CompletionTokens=0 且无内容；流式：无任何有效数据块）时自动重试。"
       }
     },
     "autoStrategy": {

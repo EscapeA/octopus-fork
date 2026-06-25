@@ -1267,7 +1267,7 @@
       },
       "emptyOutput": {
         "label": "Retry on empty output",
-        "hint": "Automatically retry when the upstream returns success but output is empty (CompletionTokens=0 and no content). Only applies to non-streaming requests."
+        "hint": "Automatically retry when the upstream returns success but output is empty (non-streaming: CompletionTokens=0 and no content; streaming: no valid data chunks)."
       }
     },
     "autoStrategy": {

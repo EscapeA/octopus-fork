@@ -1267,7 +1267,7 @@
       },
       "emptyOutput": {
         "label": "空輸出自動重試",
-        "hint": "當上游回傳成功但輸出為空（CompletionTokens=0 且無內容）時自動重試。僅對非串流請求生效。"
+        "hint": "當上游回傳成功但輸出為空（非串流：CompletionTokens=0 且無內容；串流：無任何有效資料塊）時自動重試。"
       }
     },
     "autoStrategy": {
