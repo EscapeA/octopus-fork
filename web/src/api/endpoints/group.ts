@@ -379,7 +379,6 @@ export function useGroupList() {
             return apiClient.get<Group[]>('/api/v1/group/list');
         },
         refetchInterval: REFETCH_INTERVAL_DEFAULT,
-        refetchOnMount: 'always',
     });
 }
 

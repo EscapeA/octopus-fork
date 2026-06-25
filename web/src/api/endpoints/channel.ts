@@ -245,7 +245,6 @@ export function useChannelList() {
             }
         })) as Array<{ raw: Channel; formatted: StatsMetricsFormatted }>,
         refetchInterval: REFETCH_INTERVAL_DEFAULT,
-        refetchOnMount: 'always',
     });
 }
 
@@ -289,7 +288,6 @@ export function useChannelGroupList() {
         queryFn: async () => {
             return apiClient.get<ChannelGroup[]>('/api/v1/channel/group/list');
         },
-        refetchOnMount: 'always',
     });
 }
 

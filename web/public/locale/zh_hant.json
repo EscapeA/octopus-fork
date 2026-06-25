@@ -1791,7 +1791,8 @@
         "addSuccess": "Passkey 新增成功",
         "addFailed": "Passkey 新增失敗",
         "deleteSuccess": "Passkey 已刪除",
-        "deleteFailed": "刪除失敗"
+        "deleteFailed": "刪除失敗",
+        "insecureContext": "目前頁面非安全情境（非 HTTPS 且非 localhost）。Passkey 要求安全情境，請透過 HTTPS 或 localhost 存取後再新增。"
       }
     },
     "info": {

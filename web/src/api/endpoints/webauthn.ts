@@ -127,6 +127,14 @@ export function isWebAuthnSupported(): boolean {
         && typeof navigator.credentials !== 'undefined';
 }
 
+/**
+ * WebAuthn 要求安全上下文（HTTPS 或 localhost）。
+ * 通过 http://IP:port 访问时 navigator.credentials.create() 会抛 SecurityError。
+ */
+export function isSecureContextForWebAuthn(): boolean {
+    return typeof window !== 'undefined' && window.isSecureContext;
+}
+
 // --- 登录（公开）---
 
 export interface LoginResponse {
@@ -180,14 +188,31 @@ export function useRegisterPasskey() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (name: string): Promise<void> => {
+            if (!isSecureContextForWebAuthn()) {
+                throw new Error('Passkey requires a secure context (HTTPS or localhost).');
+            }
             const begin = await apiClient.post<BeginResponse>('/api/v1/webauthn/register/begin', { name });
             const publicKey = decodeCreationOptions(begin.options.publicKey);
-            const credential = await navigator.credentials.create({ publicKey });
+            let credential: PublicKeyCredential | null;
+            try {
+                credential = await navigator.credentials.create({ publicKey }) as PublicKeyCredential | null;
+            } catch (e) {
+                // SecurityError: 非安全上下文或 RP ID 与当前域名不匹配
+                // NotAllowedError: 用户取消或超时
+                const errName = (e instanceof DOMException) ? e.name : '';
+                if (errName === 'SecurityError') {
+                    throw new Error('Browser blocked passkey creation. Ensure you are accessing via HTTPS and the RP ID matches the current domain.');
+                }
+                if (errName === 'NotAllowedError') {
+                    throw new Error('Passkey registration was cancelled or timed out.');
+                }
+                throw e;
+            }
             if (!credential) throw new Error('Passkey registration cancelled');
             await apiClient.post('/api/v1/webauthn/register/finish', {
                 session_token: begin.session_token,
                 name,
-                credential: serializeCreation(credential as PublicKeyCredential),
+                credential: serializeCreation(credential),
             });
         },
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['webauthn', 'credentials'] }),

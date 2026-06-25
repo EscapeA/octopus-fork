@@ -225,7 +225,6 @@ export function useAnalyticsOverview(range: AnalyticsRange, cacheTtl: AnalyticsC
         queryKey: ['analytics', 'overview', range, cacheTtl],
         queryFn: async () => apiClient.get<AnalyticsOverview>('/api/v1/analytics/overview', { range, ...cacheTtlParam(cacheTtl) }),
         refetchInterval: CACHE_TTL_MS[cacheTtl],
-        refetchOnMount: 'always',
     });
 }
 
@@ -234,7 +233,6 @@ export function useAnalyticsUtilization(range: AnalyticsRange, cacheTtl: Analyti
         queryKey: ['analytics', 'utilization', range, cacheTtl],
         queryFn: async () => apiClient.get<AnalyticsUtilization>('/api/v1/analytics/utilization', { range, ...cacheTtlParam(cacheTtl) }),
         refetchInterval: CACHE_TTL_MS[cacheTtl],
-        refetchOnMount: 'always',
     });
 }
 
@@ -243,7 +241,6 @@ export function useAnalyticsGroupHealth(cacheTtl: AnalyticsCacheTtl = '30s') {
         queryKey: ['analytics', 'group-health', cacheTtl],
         queryFn: async () => apiClient.get<AnalyticsGroupHealthItem[]>('/api/v1/analytics/group-health', cacheTtlParam(cacheTtl)),
         refetchInterval: CACHE_TTL_MS[cacheTtl],
-        refetchOnMount: 'always',
     });
 }
 
@@ -252,7 +249,6 @@ export function useAnalyticsEvaluationSummary() {
         queryKey: ['analytics', 'evaluation'],
         queryFn: async () => apiClient.get<AnalyticsEvaluationSummary>('/api/v1/analytics/evaluation'),
         refetchInterval: REFETCH_INTERVAL_CONFIG,
-        refetchOnMount: 'always',
     });
 }
 
@@ -279,7 +275,6 @@ export function useAnalyticsLatencyDistribution(range: AnalyticsRange, cacheTtl:
         queryKey: ['analytics', 'latency-distribution', range, cacheTtl],
         queryFn: async () => apiClient.get<LatencyDistribution>('/api/v1/analytics/latency-distribution', { range, ...cacheTtlParam(cacheTtl) }),
         refetchInterval: CACHE_TTL_MS[cacheTtl],
-        refetchOnMount: 'always',
     });
 }
 
@@ -293,7 +288,6 @@ export function useAnalyticsChannelModel(range: AnalyticsRange, groupId: number 
                 ...cacheTtlParam(cacheTtl),
             }),
         refetchInterval: CACHE_TTL_MS[cacheTtl],
-        refetchOnMount: 'always',
     });
 }
 
@@ -305,6 +299,5 @@ export function useAnalyticsAutoStrategy(groupId?: number) {
                 ...(groupId != null ? { group_id: groupId } : {}),
             }),
         refetchInterval: REFETCH_INTERVAL_CONFIG,
-        refetchOnMount: 'always',
     });
 }

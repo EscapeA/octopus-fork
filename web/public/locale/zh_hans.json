@@ -1791,7 +1791,8 @@
         "addSuccess": "Passkey 添加成功",
         "addFailed": "Passkey 添加失败",
         "deleteSuccess": "Passkey 已删除",
-        "deleteFailed": "删除失败"
+        "deleteFailed": "删除失败",
+        "insecureContext": "当前页面非安全上下文（非 HTTPS 且非 localhost）。Passkey 要求安全上下文，请通过 HTTPS 或 localhost 访问后再添加。"
       }
     },
     "info": {

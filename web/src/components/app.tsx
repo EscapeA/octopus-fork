@@ -472,18 +472,9 @@ export function AppContainer() {
                         <Toolbar />
                     </div>
                 </header>
-                <AnimatePresence mode="wait" initial={false}>
-                    <motion.div
-                        key={activeItem}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.12, ease: 'easeOut' }}
-                        className="h-full min-h-0 flex-1 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"
-                    >
-                        <ContentLoader activeRoute={activeItem} />
-                    </motion.div>
-                </AnimatePresence>
+                <div className="h-full min-h-0 flex-1 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
+                    <ContentLoader activeRoute={activeItem} />
+                </div>
             </main>
             <ProxyPoolDialog />
         </motion.div>

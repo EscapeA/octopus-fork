@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { User, KeyRound, Lock, Eye, EyeOff, LogOut, Fingerprint, Trash2, Plus } from 'lucide-react';
+import { User, KeyRound, Lock, Eye, EyeOff, LogOut, Fingerprint, Trash2, Plus, ShieldAlert } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useChangeUsername, useChangePassword, useAuth } from '@/api/endpoints/user';
@@ -10,6 +10,8 @@ import {
     useWebAuthnCredentials,
     useRegisterPasskey,
     useDeletePasskey,
+    isWebAuthnSupported,
+    isSecureContextForWebAuthn,
 } from '@/api/endpoints/webauthn';
 import { toast } from '@/components/common/Toast';
 
@@ -23,6 +25,10 @@ export function SettingAccount() {
     const webauthnCreds = useWebAuthnCredentials();
     const registerPasskey = useRegisterPasskey();
     const deletePasskey = useDeletePasskey();
+
+    const webauthnAvailable = isWebAuthnSupported();
+    const secureContext = isSecureContextForWebAuthn();
+    const passkeyBlocked = !webauthnAvailable || !secureContext;
 
     const [newUsername, setNewUsername] = useState('');
     const [oldPassword, setOldPassword] = useState('');
@@ -292,6 +298,15 @@ export function SettingAccount() {
                         </ul>
                     )}
 
+                    {passkeyBlocked && (
+                        <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
+                            <ShieldAlert className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                            <p className="text-xs leading-relaxed text-amber-700 dark:text-amber-300">
+                                {t('account.passkey.insecureContext')}
+                            </p>
+                        </div>
+                    )}
+
                     <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
                         <Input
                             value={passkeyName}
@@ -302,7 +317,7 @@ export function SettingAccount() {
                         />
                         <Button
                             onClick={handleRegisterPasskey}
-                            disabled={registerPasskey.isPending}
+                            disabled={registerPasskey.isPending || passkeyBlocked}
                             className="rounded-lg w-full lg:w-auto"
                         >
                             <Plus className="size-4" />

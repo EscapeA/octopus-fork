@@ -188,7 +188,6 @@ export function useOpsCacheStatus() {
             },
         }),
         refetchInterval: REFETCH_INTERVAL_CONFIG,
-        refetchOnMount: 'always',
     });
 }
 
@@ -201,7 +200,6 @@ export function useOpsQuotaSummary() {
             keys: data.keys ?? [],
         }),
         refetchInterval: REFETCH_INTERVAL_CONFIG,
-        refetchOnMount: 'always',
     });
 }
 
@@ -214,7 +212,6 @@ export function useOpsHealthStatus() {
             failing_groups: data.failing_groups ?? [],
         }),
         refetchInterval: REFETCH_INTERVAL_CONFIG,
-        refetchOnMount: 'always',
     });
 }
 
@@ -227,7 +224,6 @@ export function useOpsSystemSummary() {
             ai_route_services: data.ai_route_services ?? [],
         }),
         refetchInterval: REFETCH_INTERVAL_CONFIG,
-        refetchOnMount: 'always',
     });
 }
 
@@ -249,7 +245,6 @@ export function useAuditLogs(options: { pageSize?: number } = {}) {
             return allPages.length + 1;
         },
         staleTime: 30000,
-        refetchOnMount: 'always',
     });
 
     const logs = useMemo(() => {
@@ -414,6 +409,5 @@ export function useOpsTelemetrySummary() {
             },
         }),
         refetchInterval: REFETCH_INTERVAL_CONFIG,
-        refetchOnMount: 'always',
     });
 }
