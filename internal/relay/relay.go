@@ -34,6 +34,7 @@ import (
 
 var errClientDisconnected = errors.New("client disconnected")
 var errResponseFilterBlocked = errors.New("response filter blocked by keyword")
+var errEmptyOutput = errors.New("upstream returned empty output (completion_tokens=0, no content)")
 
 func resolveRequestedUpstreamModel(requestModel string) (string, bool) {
 	trimmed := strings.TrimSpace(requestModel)
@@ -423,6 +424,19 @@ func (ra *relayAttempt) attempt() attemptResult {
 			Written:  ra.c.Writer.Written(),
 			Err:      fwdErr,
 			Decision: RetryDecision{Scope: ScopeAbortAll, Reason: "response filter blocked by keyword", Code: statusCode},
+		}
+	}
+
+	// 空输出重试（issue #106）：上游返回 200 但输出为空，换 Key 重试。
+	// 不记录渠道失败统计/熔断（这不是渠道故障，只是模型偶尔返回空），
+	// 但占用一次 Key 级重试名额，用完后换下一渠道。
+	if errors.Is(fwdErr, errEmptyOutput) {
+		span.End(dbmodel.AttemptFailed, statusCode, "empty output, retrying")
+		return attemptResult{
+			Success:  false,
+			Written:  false,
+			Err:      fwdErr,
+			Decision: RetryDecision{Scope: ScopeSameChannel, Reason: "empty output, try another key", Code: statusCode, IsError: true},
 		}
 	}
 
@@ -933,6 +947,13 @@ func (ra *relayAttempt) handleResponse(ctx context.Context, response *http.Respo
 	}
 
 	applyReasoningExhaustedHeader(ra.c, internalResponse)
+
+	// 空输出检测（issue #106）：上游返回 200 但 CompletionTokens=0 且内容为空。
+	// 仅非流式请求，且需在写入客户端之前判定，以便安全重试。
+	if isRetryEmptyOutputEnabled() && isEmptyOutputResponse(internalResponse) {
+		log.Infof("channel %s returned empty output (completion_tokens=0, no content), will retry", ra.channel.Name)
+		return errEmptyOutput
+	}
 
 	inResponse, err := ra.inAdapter.TransformResponse(ctx, internalResponse)
 	if err != nil {

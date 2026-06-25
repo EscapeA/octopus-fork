@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { RotateCcw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useSettingList, useSetSetting } from '@/api/endpoints/setting';
+import { Switch } from '@/components/ui/switch';
+import { SettingKey, useSettingList, useSetSetting } from '@/api/endpoints/setting';
 import { toast } from '@/components/common/Toast';
 import { RETRY_FIELDS } from './runtime-settings';
 
@@ -77,6 +78,32 @@ export function SettingRetry() {
                         />
                     </div>
                 ))}
+            </div>
+
+            <div className="flex min-w-0 flex-col gap-3 rounded-lg border-border/30 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between">
+                <div className="min-w-0 flex flex-col gap-1">
+                    <span className="text-sm font-medium">{t('retry.emptyOutput.label')}</span>
+                    <span className="text-xs text-muted-foreground">{t('retry.emptyOutput.hint')}</span>
+                </div>
+                <Switch
+                    checked={values[SettingKey.RetryEmptyOutput] === 'true'}
+                    onCheckedChange={(checked) => {
+                        const value = checked ? 'true' : 'false';
+                        setValues((prev) => ({ ...prev, [SettingKey.RetryEmptyOutput]: value }));
+                        setSetting.mutate(
+                            { key: SettingKey.RetryEmptyOutput, value },
+                            {
+                                onSuccess: () => {
+                                    toast.success(t('saved'));
+                                    initialValues.current = {
+                                        ...initialValues.current,
+                                        [SettingKey.RetryEmptyOutput]: value,
+                                    };
+                                },
+                            },
+                        );
+                    }}
+                />
             </div>
         </div>
     );

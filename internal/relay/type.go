@@ -78,6 +78,52 @@ func getMaxTotalAttempts() int {
 	return v
 }
 
+// isRetryEmptyOutputEnabled 返回是否启用空输出重试。
+// 当上游返回 200 但 CompletionTokens=0 且内容为空时，自动触发重试（仅非流式）。
+func isRetryEmptyOutputEnabled() bool {
+	v, err := setting.GetBool(dbmodel.SettingKeyRetryEmptyOutput)
+	if err != nil {
+		return true // 默认启用
+	}
+	return v
+}
+
+// isEmptyOutputResponse 判断非流式响应是否为"空输出"：
+// CompletionTokens=0 且所有 Choices 的内容均为空（无文本、无工具调用、无多模态内容）。
+// 用于 issue #106：模型输出结果为空/Token=0 时自动重试。
+func isEmptyOutputResponse(resp *model.InternalLLMResponse) bool {
+	if resp == nil {
+		return false
+	}
+	// 必须是 chat 响应（有 Choices），embedding 不适用
+	if len(resp.Choices) == 0 {
+		return false
+	}
+	// CompletionTokens > 0 说明有实际输出
+	if resp.Usage != nil && resp.Usage.CompletionTokens > 0 {
+		return false
+	}
+	// 检查所有 choice 的内容是否为空
+	for _, choice := range resp.Choices {
+		if choice.Message == nil {
+			continue
+		}
+		// 有文本内容
+		if choice.Message.Content.Content != nil && strings.TrimSpace(*choice.Message.Content.Content) != "" {
+			return false
+		}
+		// 有多模态内容
+		if len(choice.Message.Content.MultipleContent) > 0 {
+			return false
+		}
+		// 有工具调用
+		if len(choice.Message.ToolCalls) > 0 {
+			return false
+		}
+	}
+	return true
+}
+
 // hopByHopHeaders 定义不应转发的 HTTP 头
 var hopByHopHeaders = map[string]bool{
 	"authorization":       true,

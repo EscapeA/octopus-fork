@@ -26,6 +26,7 @@ export const SettingKey = {
     RelayRouteRetries: 'relay_route_retries',
     RatelimitCooldown: 'ratelimit_cooldown',
     RelayMaxTotalAttempts: 'relay_max_total_attempts',
+    RetryEmptyOutput: 'retry_empty_output',
     CircuitBreakerThreshold: 'circuit_breaker_threshold',
     CircuitBreakerCooldown: 'circuit_breaker_cooldown',
     CircuitBreakerMaxCooldown: 'circuit_breaker_max_cooldown',
