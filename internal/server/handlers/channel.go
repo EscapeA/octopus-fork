@@ -313,25 +313,26 @@ func testChannelModel(c *gin.Context) {
 }
 
 type channelRequestPayload struct {
-	ID             int                         `json:"id"`
-	Name           string                      `json:"name"`
-	GroupID        int                         `json:"group_id"`
-	Type           outbound.OutboundType       `json:"type"`
-	Enabled        bool                        `json:"enabled"`
-	BaseUrls       []model.BaseUrl             `json:"base_urls"`
-	Keys           []channelKeyRequestPayload  `json:"keys"`
-	Model          string                      `json:"model"`
-	CustomModel    string                      `json:"custom_model"`
-	Proxy          bool                        `json:"proxy"`
-	AutoSync       bool                        `json:"auto_sync"`
-	AutoGroup      model.AutoGroupType         `json:"auto_group"`
-	SkipModelTest  bool                        `json:"skip_model_test"`
-	CustomHeader   []model.CustomHeader        `json:"custom_header"`
-	ParamOverride  *string                     `json:"param_override"`
-	ChannelProxy   *string                     `json:"channel_proxy"`
-	RequestRewrite *model.RequestRewriteConfig `json:"request_rewrite"`
-	MatchRegex     *string                     `json:"match_regex"`
-	Stats          *model.StatsChannel         `json:"stats"`
+	ID                   int                         `json:"id"`
+	Name                 string                      `json:"name"`
+	GroupID              int                         `json:"group_id"`
+	Type                 outbound.OutboundType       `json:"type"`
+	Enabled              bool                        `json:"enabled"`
+	BaseUrls             []model.BaseUrl             `json:"base_urls"`
+	Keys                 []channelKeyRequestPayload  `json:"keys"`
+	Model                string                      `json:"model"`
+	CustomModel          string                      `json:"custom_model"`
+	Proxy                bool                        `json:"proxy"`
+	AutoSync             bool                        `json:"auto_sync"`
+	AutoGroup            model.AutoGroupType         `json:"auto_group"`
+	SkipModelTest        bool                        `json:"skip_model_test"`
+	KeySelectionStrategy string                      `json:"key_selection_strategy"`
+	CustomHeader         []model.CustomHeader        `json:"custom_header"`
+	ParamOverride        *string                     `json:"param_override"`
+	ChannelProxy         *string                     `json:"channel_proxy"`
+	RequestRewrite       *model.RequestRewriteConfig `json:"request_rewrite"`
+	MatchRegex           *string                     `json:"match_regex"`
+	Stats                *model.StatsChannel         `json:"stats"`
 }
 
 type channelKeyRequestPayload struct {
@@ -358,23 +359,24 @@ func (p channelRequestPayload) toChannel() model.Channel {
 		})
 	}
 	return model.Channel{
-		Name:           p.Name,
-		GroupID:        p.GroupID,
-		Type:           p.Type,
-		Enabled:        p.Enabled,
-		BaseUrls:       p.BaseUrls,
-		Keys:           keys,
-		Model:          p.Model,
-		CustomModel:    p.CustomModel,
-		Proxy:          p.Proxy,
-		AutoSync:       p.AutoSync,
-		SkipModelTest:  p.SkipModelTest,
-		AutoGroup:      p.AutoGroup,
-		CustomHeader:   p.CustomHeader,
-		ParamOverride:  p.ParamOverride,
-		ChannelProxy:   p.ChannelProxy,
-		RequestRewrite: p.RequestRewrite,
-		MatchRegex:     p.MatchRegex,
+		Name:                 p.Name,
+		GroupID:              p.GroupID,
+		Type:                 p.Type,
+		Enabled:              p.Enabled,
+		BaseUrls:             p.BaseUrls,
+		Keys:                 keys,
+		Model:                p.Model,
+		CustomModel:          p.CustomModel,
+		Proxy:                p.Proxy,
+		AutoSync:             p.AutoSync,
+		SkipModelTest:        p.SkipModelTest,
+		KeySelectionStrategy: p.KeySelectionStrategy,
+		AutoGroup:            p.AutoGroup,
+		CustomHeader:         p.CustomHeader,
+		ParamOverride:        p.ParamOverride,
+		ChannelProxy:         p.ChannelProxy,
+		RequestRewrite:       p.RequestRewrite,
+		MatchRegex:           p.MatchRegex,
 	}
 }
 

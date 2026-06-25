@@ -451,6 +451,8 @@ func (ra *relayAttempt) attempt() attemptResult {
 	if statusCode >= 400 {
 		balancer.RecordKeyCooldown(ra.channel.ID, ra.usedKey.ID, ra.internalRequest.Model, statusCode)
 	}
+	// 记录可用度衰减：按错误类型加权（401/403 重扣、429/5xx 轻扣），仅 availability 策略生效。
+	balancer.RecordKeyAvailability(ra.channel.ID, ra.usedKey.ID, ra.internalRequest.Model, statusCode, false)
 
 	if decision.Scope == ScopeNone && !decision.IsError {
 		// ====== 成功 ======
@@ -478,6 +480,8 @@ func (ra *relayAttempt) attempt() attemptResult {
 		balancer.RecordAutoSuccess(ra.channel.ID, ra.internalRequest.Model)
 		// Auto策略：记录延迟（毫秒）
 		balancer.RecordAutoLatency(ra.channel.ID, ra.internalRequest.Model, span.Duration().Milliseconds())
+		// 可用度：成功加分（上限 100），仅 availability 策略生效。
+		balancer.RecordKeyAvailability(ra.channel.ID, ra.usedKey.ID, ra.internalRequest.Model, statusCode, true)
 		// 会话保持：更新粘性记录
 		balancer.SetSticky(ra.apiKeyID, ra.requestModel, ra.channel.ID, ra.usedKey.ID)
 

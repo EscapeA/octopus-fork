@@ -72,29 +72,30 @@ type RequestRewriteConfig struct {
 }
 
 type Channel struct {
-	ID             int                   `json:"id" gorm:"primaryKey"`
-	Name           string                `json:"name" gorm:"unique;not null"`
-	GroupID        int                   `json:"group_id" gorm:"not null;default:0;index"`
-	Type           outbound.OutboundType `json:"type"`
-	Enabled        bool                  `json:"enabled" gorm:"default:true"`
-	BaseUrls       []BaseUrl             `json:"base_urls" gorm:"serializer:json"`
-	Keys           []ChannelKey          `json:"keys" gorm:"foreignKey:ChannelID"`
-	Model          string                `json:"model"`
-	CustomModel    string                `json:"custom_model"`
-	ProxyMode      ProxyUsageMode        `json:"proxy_mode" gorm:"type:varchar(16);not null;default:'direct'"`
-	ProxyConfigID  *int                  `json:"proxy_config_id"`
-	Proxy          bool                  `json:"-" gorm:"default:false"`
-	AutoSync       bool                  `json:"auto_sync" gorm:"default:false"`
-	AutoGroup      AutoGroupType         `json:"auto_group" gorm:"default:0"`
-	SkipModelTest  bool                  `json:"skip_model_test" gorm:"default:false"`
-	CustomHeader   []CustomHeader        `json:"custom_header" gorm:"serializer:json"`
-	ParamOverride  *string               `json:"param_override"`
-	ChannelProxy   *string               `json:"-" gorm:"column:channel_proxy"`
-	RequestRewrite *RequestRewriteConfig `json:"request_rewrite" gorm:"serializer:json"`
-	Stats          *StatsChannel         `json:"stats,omitempty" gorm:"foreignKey:ChannelID"`
-	MatchRegex     *string               `json:"match_regex"`
-	Managed        bool                  `json:"managed" gorm:"-"`
-	ManagedSource  *ManagedChannelSource `json:"managed_source,omitempty" gorm:"-"`
+	ID                   int                   `json:"id" gorm:"primaryKey"`
+	Name                 string                `json:"name" gorm:"unique;not null"`
+	GroupID              int                   `json:"group_id" gorm:"not null;default:0;index"`
+	Type                 outbound.OutboundType `json:"type"`
+	Enabled              bool                  `json:"enabled" gorm:"default:true"`
+	BaseUrls             []BaseUrl             `json:"base_urls" gorm:"serializer:json"`
+	Keys                 []ChannelKey          `json:"keys" gorm:"foreignKey:ChannelID"`
+	Model                string                `json:"model"`
+	CustomModel          string                `json:"custom_model"`
+	ProxyMode            ProxyUsageMode        `json:"proxy_mode" gorm:"type:varchar(16);not null;default:'direct'"`
+	ProxyConfigID        *int                  `json:"proxy_config_id"`
+	Proxy                bool                  `json:"-" gorm:"default:false"`
+	AutoSync             bool                  `json:"auto_sync" gorm:"default:false"`
+	AutoGroup            AutoGroupType         `json:"auto_group" gorm:"default:0"`
+	SkipModelTest        bool                  `json:"skip_model_test" gorm:"default:false"`
+	KeySelectionStrategy string                `json:"key_selection_strategy" gorm:"type:varchar(16);not null;default:''"`
+	CustomHeader         []CustomHeader        `json:"custom_header" gorm:"serializer:json"`
+	ParamOverride        *string               `json:"param_override"`
+	ChannelProxy         *string               `json:"-" gorm:"column:channel_proxy"`
+	RequestRewrite       *RequestRewriteConfig `json:"request_rewrite" gorm:"serializer:json"`
+	Stats                *StatsChannel         `json:"stats,omitempty" gorm:"foreignKey:ChannelID"`
+	MatchRegex           *string               `json:"match_regex"`
+	Managed              bool                  `json:"managed" gorm:"-"`
+	ManagedSource        *ManagedChannelSource `json:"managed_source,omitempty" gorm:"-"`
 }
 
 type BaseUrl struct {
@@ -124,29 +125,39 @@ type ChannelKey struct {
 // model 包不能导入 internal/relay/balancer（会形成循环依赖），故用函数变量解耦。
 // 冷却时长由 balancer 内部从 SettingKeyRatelimitCooldown 读取，与熔断器一致。
 // nil 表示冷却机制未启用（一律放行），后台任务场景也会传空 modelName 跳过。
+// KeyAvailabilityScoreFunc 由 balancer 包在启动时注入，用于查询某 (channelID, keyID,
+// modelName) 的可用度分数。返回 0~100，分数越高优先级越高。未注入时返回满分
+// （不参与可用度评分，保持后台任务等场景可用）。
+var KeyAvailabilityScoreFunc func(channelID, keyID int, modelName string) float64
+
+// GlobalKeySelectionStrategyFunc 由 op/setting 包在启动时注入，用于读取全局 key 选择
+// 策略（"cost" 或 "availability"）。model 包不能导入 internal/op（循环依赖），故用
+// 函数变量解耦。未注入时返回 "cost"（默认策略）。
+var GlobalKeySelectionStrategyFunc func() string
 var KeyCooldownFunc func(channelID, keyID int, modelName string) bool
 
 // ChannelUpdateRequest 渠道更新请求 - 仅包含变更的数据
 type ChannelUpdateRequest struct {
-	ID             int                    `json:"id" binding:"required"`
-	Name           *string                `json:"name,omitempty"`
-	GroupID        *int                   `json:"group_id,omitempty"`
-	Type           *outbound.OutboundType `json:"type,omitempty"`
-	Enabled        *bool                  `json:"enabled,omitempty"`
-	BaseUrls       *[]BaseUrl             `json:"base_urls,omitempty"`
-	Model          *string                `json:"model,omitempty"`
-	CustomModel    *string                `json:"custom_model,omitempty"`
-	ProxyMode      *ProxyUsageMode        `json:"proxy_mode,omitempty"`
-	ProxyConfigID  *int                   `json:"proxy_config_id,omitempty"`
-	Proxy          *bool                  `json:"proxy,omitempty"`
-	AutoSync       *bool                  `json:"auto_sync,omitempty"`
-	SkipModelTest  *bool                  `json:"skip_model_test,omitempty"`
-	AutoGroup      *AutoGroupType         `json:"auto_group,omitempty"`
-	CustomHeader   *[]CustomHeader        `json:"custom_header,omitempty"`
-	ChannelProxy   *string                `json:"channel_proxy,omitempty"`
-	ParamOverride  *string                `json:"param_override,omitempty"`
-	RequestRewrite *RequestRewriteConfig  `json:"request_rewrite,omitempty"`
-	MatchRegex     *string                `json:"match_regex,omitempty"`
+	ID                   int                    `json:"id" binding:"required"`
+	Name                 *string                `json:"name,omitempty"`
+	GroupID              *int                   `json:"group_id,omitempty"`
+	Type                 *outbound.OutboundType `json:"type,omitempty"`
+	Enabled              *bool                  `json:"enabled,omitempty"`
+	BaseUrls             *[]BaseUrl             `json:"base_urls,omitempty"`
+	Model                *string                `json:"model,omitempty"`
+	CustomModel          *string                `json:"custom_model,omitempty"`
+	ProxyMode            *ProxyUsageMode        `json:"proxy_mode,omitempty"`
+	ProxyConfigID        *int                   `json:"proxy_config_id,omitempty"`
+	Proxy                *bool                  `json:"proxy,omitempty"`
+	AutoSync             *bool                  `json:"auto_sync,omitempty"`
+	SkipModelTest        *bool                  `json:"skip_model_test,omitempty"`
+	KeySelectionStrategy *string                `json:"key_selection_strategy,omitempty"`
+	AutoGroup            *AutoGroupType         `json:"auto_group,omitempty"`
+	CustomHeader         *[]CustomHeader        `json:"custom_header,omitempty"`
+	ChannelProxy         *string                `json:"channel_proxy,omitempty"`
+	ParamOverride        *string                `json:"param_override,omitempty"`
+	RequestRewrite       *RequestRewriteConfig  `json:"request_rewrite,omitempty"`
+	MatchRegex           *string                `json:"match_regex,omitempty"`
 
 	KeysToAdd    []ChannelKeyAddRequest    `json:"keys_to_add,omitempty"`
 	KeysToUpdate []ChannelKeyUpdateRequest `json:"keys_to_update,omitempty"`
@@ -375,6 +386,14 @@ func (c *Channel) GetChannelKeyWithCooldown(modelName string, ratelimitCooldownS
 // KeyCooldownFunc 由 relay/balancer 包在 init 时注入，用于按 (channelID, keyID, modelName)
 // 维度查询某个 Key 是否处于冷却期。model 包不能反向依赖 balancer（存在循环导入），
 // 故通过函数变量解耦。未注入时返回 false（不冷却），保持后台任务等场景可用。
+//
+// Key 选择策略（key_selection_strategy）：
+//   - "cost"（默认）：选 TotalCost 最低的 key
+//   - "availability"：选可用度分数最高的 key（满分 100，出错衰减、成功/时间恢复）；
+//     同分按 Keys 数组顺序取第一个（初始全满分 → 用第一个 key）；全部分数 ≤ 0 时
+//     回退 cost 策略防卡死。可用度是软优先级，冷却/熔断/失败提示硬隔离仍生效。
+//
+// 渠道 KeySelectionStrategy 为空时继承全局策略（GlobalKeySelectionStrategyFunc）。
 func (c *Channel) GetChannelKeyExcludingWithCooldown(excludeKeyIDs []int, modelName string, ratelimitCooldownSec int) ChannelKey {
 	if c == nil || len(c.Keys) == 0 {
 		return ChannelKey{}
@@ -390,10 +409,8 @@ func (c *Channel) GetChannelKeyExcludingWithCooldown(excludeKeyIDs []int, modelN
 	_ = ratelimitCooldownSec
 	modelName = strings.TrimSpace(modelName)
 
-	best := ChannelKey{}
-	bestCost := 0.0
-	bestSet := false
-
+	// 先收集通过 Enabled/排除/冷却三关的候选。
+	candidates := make([]ChannelKey, 0, len(c.Keys))
 	for _, k := range c.Keys {
 		if !k.Enabled || k.ChannelKey == "" {
 			continue
@@ -407,15 +424,64 @@ func (c *Channel) GetChannelKeyExcludingWithCooldown(excludeKeyIDs []int, modelN
 		if modelName != "" && KeyCooldownFunc != nil && KeyCooldownFunc(c.ID, k.ID, modelName) {
 			continue
 		}
-		if !bestSet || k.TotalCost < bestCost {
+		candidates = append(candidates, k)
+	}
+	if len(candidates) == 0 {
+		return ChannelKey{}
+	}
+
+	strategy := c.effectiveKeySelectionStrategy()
+	if strategy == "availability" && KeyAvailabilityScoreFunc != nil && modelName != "" {
+		return c.selectKeyByAvailability(candidates, modelName)
+	}
+	return selectKeyByCost(candidates)
+}
+
+// effectiveKeySelectionStrategy 返回生效的 key 选择策略：渠道优先，空则取全局。
+func (c *Channel) effectiveKeySelectionStrategy() string {
+	if c.KeySelectionStrategy != "" {
+		return c.KeySelectionStrategy
+	}
+	if GlobalKeySelectionStrategyFunc != nil {
+		if s := GlobalKeySelectionStrategyFunc(); s != "" {
+			return s
+		}
+	}
+	return "cost"
+}
+
+// selectKeyByCost 选成本最低的 key（原有逻辑）。
+func selectKeyByCost(candidates []ChannelKey) ChannelKey {
+	best := candidates[0]
+	for _, k := range candidates[1:] {
+		if k.TotalCost < best.TotalCost {
 			best = k
-			bestCost = k.TotalCost
+		}
+	}
+	return best
+}
+
+// selectKeyByAvailability 选可用度分数最高的 key。
+// 分数 > 0 的候选中选最高分；同分按候选顺序取第一个（即 Keys 数组顺序）。
+// 若所有候选分数 ≤ 0，回退成本最低（防卡死兜底）。
+func (c *Channel) selectKeyByAvailability(candidates []ChannelKey, modelName string) ChannelKey {
+	best := ChannelKey{}
+	bestScore := 0.0
+	bestSet := false
+	for _, k := range candidates {
+		score := KeyAvailabilityScoreFunc(c.ID, k.ID, modelName)
+		if score <= 0 {
+			continue
+		}
+		if !bestSet || score > bestScore {
+			best = k
+			bestScore = score
 			bestSet = true
 		}
 	}
-
 	if !bestSet {
-		return ChannelKey{}
+		// 所有候选分数 ≤ 0，回退成本最低。
+		return selectKeyByCost(candidates)
 	}
 	return best
 }

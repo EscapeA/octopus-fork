@@ -250,6 +250,10 @@ func Update(req *model.ChannelUpdateRequest, ctx context.Context) (*model.Channe
 		selectFields = append(selectFields, "skip_model_test")
 		updates.SkipModelTest = *req.SkipModelTest
 	}
+	if req.KeySelectionStrategy != nil {
+		selectFields = append(selectFields, "key_selection_strategy")
+		updates.KeySelectionStrategy = *req.KeySelectionStrategy
+	}
 	if req.AutoGroup != nil {
 		selectFields = append(selectFields, "auto_group")
 		updates.AutoGroup = *req.AutoGroup

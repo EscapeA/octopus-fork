@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { RotateCcw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { SettingKey, useSettingList, useSetSetting } from '@/api/endpoints/setting';
 import { toast } from '@/components/common/Toast';
@@ -24,6 +25,8 @@ export function SettingRetry() {
             acc[field.key] = settings.find((item) => item.key === field.key)?.value ?? '';
             return acc;
         }, {});
+        nextValues[SettingKey.KeySelectionStrategy] = settings.find((item) => item.key === SettingKey.KeySelectionStrategy)?.value ?? 'cost';
+        nextValues[SettingKey.RetryEmptyOutput] = settings.find((item) => item.key === SettingKey.RetryEmptyOutput)?.value ?? 'true';
 
         queueMicrotask(() => setValues(nextValues));
         initialValues.current = nextValues;
@@ -104,6 +107,38 @@ export function SettingRetry() {
                         );
                     }}
                 />
+            </div>
+            <div className="flex min-w-0 flex-col gap-3 rounded-lg border-border/30 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between">
+                <div className="min-w-0 flex flex-col gap-1">
+                    <span className="text-sm font-medium">{t('retry.keySelectionStrategy.label')}</span>
+                    <span className="text-xs text-muted-foreground">{t('retry.keySelectionStrategy.hint')}</span>
+                </div>
+                <Select
+                    value={values[SettingKey.KeySelectionStrategy] || 'cost'}
+                    onValueChange={(value) => {
+                        setValues((prev) => ({ ...prev, [SettingKey.KeySelectionStrategy]: value }));
+                        setSetting.mutate(
+                            { key: SettingKey.KeySelectionStrategy, value },
+                            {
+                                onSuccess: () => {
+                                    toast.success(t('saved'));
+                                    initialValues.current = {
+                                        ...initialValues.current,
+                                        [SettingKey.KeySelectionStrategy]: value,
+                                    };
+                                },
+                            },
+                        );
+                    }}
+                >
+                    <SelectTrigger className="w-full rounded-xl md:w-48">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                        <SelectItem className="rounded-lg" value="cost">{t('retry.keySelectionStrategy.cost')}</SelectItem>
+                        <SelectItem className="rounded-lg" value="availability">{t('retry.keySelectionStrategy.availability')}</SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
         </div>
     );

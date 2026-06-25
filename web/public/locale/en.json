@@ -1268,6 +1268,12 @@
       "emptyOutput": {
         "label": "Retry on empty output",
         "hint": "Automatically retry when the upstream returns success but output is empty (non-streaming: CompletionTokens=0 and no content; streaming: no valid data chunks)."
+      },
+      "keySelectionStrategy": {
+        "label": "Key selection strategy",
+        "hint": "Default strategy for choosing among multiple keys in a channel. 'cost' picks the lowest-cost key; 'availability' picks the highest-availability key (penalized on errors, recovers on success/time). Channels can override this individually.",
+        "cost": "Cost (lowest first)",
+        "availability": "Availability (highest first)"
       }
     },
     "autoStrategy": {
@@ -1681,57 +1687,6 @@
       },
       "explicitMappings": {
         "title": "Explicit Mappings",
-        "hint": "Point-to-point variant → canonical mappings, typically produced by offline AI analysis and imported. Higher precision than prefix/suffix rules; matched first.",
-        "empty": "No explicit mappings"
-      },
-      "workflow": {
-        "title": "Offline AI Normalization Workflow",
-        "description": "Export channel model names (with variants) for offline AI/agent analysis, then import the AI-produced normalization rules.",
-        "promptTitle": "Copy Analysis Prompt",
-        "promptHint": "Copy this prompt and paste it into your offline AI chat along with the exported channel model names JSON. The AI will produce normalization rules in the expected format.",
-        "promptCopy": "Copy Prompt",
-        "promptCopied": "Copied",
-        "prompt": "You are a model name normalization assistant. I will give you a JSON whose `channels` array contains objects with a `name` field (channel-declared model names, possibly with variants). Analyze these names, find naming variants of the same base model, and produce normalization rules.\n\nRules come in three categories:\n1. router_prefixes: router/platform prefixes at the start of a model name that are unrelated to the underlying model, e.g. \"dmxapi-\", \"agent-\". Each entry must end with a hyphen.\n2. functional_suffixes: functional suffixes at the end of a model name unrelated to the model itself, e.g. \"-cc\", \"-fast\", \"-thinking\". Each entry must start with a hyphen.\n3. explicit_mappings: point-to-point variant→canonical mappings for cases prefix/suffix rules cannot cover, e.g. {\"variant\":\"claude-3.5-sonnet\",\"canonical\":\"claude-3-5-sonnet\"}.\n\nPrinciples:\n- Only merge variants that truly belong to the same base model; avoid false merges (e.g. gpt-4o and gpt-4o-mini are different models and must not be merged).\n- Provider path prefixes (e.g. moonshotai/, @cf/org/) are stripped automatically and need not be listed in router_prefixes.\n- Prefer prefix/suffix rules; use explicit_mappings only when prefix/suffix cannot express the relationship.\n\nOutput ONLY a single JSON object, no explanation, in this format:\n{\n  \"router_prefixes\": [\"...\"],\n  \"functional_suffixes\": [\"...\"],\n  \"explicit_mappings\": [{\"variant\":\"...\",\"canonical\":\"...\"}]\n}"
-      },
-      "export": {
-        "title": "Export Channel Model Names",
-        "hint": "Exports all channel-declared model names (including variants like dmxapi-kimi-k2.5) as JSON for offline AI variant analysis.",
-        "button": "Export",
-        "exporting": "Exporting...",
-        "empty": "No channel model names to export",
-        "success": "Export started",
-        "failed": "Export failed",
-        "count": "{count} model names across channels"
-      },
-      "import": {
-        "title": "Import Normalization Rules",
-        "hint": "Upload a JSON file produced by AI analysis. Supports router_prefixes, functional_suffixes, and explicit_mappings. Rules are merged (deduplicated) into the editor; click Save to apply.",
-        "button": "Choose File",
-        "preview": "Import preview",
-        "apply": "Apply to editor",
-        "cancel": "Cancel",
-        "noRules": "No normalization rules found in file",
-        "parseFailed": "Failed to parse rules file",
-        "applied": "Rules merged into editor. Click Save to persist."
-      },
-      "analysis": {
-        "title": "Coverage Analysis",
-        "description": "Analyze channel model names against the current rules. Shows merged clusters (rule working) and suspected un-merged clusters (candidates to add as a prefix/suffix).",
-        "button": "Analyze",
-        "analyzing": "Analyzing...",
-        "empty": "No channel model names to analyze",
-        "failed": "Analysis failed",
-        "channelCount": "{count} channel model names",
-        "merged": "Merged clusters ({count})",
-        "mergedEmpty": "No variants have been merged yet",
-        "suspected": "Suspected un-merged ({count})",
-        "suspectedEmpty": "No suspected un-merged variants found",
-        "addPrefix": "Add as prefix",
-        "addSuffix": "Add as suffix",
-        "disclaimer": "Suspected clusters are inferred by prefix/suffix relationships and may include false positives (e.g. gpt-4o vs gpt-4o-mini). Review before adding."
-      },
-      "explicitMappings": {
-        "title": "Explicit Mappings",
         "hint": "Point-to-point variant → canonical mappings (e.g. claude-3.5-sonnet → claude-3-5-sonnet). Primarily produced by offline AI analysis and imported; you can remove entries here. Highest priority in normalization.",
         "empty": "No explicit mappings"
       },
@@ -1764,6 +1719,22 @@
         "noRules": "No valid rules found in file",
         "parseFailed": "Failed to parse rules file",
         "applied": "Rules merged into editor; click Save to persist"
+      },
+      "analysis": {
+        "title": "Coverage Analysis",
+        "description": "Analyze channel model names against the current rules. Shows merged clusters (rule working) and suspected un-merged clusters (candidates to add as a prefix/suffix).",
+        "button": "Analyze",
+        "analyzing": "Analyzing...",
+        "empty": "No channel model names to analyze",
+        "failed": "Analysis failed",
+        "channelCount": "{count} channel model names",
+        "merged": "Merged clusters ({count})",
+        "mergedEmpty": "No variants have been merged yet",
+        "suspected": "Suspected un-merged ({count})",
+        "suspectedEmpty": "No suspected un-merged variants found",
+        "addPrefix": "Add as prefix",
+        "addSuffix": "Add as suffix",
+        "disclaimer": "Suspected clusters are inferred by prefix/suffix relationships and may include false positives (e.g. gpt-4o vs gpt-4o-mini). Review before adding."
       }
     },
     "webauthn": {
@@ -2694,7 +2665,11 @@
       "matchRegexPlaceholder": "Optional: regex pattern to match request model names",
       "remark": "Remark",
       "typeMiMoChat": "MiMo Chat",
-      "typeCloudflare": "Cloudflare"
+      "typeCloudflare": "Cloudflare",
+      "keySelectionStrategy": "Key Strategy",
+      "keySelectionStrategyInherit": "Inherit global",
+      "keySelectionStrategyCost": "Cost",
+      "keySelectionStrategyAvailability": "Availability"
     }
   },
   "errors": {

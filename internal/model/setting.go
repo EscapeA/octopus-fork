@@ -27,6 +27,7 @@ const (
 	SettingKeyPublicAPIBaseURL                     SettingKey = "public_api_base_url"                      // 对外可访问的 API 基础地址，用于生成示例
 	SettingKeyAlertNotifyLanguage                  SettingKey = "alert_notify_language"                    // 告警通知发送语言
 	SettingKeyRatelimitCooldown                    SettingKey = "ratelimit_cooldown"                       // Key 错误冷却时间（秒），0=关闭
+	SettingKeyKeySelectionStrategy                 SettingKey = "key_selection_strategy"                   // Key 选择策略：cost(默认) | availability
 	SettingKeyRelayMaxTotalAttempts                SettingKey = "relay_max_total_attempts"                 // 所有候选渠道的最大总尝试次数，0 表示不限制
 	SettingKeyRetryEmptyOutput                     SettingKey = "retry_empty_output"                       // 输出为空(CompletionTokens=0 且内容为空)时自动重试，仅非流式
 	SettingKeyAutoStrategyMinSamples               SettingKey = "auto_strategy_min_samples"                // Auto策略最小样本数阈值
@@ -103,6 +104,7 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyCircuitBreakerCooldown, Value: "60"},     // 默认基础冷却60秒
 		{Key: SettingKeyCircuitBreakerMaxCooldown, Value: "600"}, // 默认最大冷却600秒（10分钟）
 		{Key: SettingKeyRatelimitCooldown, Value: "300"},         // 默认 Key 错误冷却300秒（5分钟），0=关闭
+		{Key: SettingKeyKeySelectionStrategy, Value: "cost"},     // 默认 Key 选择策略：成本最低优先；可选 availability（可用度优先）
 		{Key: SettingKeyRelayMaxTotalAttempts, Value: "0"},       // 默认不限制所有候选渠道的总尝试次数
 		{Key: SettingKeyRetryEmptyOutput, Value: "true"},         // 默认启用空输出重试
 		{Key: SettingKeyPublicAPIBaseURL, Value: ""},
@@ -235,6 +237,11 @@ func (s *Setting) Validate() error {
 	case SettingKeyRelayLogKeepEnabled, SettingKeySemanticCacheEnabled, SettingKeyModelNormalizeMarketDedupeDefault, SettingKeyRetryEmptyOutput:
 		if s.Value != "true" && s.Value != "false" {
 			return fmt.Errorf("setting value must be true or false")
+		}
+		return nil
+	case SettingKeyKeySelectionStrategy:
+		if s.Value != "cost" && s.Value != "availability" {
+			return fmt.Errorf("key selection strategy must be cost or availability")
 		}
 		return nil
 	case SettingKeyProxyURL, SettingKeySemanticCacheEmbeddingBaseURL, SettingKeyAIRouteBaseURL:

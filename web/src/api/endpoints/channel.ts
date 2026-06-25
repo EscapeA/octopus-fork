@@ -104,6 +104,7 @@ export type Channel = {
     auto_sync: boolean;
     auto_group: AutoGroupType;
     skip_model_test: boolean;
+    key_selection_strategy: string;
     custom_header: CustomHeader[];
     param_override?: string | null;
     channel_proxy?: string | null;
@@ -134,6 +135,7 @@ export type CreateChannelRequest = {
     proxy?: boolean;
     auto_sync?: boolean;
     skip_model_test?: boolean;
+    key_selection_strategy?: string;
     auto_group?: AutoGroupType;
     custom_header?: CustomHeader[];
     channel_proxy?: string | null;
@@ -156,6 +158,7 @@ export type UpdateChannelRequest = {
     custom_model?: string;
     proxy?: boolean;
     auto_sync?: boolean;
+    key_selection_strategy?: string;
     skip_model_test?: boolean;
     auto_group?: AutoGroupType;
     custom_header?: CustomHeader[];

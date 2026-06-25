@@ -262,6 +262,8 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 				if statusCode >= 400 {
 					balancer.RecordKeyCooldown(channel.ID, usedKey.ID, resolvedModel, statusCode)
 				}
+				// 可用度衰减：按错误类型加权，仅 availability 策略生效。
+				balancer.RecordKeyAvailability(channel.ID, usedKey.ID, resolvedModel, statusCode, false)
 
 				if decision.Scope == ScopeNone && !decision.IsError {
 					ch.KeyUpdate(usedKey)
@@ -271,6 +273,7 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 						RequestSuccess: 1,
 					})
 					balancer.RecordSuccess(channel.ID, usedKey.ID, resolvedModel)
+					balancer.RecordKeyAvailability(channel.ID, usedKey.ID, resolvedModel, statusCode, true)
 					balancer.RecordAutoSuccess(channel.ID, resolvedModel)
 					balancer.RecordAutoLatency(channel.ID, resolvedModel, span.Duration().Milliseconds())
 					balancer.SetSticky(apiKeyID, requestModel, channel.ID, usedKey.ID)

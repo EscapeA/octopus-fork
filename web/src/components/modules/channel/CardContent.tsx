@@ -154,6 +154,7 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
         auto_sync: channel.auto_sync,
         auto_group: channel.auto_group,
         skip_model_test: channel.skip_model_test,
+        key_selection_strategy: channel.key_selection_strategy,
         match_regex: channel.match_regex ?? '',
     });
     const t = useTranslations('channel.detail');
@@ -191,6 +192,7 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
         if (formData.proxy !== channel.proxy) req.proxy = formData.proxy;
         if (formData.auto_sync !== channel.auto_sync) req.auto_sync = formData.auto_sync;
         if (formData.skip_model_test !== channel.skip_model_test) req.skip_model_test = formData.skip_model_test;
+        if (formData.key_selection_strategy !== channel.key_selection_strategy) req.key_selection_strategy = formData.key_selection_strategy;
         if (formData.auto_group !== channel.auto_group) req.auto_group = formData.auto_group;
 
         if (!headersEqual(formData.custom_header, channel.custom_header)) {

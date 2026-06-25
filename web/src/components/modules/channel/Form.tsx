@@ -70,6 +70,7 @@ export interface ChannelFormData {
     auto_sync: boolean;
     auto_group: AutoGroupType;
     skip_model_test: boolean;
+    key_selection_strategy: string;
     match_regex: string;
 }
 
@@ -1418,6 +1419,22 @@ export function ChannelForm({
                         />
                         <span className="text-sm text-card-foreground">{t('skipModelTest')}</span>
                     </label>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm text-card-foreground whitespace-nowrap">{t('keySelectionStrategy')}</span>
+                        <Select
+                            value={formData.key_selection_strategy || '__inherit__'}
+                            onValueChange={(value) => onFormDataChange({ ...formData, key_selection_strategy: value === '__inherit__' ? '' : value })}
+                        >
+                            <SelectTrigger className="h-8 w-36 rounded-lg">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-lg">
+                                <SelectItem className="rounded-xl" value="__inherit__">{t('keySelectionStrategyInherit')}</SelectItem>
+                                <SelectItem className="rounded-xl" value="cost">{t('keySelectionStrategyCost')}</SelectItem>
+                                <SelectItem className="rounded-xl" value="availability">{t('keySelectionStrategyAvailability')}</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
             </section>
 

@@ -1268,6 +1268,12 @@
       "emptyOutput": {
         "label": "空輸出自動重試",
         "hint": "當上游回傳成功但輸出為空（非串流：CompletionTokens=0 且無內容；串流：無任何有效資料塊）時自動重試。"
+      },
+      "keySelectionStrategy": {
+        "label": "Key 選擇策略",
+        "hint": "渠道多 Key 選擇的預設策略。「成本」優先選累計成本最低的 Key；「可用度」優先選可用度最高的 Key（出錯降分、成功/時間恢復）。渠道可單獨覆蓋此設定。",
+        "cost": "成本（最低優先）",
+        "availability": "可用度（最高優先）"
       }
     },
     "autoStrategy": {
@@ -2659,7 +2665,11 @@
       "matchRegexPlaceholder": "可選：用於匹配請求模型名稱的正規表示式",
       "remark": "備註",
       "typeMiMoChat": "MiMo Chat",
-      "typeCloudflare": "Cloudflare"
+      "typeCloudflare": "Cloudflare",
+      "keySelectionStrategy": "Key 策略",
+      "keySelectionStrategyInherit": "繼承全域",
+      "keySelectionStrategyCost": "成本",
+      "keySelectionStrategyAvailability": "可用度"
     }
   },
   "errors": {
