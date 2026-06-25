@@ -1542,7 +1542,7 @@
         "maxCostPlaceholder": "請輸入金額",
         "maxTokens": "Token 上限",
         "maxTokensPlaceholder": "如 100w、5億、1000000",
-        "maxTokensHint": "Token 用量上限（輸入+輸出）。支援簡寫：k=千、w/萬=萬、m=百萬、b/億=億",
+        "maxTokensHint": "Token 用量上限（輸入+輸出）。支援簡寫：k=千、w/萬=萬、m=百萬、b=10億、億=億",
         "rateLimitRpm": {
           "label": "速率限制（RPM）",
           "placeholder": "每分鐘請求數，0 表示無限制"

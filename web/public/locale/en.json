@@ -1542,7 +1542,7 @@
         "maxCostPlaceholder": "Enter amount",
         "maxTokens": "Max Tokens",
         "maxTokensPlaceholder": "e.g. 100w, 5亿, 1000000",
-        "maxTokensHint": "Token usage cap (input + output). Supports shorthand: k=1k, w/万=10k, m=1M, b/亿=100M",
+        "maxTokensHint": "Token usage cap (input + output). Supports shorthand: k=1k, w/万=10k, m=1M, b=1B(10亿), 亿=100M",
         "rateLimitRpm": {
           "label": "Rate Limit (RPM)",
           "placeholder": "Requests per minute, 0 = unlimited"

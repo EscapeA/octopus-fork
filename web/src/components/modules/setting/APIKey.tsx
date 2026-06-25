@@ -85,7 +85,8 @@ function parseTokenShorthand(input: string): number {
     const multiplier = unit === 'k' ? 1e3
         : unit === 'w' || unit === '万' ? 1e4
         : unit === 'm' ? 1e6
-        : unit === 'b' || unit === '亿' ? 1e8
+        : unit === 'b' ? 1e9
+        : unit === '亿' ? 1e8
         : 1;
     return Math.round(value * multiplier);
 }
