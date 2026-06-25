@@ -654,12 +654,14 @@
         "availableKeys": "可用密钥",
         "limitedKeys": "有限额密钥",
         "exhaustedKeys": "已耗尽密钥",
-        "totalMaxCost": "总成本上限"
+        "totalMaxCost": "总成本上限",
+        "totalMaxTokens": "总 Token 上限"
       },
       "fields": {
         "requestCount": "请求次数",
         "totalCost": "累计成本",
         "maxCost": "成本上限",
+        "maxTokens": "Token 上限",
         "rpm": "RPM",
         "tpm": "TPM",
         "supportedModels": "支持模型数",
@@ -1538,6 +1540,9 @@
         "customKeyHint": "可设置任意自定义密钥值",
         "maxCost": "最大金额",
         "maxCostPlaceholder": "请输入金额",
+        "maxTokens": "Token 上限",
+        "maxTokensPlaceholder": "如 100w、5亿、1000000",
+        "maxTokensHint": "Token 用量上限（输入+输出）。支持简写：k=千、w/万=万、m=百万、b/亿=亿",
         "rateLimitRpm": {
           "label": "速率限制（RPM）",
           "placeholder": "每分钟请求数，0 表示无限制"
@@ -2369,6 +2374,7 @@
       "firstToken": "首字",
       "totalTime": "总耗时",
       "input": "输入",
+      "totalTokens": "总消耗",
       "cacheHit": "命中缓存",
       "semanticCacheHit": "语义缓存命中",
       "output": "输出",

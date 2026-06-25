@@ -26,7 +26,7 @@ import {
 import { useGroupList } from '@/api/endpoints/group';
 import { useChannelList } from '@/api/endpoints/channel';
 import { useStatsAPIKey } from '@/api/endpoints/stats';
-import { cn } from '@/lib/utils';
+import { cn, formatCount } from '@/lib/utils';
 import { toast } from '@/components/common/Toast';
 import { CopyIconButton } from '@/components/common/CopyButton';
 import type { ApiError } from '@/api/types';
@@ -65,6 +65,36 @@ function normalizeMoneyInput(input: string): string {
     const cleaned = input.replace(/[^\d.]/g, '');
     const [intPart, ...rest] = cleaned.split('.');
     return rest.length > 0 ? `${intPart}.${rest.join('').slice(0, 6)}` : intPart;
+}
+
+/**
+ * 将用户输入的 Token 简写字符串解析为整数 token 数。
+ * 支持的简写：k/K = 千(1e3)、w/W/万 = 万(1e4)、m/M = 百万(1e6)、b/B/亿 = 亿(1e8)。
+ * 例如 "100w" → 1000000, "5亿" → 500000000, "1.5k" → 1500。
+ * 纯数字直接返回。空或无法解析返回 0。
+ */
+function parseTokenShorthand(input: string): number {
+    const trimmed = input.trim().toLowerCase();
+    if (!trimmed) return 0;
+    // 匹配 数字(可含小数) + 可选单位
+    const match = trimmed.match(/^(\d+(?:\.\d+)?)\s*(k|w|m|b|万|亿)?$/);
+    if (!match) return 0;
+    const value = parseFloat(match[1]);
+    if (!Number.isFinite(value)) return 0;
+    const unit = match[2];
+    const multiplier = unit === 'k' ? 1e3
+        : unit === 'w' || unit === '万' ? 1e4
+        : unit === 'm' ? 1e6
+        : unit === 'b' || unit === '亿' ? 1e8
+        : 1;
+    return Math.round(value * multiplier);
+}
+
+
+/** 规范化 Token 输入：允许数字 + 简写后缀，过滤非法字符。 */
+function normalizeTokenInput(input: string): string {
+    // 保留数字、小数点、以及简写后缀字符
+    return input.replace(/[^\d.kwmKWMbB万亿]/g, '');
 }
 
 function toggleModel(current: string | undefined, model: string): string | undefined {
@@ -232,16 +262,19 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
         enabled: apiKey?.enabled ?? true,
         expire_at: apiKey?.expire_at,
         max_cost: apiKey?.max_cost,
+        max_tokens: apiKey?.max_tokens,
         supported_models: apiKey?.supported_models,
         rate_limit_rpm: apiKey?.rate_limit_rpm ?? 0,
         rate_limit_tpm: apiKey?.rate_limit_tpm ?? 0,
         per_model_quota_json: apiKey?.per_model_quota_json ?? '',
         allowed_ips: apiKey?.allowed_ips ?? '',
         tags: apiKey?.tags ?? '',
-        excluded_channels: apiKey?.excluded_channels ?? '',
     }));
     const [maxCostInput, setMaxCostInput] = useState(() =>
         apiKey?.max_cost != null ? String(apiKey.max_cost) : ''
+    );
+    const [maxTokensInput, setMaxTokensInput] = useState(() =>
+        apiKey?.max_tokens != null && apiKey.max_tokens > 0 ? String(apiKey.max_tokens) : ''
     );
     const [expireTime, setExpireTime] = useState(() => {
         if (apiKey?.expire_at) {
@@ -263,6 +296,7 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
     const expireDate = parseExpireDate(form.expire_at);
     const neverExpire = !form.expire_at;
     const isUnlimitedCost = maxCostInput.trim() === '';
+    const isUnlimitedTokens = maxTokensInput.trim() === '';
 
     const expireLabel = neverExpire
         ? t('apiKey.form.neverExpire')
@@ -309,6 +343,18 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
     const handleClearMaxCost = useCallback(() => {
         setMaxCostInput('');
         updateForm({ max_cost: undefined });
+    }, [updateForm]);
+
+    const handleMaxTokensChange = useCallback((val: string) => {
+        const normalized = normalizeTokenInput(val);
+        setMaxTokensInput(normalized);
+        const parsed = parseTokenShorthand(normalized);
+        updateForm({ max_tokens: parsed > 0 ? parsed : undefined });
+    }, [updateForm]);
+
+    const handleClearMaxTokens = useCallback(() => {
+        setMaxTokensInput('');
+        updateForm({ max_tokens: undefined });
     }, [updateForm]);
 
     const handleSubmit = useCallback((e: React.FormEvent) => {
@@ -398,6 +444,44 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
                         {t('apiKey.form.unlimited')}
                     </button>
                 </div>
+            </div>
+
+            <div className="grid gap-1 text-xs text-muted-foreground @lg:col-span-2">
+                {t('apiKey.form.maxTokens')}
+                <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                        <Input
+                            type="text"
+                            inputMode="text"
+                            placeholder={t('apiKey.form.maxTokensPlaceholder')}
+                            value={maxTokensInput}
+                            onChange={(e) => handleMaxTokensChange(e.target.value)}
+                            className="h-9 text-sm rounded-xl"
+                            disabled={isPending}
+                        />
+                        {form.max_tokens != null && form.max_tokens > 0 && (
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground tabular-nums pointer-events-none">
+                                {formatCount(form.max_tokens).formatted.value}{formatCount(form.max_tokens).formatted.unit && ` ${formatCount(form.max_tokens).formatted.unit}`}
+                            </span>
+                        )}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handleClearMaxTokens}
+                        disabled={isPending}
+                        aria-pressed={isUnlimitedTokens}
+                        className={cn(
+                            'h-9 px-3 rounded-xl border text-sm transition-colors shrink-0',
+                            isUnlimitedTokens
+                                ? 'bg-primary text-primary-foreground border-primary/30'
+                                : 'border-border bg-muted/20 text-foreground hover:bg-muted/30',
+                            isPending && 'opacity-50 cursor-not-allowed'
+                        )}
+                    >
+                        {t('apiKey.form.unlimited')}
+                    </button>
+                </div>
+                <span className="text-[11px] text-muted-foreground/70">{t('apiKey.form.maxTokensHint')}</span>
             </div>
 
             <div className="grid gap-1 text-xs text-muted-foreground">

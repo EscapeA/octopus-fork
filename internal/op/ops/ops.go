@@ -602,8 +602,8 @@ func buildOpsQuotaSummary(apiKeys []model.APIKey, stats []model.StatsAPIKey, now
 		expired := apiKey.ExpireAt > 0 && apiKey.ExpireAt <= nowUnix
 		hasPerModelQuota := hasPerModelQuota(apiKey.PerModelQuotaJSON)
 		supportedModelCount := countCommaSeparated(apiKey.SupportedModels)
-		limited := apiKey.RateLimitRPM > 0 || apiKey.RateLimitTPM > 0 || apiKey.MaxCost > 0 || hasPerModelQuota
-		exhausted := apiKey.MaxCost > 0 && usage.TotalCost >= apiKey.MaxCost
+		limited := apiKey.RateLimitRPM > 0 || apiKey.RateLimitTPM > 0 || apiKey.MaxCost > 0 || apiKey.MaxTokens > 0 || hasPerModelQuota
+		exhausted := (apiKey.MaxCost > 0 && usage.TotalCost >= apiKey.MaxCost) || (apiKey.MaxTokens > 0 && usage.TotalTokens >= apiKey.MaxTokens)
 
 		status := "open"
 		switch {
@@ -649,6 +649,9 @@ func buildOpsQuotaSummary(apiKeys []model.APIKey, stats []model.StatsAPIKey, now
 		if apiKey.MaxCost > 0 {
 			summary.TotalMaxCost += apiKey.MaxCost
 		}
+		if apiKey.MaxTokens > 0 {
+			summary.TotalMaxTokens += apiKey.MaxTokens
+		}
 
 		name := strings.TrimSpace(apiKey.Name)
 		if name == "" {
@@ -669,6 +672,7 @@ func buildOpsQuotaSummary(apiKeys []model.APIKey, stats []model.StatsAPIKey, now
 			RateLimitRPM:        apiKey.RateLimitRPM,
 			RateLimitTPM:        apiKey.RateLimitTPM,
 			MaxCost:             apiKey.MaxCost,
+			MaxTokens:           apiKey.MaxTokens,
 			RequestCount:        usage.RequestCount,
 			TotalCost:           usage.TotalCost,
 			TotalTokens:         usage.TotalTokens,
@@ -901,11 +905,10 @@ func opsQuotaStatusRank(status string) int {
 		return 4
 	}
 }
-
 func countQuotaMonitors(apiKeys []model.APIKey) int {
 	count := 0
 	for _, k := range apiKeys {
-		if k.MaxCost > 0 || k.RateLimitRPM > 0 || k.RateLimitTPM > 0 || hasPerModelQuota(k.PerModelQuotaJSON) {
+		if k.MaxCost > 0 || k.MaxTokens > 0 || k.RateLimitRPM > 0 || k.RateLimitTPM > 0 || hasPerModelQuota(k.PerModelQuotaJSON) {
 			count++
 		}
 	}

@@ -1,6 +1,6 @@
 'use client';
 
-import { Coins, Gauge, KeyRound, ShieldAlert } from 'lucide-react';
+import { Coins, Gauge, Hash, KeyRound, ShieldAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useOpsQuotaSummary, type OpsQuotaKeyItem } from '@/api/endpoints/ops';
 import { useNavStore } from '@/components/modules/navbar';
@@ -51,7 +51,7 @@ export function Quota() {
                 emptyLabel={t('states.loading')}
             >
                 <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-5">
                         <MetricCard
                             title={t('quota.metrics.availableKeys')}
                             value={data?.available_key_count ?? 0}
@@ -75,6 +75,13 @@ export function Quota() {
                             unit={formatMoney(data?.total_max_cost).formatted.unit}
                             icon={Coins}
                             accentClassName="bg-chart-1/10 text-chart-1"
+                        />
+                        <MetricCard
+                            title={t('quota.metrics.totalMaxTokens')}
+                            value={formatCount(data?.total_max_tokens ?? 0).formatted.value}
+                            unit={formatCount(data?.total_max_tokens ?? 0).formatted.unit}
+                            icon={Hash}
+                            accentClassName="bg-chart-2/10 text-chart-2"
                         />
                     </div>
 
@@ -127,6 +134,14 @@ export function Quota() {
                                                 {formatCount(item.total_tokens).formatted.unit}
                                             </div>
                                         </div>
+                                    <div className="rounded-lg border border-border/40 bg-card p-3">
+                                        <div className="text-xs text-muted-foreground">{t('quota.fields.maxTokens')}</div>
+                                        <div className="mt-2 text-sm font-semibold">
+                                            {item.max_tokens > 0
+                                                ? `${formatCount(item.max_tokens).formatted.value}${formatCount(item.max_tokens).formatted.unit}`
+                                                : t('quota.statuses.open')}
+                                        </div>
+                                    </div>
                                     <div className="rounded-lg border border-border/40 bg-card p-3">
                                         <div className="text-xs text-muted-foreground">{t('quota.fields.successRate')}</div>
                                             <div className="mt-2 text-sm font-semibold">

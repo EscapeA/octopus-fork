@@ -100,6 +100,15 @@ func APIKeyAuth() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+		// Token 用量上限（issue #108）：累计 Token = 输入 + 输出，超限则拒绝
+		if apiKeyObj.MaxTokens > 0 {
+			usedTokens := statsAPIKey.StatsMetrics.InputToken + statsAPIKey.StatsMetrics.OutputToken
+			if usedTokens >= apiKeyObj.MaxTokens {
+				resp.Error(c, http.StatusUnauthorized, "API key has reached the max token limit")
+				c.Abort()
+				return
+			}
+		}
 		if !isIPAllowed(c.ClientIP(), apiKeyObj.AllowedIPs) {
 			resp.Error(c, http.StatusForbidden, "IP address not allowed for this API key")
 			c.Abort()

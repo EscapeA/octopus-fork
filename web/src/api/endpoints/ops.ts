@@ -67,6 +67,7 @@ export interface OpsQuotaKeyItem {
     rate_limit_rpm: number;
     rate_limit_tpm: number;
     max_cost: number;
+    max_tokens: number; // Token 用量上限，0 表示不限制（issue #108）
     request_count: number;
     total_cost: number;
     total_tokens: number;
@@ -84,8 +85,8 @@ export interface OpsQuotaSummary {
     per_model_quota_key_count: number;
     active_usage_key_count: number;
     total_rpm: number;
-    total_tpm: number;
     total_max_cost: number;
+    total_max_tokens: number; // 所有 Key 的 Token 上限合计（issue #108）
     keys: OpsQuotaKeyItem[];
 }
 

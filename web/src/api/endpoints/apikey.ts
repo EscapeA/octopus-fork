@@ -19,6 +19,7 @@ export interface APIKey {
     enabled: boolean;
     expire_at?: number; // Unix 时间戳（秒），不传表示永不过期
     max_cost?: number; // 不传表示无限制
+    max_tokens?: number; // Token 用量上限，0 或不传表示不限制（issue #108）
     supported_models?: string; // 不传表示支持所有模型
     rate_limit_rpm?: number; // 每分钟请求数限制，0 表示无限制
     rate_limit_tpm?: number; // 每分钟 token 数限制，0 表示无限制

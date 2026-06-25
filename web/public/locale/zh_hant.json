@@ -654,11 +654,13 @@
         "availableKeys": "可用金鑰",
         "limitedKeys": "有限額金鑰",
         "exhaustedKeys": "已耗盡金鑰",
-        "totalMaxCost": "總成本上限"
+        "totalMaxCost": "總成本上限",
+        "totalMaxTokens": "總 Token 上限"
       },
       "fields": {
         "requestCount": "請求次數",
         "totalCost": "累計成本",
+        "maxTokens": "Token 上限",
         "maxCost": "成本上限",
         "rpm": "RPM",
         "tpm": "TPM",
@@ -1538,6 +1540,9 @@
         "customKeyHint": "可設定任意自訂金鑰值",
         "maxCost": "最大金額",
         "maxCostPlaceholder": "請輸入金額",
+        "maxTokens": "Token 上限",
+        "maxTokensPlaceholder": "如 100w、5億、1000000",
+        "maxTokensHint": "Token 用量上限（輸入+輸出）。支援簡寫：k=千、w/萬=萬、m=百萬、b/億=億",
         "rateLimitRpm": {
           "label": "速率限制（RPM）",
           "placeholder": "每分鐘請求數，0 表示無限制"
@@ -2369,6 +2374,7 @@
       "firstToken": "首字",
       "totalTime": "總耗時",
       "input": "輸入",
+      "totalTokens": "總消耗",
       "cacheHit": "命中快取",
       "semanticCacheHit": "語意快取命中",
       "output": "輸出",

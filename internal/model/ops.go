@@ -62,6 +62,7 @@ type OpsQuotaKeyItem struct {
 	RateLimitRPM        int     `json:"rate_limit_rpm"`
 	RateLimitTPM        int     `json:"rate_limit_tpm"`
 	MaxCost             float64 `json:"max_cost"`
+	MaxTokens           int64   `json:"max_tokens"` // Token 用量上限，0 表示不限制（issue #108）
 	RequestCount        int64   `json:"request_count"`
 	TotalCost           float64 `json:"total_cost"`
 	// TotalTokens 与 SuccessRate 来自 stats 聚合，使配额页与 API 密钥详情
@@ -83,6 +84,7 @@ type OpsQuotaSummary struct {
 	TotalRPM              int               `json:"total_rpm"`
 	TotalTPM              int               `json:"total_tpm"`
 	TotalMaxCost          float64           `json:"total_max_cost"`
+	TotalMaxTokens        int64             `json:"total_max_tokens"` // 所有 Key 的 Token 上限合计（issue #108）
 	Keys                  []OpsQuotaKeyItem `json:"keys"`
 }
 

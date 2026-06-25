@@ -654,12 +654,14 @@
         "availableKeys": "Available Keys",
         "limitedKeys": "Limited Keys",
         "exhaustedKeys": "Exhausted Keys",
-        "totalMaxCost": "Total Cost Cap"
+        "totalMaxCost": "Total Cost Cap",
+        "totalMaxTokens": "Total Token Cap"
       },
       "fields": {
         "requestCount": "Requests",
         "totalCost": "Total Cost",
         "maxCost": "Cost Cap",
+        "maxTokens": "Token Cap",
         "rpm": "RPM",
         "tpm": "TPM",
         "supportedModels": "Supported Models",
@@ -1538,6 +1540,9 @@
         "customKeyHint": "You can set any custom key value",
         "maxCost": "Max Cost",
         "maxCostPlaceholder": "Enter amount",
+        "maxTokens": "Max Tokens",
+        "maxTokensPlaceholder": "e.g. 100w, 5亿, 1000000",
+        "maxTokensHint": "Token usage cap (input + output). Supports shorthand: k=1k, w/万=10k, m=1M, b/亿=100M",
         "rateLimitRpm": {
           "label": "Rate Limit (RPM)",
           "placeholder": "Requests per minute, 0 = unlimited"
@@ -2369,10 +2374,10 @@
       "firstToken": "TTFT",
       "totalTime": "Total",
       "input": "Input",
-      "realInput": "Actual Input",
+      "output": "Output",
+      "totalTokens": "Total",
       "cacheHit": "Cache Hit",
       "semanticCacheHit": "Semantic Cache Hit",
-      "output": "Output",
       "cost": "Cost",
       "requestContent": "Request Content",
       "responseContent": "Response Content",
@@ -2389,6 +2394,7 @@
       "skipped": "Skipped",
       "circuitBreak": "Circuit Break",
       "forwardedAttempts": "{count} forwarded",
+      "realInput": "Actual Input",
       "requestType": "Request Type",
       "channelFallback": "Channel #{id}",
       "testLog": "Test",

@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useMemo, useState, useEffect } from 'react';
-import { Clock, Cpu, Zap, AlertCircle, ArrowDownToLine, ArrowUpFromLine, DollarSign, JapaneseYen, ArrowRight, ArrowDown, Send, MessageSquare, Loader2, RotateCw, ChevronDown, ChevronUp, Pin, KeyRound, Globe, ChevronsDownUp, ChevronsUpDown, TestTube2 } from 'lucide-react';
+import { Clock, Cpu, Zap, AlertCircle, ArrowDownToLine, ArrowUpFromLine, DollarSign, JapaneseYen, ArrowRight, ArrowDown, Send, MessageSquare, Loader2, RotateCw, ChevronDown, ChevronUp, Pin, KeyRound, Globe, ChevronsDownUp, ChevronsUpDown, TestTube2, Sigma } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'motion/react';
 import JsonView from '@uiw/react-json-view';
@@ -334,6 +334,11 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
     const outputTokenDisplay = usageKnown
         ? fmt(formatCount(log.output_tokens).formatted)
         : tCommon('unknown');
+    // 总消耗 = 真实输入 + 缓存输入 + 输出 = input_tokens(含缓存) + output_tokens（issue #107）
+    const totalTokens = log.input_tokens + log.output_tokens;
+    const totalTokenDisplay = usageKnown
+        ? fmt(formatCount(totalTokens).formatted)
+        : tCommon('unknown');
     const costDisplay = usageKnown
         ? (chinaMode
             ? costFmt(formatMoney(Number(log.cost)).raw)
@@ -455,6 +460,10 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                 <div className="flex items-center gap-1.5">
                                     <ArrowUpFromLine className="size-3.5 shrink-0 text-purple-500" />
                                     <span>{t('output')} {outputTokenDisplay}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <Sigma className="size-3.5 shrink-0 text-rose-500" />
+                                    <span className="font-medium text-rose-600 dark:text-rose-400">{t('totalTokens')} {totalTokenDisplay}</span>
                                 </div>
                                 {vis.cost && (
                                     <div className="flex items-center gap-1.5">
@@ -764,6 +773,10 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                             <div className="flex items-center gap-1.5">
                                 <Cpu className="size-3.5 text-blue-500" />
                                 <span>{t('totalTime')}: {formatDuration(log.use_time)}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <Sigma className="size-3.5 text-rose-500" />
+                                <span className="font-medium text-rose-600 dark:text-rose-400">{t('totalTokens')}: {totalTokenDisplay}</span>
                             </div>
                             {cacheReadTokens > 0 && (
                                 <div className="flex items-center gap-1.5">
