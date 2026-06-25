@@ -2,7 +2,6 @@ package analytics
 
 import (
 	"context"
-	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -1585,56 +1584,71 @@ func loadLatencyDistribution(ctx context.Context, r model.AnalyticsRange) (*mode
 		return nil, err
 	}
 
-	// Collect all latency values from DB + in-memory cache
-	var latencies []float64
-	var ftuts []float64
-	var totalUseTime int64
-	var totalFtut int64
-	var totalCount int64
-
-	// Histogram accumulators
+	// DB 端聚合：单次查询返回 count/sum + 5 个延迟桶 + 5 个首字桶，避免把百万行
+	// use_time/ftut 全量拉进内存排序（90d/all 下的内存爆炸与磁盘读飙升）。
+	// 百分位由桶边界线性插值近似，对分析概览场景精度足够。
 	var hLt100, h100to500, h500to1k, h1kto5k, hGt5k int64
+	var fhLt100, fh100to500, fh500to1k, fh1kto5k, fhGt5k int64
+	var totalUseTime, totalFtut, totalCount, ftutCount int64
 
 	if keepEnabled {
-		type latencyRow struct {
-			UseTime int `json:"use_time"`
-			Ftut    int `json:"ftut"`
+		type aggRow struct {
+			TotalCount int64 `gorm:"column:total_count"`
+			TotalUse   int64 `gorm:"column:total_use"`
+			TotalFtut  int64 `gorm:"column:total_ftut"`
+			FtutCount  int64 `gorm:"column:ftut_count"`
+			HLt100     int64 `gorm:"column:h_lt100"`
+			H100to500  int64 `gorm:"column:h_100_500"`
+			H500to1k   int64 `gorm:"column:h_500_1k"`
+			H1kto5k    int64 `gorm:"column:h_1k_5k"`
+			HGt5k      int64 `gorm:"column:h_gt5k"`
+			FHLt100    int64 `gorm:"column:fh_lt100"`
+			FH100to500 int64 `gorm:"column:fh_100_500"`
+			FH500to1k  int64 `gorm:"column:fh_500_1k"`
+			FH1kto5k   int64 `gorm:"column:fh_1k_5k"`
+			FHGt5k     int64 `gorm:"column:fh_gt5k"`
 		}
-		var dbRows []latencyRow
+		var row aggRow
 		query := relayLogReadConn().WithContext(ctx).Model(&model.RelayLog{}).
-			Select("use_time, ftut")
+			Select(`
+				COUNT(CASE WHEN use_time > 0 THEN 1 END) AS total_count,
+				COALESCE(SUM(CASE WHEN use_time > 0 THEN use_time ELSE 0 END), 0) AS total_use,
+				COALESCE(SUM(CASE WHEN ftut > 0 THEN ftut ELSE 0 END), 0) AS total_ftut,
+				COUNT(CASE WHEN ftut > 0 THEN 1 END) AS ftut_count,
+				COUNT(CASE WHEN use_time > 0 AND use_time < 100 THEN 1 END) AS h_lt100,
+				COUNT(CASE WHEN use_time >= 100 AND use_time < 500 THEN 1 END) AS h_100_500,
+				COUNT(CASE WHEN use_time >= 500 AND use_time < 1000 THEN 1 END) AS h_500_1k,
+				COUNT(CASE WHEN use_time >= 1000 AND use_time < 5000 THEN 1 END) AS h_1k_5k,
+				COUNT(CASE WHEN use_time >= 5000 THEN 1 END) AS h_gt5k,
+				COUNT(CASE WHEN ftut > 0 AND ftut < 100 THEN 1 END) AS fh_lt100,
+				COUNT(CASE WHEN ftut >= 100 AND ftut < 500 THEN 1 END) AS fh_100_500,
+				COUNT(CASE WHEN ftut >= 500 AND ftut < 1000 THEN 1 END) AS fh_500_1k,
+				COUNT(CASE WHEN ftut >= 1000 AND ftut < 5000 THEN 1 END) AS fh_1k_5k,
+				COUNT(CASE WHEN ftut >= 5000 THEN 1 END) AS fh_gt5k
+			`)
 		if startUnix != nil {
 			query = query.Where("time >= ?", *startUnix)
 		}
-		if err := query.Find(&dbRows).Error; err != nil {
+		if err := query.Scan(&row).Error; err != nil {
 			return nil, err
 		}
-		for _, row := range dbRows {
-			if row.UseTime > 0 {
-				latencies = append(latencies, float64(row.UseTime))
-				totalUseTime += int64(row.UseTime)
-				totalCount++
-				switch {
-				case row.UseTime < 100:
-					hLt100++
-				case row.UseTime < 500:
-					h100to500++
-				case row.UseTime < 1000:
-					h500to1k++
-				case row.UseTime < 5000:
-					h1kto5k++
-				default:
-					hGt5k++
-				}
-			}
-			if row.Ftut > 0 {
-				ftuts = append(ftuts, float64(row.Ftut))
-				totalFtut += int64(row.Ftut)
-			}
-		}
+		totalCount = row.TotalCount
+		totalUseTime = row.TotalUse
+		totalFtut = row.TotalFtut
+		ftutCount = row.FtutCount
+		hLt100 = row.HLt100
+		h100to500 = row.H100to500
+		h500to1k = row.H500to1k
+		h1kto5k = row.H1kto5k
+		hGt5k = row.HGt5k
+		fhLt100 = row.FHLt100
+		fh100to500 = row.FH100to500
+		fh500to1k = row.FH500to1k
+		fh1kto5k = row.FH1kto5k
+		fhGt5k = row.FHGt5k
 	}
 
-	// Merge in-memory cache
+	// 合并内存缓存（尚未落库的日志，≤200 条，逐条处理无内存压力）。
 	cache, lock := relaylog.GetCacheAndLock()
 	lock.Lock()
 	for _, logItem := range cache {
@@ -1642,7 +1656,6 @@ func loadLatencyDistribution(ctx context.Context, r model.AnalyticsRange) (*mode
 			continue
 		}
 		if logItem.UseTime > 0 {
-			latencies = append(latencies, float64(logItem.UseTime))
 			totalUseTime += int64(logItem.UseTime)
 			totalCount++
 			switch {
@@ -1659,8 +1672,20 @@ func loadLatencyDistribution(ctx context.Context, r model.AnalyticsRange) (*mode
 			}
 		}
 		if logItem.Ftut > 0 {
-			ftuts = append(ftuts, float64(logItem.Ftut))
 			totalFtut += int64(logItem.Ftut)
+			ftutCount++
+			switch {
+			case logItem.Ftut < 100:
+				fhLt100++
+			case logItem.Ftut < 500:
+				fh100to500++
+			case logItem.Ftut < 1000:
+				fh500to1k++
+			case logItem.Ftut < 5000:
+				fh1kto5k++
+			default:
+				fhGt5k++
+			}
 		}
 	}
 	lock.Unlock()
@@ -1669,20 +1694,26 @@ func loadLatencyDistribution(ctx context.Context, r model.AnalyticsRange) (*mode
 	if totalCount > 0 {
 		result.AvgMs = totalUseTime / totalCount
 	}
-
-	// Compute percentiles from sorted samples
-	sort.Float64s(latencies)
-	result.P50Ms = int64(percentileFromSorted(latencies, 0.50))
-	result.P95Ms = int64(percentileFromSorted(latencies, 0.95))
-	result.P99Ms = int64(percentileFromSorted(latencies, 0.99))
-
-	sort.Float64s(ftuts)
-	if len(ftuts) > 0 {
-		result.FtutAvgMs = totalFtut / int64(len(ftuts))
-		result.FtutP50Ms = int64(percentileFromSorted(ftuts, 0.50))
-		result.FtutP95Ms = int64(percentileFromSorted(ftuts, 0.95))
-		result.FtutP99Ms = int64(percentileFromSorted(ftuts, 0.99))
+	if ftutCount > 0 {
+		result.FtutAvgMs = totalFtut / ftutCount
 	}
+
+	// 百分位由桶边界线性插值近似。
+	latBuckets := []histBucket{
+		{0, 100, hLt100}, {100, 500, h100to500}, {500, 1000, h500to1k},
+		{1000, 5000, h1kto5k}, {5000, -1, hGt5k},
+	}
+	result.P50Ms = percentileFromBuckets(latBuckets, totalCount, 0.50)
+	result.P95Ms = percentileFromBuckets(latBuckets, totalCount, 0.95)
+	result.P99Ms = percentileFromBuckets(latBuckets, totalCount, 0.99)
+
+	ftutBuckets := []histBucket{
+		{0, 100, fhLt100}, {100, 500, fh100to500}, {500, 1000, fh500to1k},
+		{1000, 5000, fh1kto5k}, {5000, -1, fhGt5k},
+	}
+	result.FtutP50Ms = percentileFromBuckets(ftutBuckets, ftutCount, 0.50)
+	result.FtutP95Ms = percentileFromBuckets(ftutBuckets, ftutCount, 0.95)
+	result.FtutP99Ms = percentileFromBuckets(ftutBuckets, ftutCount, 0.99)
 
 	result.Buckets = []model.HistogramBucket{
 		{Label: "<100ms", Count: hLt100},
@@ -1695,18 +1726,51 @@ func loadLatencyDistribution(ctx context.Context, r model.AnalyticsRange) (*mode
 	return result, nil
 }
 
-func percentileFromSorted(sorted []float64, p float64) float64 {
-	if len(sorted) == 0 {
+// histBucket 描述一个直方图桶：[lo, hi)，hi<0 表示无上界（末桶）。
+type histBucket struct {
+	lo    int64
+	hi    int64 // -1 = 无上界
+	count int64
+}
+
+// percentileFromBuckets 由直方图桶线性插值近似百分位。
+// 在桶内按均匀分布假设插值；首桶（lo=0）从 0 起，末桶（hi<0）取 lo 作为保守下界。
+// total 为全部桶 count 之和。total=0 返回 0。
+func percentileFromBuckets(buckets []histBucket, total int64, p float64) int64 {
+	if total <= 0 {
 		return 0
 	}
-	idx := int(math.Ceil(p*float64(len(sorted)))) - 1
-	if idx < 0 {
-		idx = 0
+	target := p * float64(total)
+	var cum int64
+	for _, b := range buckets {
+		if b.count == 0 {
+			continue
+		}
+		next := cum + b.count
+		if float64(next) >= target {
+			// 目标落在本桶内，线性插值。
+			frac := 0.0
+			if b.count > 0 {
+				frac = (target - float64(cum)) / float64(b.count)
+			}
+			if b.hi < 0 {
+				// 末桶无上界：保守返回桶下界，避免外推出不合理大值。
+				return b.lo
+			}
+			return b.lo + int64(frac*float64(b.hi-b.lo))
+		}
+		cum = next
 	}
-	if idx >= len(sorted) {
-		idx = len(sorted) - 1
+	// 兜底：返回最大桶上界。
+	for i := len(buckets) - 1; i >= 0; i-- {
+		if buckets[i].count > 0 {
+			if buckets[i].hi < 0 {
+				return buckets[i].lo
+			}
+			return buckets[i].hi
+		}
 	}
-	return sorted[idx]
+	return 0
 }
 
 func splitAnalyticsChannelModels(channel model.Channel) []string {

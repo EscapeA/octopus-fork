@@ -4,6 +4,7 @@ import (
 	dbmodel "github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op"
 	"github.com/lingyuins/octopus/internal/op/apikey"
+	"github.com/lingyuins/octopus/internal/op/ratelimitstore"
 	"github.com/lingyuins/octopus/internal/op/setting"
 	"github.com/lingyuins/octopus/internal/relay/balancer"
 )
@@ -30,9 +31,10 @@ func init() {
 		balancer.RemoveChannelKeyAvailability(channelID)
 	})
 
-	// 注册 API Key 删除时的清理钩子：清除粘性会话条目，
-	// 防止 globalSession 无限增长。
+	// 注册 API Key 删除时的清理钩子：清除粘性会话和限流 bucket 条目，
+	// 防止 globalSession / requestBuckets / tokenBuckets 无限增长。
 	apikey.DeleteSessionFunc = func(id int) {
 		balancer.RemoveAPIKeySticky(id)
+		ratelimitstore.RemoveAPIKeyBuckets(id)
 	}
 }

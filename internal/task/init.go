@@ -7,6 +7,7 @@ import (
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op/backup"
+	"github.com/lingyuins/octopus/internal/op/ratelimitstore"
 	"github.com/lingyuins/octopus/internal/op/relaylog"
 	"github.com/lingyuins/octopus/internal/op/remotesite"
 	"github.com/lingyuins/octopus/internal/op/setting"
@@ -103,6 +104,10 @@ func Init() {
 		balancer.PurgeExpiredKeyCooldowns()
 		// 清理长时间未活动的可用度分数条目，与 key 冷却同维度回收。
 		balancer.PurgeStaleKeyAvailability(balancerIdleThreshold)
+		// 清理长时间未活动的限流 bucket。其 key 含客户端请求携带的 modelName
+		// （基数不受控），与 balancer 全局 map 同维度，缺少周期回收会在刷量/随机
+		// model 名下无界增长（见 issue #46 同类遗漏）。
+		ratelimitstore.PurgeStaleBuckets(balancerIdleThreshold)
 
 		if db.IsSQLite() {
 			db.EnqueueWrite(db.WriteJob{Name: "relay_log_save", Fn: func(_ context.Context) error {
