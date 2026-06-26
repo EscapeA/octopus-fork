@@ -61,12 +61,11 @@ func addAPIKeyQuotaColumns(db *gorm.DB) error {
 }
 
 func setColumnDefault(db *gorm.DB, table, column, typ, defaultVal string) error {
-	switch db.Dialector.Name() {
-	case "sqlite":
-		return db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s DEFAULT %s", table, column, typ, defaultVal)).Error
-	case "mysql":
-		return db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s DEFAULT %s", table, column, typ, defaultVal)).Error
-	default:
-		return db.Migrator().AddColumn(&model.APIKey{}, column)
-	}
+	// 统一用 GORM Migrator().AddColumn，让 GORM 按方言自动转义表名/列名，
+	// 避免 MySQL 保留字（如 groups）导致的 Error 1064。table 参数保留用于
+	// 日志输出，实际 AddColumn 通过 model 类型推导表名。
+	_ = table // 已通过 &model.APIKey{} 推导，保留参数签名兼容调用方
+	_ = typ
+	_ = defaultVal
+	return db.Migrator().AddColumn(&model.APIKey{}, column)
 }

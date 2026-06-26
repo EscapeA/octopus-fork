@@ -3,6 +3,7 @@ package migrate
 import (
 	"fmt"
 
+	"github.com/lingyuins/octopus/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -21,29 +22,18 @@ func migrateStatsLatencyColumns(db *gorm.DB) error {
 		return nil
 	}
 
-	columns := []struct {
-		name string
-		typ  string
-	}{
-		{"latency_p50", "BIGINT DEFAULT 0"},
-		{"latency_p95", "BIGINT DEFAULT 0"},
-		{"latency_p99", "BIGINT DEFAULT 0"},
-		{"ftut_avg", "BIGINT DEFAULT 0"},
-		{"ftut_p50", "BIGINT DEFAULT 0"},
-		{"ftut_p95", "BIGINT DEFAULT 0"},
-		{"ftut_p99", "BIGINT DEFAULT 0"},
-		{"histogram_lt100", "BIGINT DEFAULT 0"},
-		{"histogram100to500", "BIGINT DEFAULT 0"},
-		{"histogram500to1k", "BIGINT DEFAULT 0"},
-		{"histogram1kto5k", "BIGINT DEFAULT 0"},
-		{"histogram_gt5k", "BIGINT DEFAULT 0"},
+	columns := []string{
+		"LatencyP50", "LatencyP95", "LatencyP99",
+		"FtutAvg", "FtutP50", "FtutP95", "FtutP99",
+		"HistogramLt100", "Histogram100to500", "Histogram500to1k",
+		"Histogram1kto5k", "HistogramGt5k",
 	}
 
-	for _, col := range columns {
-		if !db.Migrator().HasColumn("stats_hourlies", col.name) {
-			sql := fmt.Sprintf("ALTER TABLE stats_hourlies ADD COLUMN %s %s", col.name, col.typ)
-			if err := db.Exec(sql).Error; err != nil {
-				return fmt.Errorf("add column %s: %w", col.name, err)
+	for _, field := range columns {
+		if !db.Migrator().HasColumn(&model.StatsHourly{}, field) {
+			// 用 GORM Migrator().AddColumn 而非裸 SQL，按方言自动转义表名/列名。
+			if err := db.Migrator().AddColumn(&model.StatsHourly{}, field); err != nil {
+				return fmt.Errorf("add column %s: %w", field, err)
 			}
 		}
 	}
