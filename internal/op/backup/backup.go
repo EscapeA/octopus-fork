@@ -3,6 +3,7 @@ package backup
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/lingyuins/octopus/internal/db"
@@ -197,9 +198,19 @@ func (c *importConfig) upsertSettings(rows []model.Setting) error {
 }
 
 func (c *importConfig) deleteAll(table string) error {
-	result := c.conn.Exec(fmt.Sprintf("DELETE FROM %s", table))
+	// 用方言感知的引号转义表名（MySQL 反引号、Postgres 双引号、SQLite 反引号），
+	// 避免 groups 等 MySQL 保留字导致 Error 1064 语法错误。
+	quoted := quoteTableName(c.conn, table)
+	result := c.conn.Exec(fmt.Sprintf("DELETE FROM %s", quoted))
 	appendStep(c.res, table, "delete", result.RowsAffected, result.Error)
 	return result.Error
+}
+
+// quoteTableName 用 GORM Dialector 做方言感知的表名转义。
+func quoteTableName(conn *gorm.DB, table string) string {
+	var b strings.Builder
+	conn.Dialector.QuoteTo(&b, table)
+	return b.String()
 }
 
 func ImportWithMode(ctx context.Context, dump *model.DBDump, mode string) (*model.DBImportResult, error) {
