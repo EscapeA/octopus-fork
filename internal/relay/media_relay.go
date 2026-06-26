@@ -23,6 +23,7 @@ import (
 	ch "github.com/lingyuins/octopus/internal/op/channel"
 	grp "github.com/lingyuins/octopus/internal/op/group"
 	"github.com/lingyuins/octopus/internal/op/relaylog"
+	"github.com/lingyuins/octopus/internal/op/setting"
 	st "github.com/lingyuins/octopus/internal/op/stats"
 	"github.com/lingyuins/octopus/internal/relay/balancer"
 	"github.com/lingyuins/octopus/internal/relay/condition"
@@ -377,7 +378,10 @@ func recordMediaRelayLog(apiKeyID int, requestModel string, endpointType string,
 	}
 
 	if len(bodyBytes) > 0 {
-		relayLog.RequestContent = string(bodyBytes)
+		contentEnabled, _ := setting.GetBool(dbmodel.SettingKeyRelayLogContentEnabled)
+		if contentEnabled {
+			relayLog.RequestContent = string(bodyBytes)
+		}
 	}
 
 	if relayErr != nil {

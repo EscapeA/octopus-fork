@@ -119,6 +119,34 @@ export function useClearLogs() {
     });
 }
 
+/**
+ * 清空日志请求/响应内容大字段 Hook
+ *
+ * 清空所有历史日志的 request_content / response_content 大字段，
+ * 保留全部元数据（token、cost、渠道、时间等）。
+ *
+ * @example
+ * const clearLogContents = useClearLogContents();
+ *
+ * clearLogContents.mutate();
+ */
+export function useClearLogContents() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async () => {
+            return apiClient.delete<null>('/api/v1/log/clear-contents');
+        },
+        onSuccess: () => {
+            logger.log('日志内容清空成功');
+            queryClient.invalidateQueries({ queryKey: ['logs'] });
+        },
+        onError: (error) => {
+            logger.error('日志内容清空失败:', error);
+        },
+    });
+}
+
 const logsInfiniteQueryKey = (pageSize: number, filter: LogFilter) => ['logs', 'infinite', pageSize, filter] as const;
 
 export const DEFAULT_LOG_PAGE_SIZE = 10;

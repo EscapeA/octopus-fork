@@ -18,6 +18,7 @@ const (
 	SettingKeyRelayLogKeepPeriod                   SettingKey = "relay_log_keep_period"                    // 日志保存时间范围(天)
 	SettingKeyRelayLogKeepCount                    SettingKey = "relay_log_keep_count"                     // 日志保留条数(0=不按条数)
 	SettingKeyRelayLogKeepEnabled                  SettingKey = "relay_log_keep_enabled"                   // 是否保留历史日志
+	SettingKeyRelayLogContentEnabled               SettingKey = "relay_log_content_enabled"                // 是否记录请求/响应内容大字段（关闭可大幅降低写入量与磁盘 IO）
 	SettingKeyCORSAllowOrigins                     SettingKey = "cors_allow_origins"                       // 跨域白名单(逗号分隔, 如 "example.com,example2.com"). 为空不允许跨域, "*"允许所有
 	SettingKeyRelayRetryCount                      SettingKey = "relay_retry_count"                        // 单个候选渠道内 Key 级最大重试次数
 	SettingKeyRelayRouteRetries                    SettingKey = "relay_route_retries"                      // 路由级最大重试次数（全部渠道遍历一轮算一次）
@@ -98,6 +99,7 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyRelayLogKeepPeriod, Value: "7"},          // 默认日志保存7天
 		{Key: SettingKeyRelayLogKeepCount, Value: "0"},           // 默认不按条数保留(0=禁用)
 		{Key: SettingKeyRelayLogKeepEnabled, Value: "true"},      // 默认保留历史日志
+		{Key: SettingKeyRelayLogContentEnabled, Value: "true"},   // 默认记录请求/响应内容，保持兼容；高负载可关闭以降低 IO
 		{Key: SettingKeyRelayRetryCount, Value: "3"},             // 默认单个渠道内 Key 级重试3次
 		{Key: SettingKeyRelayRouteRetries, Value: "2"},           // 默认路由级重试2次（全部渠道遍历两轮）
 		{Key: SettingKeyCircuitBreakerThreshold, Value: "5"},     // 默认连续失败5次触发熔断
@@ -234,7 +236,7 @@ func (s *Setting) Validate() error {
 				return fmt.Errorf("setting value must be greater than 0")
 			}
 		}
-	case SettingKeyRelayLogKeepEnabled, SettingKeySemanticCacheEnabled, SettingKeyModelNormalizeMarketDedupeDefault, SettingKeyRetryEmptyOutput:
+	case SettingKeyRelayLogKeepEnabled, SettingKeyRelayLogContentEnabled, SettingKeySemanticCacheEnabled, SettingKeyModelNormalizeMarketDedupeDefault, SettingKeyRetryEmptyOutput:
 		if s.Value != "true" && s.Value != "false" {
 			return fmt.Errorf("setting value must be true or false")
 		}

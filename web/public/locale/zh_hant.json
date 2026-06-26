@@ -1876,7 +1876,19 @@
         "empty": "暫無分組",
         "addHint": "點擊屏蔽此分組的日誌",
         "removeHint": "點擊取消屏蔽"
-      }
+      },
+      "contentEnabled": {
+        "label": "記錄請求/回應內容",
+        "description": "關閉後不再儲存請求與回應正文大欄位，可大幅降低寫入量與磁碟 IO。Token 用量與快取指標仍會記錄。"
+      },
+      "clearContents": {
+        "label": "清空請求/回應內容",
+        "description": "清除所有歷史日誌中的請求與回應正文，釋放磁碟空間。元資料（Token、費用、頻道等）保留。",
+        "button": "清空",
+        "clearing": "清空中..."
+      },
+      "clearContentsSuccess": "日誌內容已清空",
+      "clearContentsFailed": "清空日誌內容失敗"
     },
     "navOrder": {
       "title": "頁面順序與顯示",

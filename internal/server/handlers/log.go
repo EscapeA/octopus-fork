@@ -35,6 +35,11 @@ func init() {
 				Handle(clearLog),
 		).
 		AddRoute(
+			router.NewRoute("/clear-contents", http.MethodDelete).
+				Use(middleware.RequirePermission(auth.PermLogsWrite)).
+				Handle(clearLogContents),
+		).
+		AddRoute(
 			router.NewRoute("/stream", http.MethodGet).
 				Handle(streamLog),
 		)
@@ -167,6 +172,14 @@ func logDetail(c *gin.Context) {
 
 func clearLog(c *gin.Context) {
 	if err := relaylog.RelayLogClear(c.Request.Context()); err != nil {
+		resp.InternalError(c)
+		return
+	}
+	resp.Success(c, nil)
+}
+
+func clearLogContents(c *gin.Context) {
+	if err := relaylog.RelayLogClearContents(c.Request.Context()); err != nil {
 		resp.InternalError(c)
 		return
 	}

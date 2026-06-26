@@ -34,6 +34,11 @@ func RelayLogList(ctx context.Context, filter relaylog.LogFilter, page, pageSize
 
 func RelayLogClear(ctx context.Context) error { return relaylog.RelayLogClear(ctx) }
 
+// RelayLogClearContents 清空所有历史日志的请求/响应内容大字段，保留元数据。
+func RelayLogClearContents(ctx context.Context) error {
+	return relaylog.RelayLogClearContents(ctx)
+}
+
 // RelayLogApplyKeepEnabled 在「保留历史日志」开关变更后调整独立日志库连接：
 // 关闭时断开日志库连接（释放资源），重新开启时重连。共用主库时为空操作。
 func RelayLogApplyKeepEnabled(ctx context.Context, enabled bool) error {

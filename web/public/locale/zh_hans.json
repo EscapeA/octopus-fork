@@ -1876,7 +1876,19 @@
         "empty": "暂无分组可供选择",
         "addHint": "点击屏蔽该分组的日志",
         "removeHint": "点击取消屏蔽"
-      }
+      },
+      "contentEnabled": {
+        "label": "记录请求/响应内容",
+        "description": "关闭后不再存储请求与响应正文大字段，可大幅降低写入量与磁盘 IO。Token 用量与缓存指标仍会记录。"
+      },
+      "clearContents": {
+        "label": "清空请求/响应内容",
+        "description": "清除所有历史日志中的请求与响应正文，释放磁盘空间。元数据（Token、费用、渠道等）保留。",
+        "button": "清空",
+        "clearing": "清空中..."
+      },
+      "clearContentsSuccess": "日志内容已清空",
+      "clearContentsFailed": "清空日志内容失败"
     },
     "navOrder": {
       "title": "页面顺序与显示",

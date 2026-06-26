@@ -1876,7 +1876,19 @@
         "empty": "No groups available",
         "addHint": "Click to hide this group's logs",
         "removeHint": "Click to stop hiding this group's logs"
-      }
+      },
+      "contentEnabled": {
+        "label": "Record Request/Response Content",
+        "description": "When disabled, large request/response bodies are not stored, reducing write load and disk IO. Token counts and cache metrics are still recorded."
+      },
+      "clearContents": {
+        "label": "Clear Request/Response Content",
+        "description": "Removes stored request/response bodies from all historical logs to free disk space. Metadata (tokens, cost, channels) is preserved.",
+        "button": "Clear",
+        "clearing": "Clearing..."
+      },
+      "clearContentsSuccess": "Log content cleared",
+      "clearContentsFailed": "Failed to clear log content"
     },
     "navOrder": {
       "title": "Page Order & Visibility",

@@ -2,14 +2,14 @@
 
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { ScrollText, Calendar, Hash, Trash2, Terminal, FolderX } from 'lucide-react';
+import { ScrollText, Calendar, Hash, Trash2, Terminal, FolderX, FileText } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useSettingList, useSetSetting, SettingKey } from '@/api/endpoints/setting';
 import { useGroupList } from '@/api/endpoints/group';
-import { useClearLogs } from '@/api/endpoints/log';
+import { useClearLogs, useClearLogContents } from '@/api/endpoints/log';
 import { toast } from '@/components/common/Toast';
 
 type KeepMode = 'count' | 'days';
@@ -23,13 +23,16 @@ export function SettingLog() {
     const { data: groups = [] } = useGroupList();
     const setSetting = useSetSetting();
     const clearLogs = useClearLogs();
+    const clearLogContents = useClearLogContents();
 
     const [enabled, setEnabled] = useState(true);
+    const [contentEnabled, setContentEnabled] = useState(true);
     const [logLevel, setLogLevel] = useState<LogLevel>('info');
     const [mode, setMode] = useState<KeepMode>('count');
     const [keepCount, setKeepCount] = useState('1000');
     const [keepDays, setKeepDays] = useState('7');
     const [isClearing, setIsClearing] = useState(false);
+    const [isClearingContents, setIsClearingContents] = useState(false);
     const [excludedGroups, setExcludedGroups] = useState<string[]>([]);
 
     // 去重的分组名称列表（同名分组只展示一次）
@@ -61,6 +64,11 @@ export function SettingLog() {
                 const isEnabled = enabledSetting.value === 'true';
                 queueMicrotask(() => setEnabled(isEnabled));
                 initialEnabled.current = isEnabled;
+            }
+
+            const contentSetting = settings.find(s => s.key === SettingKey.RelayLogContentEnabled);
+            if (contentSetting) {
+                queueMicrotask(() => setContentEnabled(contentSetting.value === 'true'));
             }
 
             const logLevelSetting = settings.find(s => s.key === SettingKey.LogLevel);
@@ -139,6 +147,18 @@ export function SettingLog() {
         );
     };
 
+    const handleContentEnabledChange = (checked: boolean) => {
+        setContentEnabled(checked);
+        setSetting.mutate(
+            { key: SettingKey.RelayLogContentEnabled, value: checked ? 'true' : 'false' },
+            {
+                onSuccess: () => {
+                    toast.success(t('saved'));
+                }
+            }
+        );
+    };
+
     const handleLogLevelChange = (level: LogLevel) => {
         setLogLevel(level);
         setSetting.mutate(
@@ -212,6 +232,20 @@ export function SettingLog() {
         });
     };
 
+    const handleClearContents = () => {
+        setIsClearingContents(true);
+        clearLogContents.mutate(undefined, {
+            onSuccess: () => {
+                toast.success(t('log.clearContentsSuccess'));
+                setIsClearingContents(false);
+            },
+            onError: () => {
+                toast.error(t('log.clearContentsFailed'));
+                setIsClearingContents(false);
+            }
+        });
+    };
+
     return (
         <div className="rounded-xl border-border/35 bg-card p-6 space-y-5 text-card-foreground shadow-md">
             <h2 className="text-lg font-bold text-card-foreground flex items-center gap-2">
@@ -231,6 +265,22 @@ export function SettingLog() {
                 <Switch
                     checked={enabled}
                     onCheckedChange={handleEnabledChange}
+                />
+            </div>
+
+            {/* 是否记录请求/响应内容大字段 */}
+            <div className="flex items-center justify-between gap-4 rounded-lg border-border/30 bg-card p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex flex-col">
+                        <span className="text-sm font-medium">{t('log.contentEnabled.label')}</span>
+                        <span className="text-xs text-muted-foreground">{t('log.contentEnabled.description')}</span>
+                    </div>
+                </div>
+                <Switch
+                    checked={contentEnabled}
+                    onCheckedChange={handleContentEnabledChange}
+                    disabled={!enabled}
                 />
             </div>
 
@@ -370,6 +420,26 @@ export function SettingLog() {
                         })}
                     </div>
                 )}
+            </div>
+
+            {/* 清空历史日志的请求/响应内容大字段（保留元数据） */}
+            <div className="flex flex-col gap-3 rounded-lg border-border/30 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between">
+                <div className="flex items-center gap-3">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex flex-col">
+                        <span className="text-sm font-medium">{t('log.clearContents.label')}</span>
+                        <span className="text-xs text-muted-foreground">{t('log.clearContents.description')}</span>
+                    </div>
+                </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleClearContents}
+                    disabled={isClearingContents || !enabled}
+                    className="rounded-xl"
+                >
+                    {isClearingContents ? t('log.clearContents.clearing') : t('log.clearContents.button')}
+                </Button>
             </div>
 
             {/* 清空历史日志 */}

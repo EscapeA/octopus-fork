@@ -14,6 +14,7 @@ import (
 	"github.com/lingyuins/octopus/internal/op/apikey"
 	"github.com/lingyuins/octopus/internal/op/cacheusage"
 	"github.com/lingyuins/octopus/internal/op/relaylog"
+	"github.com/lingyuins/octopus/internal/op/setting"
 	"github.com/lingyuins/octopus/internal/op/stats"
 	"github.com/lingyuins/octopus/internal/price"
 	transformerModel "github.com/lingyuins/octopus/internal/transformer/model"
@@ -238,36 +239,53 @@ func (m *RelayMetrics) saveLog(ctx context.Context, err error, duration time.Dur
 		relayLog.Cost = m.Stats.InputCost + m.Stats.OutputCost
 	}
 
-	// 请求内容
-	if m.InternalRequest != nil {
-		if reqJSON, jsonErr := json.Marshal(m.filterRequestForLog(m.InternalRequest)); jsonErr == nil {
-			relayLog.RequestContent = string(reqJSON)
-		}
-	}
-
-	// 响应内容
-	if m.InternalResponse != nil {
-		respForLog := m.filterResponseForLog(m.InternalResponse)
-		if respJSON, jsonErr := json.Marshal(respForLog); jsonErr == nil {
-			if m.InternalResponse.Usage != nil && m.InternalResponse.Usage.AnthropicUsage {
-				respStr := string(respJSON)
-				old := `"usage":{`
-				insert := fmt.Sprintf(`"usage":{"cache_creation_input_tokens":%d,`, m.InternalResponse.Usage.CacheCreationInputTokens)
-				respJSON = []byte(strings.Replace(respStr, old, insert, 1))
+	// 大字段（请求/响应内容）记录开关。关闭时跳过 JSON 构造与存储，可大幅
+	// 降低每条日志的写入量与磁盘 IO（高负载日志性能优化的主要杠杆）。
+	// SemanticCacheHit 与 CacheReadTokens 不依赖大字段：前者从请求判断，后者
+	// 从 InternalResponse.Usage.PromptTokensDetails.CachedTokens 直接提取。
+	contentEnabled, _ := setting.GetBool(model.SettingKeyRelayLogContentEnabled)
+	if contentEnabled {
+		// 请求内容
+		if m.InternalRequest != nil {
+			if reqJSON, jsonErr := json.Marshal(m.filterRequestForLog(m.InternalRequest)); jsonErr == nil {
+				relayLog.RequestContent = string(reqJSON)
 			}
-			if isSemanticCacheHitRequest(m.InternalRequest) {
-				relayLog.SemanticCacheHit = true
-				if relayLog.ChannelName == "" {
-					relayLog.ChannelName = "Semantic Cache"
+		}
+
+		// 响应内容
+		if m.InternalResponse != nil {
+			respForLog := m.filterResponseForLog(m.InternalResponse)
+			if respJSON, jsonErr := json.Marshal(respForLog); jsonErr == nil {
+				if m.InternalResponse.Usage != nil && m.InternalResponse.Usage.AnthropicUsage {
+					respStr := string(respJSON)
+					old := `"usage":{`
+					insert := fmt.Sprintf(`"usage":{"cache_creation_input_tokens":%d,`, m.InternalResponse.Usage.CacheCreationInputTokens)
+					respJSON = []byte(strings.Replace(respStr, old, insert, 1))
 				}
-				respJSON = semanticCacheHitPayload(respJSON, m.InternalRequest)
+				if isSemanticCacheHitRequest(m.InternalRequest) {
+					relayLog.SemanticCacheHit = true
+					if relayLog.ChannelName == "" {
+						relayLog.ChannelName = "Semantic Cache"
+					}
+					respJSON = semanticCacheHitPayload(respJSON, m.InternalRequest)
+				}
+				relayLog.ResponseContent = string(respJSON)
 			}
-			relayLog.ResponseContent = string(respJSON)
 		}
-	}
 
-	if !relayLog.SemanticCacheHit {
-		relayLog.CacheReadTokens = opRelayLogCacheReadTokens(relayLog.ResponseContent)
+		if !relayLog.SemanticCacheHit {
+			relayLog.CacheReadTokens = opRelayLogCacheReadTokens(relayLog.ResponseContent)
+		}
+	} else {
+		// 关闭大字段时仍需维护 SemanticCacheHit 与 CacheReadTokens 两个列
+		// （它们在列表查询中被读取，不依赖大字段）。
+		relayLog.SemanticCacheHit = isSemanticCacheHitRequest(m.InternalRequest)
+		if relayLog.SemanticCacheHit && relayLog.ChannelName == "" {
+			relayLog.ChannelName = "Semantic Cache"
+		}
+		if !relayLog.SemanticCacheHit {
+			relayLog.CacheReadTokens = cacheReadTokensFromUsage(m.InternalResponse)
+		}
 	}
 
 	// 错误信息
@@ -292,6 +310,19 @@ func opRelayLogCacheReadTokens(responseContent string) int {
 		return 0
 	}
 	return int(signals.CachedTokens)
+}
+
+// cacheReadTokensFromUsage 在关闭大字段记录时，直接从 InternalResponse.Usage
+// 提取 prompt cache 命中 token，避免解析 ResponseContent 字符串。与
+// opRelayLogCacheReadTokens 语义一致（仅取 provider 提示缓存，非语义缓存）。
+func cacheReadTokensFromUsage(resp *transformerModel.InternalLLMResponse) int {
+	if resp == nil || resp.Usage == nil {
+		return 0
+	}
+	if resp.Usage.PromptTokensDetails != nil {
+		return int(resp.Usage.PromptTokensDetails.CachedTokens)
+	}
+	return 0
 }
 
 func filterMessageForLog(msg *transformerModel.Message) *transformerModel.Message {

@@ -677,7 +677,7 @@ func RelayLogList(ctx context.Context, filter LogFilter, page, pageSize int) ([]
 				if filter.IncludeAttempts {
 					// 顶层渠道 或 该请求在目标渠道上有过任意尝试（成败由 HasError 单独判定）
 					query = query.Where(
-						"channel_id = ? OR id IN (SELECT relay_log_id FROM relay_log_attempts WHERE channel_id = ?)",
+						"channel_id = ? OR EXISTS (SELECT 1 FROM relay_log_attempts WHERE relay_log_id = relay_logs.id AND channel_id = ?)",
 						*filter.ChannelID, *filter.ChannelID,
 					)
 				} else {
@@ -694,14 +694,14 @@ func RelayLogList(ctx context.Context, filter LogFilter, page, pageSize int) ([]
 				if *filter.HasError {
 					if filter.IncludeAttempts {
 						// 整体失败 或 含任意失败尝试
-						query = query.Where("error != '' OR id IN (SELECT relay_log_id FROM relay_log_attempts WHERE status = ?)", string(model.AttemptFailed))
+						query = query.Where("error != '' OR EXISTS (SELECT 1 FROM relay_log_attempts WHERE relay_log_id = relay_logs.id AND status = ?)", string(model.AttemptFailed))
 					} else {
 						query = query.Where("error != ''")
 					}
 				} else {
 					if filter.IncludeAttempts {
 						// 整体成功 且 不含任何失败尝试
-						query = query.Where("(error = '' OR error IS NULL) AND id NOT IN (SELECT relay_log_id FROM relay_log_attempts WHERE status = ?)", string(model.AttemptFailed))
+						query = query.Where("(error = '' OR error IS NULL) AND NOT EXISTS (SELECT 1 FROM relay_log_attempts WHERE relay_log_id = relay_logs.id AND status = ?)", string(model.AttemptFailed))
 					} else {
 						query = query.Where("error = '' OR error IS NULL")
 					}
@@ -768,6 +768,36 @@ func RelayLogClear(ctx context.Context) error {
 		return err
 	}
 	return db.FastClearTable(conn.WithContext(ctx), &model.RelayLog{}, "relay_logs")
+}
+
+// RelayLogClearContents 清空所有历史日志的 request_content / response_content
+// 大字段，保留全部元数据（token、cost、渠道、时间、attempts 等）。用于在关闭
+// 「记录请求/响应内容」开关后立即释放存量磁盘占用，而不必等待 retention 逐行删除。
+//
+// 同时清空内存缓存中的大字段（在途未刷盘的日志），保证开关生效后缓存里也不残留。
+// relay_log_attempts 不受影响——它不含大字段。
+func RelayLogClearContents(ctx context.Context) error {
+	// 清空内存缓存中在途日志的大字段。
+	relayLogCacheLock.Lock()
+	for i := range relayLogCache {
+		relayLogCache[i].RequestContent = ""
+		relayLogCache[i].ResponseContent = ""
+	}
+	relayLogCacheLock.Unlock()
+
+	conn := db.GetLogDB()
+	if conn == nil {
+		// 独立日志库已断开：内存缓存已清，无需触碰数据库。
+		return nil
+	}
+	// 单条 UPDATE 清空两列，跨方言通用。不删行，故 relay_log_attempts 无孤儿风险。
+	return conn.WithContext(ctx).
+		Model(&model.RelayLog{}).
+		Where("1 = 1").
+		Updates(map[string]any{
+			"request_content":  "",
+			"response_content": "",
+		}).Error
 }
 
 // RelayLogGetByID 根据ID获取完整日志详情（包含 request_content 和 response_content）

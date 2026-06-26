@@ -19,6 +19,7 @@ export const SettingKey = {
     ModelInfoUpdateInterval: 'model_info_update_interval',
     SyncLLMInterval: 'sync_llm_interval',
     RelayLogKeepEnabled: 'relay_log_keep_enabled',
+    RelayLogContentEnabled: 'relay_log_content_enabled',
     RelayLogKeepPeriod: 'relay_log_keep_period',
     RelayLogKeepCount: 'relay_log_keep_count',
     CORSAllowOrigins: 'cors_allow_origins',
