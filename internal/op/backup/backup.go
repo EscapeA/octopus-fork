@@ -137,6 +137,26 @@ func ExportAll(ctx context.Context, includeLogs, includeStats bool) (*model.DBDu
 		return nil, fmt.Errorf("export remote_site_tokens: %w", err)
 	}
 
+	// Site tables (upstream platform multi-account management)
+	if err := conn.Find(&d.Sites).Error; err != nil {
+		return nil, fmt.Errorf("export sites: %w", err)
+	}
+	if err := conn.Find(&d.SiteAccounts).Error; err != nil {
+		return nil, fmt.Errorf("export site_accounts: %w", err)
+	}
+	if err := conn.Find(&d.SiteTokens).Error; err != nil {
+		return nil, fmt.Errorf("export site_tokens: %w", err)
+	}
+	if err := conn.Find(&d.SiteUserGroups).Error; err != nil {
+		return nil, fmt.Errorf("export site_user_groups: %w", err)
+	}
+	if err := conn.Find(&d.SiteModels).Error; err != nil {
+		return nil, fmt.Errorf("export site_models: %w", err)
+	}
+	if err := conn.Find(&d.SiteChannelBindings).Error; err != nil {
+		return nil, fmt.Errorf("export site_channel_bindings: %w", err)
+	}
+
 	return d, nil
 }
 
@@ -239,17 +259,25 @@ func ImportWithModeToDB(ctx context.Context, target *gorm.DB, dump *model.DBDump
 		cfg.conn = tx
 
 		if isFull {
-			// Delete in reverse dependency order to avoid FK violations
+			// Delete in reverse dependency order to avoid FK violations.
+			// users is deliberately excluded: User.Password is json:"-",
+			// so backups never carry password hashes — deleting users would
+			// leave an empty table with no way to log in (issue: full restore
+			// locked out admin). The users table is auth infrastructure, not
+			// application data, and must survive a restore.
 			deleteOrder := []string{
 				"relay_logs", "stats_api_keys", "stats_channels", "stats_models",
 				"stats_hourlies", "stats_dailies", "stats_totals",
+				// Site tables — children before parents
+				"site_channel_bindings", "site_models", "site_user_groups",
+				"site_tokens", "site_accounts", "sites",
 				"remote_site_tokens", "site_announcements",
 				"check_in_records", "balance_snapshots",
 				"api_credential_profiles", "remote_sites",
 				"group_items", "channel_groups", "groups",
 				"alert_histories", "alert_state_records", "alert_rules", "alert_notif_channels",
 				"audit_logs", "auto_strategy_states", "circuit_breaker_states",
-				"api_keys", "users", "channel_keys", "channels",
+				"api_keys", "channel_keys", "channels",
 				"llm_infos", "settings",
 			}
 			for i, table := range deleteOrder {
@@ -421,6 +449,38 @@ func ImportWithModeToDB(ctx context.Context, target *gorm.DB, dump *model.DBDump
 		}
 		if len(dump.RemoteSiteTokens) > 0 {
 			if err := cfg.doNothing("remote_site_tokens", &dump.RemoteSiteTokens, len(dump.RemoteSiteTokens)); err != nil {
+				return err
+			}
+		}
+
+		// Site tables — skip existing. Parents before children.
+		if len(dump.Sites) > 0 {
+			if err := cfg.doNothing("sites", &dump.Sites, len(dump.Sites)); err != nil {
+				return err
+			}
+		}
+		if len(dump.SiteAccounts) > 0 {
+			if err := cfg.doNothing("site_accounts", &dump.SiteAccounts, len(dump.SiteAccounts)); err != nil {
+				return err
+			}
+		}
+		if len(dump.SiteTokens) > 0 {
+			if err := cfg.doNothing("site_tokens", &dump.SiteTokens, len(dump.SiteTokens)); err != nil {
+				return err
+			}
+		}
+		if len(dump.SiteUserGroups) > 0 {
+			if err := cfg.doNothing("site_user_groups", &dump.SiteUserGroups, len(dump.SiteUserGroups)); err != nil {
+				return err
+			}
+		}
+		if len(dump.SiteModels) > 0 {
+			if err := cfg.doNothing("site_models", &dump.SiteModels, len(dump.SiteModels)); err != nil {
+				return err
+			}
+		}
+		if len(dump.SiteChannelBindings) > 0 {
+			if err := cfg.doNothing("site_channel_bindings", &dump.SiteChannelBindings, len(dump.SiteChannelBindings)); err != nil {
 				return err
 			}
 		}

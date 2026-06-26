@@ -232,3 +232,146 @@ func TestImportForceReopensClosedLogDB(t *testing.T) {
 		t.Fatalf("forced relay log count = %d, want 1", count)
 	}
 }
+
+// TestFullImportPreservesUsers verifies that a full-mode restore does NOT
+// delete the users table. User.Password is json:"-", so backups carry no
+// password hashes — deleting users would leave an empty table and lock out
+// the admin. The users table is auth infrastructure and must survive.
+func TestFullImportPreservesUsers(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "users.db")
+	if err := internaldb.InitDB("sqlite", dbPath, false); err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	t.Cleanup(func() { _ = internaldb.Close() })
+
+	dbConn := internaldb.GetDB()
+
+	// Seed an admin user (password hash is irrelevant — we only check survival).
+	admin := model.User{ID: 1, Username: "admin", Password: "$2a$10$hash", Role: model.UserRoleAdmin}
+	if err := dbConn.Create(&admin).Error; err != nil {
+		t.Fatalf("seed admin: %v", err)
+	}
+
+	// Full import with an empty dump (simulates a backup that excluded users).
+	emptyDump := &model.DBDump{Version: 1}
+	if _, err := ImportWithMode(context.Background(), emptyDump, model.ImportModeFull); err != nil {
+		t.Fatalf("full import: %v", err)
+	}
+
+	var count int64
+	if err := dbConn.Model(&model.User{}).Count(&count).Error; err != nil {
+		t.Fatalf("count users: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("users count = %d, want 1 (full restore must not wipe users)", count)
+	}
+
+	var got model.User
+	if err := dbConn.First(&got, 1).Error; err != nil {
+		t.Fatalf("fetch admin: %v", err)
+	}
+	if got.Username != "admin" {
+		t.Fatalf("admin username = %q, want admin", got.Username)
+	}
+}
+
+// TestSiteTablesRoundTrip verifies that the Site management tables survive
+// an export → full-import cycle. These tables (sites, site_accounts,
+// site_tokens, site_user_groups, site_models, site_channel_bindings) were
+// previously missing from DBDump, so dbmigration silently dropped all site
+// management data when switching database types.
+func TestSiteTablesRoundTrip(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "sites.db")
+	if err := internaldb.InitDB("sqlite", dbPath, false); err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	t.Cleanup(func() { _ = internaldb.Close() })
+
+	dbConn := internaldb.GetDB()
+
+	// Seed one site with an account and child rows.
+	site := model.Site{ID: 1, Name: "test-site", Platform: model.SitePlatformNewAPI, BaseURL: "https://example.com", ProxyMode: model.ProxyUsageModeDirect}
+	if err := dbConn.Create(&site).Error; err != nil {
+		t.Fatalf("seed site: %v", err)
+	}
+	account := model.SiteAccount{ID: 1, SiteID: 1, Name: "acc1", CredentialType: model.SiteCredentialTypeAccessToken, ProxyMode: model.ProxyUsageModeInherit}
+	if err := dbConn.Create(&account).Error; err != nil {
+		t.Fatalf("seed account: %v", err)
+	}
+	token := model.SiteToken{ID: 1, SiteAccountID: 1, Token: "sk-xxx", ValueStatus: model.SiteTokenValueStatusReady}
+	if err := dbConn.Create(&token).Error; err != nil {
+		t.Fatalf("seed token: %v", err)
+	}
+	userGroup := model.SiteUserGroup{ID: 1, SiteAccountID: 1, GroupKey: "default", Name: "Default"}
+	if err := dbConn.Create(&userGroup).Error; err != nil {
+		t.Fatalf("seed user group: %v", err)
+	}
+	siteModel := model.SiteModel{ID: 1, SiteAccountID: 1, GroupKey: "default", ModelName: "gpt-4o", RouteType: model.SiteModelRouteTypeOpenAIChat, RouteSource: model.SiteModelRouteSourceSyncInferred}
+	if err := dbConn.Create(&siteModel).Error; err != nil {
+		t.Fatalf("seed model: %v", err)
+	}
+	binding := model.SiteChannelBinding{ID: 1, SiteID: 1, SiteAccountID: 1, GroupKey: "default", ChannelID: 1}
+	if err := dbConn.Create(&binding).Error; err != nil {
+		t.Fatalf("seed binding: %v", err)
+	}
+
+	// Export
+	dump, err := ExportAll(context.Background(), false, false)
+	if err != nil {
+		t.Fatalf("export: %v", err)
+	}
+	if len(dump.Sites) != 1 || dump.Sites[0].Name != "test-site" {
+		t.Fatalf("export sites = %+v, want 1 test-site", dump.Sites)
+	}
+	if len(dump.SiteAccounts) != 1 {
+		t.Fatalf("export site_accounts = %d, want 1", len(dump.SiteAccounts))
+	}
+	if len(dump.SiteTokens) != 1 {
+		t.Fatalf("export site_tokens = %d, want 1", len(dump.SiteTokens))
+	}
+	if len(dump.SiteUserGroups) != 1 {
+		t.Fatalf("export site_user_groups = %d, want 1", len(dump.SiteUserGroups))
+	}
+	if len(dump.SiteModels) != 1 {
+		t.Fatalf("export site_models = %d, want 1", len(dump.SiteModels))
+	}
+	if len(dump.SiteChannelBindings) != 1 {
+		t.Fatalf("export site_channel_bindings = %d, want 1", len(dump.SiteChannelBindings))
+	}
+
+	// Wipe and full-import into a fresh DB to simulate a dbmigration target.
+	// Use OpenStandalone (not InitDB) so we don't clobber the global DB connection.
+	wipePath := filepath.Join(t.TempDir(), "wipe.db")
+	target, err := internaldb.OpenStandalone("sqlite", wipePath, false)
+	if err != nil {
+		t.Fatalf("open target db: %v", err)
+	}
+	if err := internaldb.Migrate(target); err != nil {
+		t.Fatalf("migrate target: %v", err)
+	}
+	t.Cleanup(func() {
+		if sqlDB, e := target.DB(); e == nil {
+			_ = sqlDB.Close()
+		}
+	})
+	if _, err := ImportWithModeToDB(context.Background(), target, dump, model.ImportModeFull); err != nil {
+		t.Fatalf("full import: %v", err)
+	}
+
+	assertCount := func(modelValue any, expected int64) {
+		t.Helper()
+		var count int64
+		if err := target.Model(modelValue).Count(&count).Error; err != nil {
+			t.Fatalf("count %T: %v", modelValue, err)
+		}
+		if count != expected {
+			t.Fatalf("count %T = %d, want %d", modelValue, count, expected)
+		}
+	}
+	assertCount(&model.Site{}, 1)
+	assertCount(&model.SiteAccount{}, 1)
+	assertCount(&model.SiteToken{}, 1)
+	assertCount(&model.SiteUserGroup{}, 1)
+	assertCount(&model.SiteModel{}, 1)
+	assertCount(&model.SiteChannelBinding{}, 1)
+}

@@ -49,6 +49,14 @@ type DBDump struct {
 	APICredentialProfiles []APICredentialProfile `json:"api_credential_profiles,omitempty"`
 	SiteAnnouncements     []SiteAnnouncement     `json:"site_announcements,omitempty"`
 	RemoteSiteTokens      []RemoteSiteToken      `json:"remote_site_tokens,omitempty"`
+
+	// Site tables (upstream platform multi-account management)
+	Sites               []Site               `json:"sites,omitempty"`
+	SiteAccounts        []SiteAccount        `json:"site_accounts,omitempty"`
+	SiteTokens          []SiteToken          `json:"site_tokens,omitempty"`
+	SiteUserGroups      []SiteUserGroup      `json:"site_user_groups,omitempty"`
+	SiteModels          []SiteModel          `json:"site_models,omitempty"`
+	SiteChannelBindings []SiteChannelBinding `json:"site_channel_bindings,omitempty"`
 }
 
 type DBImportResult struct {

@@ -176,8 +176,9 @@ func exportDB(c *gin.Context) {
 	}
 
 	// User.Password is tagged json:"-", so passwords are lost during JSON
-	// serialisation. Exclude users from the JSON export to prevent importing
-	// accounts with empty passwords that would lock the admin out.
+	// serialisation. Exclude users from the export entirely. The import path
+	// (backup.ImportWithModeToDB) deliberately never deletes the users table
+	// in full mode, so existing admin accounts survive a restore.
 	dump.Users = nil
 
 	c.Header("Content-Type", "application/json")
