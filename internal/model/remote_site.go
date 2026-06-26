@@ -109,7 +109,7 @@ func (RemoteSiteDetectRequest) TableName() string { return "-" }
 type BalanceSnapshot struct {
 	ID           int64     `json:"id" gorm:"primaryKey"`
 	RemoteSiteID int       `json:"remote_site_id" gorm:"not null;index"`
-	DayKey       string    `json:"day_key" gorm:"not null;index"` // YYYY-MM-DD
+	DayKey       string    `json:"day_key" gorm:"not null;index;size:10"` // YYYY-MM-DD
 	Quota        float64   `json:"quota"`
 	CapturedAt   time.Time `json:"captured_at"`
 	Source       string    `json:"source"` // "refresh" | "scheduled"

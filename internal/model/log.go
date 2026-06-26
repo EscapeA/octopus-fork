@@ -84,7 +84,7 @@ type RelayLogAttempt struct {
 	RelayLogID  int64  `json:"relay_log_id" gorm:"column:relay_log_id;index:idx_rla_log"`
 	ChannelID   int    `json:"channel_id" gorm:"column:channel_id;index:idx_rla_channel;index:idx_rla_chan_model_time,priority:1"`
 	ChannelName string `json:"channel_name" gorm:"column:channel_name"`
-	ModelName   string `json:"model_name" gorm:"column:model_name;index:idx_rla_chan_model_time,priority:2"`
+	ModelName   string `json:"model_name" gorm:"column:model_name;index:idx_rla_chan_model_time,priority:2;size:191"`
 	Status      string `json:"status" gorm:"column:status"` // success | failed | circuit_break | skipped
 	Duration    int    `json:"duration" gorm:"column:duration"`
 	Time        int64  `json:"time" gorm:"column:time;index:idx_rla_time;index:idx_rla_chan_model_time,priority:3"`

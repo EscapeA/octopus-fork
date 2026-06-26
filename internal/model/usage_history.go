@@ -6,8 +6,8 @@ import "time"
 type RemoteUsageRecord struct {
 	ID               int64     `json:"id" gorm:"primaryKey;autoIncrement"`
 	RemoteSiteID     int       `json:"remote_site_id" gorm:"not null;index"`
-	DayKey           string    `json:"day_key" gorm:"not null;index"` // YYYY-MM-DD
-	Hour             int       `json:"hour"`                          // 0-23
+	DayKey           string    `json:"day_key" gorm:"not null;index;size:10"` // YYYY-MM-DD
+	Hour             int       `json:"hour"`                                  // 0-23
 	ModelName        string    `json:"model_name" gorm:"size:255;index"`
 	TokenName        string    `json:"token_name" gorm:"size:255"`
 	RequestCount     int64     `json:"request_count" gorm:"default:1"`

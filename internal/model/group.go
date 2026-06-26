@@ -12,8 +12,8 @@ const (
 
 type Group struct {
 	ID                int         `json:"id" gorm:"primaryKey"`
-	Name              string      `json:"name" gorm:"unique;not null"`
-	EndpointType      string      `json:"endpoint_type" gorm:"not null;default:*;index"`
+	Name              string      `json:"name" gorm:"unique;not null;size:191"`
+	EndpointType      string      `json:"endpoint_type" gorm:"not null;default:*;index;size:191"`
 	EndpointProvider  string      `json:"endpoint_provider,omitempty" gorm:"not null;default:''"`
 	OutboundFormat    string      `json:"outbound_format,omitempty" gorm:"not null;default:''"` // 出站格式: "" (auto), "chat", "responses"
 	Mode              GroupMode   `json:"mode" gorm:"not null"`
@@ -28,7 +28,7 @@ type GroupItem struct {
 	ID        int    `json:"id" gorm:"primaryKey"`
 	GroupID   int    `json:"group_id" gorm:"not null;index:idx_group_channel_model,unique"` // 创建时不携带此字段,更新时需要
 	ChannelID int    `json:"channel_id" gorm:"not null;index:idx_group_channel_model,unique"`
-	ModelName string `json:"model_name" gorm:"not null;index:idx_group_channel_model,unique"`
+	ModelName string `json:"model_name" gorm:"not null;index:idx_group_channel_model,unique;size:191"`
 	Priority  int    `json:"priority"`
 	Weight    int    `json:"weight"`
 }
