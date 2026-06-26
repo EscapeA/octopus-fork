@@ -1432,7 +1432,13 @@
         "button": "遷移並在重啟後切換",
         "migrateLogsHint": "包含中繼日誌和審計日誌，資料量可能較大。",
         "testButton": "測試連線",
-        "successDetail": "遷移完成。重新啟動 Octopus 後將使用 {type}: {path}"
+        "successDetail": "遷移完成。重新啟動 Octopus 後將使用 {type}: {path}",
+        "host": "主機位址",
+        "port": "連接埠",
+        "user": "使用者名稱",
+        "password": "密碼",
+        "dbName": "資料庫名稱",
+        "advancedDSN": "進階：直接編輯 DSN"
       }
     },
     "webdav": {

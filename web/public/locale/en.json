@@ -1432,7 +1432,13 @@
         "button": "Migrate and switch after restart",
         "migrateLogsHint": "Includes relay logs and audit logs; can be large.",
         "testButton": "Test connection",
-        "successDetail": "Migration complete. Restart Octopus to use {type}: {path}"
+        "successDetail": "Migration complete. Restart Octopus to use {type}: {path}",
+        "host": "Host",
+        "port": "Port",
+        "user": "User",
+        "password": "Password",
+        "dbName": "Database Name",
+        "advancedDSN": "Advanced: edit DSN directly"
       }
     },
     "webdav": {

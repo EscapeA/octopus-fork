@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Database, Download, Upload, AlertTriangle, Loader2, Check, X } from 'lucide-react';
+import { Database, Download, Upload, AlertTriangle, Loader2, Check, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -29,6 +29,15 @@ export function SettingBackup() {
     const [migrateLogs, setMigrateLogs] = useState(false);
     const [migrateStats, setMigrateStats] = useState(false);
 
+    // 结构化数据库连接字段（MySQL / PostgreSQL），自动拼 DSN。
+    // SQLite 保持单路径输入框，不使用这些字段。
+    const [dbHost, setDbHost] = useState('127.0.0.1');
+    const [dbPort, setDbPort] = useState('3306');
+    const [dbUser, setDbUser] = useState('root');
+    const [dbPassword, setDbPassword] = useState('');
+    const [dbName, setDbName] = useState('octopus');
+    const [advancedDSN, setAdvancedDSN] = useState(false); // 高级模式：直接编辑 DSN
+
     const [file, setFile] = useState<File | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -44,6 +53,30 @@ export function SettingBackup() {
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([k, v]) => ({ table: k, count: v }));
     }, [rowsAffected]);
+
+    // 根据数据库类型和输入模式计算最终 DSN/path。
+    // SQLite 或高级模式：直接用 targetPath。
+    // MySQL 结构化模式：user:pass@tcp(host:port)/dbname
+    // PostgreSQL 结构化模式：host=H user=U password=P dbname=D port=PORT sslmode=disable
+    const resolvedTargetPath = useMemo(() => {
+        if (targetType === 'sqlite' || advancedDSN) {
+            return targetPath;
+        }
+        if (targetType === 'mysql') {
+            return `${dbUser}:${dbPassword}@tcp(${dbHost}:${dbPort})/${dbName}`;
+        }
+        // postgres
+        return `host=${dbHost} user=${dbUser} password=${dbPassword} dbname=${dbName} port=${dbPort} sslmode=disable`;
+    }, [targetType, advancedDSN, targetPath, dbHost, dbPort, dbUser, dbPassword, dbName]);
+
+    // 切换数据库类型时重置默认端口。
+    const handleTargetTypeChange = (type: 'sqlite' | 'mysql' | 'postgres') => {
+        setTargetType(type);
+        setAdvancedDSN(false);
+        if (type === 'mysql' && dbPort === '5432') setDbPort('3306');
+        else if (type === 'postgres' && dbPort === '3306') setDbPort('5432');
+        if (type === 'sqlite' && !targetPath) setTargetPath('data/data-next.db');
+    };
 
     const onPickFile = (f: File | null) => {
         setFile(f);
@@ -75,13 +108,13 @@ export function SettingBackup() {
 
     const migrationPayload = {
         type: targetType,
-        path: targetPath,
+        path: resolvedTargetPath,
         include_logs: migrateLogs,
         include_stats: migrateStats,
     };
 
     const onTestDatabase = async () => {
-        if (!targetPath.trim()) {
+        if (!resolvedTargetPath.trim()) {
             toast.error(t('backup.migration.targetRequired')); 
             return;
         }
@@ -94,8 +127,8 @@ export function SettingBackup() {
     };
 
     const onMigrateDatabase = async () => {
-        if (!targetPath.trim()) {
-            toast.error('Please enter target database path / DSN');
+        if (!resolvedTargetPath.trim()) {
+            toast.error(t('backup.migration.targetRequired'));
             return;
         }
         if (!window.confirm(t('backup.migration.confirm'))) {
@@ -161,19 +194,86 @@ export function SettingBackup() {
                 <div className="grid grid-cols-1 gap-3">
                     <select
                         value={targetType}
-                        onChange={(e) => setTargetType(e.target.value as 'sqlite' | 'mysql' | 'postgres')}
+                        onChange={(e) => handleTargetTypeChange(e.target.value as 'sqlite' | 'mysql' | 'postgres')}
                         className="h-10 rounded-xl border border-input bg-background px-3 text-sm w-full"
                     >
                         <option value="sqlite">SQLite</option>
                         <option value="mysql">MySQL</option>
                         <option value="postgres">PostgreSQL</option>
                     </select>
-                    <Input
-                        className="rounded-xl w-full"
-                        value={targetPath}
-                        onChange={(e) => setTargetPath(e.target.value)}
-                        placeholder={targetType === 'sqlite' ? 'data/data-next.db' : 'user:pass@tcp(host:3306)/octopus'}
-                    />
+
+                    {targetType === 'sqlite' || advancedDSN ? (
+                        <Input
+                            className="rounded-xl w-full"
+                            value={targetPath}
+                            onChange={(e) => setTargetPath(e.target.value)}
+                            placeholder={targetType === 'sqlite' ? 'data/data-next.db' : 'user:pass@tcp(host:3306)/octopus'}
+                        />
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <label className="text-xs text-muted-foreground">{t('backup.migration.host')}</label>
+                                <Input
+                                    className="rounded-xl"
+                                    value={dbHost}
+                                    onChange={(e) => setDbHost(e.target.value)}
+                                    placeholder="127.0.0.1"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs text-muted-foreground">{t('backup.migration.port')}</label>
+                                <Input
+                                    className="rounded-xl"
+                                    value={dbPort}
+                                    onChange={(e) => setDbPort(e.target.value)}
+                                    placeholder={targetType === 'mysql' ? '3306' : '5432'}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs text-muted-foreground">{t('backup.migration.user')}</label>
+                                <Input
+                                    className="rounded-xl"
+                                    value={dbUser}
+                                    onChange={(e) => setDbUser(e.target.value)}
+                                    placeholder="root"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs text-muted-foreground">{t('backup.migration.password')}</label>
+                                <Input
+                                    type="password"
+                                    className="rounded-xl"
+                                    value={dbPassword}
+                                    onChange={(e) => setDbPassword(e.target.value)}
+                                    placeholder="••••••"
+                                />
+                            </div>
+                            <div className="space-y-1.5 sm:col-span-2">
+                                <label className="text-xs text-muted-foreground">{t('backup.migration.dbName')}</label>
+                                <Input
+                                    className="rounded-xl"
+                                    value={dbName}
+                                    onChange={(e) => setDbName(e.target.value)}
+                                    placeholder="octopus"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 高级模式切换：直接编辑 DSN */}
+                    {targetType !== 'sqlite' && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setAdvancedDSN(!advancedDSN);
+                                if (!advancedDSN) setTargetPath(resolvedTargetPath);
+                            }}
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                            {advancedDSN ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+                            {t('backup.migration.advancedDSN')}
+                        </button>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 gap-3">
