@@ -135,6 +135,40 @@ export function isSecureContextForWebAuthn(): boolean {
     return typeof window !== 'undefined' && window.isSecureContext;
 }
 
+/**
+ * classifyCredentialError 把 navigator.credentials.create/get 抛出的异常
+ * 转换为用户可读的错误信息。手机端常抛 UnknownError（"an unknown error
+ * occurred while talking to the credential manager"），根因多为 RP ID
+ * 与访问域名不匹配或 origins 缺失，这里给出可操作的提示。
+ */
+function classifyCredentialError(e: unknown): Error {
+    if (!(e instanceof DOMException) && !(e instanceof Error)) {
+        return new Error(String(e));
+    }
+    const errName = e instanceof DOMException ? e.name : '';
+    const msg = e.message || '';
+
+    if (errName === 'SecurityError') {
+        return new Error(
+            'Browser blocked passkey operation. Ensure HTTPS and RP ID match the current domain.'
+        );
+    }
+    if (errName === 'NotAllowedError') {
+        return new Error('Passkey operation was cancelled or timed out.');
+    }
+    if (errName === 'AbortError') {
+        return new Error('Passkey operation was aborted.');
+    }
+    if (errName === 'UnknownError' || /unknown error|credential manager/i.test(msg)) {
+        return new Error(
+            'The credential manager returned an unknown error. This usually means ' +
+            'the WebAuthn RP ID or Origins setting does not match the current access domain. ' +
+            'Check that RP ID is the current domain (or parent) and Origins includes this URL.'
+        );
+    }
+    return new Error(msg || `Passkey operation failed (${errName || 'Unknown'})`);
+}
+
 // --- 登录（公开）---
 
 export interface LoginResponse {
@@ -148,7 +182,12 @@ export function usePasskeyLogin() {
         mutationFn: async (): Promise<LoginResponse> => {
             const begin = await apiClient.post<BeginResponse>('/api/v1/webauthn/login/begin', {}, undefined, false);
             const publicKey = decodeRequestOptions(begin.options.publicKey);
-            const credential = await navigator.credentials.get({ publicKey });
+            let credential: PublicKeyCredential | null;
+            try {
+                credential = await navigator.credentials.get({ publicKey }) as PublicKeyCredential | null;
+            } catch (e) {
+                throw classifyCredentialError(e);
+            }
             if (!credential) throw new Error('Passkey login cancelled');
             return apiClient.post<LoginResponse>(
                 '/api/v1/webauthn/login/finish',
@@ -193,20 +232,25 @@ export function useRegisterPasskey() {
             }
             const begin = await apiClient.post<BeginResponse>('/api/v1/webauthn/register/begin', { name });
             const publicKey = decodeCreationOptions(begin.options.publicKey);
+
+            // 预检：RP ID 必须是当前域名的精确匹配或父域，否则手机端
+            // credential manager 会抛 "unknown error talking to credential manager"。
+            const rpId = (begin.options.publicKey as Record<string, unknown>)?.rp as { id?: string } | undefined;
+            if (rpId?.id && typeof window !== 'undefined') {
+                const hostname = window.location.hostname;
+                if (hostname !== rpId.id && !hostname.endsWith('.' + rpId.id)) {
+                    throw new Error(
+                        `RP ID "${rpId.id}" does not match the current domain "${hostname}". ` +
+                        'Update the WebAuthn RP ID setting to match your access domain.'
+                    );
+                }
+            }
+
             let credential: PublicKeyCredential | null;
             try {
                 credential = await navigator.credentials.create({ publicKey }) as PublicKeyCredential | null;
             } catch (e) {
-                // SecurityError: 非安全上下文或 RP ID 与当前域名不匹配
-                // NotAllowedError: 用户取消或超时
-                const errName = (e instanceof DOMException) ? e.name : '';
-                if (errName === 'SecurityError') {
-                    throw new Error('Browser blocked passkey creation. Ensure you are accessing via HTTPS and the RP ID matches the current domain.');
-                }
-                if (errName === 'NotAllowedError') {
-                    throw new Error('Passkey registration was cancelled or timed out.');
-                }
-                throw e;
+                throw classifyCredentialError(e);
             }
             if (!credential) throw new Error('Passkey registration cancelled');
             await apiClient.post('/api/v1/webauthn/register/finish', {
