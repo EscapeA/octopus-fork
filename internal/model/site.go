@@ -77,9 +77,9 @@ type Site struct {
 	EnabledSet         bool           `json:"-" gorm:"-"`
 	ProxyMode          ProxyUsageMode `json:"proxy_mode" gorm:"type:varchar(16);not null;default:'direct'"`
 	ProxyConfigID      *int           `json:"proxy_config_id"`
-	Proxy              bool           `json:"-" gorm:"default:false"`
-	SiteProxy          *string        `json:"-" gorm:"column:site_proxy"`
-	UseSystemProxy     bool           `json:"-" gorm:"default:false"`
+	Proxy              bool           `json:"proxy" gorm:"default:false"`
+	SiteProxy          *string        `json:"site_proxy,omitempty" gorm:"column:site_proxy"`
+	UseSystemProxy     bool           `json:"use_system_proxy" gorm:"default:false"`
 	ExternalCheckinURL *string        `json:"external_checkin_url"`
 	IsPinned           bool           `json:"is_pinned" gorm:"default:false"`
 	SortOrder          int            `json:"sort_order" gorm:"default:0"`
@@ -132,7 +132,7 @@ type SiteAccount struct {
 	PlatformUserID             *int                 `json:"platform_user_id"`
 	ProxyMode                  ProxyUsageMode       `json:"proxy_mode" gorm:"type:varchar(16);not null;default:'inherit'"`
 	ProxyConfigID              *int                 `json:"proxy_config_id"`
-	AccountProxy               *string              `json:"-" gorm:"column:account_proxy"`
+	AccountProxy               *string              `json:"account_proxy,omitempty" gorm:"column:account_proxy"`
 	Enabled                    bool                 `json:"enabled" gorm:"default:true"`
 	EnabledSet                 bool                 `json:"-" gorm:"-"`
 	AutoSync                   bool                 `json:"auto_sync" gorm:"default:true"`

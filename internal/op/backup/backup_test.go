@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -374,4 +375,61 @@ func TestSiteTablesRoundTrip(t *testing.T) {
 	assertCount(&model.SiteUserGroup{}, 1)
 	assertCount(&model.SiteModel{}, 1)
 	assertCount(&model.SiteChannelBinding{}, 1)
+}
+
+// TestProxyFieldsExportRoundTrip verifies that proxy address fields
+// (ChannelProxy, SiteProxy, AccountProxy) survive a JSON export → import cycle.
+// These fields were previously json:"-", so backup files silently dropped
+// custom proxy configurations (including credentials like socks5://user:pass@host).
+func TestProxyFieldsExportRoundTrip(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "proxy.db")
+	if err := internaldb.InitDB("sqlite", dbPath, false); err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	t.Cleanup(func() { _ = internaldb.Close() })
+
+	dbConn := internaldb.GetDB()
+
+	channelProxy := "socks5://user:pass@proxy.example.com:1080"
+	siteProxy := "http://proxy2.example.com:8080"
+	accountProxy := "socks5://10.0.0.1:1080"
+
+	// Seed a channel, site, and account with proxy fields set.
+	ch := model.Channel{ID: 1, Name: "proxy-channel", Type: outbound.OutboundTypeOpenAIChat, BaseUrls: []model.BaseUrl{{URL: "https://api.example.com"}}, ChannelProxy: &channelProxy}
+	if err := dbConn.Create(&ch).Error; err != nil {
+		t.Fatalf("seed channel: %v", err)
+	}
+	site := model.Site{ID: 1, Name: "proxy-site", Platform: model.SitePlatformNewAPI, BaseURL: "https://example.com", ProxyMode: model.ProxyUsageModeDirect, SiteProxy: &siteProxy}
+	if err := dbConn.Create(&site).Error; err != nil {
+		t.Fatalf("seed site: %v", err)
+	}
+	account := model.SiteAccount{ID: 1, SiteID: 1, Name: "acc1", CredentialType: model.SiteCredentialTypeAccessToken, ProxyMode: model.ProxyUsageModeInherit, AccountProxy: &accountProxy}
+	if err := dbConn.Create(&account).Error; err != nil {
+		t.Fatalf("seed account: %v", err)
+	}
+
+	// Export and JSON round-trip (simulates backup file serialization).
+	dump, err := ExportAll(context.Background(), false, false)
+	if err != nil {
+		t.Fatalf("export: %v", err)
+	}
+	jsonBytes, err := json.Marshal(dump)
+	if err != nil {
+		t.Fatalf("marshal dump: %v", err)
+	}
+	var roundTripped model.DBDump
+	if err := json.Unmarshal(jsonBytes, &roundTripped); err != nil {
+		t.Fatalf("unmarshal dump: %v", err)
+	}
+
+	// Verify proxy fields survived the JSON round-trip.
+	if len(roundTripped.Channels) != 1 || roundTripped.Channels[0].ChannelProxy == nil || *roundTripped.Channels[0].ChannelProxy != channelProxy {
+		t.Fatalf("channel proxy lost in export: %+v", roundTripped.Channels)
+	}
+	if len(roundTripped.Sites) != 1 || roundTripped.Sites[0].SiteProxy == nil || *roundTripped.Sites[0].SiteProxy != siteProxy {
+		t.Fatalf("site proxy lost in export: %+v", roundTripped.Sites)
+	}
+	if len(roundTripped.SiteAccounts) != 1 || roundTripped.SiteAccounts[0].AccountProxy == nil || *roundTripped.SiteAccounts[0].AccountProxy != accountProxy {
+		t.Fatalf("account proxy lost in export: %+v", roundTripped.SiteAccounts)
+	}
 }

@@ -83,14 +83,14 @@ type Channel struct {
 	CustomModel          string                `json:"custom_model"`
 	ProxyMode            ProxyUsageMode        `json:"proxy_mode" gorm:"type:varchar(16);not null;default:'direct'"`
 	ProxyConfigID        *int                  `json:"proxy_config_id"`
-	Proxy                bool                  `json:"-" gorm:"default:false"`
+	Proxy                bool                  `json:"proxy" gorm:"default:false"`
 	AutoSync             bool                  `json:"auto_sync" gorm:"default:false"`
 	AutoGroup            AutoGroupType         `json:"auto_group" gorm:"default:0"`
 	SkipModelTest        bool                  `json:"skip_model_test" gorm:"default:false"`
 	KeySelectionStrategy string                `json:"key_selection_strategy" gorm:"type:varchar(16);not null;default:''"`
 	CustomHeader         []CustomHeader        `json:"custom_header" gorm:"serializer:json"`
 	ParamOverride        *string               `json:"param_override"`
-	ChannelProxy         *string               `json:"-" gorm:"column:channel_proxy"`
+	ChannelProxy         *string               `json:"channel_proxy,omitempty" gorm:"column:channel_proxy"`
 	RequestRewrite       *RequestRewriteConfig `json:"request_rewrite" gorm:"serializer:json"`
 	Stats                *StatsChannel         `json:"stats,omitempty" gorm:"foreignKey:ChannelID"`
 	MatchRegex           *string               `json:"match_regex"`

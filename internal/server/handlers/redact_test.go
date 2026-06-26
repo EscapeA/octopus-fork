@@ -28,7 +28,11 @@ func TestMaskURLDomainForViewer(t *testing.T) {
 }
 
 func TestRedactChannelBaseURLsForViewer(t *testing.T) {
-	channels := []model.Channel{{BaseUrls: []model.BaseUrl{{URL: "https://api.example.com/v1", Delay: 12}}}}
+	proxy := "socks5://user:pass@proxy.example.com:1080"
+	channels := []model.Channel{{
+		BaseUrls:     []model.BaseUrl{{URL: "https://api.example.com/v1", Delay: 12}},
+		ChannelProxy: &proxy,
+	}}
 
 	redactChannelBaseURLsForViewer(channels)
 
@@ -37,6 +41,30 @@ func TestRedactChannelBaseURLsForViewer(t *testing.T) {
 	}
 	if channels[0].BaseUrls[0].Delay != 12 {
 		t.Fatalf("delay = %d, want preserved", channels[0].BaseUrls[0].Delay)
+	}
+	if channels[0].ChannelProxy == nil || *channels[0].ChannelProxy != "socks5://***" {
+		t.Fatalf("channel proxy = %v, want masked", channels[0].ChannelProxy)
+	}
+}
+
+func TestRedactSiteProxyForViewer(t *testing.T) {
+	siteProxy := "http://user:pass@proxy.example.com:8080"
+	accountProxy := "socks5://10.0.0.1:1080"
+	sites := []model.Site{{
+		BaseURL:   "https://api.example.com",
+		SiteProxy: &siteProxy,
+		Accounts: []model.SiteAccount{{
+			AccountProxy: &accountProxy,
+		}},
+	}}
+
+	redactSiteBaseURLsForViewer(sites)
+
+	if sites[0].SiteProxy == nil || *sites[0].SiteProxy != "http://***" {
+		t.Fatalf("site proxy = %v, want masked", sites[0].SiteProxy)
+	}
+	if sites[0].Accounts[0].AccountProxy == nil || *sites[0].Accounts[0].AccountProxy != "socks5://***" {
+		t.Fatalf("account proxy = %v, want masked", sites[0].Accounts[0].AccountProxy)
 	}
 }
 
