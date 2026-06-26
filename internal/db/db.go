@@ -399,11 +399,56 @@ func initSQLite(path string, config *gorm.Config, opts SQLiteOptions) (*gorm.DB,
 }
 
 func initMySQL(dsn string, config *gorm.Config) (*gorm.DB, error) {
+	dsn = normalizeMySQLDSN(dsn)
 	// DSN 格式: user:password@tcp(host:port)/dbname?charset=utf8mb4&parseTime=True&loc=Local
 	if !strings.Contains(dsn, "?") {
 		dsn += "?charset=utf8mb4&parseTime=True&loc=Local"
 	}
 	return gorm.Open(mysql.Open(dsn), config)
+}
+
+// normalizeMySQLDSN 把用户可能填写的 URL 形式（mysql://host:3306/dbname 或
+// mysql://user:pass@host:3306/dbname）转换为 go-sql-driver/mysql 认识的 DSN
+// 格式（user:pass@tcp(host:port)/dbname）。go-sql-driver 不认 scheme 前缀，
+// 直接传入 mysql://... 会报 "default addr for network 'mysql:/' unknown"。
+//
+// go-sql-driver 的 DSN 用最后一个 @ 分割「user:pass」与「addr/db」，
+// 故密码中的 @ 无需转义。这里用 LastIndex 与之一致。
+func normalizeMySQLDSN(dsn string) string {
+	dsn = strings.TrimSpace(dsn)
+	// 剥离 mysql:// 前缀（大小写不敏感）。
+	if lower := strings.ToLower(dsn); strings.HasPrefix(lower, "mysql://") {
+		dsn = dsn[len("mysql://"):]
+	}
+
+	// 找到 host:port 段的起始位置：最后一个 @ 之后，或（无 @ 时）整串开头。
+	hostStart := 0
+	if atIdx := strings.LastIndex(dsn, "@"); atIdx >= 0 {
+		hostStart = atIdx + 1
+	}
+	rest := dsn[hostStart:]
+
+	// 已有 tcp( / unix( 包装则不动。
+	if strings.HasPrefix(rest, "tcp(") || strings.HasPrefix(rest, "unix(") {
+		return dsn
+	}
+
+	// 找 host:port 段结束位置（第一个 / 或 ?）。
+	slashIdx := strings.IndexAny(rest, "/?")
+	var hostPort, dbPart string
+	if slashIdx >= 0 {
+		hostPort = rest[:slashIdx]
+		dbPart = rest[slashIdx:]
+	} else {
+		hostPort = rest
+		dbPart = ""
+	}
+	if hostPort == "" {
+		return dsn
+	}
+
+	// 插入 tcp() 包装。
+	return dsn[:hostStart] + "tcp(" + hostPort + ")" + dbPart
 }
 
 func initPostgres(dsn string, config *gorm.Config) (*gorm.DB, error) {
