@@ -155,7 +155,7 @@ func (u *webAuthnUser) WebAuthnID() []byte {
 	return []byte(strconv.FormatUint(uint64(u.id), userHandleBase))
 }
 
-func (u *webAuthnUser) WebAuthnName() string       { return u.name }
+func (u *webAuthnUser) WebAuthnName() string        { return u.name }
 func (u *webAuthnUser) WebAuthnDisplayName() string { return u.name }
 
 func (u *webAuthnUser) WebAuthnCredentials() []webauthn.Credential {
@@ -214,7 +214,15 @@ func BeginRegistration(userID uint) (string, *protocol.CredentialCreation, error
 	}
 	creation, session, err := w.BeginRegistration(
 		adapter,
-		webauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementRequired),
+		// Passkey 要求可发现凭证（resident key required）。显式设 userVerification=
+		// preferred：go-webauthn 默认 UserVerification 为空串，Android Chrome 的
+		// Google Password Manager 对空值处理不一致，可能抛 "unknown error talking
+		// to the credential manager"。preferred 是 WebAuthn 规范默认值，兼容性最好。
+		webauthn.WithAuthenticatorSelection(protocol.AuthenticatorSelection{
+			ResidentKey:        protocol.ResidentKeyRequirementRequired,
+			RequireResidentKey: protocol.ResidentKeyRequired(),
+			UserVerification:   protocol.VerificationPreferred,
+		}),
 	)
 	if err != nil {
 		return "", nil, fmt.Errorf("begin registration: %w", err)
@@ -285,7 +293,9 @@ func BeginLogin() (string, *protocol.CredentialAssertion, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	assertion, session, err := w.BeginDiscoverableLogin()
+	assertion, session, err := w.BeginDiscoverableLogin(
+		webauthn.WithUserVerification(protocol.VerificationPreferred),
+	)
 	if err != nil {
 		return "", nil, fmt.Errorf("begin login: %w", err)
 	}
