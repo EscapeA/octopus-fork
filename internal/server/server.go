@@ -14,6 +14,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lingyuins/octopus/internal/conf"
+	"github.com/lingyuins/octopus/internal/model"
+	"github.com/lingyuins/octopus/internal/op/setting"
 	_ "github.com/lingyuins/octopus/internal/server/handlers"
 	"github.com/lingyuins/octopus/internal/server/middleware"
 	"github.com/lingyuins/octopus/internal/server/resp"
@@ -81,11 +83,15 @@ func Start() error {
 }
 
 // setTrustedProxies 根据配置配置可信代理 CIDR 列表。
+//
+// 取值优先级：DB setting (trusted_proxies) > config.json / env (server.trusted_proxies)。
+// DB setting 在设置页可改，但需重启服务生效（Gin engine 的 trustedCIDRs 是启动期
+// 一次性配置，运行时热更新 SetTrustedProxies 会与并发请求的 ClientIP() 产生数据竞争）。
 //   - 空值（默认）：不信任任何代理，c.ClientIP() 只返回 TCP 直连地址。
-//   - "*"：信任所有来源（等价于 Gin 旧行为，仅开发用）。
+//   - "*"：信任所有来源（等价于 Gin 旧行为，仅开发用，有 XFF 伪造风险）。
 //   - CIDR/IP 逗号分隔列表（如 "172.17.0.0/16,10.0.0.0/8"）：仅信任这些网段。
 func setTrustedProxies(r *gin.Engine) error {
-	raw := strings.TrimSpace(conf.AppConfig.Server.TrustedProxies)
+	raw := trustedProxiesValue()
 	if raw == "" {
 		return r.SetTrustedProxies(nil)
 	}
@@ -106,6 +112,16 @@ func setTrustedProxies(r *gin.Engine) error {
 	}
 	log.Infof("trusted proxies configured: %v", proxies)
 	return nil
+}
+
+// trustedProxiesValue 解析可信代理配置：DB setting 优先，回退到 config.json/env。
+// 启动阶段 op.InitCache 已完成，setting 缓存就绪；若 DB 中未设置该键（GetString
+// 返回 error）则回退到启动期配置，保持与旧版环境变量/config.json 兼容。
+func trustedProxiesValue() string {
+	if v, err := setting.GetString(model.SettingKeyTrustedProxies); err == nil {
+		return strings.TrimSpace(v)
+	}
+	return strings.TrimSpace(conf.AppConfig.Server.TrustedProxies)
 }
 func Close() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

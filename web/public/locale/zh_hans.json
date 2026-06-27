@@ -1202,6 +1202,12 @@
       "example": "只允许指定域名: https://example.com,https://example2.com",
       "removeAriaLabel": "移除 {origin}"
     },
+    "trustedProxies": {
+      "label": "可信反向代理",
+      "placeholder": "如 172.17.0.0/16,10.0.0.0/8",
+      "hint": "CIDR/IP 列表，用于从 X-Forwarded-For 解析真实客户端 IP。留空=不信任任何代理，*=信任所有（有风险）。",
+      "restartNotice": "修改后需重启服务生效。"
+    },
     "circuitBreaker": {
       "title": "熔断器配置",
       "threshold": {

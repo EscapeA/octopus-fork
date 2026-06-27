@@ -3,6 +3,7 @@ package model
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/url"
 	"strconv"
 	"strings"
@@ -82,6 +83,7 @@ const (
 	SettingKeyWebAuthnRPID                         SettingKey = "webauthn_rp_id"                           // WebAuthn RP ID（域名，不含协议/端口）
 	SettingKeyWebAuthnRPName                       SettingKey = "webauthn_rp_name"                         // WebAuthn RP 展示名
 	SettingKeyWebAuthnOrigins                      SettingKey = "webauthn_origins"                         // WebAuthn 允许的 Origin 列表（逗号分隔，完整 scheme://host[:port]）
+	SettingKeyTrustedProxies                       SettingKey = "trusted_proxies"                          // 可信反向代理 CIDR/IP 列表（逗号分隔，解析 X-Forwarded-For 取真实客户端 IP）；空=不信任任何代理，*=信任所有（有风险）；需重启生效
 )
 
 type Setting struct {
@@ -162,6 +164,7 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyWebAuthnRPID, Value: ""},
 		{Key: SettingKeyWebAuthnRPName, Value: "Octopus"},
 		{Key: SettingKeyWebAuthnOrigins, Value: ""},
+		{Key: SettingKeyTrustedProxies, Value: ""}, // 默认不信任任何代理（安全默认，防 XFF 伪造）；反代/Docker 部署需配置实际代理网段
 	}
 }
 
@@ -379,6 +382,26 @@ func (s *Setting) Validate() error {
 		default:
 			return fmt.Errorf("log level must be one of: debug, info, warn, error")
 		}
+	case SettingKeyTrustedProxies:
+		// 空=不信任任何代理，*=信任所有。其余值按逗号分隔，每段必须是合法 CIDR 或 IP。
+		raw := strings.TrimSpace(s.Value)
+		if raw == "" || raw == "*" {
+			return nil
+		}
+		for _, p := range strings.Split(raw, ",") {
+			v := strings.TrimSpace(p)
+			if v == "" {
+				continue
+			}
+			if _, _, err := net.ParseCIDR(v); err == nil {
+				continue
+			}
+			if ip := net.ParseIP(v); ip != nil {
+				continue
+			}
+			return fmt.Errorf("trusted_proxies entry %q is not a valid CIDR or IP", v)
+		}
+		return nil
 	case SettingKeyProjectedChannelAutoGroupEnabled:
 		_, ok := ParseAutoGroupSettingValue(s.Value)
 		if !ok {

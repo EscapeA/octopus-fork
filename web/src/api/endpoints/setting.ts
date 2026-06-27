@@ -83,6 +83,7 @@ export const SettingKey = {
     WebAuthnRPID: 'webauthn_rp_id',
     WebAuthnRPName: 'webauthn_rp_name',
     WebAuthnOrigins: 'webauthn_origins',
+    TrustedProxies: 'trusted_proxies',
 } as const;
 
 /**

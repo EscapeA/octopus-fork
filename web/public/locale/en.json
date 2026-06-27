@@ -1202,6 +1202,12 @@
       "example": "Only allow specific domains: https://example.com,https://example2.com",
       "removeAriaLabel": "Remove {origin}"
     },
+    "trustedProxies": {
+      "label": "Trusted Reverse Proxies",
+      "placeholder": "e.g. 172.17.0.0/16,10.0.0.0/8",
+      "hint": "CIDR/IP list for resolving real client IP from X-Forwarded-For. Empty = trust none, * = trust all (risk).",
+      "restartNotice": "Changes take effect after service restart."
+    },
     "circuitBreaker": {
       "title": "Circuit Breaker",
       "threshold": {

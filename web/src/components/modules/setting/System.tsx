@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Monitor, Globe, Clock, Shield, HelpCircle, X } from 'lucide-react';
+import { Monitor, Globe, Clock, Shield, HelpCircle, X, Network } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useSettingList, useSetSetting, SettingKey } from '@/api/endpoints/setting';
@@ -19,11 +19,13 @@ export function SettingSystem() {
     const [statsSaveInterval, setStatsSaveInterval] = useState('');
     const [corsAllowOrigins, setCorsAllowOrigins] = useState('');
     const [corsInputValue, setCorsInputValue] = useState('');
+    const [trustedProxies, setTrustedProxies] = useState('');
 
     const initialProxyUrl = useRef('');
     const initialPublicApiBaseUrl = useRef('');
     const initialStatsSaveInterval = useRef('');
     const initialCorsAllowOrigins = useRef('');
+    const initialTrustedProxies = useRef('');
 
     useEffect(() => {
         if (settings) {
@@ -31,6 +33,11 @@ export function SettingSystem() {
             const publicApi = settings.find(s => s.key === SettingKey.PublicAPIBaseURL);
             const interval = settings.find(s => s.key === SettingKey.StatsSaveInterval);
             const cors = settings.find(s => s.key === SettingKey.CORSAllowOrigins);
+            const tp = settings.find(s => s.key === SettingKey.TrustedProxies);
+            if (tp) {
+                queueMicrotask(() => setTrustedProxies(tp.value));
+                initialTrustedProxies.current = tp.value;
+            }
             if (proxy) {
                 queueMicrotask(() => setProxyUrl(proxy.value));
                 initialProxyUrl.current = proxy.value;
@@ -64,6 +71,8 @@ export function SettingSystem() {
                     initialStatsSaveInterval.current = value;
                 } else if (key === SettingKey.CORSAllowOrigins) {
                     initialCorsAllowOrigins.current = value;
+                } else if (key === SettingKey.TrustedProxies) {
+                    initialTrustedProxies.current = value;
                 }
             }
         });
@@ -249,6 +258,34 @@ export function SettingSystem() {
                         </div>
                     </PopoverContent>
                 </Popover>
+            </div>
+
+            {/* 可信反向代理 */}
+            <div className="flex flex-col gap-3 rounded-lg border-border/30 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between">
+                <div className="flex items-center gap-3">
+                    <Network className="h-5 w-5 text-muted-foreground shrink-0" />
+                    <span className="text-sm font-medium">{t('trustedProxies.label')}</span>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <HelpCircle className="size-4 text-muted-foreground cursor-help shrink-0" />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                                {t('trustedProxies.hint')}
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </div>
+                <div className="flex w-full flex-col gap-1.5 md:w-72">
+                    <Input
+                        value={trustedProxies}
+                        onChange={(e) => setTrustedProxies(e.target.value)}
+                        onBlur={() => handleSave(SettingKey.TrustedProxies, trustedProxies, initialTrustedProxies.current)}
+                        placeholder={t('trustedProxies.placeholder')}
+                        className="w-full min-w-0 rounded-xl"
+                    />
+                    <p className="text-xs text-amber-600 dark:text-amber-500">{t('trustedProxies.restartNotice')}</p>
+                </div>
             </div>
         </div>
     );
