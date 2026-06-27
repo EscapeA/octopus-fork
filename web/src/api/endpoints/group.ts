@@ -43,6 +43,8 @@ export interface Group {
     first_token_time_out?: number;
     session_keep_time?: number;
     items?: GroupItem[];
+    last_test_passed?: boolean | null;
+    last_test_at?: number;
 }
 
 export interface GroupTestResult {

@@ -15,6 +15,7 @@ import (
 	"github.com/lingyuins/octopus/internal/conf"
 	appmodel "github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op/cacheusage"
+	grp "github.com/lingyuins/octopus/internal/op/group"
 	"github.com/lingyuins/octopus/internal/op/relaylog"
 	"github.com/lingyuins/octopus/internal/price"
 	transmodel "github.com/lingyuins/octopus/internal/transformer/model"
@@ -86,6 +87,20 @@ func TestGroupModels(ctx context.Context, group *appmodel.Group, channels map[in
 	return runGroupModelTest(ctx, group, channels, progress)
 }
 
+// recordGroupTestStatus 回写分组最近一次测试的成败状态到 DB（issue #113）。
+// 草稿测试（StartDraftGroupModelTest）不回写，因为 group 无持久化 ID。
+// 回写失败仅记日志，不影响测试结果本身。
+func recordGroupTestStatus(groupID int, passed bool) {
+	if groupID <= 0 {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := grp.UpdateGroupTestStatus(groupID, passed, ctx); err != nil {
+		log.Errorf("failed to record group test status: group_id=%d passed=%v err=%v", groupID, passed, err)
+	}
+}
+
 func StartGroupModelTest(group *appmodel.Group, channels map[int]appmodel.Channel) (*GroupModelTestProgress, error) {
 	if group == nil {
 		return nil, fmt.Errorf("group is nil")
@@ -108,6 +123,7 @@ func StartGroupModelTest(group *appmodel.Group, channels map[int]appmodel.Channe
 			Message:   "dev mock success",
 		}
 		storeGroupModelProgress(progress)
+		recordGroupTestStatus(group.ID, summary.Passed)
 		log.Infof("dev mock group test success: group=%s total=%d", group.Name, len(group.Items))
 		return progress, nil
 	}
@@ -130,19 +146,24 @@ func StartGroupModelTest(group *appmodel.Group, channels map[int]appmodel.Channe
 				failed.Passed = false
 				failed.Message = fmt.Sprintf("internal error: %v", r)
 				storeGroupModelProgress(&failed)
+				recordGroupTestStatus(group.ID, false)
 			}
 		}()
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 
-		if _, err := runGroupModelTest(ctx, group, channels, progress); err != nil {
+		summary, err := runGroupModelTest(ctx, group, channels, progress)
+		if err != nil {
 			log.Errorf("group model test failed: group=%s progress_id=%s err=%v", group.Name, id, err)
 			failed := cloneGroupModelProgress(progress)
 			failed.Done = true
 			failed.Message = err.Error()
 			storeGroupModelProgress(&failed)
+			recordGroupTestStatus(group.ID, false)
 			return
 		}
+		// 正常完成：summary 携带最终 Passed，回写分组测试状态（issue #113）。
+		recordGroupTestStatus(group.ID, summary.Passed)
 		log.Infof("group model test completed: group=%s progress_id=%s", group.Name, id)
 	}()
 

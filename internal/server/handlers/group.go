@@ -336,6 +336,8 @@ type groupListResponseItem struct {
 	SessionKeepTime   int               `json:"session_keep_time"`
 	Condition         string            `json:"condition,omitempty"`
 	Items             []model.GroupItem `json:"items"`
+	LastTestPassed    *bool             `json:"last_test_passed,omitempty"`
+	LastTestAt        int64             `json:"last_test_at,omitempty"`
 }
 
 func normalizeGroupListResponse(groups []model.Group) []groupListResponseItem {
@@ -359,8 +361,9 @@ func normalizeGroupListResponse(groups []model.Group) []groupListResponseItem {
 			MatchRegex:        group.MatchRegex,
 			FirstTokenTimeOut: group.FirstTokenTimeOut,
 			SessionKeepTime:   group.SessionKeepTime,
-			Condition:         group.Condition,
 			Items:             groupItems,
+			LastTestPassed:    group.LastTestPassed,
+			LastTestAt:        group.LastTestAt,
 		}
 	}
 	return items

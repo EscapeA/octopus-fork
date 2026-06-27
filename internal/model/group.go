@@ -22,6 +22,12 @@ type Group struct {
 	SessionKeepTime   int         `json:"session_keep_time"`    // 会话保持时间(秒) 0 为禁用
 	Condition         string      `json:"condition,omitempty"`  // 条件路由 JSON：[{"key":"model","op":"contains","value":"gpt-4"}]
 	Items             []GroupItem `json:"items,omitempty" gorm:"foreignKey:GroupID"`
+	// LastTestPassed 记录最近一次分组测试是否全部通过（issue #113）。
+	// nil = 从未测试；true = 全部通过；false = 存在失败。测试完成时由
+	// group_probe 回写，前端据此对失败分组做灰色化标记。
+	LastTestPassed *bool `json:"last_test_passed,omitempty" gorm:"column:last_test_passed"`
+	// LastTestAt 最近一次分组测试完成时间（unix 秒），0 = 从未测试。
+	LastTestAt int64 `json:"last_test_at,omitempty" gorm:"column:last_test_at;default:0"`
 }
 
 type GroupItem struct {

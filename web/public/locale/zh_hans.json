@@ -2113,7 +2113,8 @@
       "testRemovableHint": "你可以编辑该分组并移除上面这些模型。",
       "endpointType": "API 分类：{value}",
       "healthScore": "健康分",
-      "healthLow": "风险"
+      "healthLow": "风险",
+      "lastTestFailed": "上次测试失败"
     },
     "healthStatus": {
       "healthy": "健康",

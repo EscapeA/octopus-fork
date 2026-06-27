@@ -794,6 +794,26 @@ func GroupDel(id int, ctx context.Context) error {
 	return nil
 }
 
+// UpdateGroupTestStatus 回写分组最近一次测试的成败状态（issue #113）。
+// passed=true 表示全部通过，false 表示存在失败。由 group_probe 测试完成时调用，
+// 前端据此对失败分组做灰色化标记。回写后刷新缓存使列表响应立即携带新状态。
+func UpdateGroupTestStatus(id int, passed bool, ctx context.Context) error {
+	if _, ok := groupCache.Get(id); !ok {
+		return fmt.Errorf("group not found")
+	}
+	now := time.Now().Unix()
+	if err := db.GetDB().WithContext(ctx).
+		Model(&model.Group{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"last_test_passed": passed,
+			"last_test_at":     now,
+		}).Error; err != nil {
+		return fmt.Errorf("failed to update group test status: %w", err)
+	}
+	return RefreshCacheByID(id, ctx)
+}
+
 func GroupDelAll(ctx context.Context) (int64, error) {
 	tx := db.GetDB().WithContext(ctx).Begin()
 	defer func() {

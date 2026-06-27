@@ -946,7 +946,7 @@ export function GroupListItem({ group }: { group: Group }) {
     const needsScroll = members.length >= 4;
 
     return (
-        <article className="group relative overflow-hidden rounded-xl border border-border bg-card text-card-foreground transition-shadow hover:shadow-sm">
+        <article className={cn('group relative overflow-hidden rounded-xl border border-border bg-card text-card-foreground transition-shadow hover:shadow-sm', group.last_test_passed === false && 'opacity-60 grayscale')}>
             {/* ===== Collapsed row (always visible) ===== */}
             <div
                 className="flex cursor-pointer items-center gap-3 px-4 py-3 md:py-4"
@@ -967,6 +967,18 @@ export function GroupListItem({ group }: { group: Group }) {
                     <div className="min-w-0 flex-1">
                         <h3 className="truncate text-sm font-semibold text-card-foreground md:text-base">
                             {group.name}
+                            {group.last_test_passed === false && (
+                                <Tooltip side="top" sideOffset={6} align="center">
+                                    <TooltipTrigger asChild>
+                                        <span className="ml-1.5 inline-flex translate-y-0.5">
+                                            <CircleX className="size-3.5 text-destructive" />
+                                        </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        {t('card.lastTestFailed')}
+                                    </TooltipContent>
+                                </Tooltip>
+                            )}
                         </h3>
                         <p className="line-clamp-2 text-xs text-muted-foreground">
                             {modeLabel}

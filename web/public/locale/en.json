@@ -2113,7 +2113,8 @@
       "testRemovableHint": "You can edit this group and remove the models above.",
       "endpointType": "API Type: {value}",
       "healthScore": "Health Score",
-      "healthLow": "At risk"
+      "healthLow": "At risk",
+      "lastTestFailed": "Last test failed"
     },
     "healthStatus": {
       "healthy": "Healthy",
