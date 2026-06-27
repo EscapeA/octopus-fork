@@ -233,6 +233,48 @@ func quoteTableName(conn *gorm.DB, table string) string {
 	return b.String()
 }
 
+// disableForeignKeyChecks 在目标会话内临时关闭外键校验，返回恢复函数。
+// 覆盖跨库迁移导入时源库残留的孤立子表行（issue #112）。
+//
+// 方言处理：
+//   - MySQL：SET FOREIGN_KEY_CHECKS=0 / =1（会话级，不影响连接池其他会话）
+//   - Postgres：SET session_replication_role='replica' / ='origin'（禁用触发器，
+//     含外键；会话级）
+//   - SQLite：PRAGMA foreign_keys=OFF / =ON（per-connection；SQLite 连接池
+//     MaxOpenConns=1，故等同于会话级。必须在事务外设置，这里在 Transaction
+//     之前调用，满足该约束）
+//
+// 返回的 restore 函数保证外键校验在导入后被恢复，即便导入中途出错。
+// 调用方应在 defer 中调用 restore。当 disable 失败时 restore 为 nil，
+// 导入按原行为继续，由数据库自身约束兜底。
+func disableForeignKeyChecks(conn *gorm.DB) (func() error, error) {
+	if conn == nil || conn.Dialector == nil {
+		return nil, nil
+	}
+	switch conn.Dialector.Name() {
+	case "mysql":
+		if err := conn.Exec("SET FOREIGN_KEY_CHECKS = 0").Error; err != nil {
+			return nil, err
+		}
+		return func() error { return conn.Exec("SET FOREIGN_KEY_CHECKS = 1").Error }, nil
+	case "postgres":
+		if err := conn.Exec("SET session_replication_role = 'replica'").Error; err != nil {
+			return nil, err
+		}
+		return func() error { return conn.Exec("SET session_replication_role = 'origin'").Error }, nil
+	case "sqlite":
+		// PRAGMA foreign_keys 不能在事务内更改；本函数在 Transaction 调用之前
+		// 执行，满足该约束。SQLite 单连接池下 per-connection 即会话级。
+		if err := conn.Exec("PRAGMA foreign_keys = OFF").Error; err != nil {
+			return nil, err
+		}
+		return func() error { return conn.Exec("PRAGMA foreign_keys = ON").Error }, nil
+	default:
+		// 未知方言：无法安全关闭外键，跳过，由数据库自身约束兜底。
+		return nil, nil
+	}
+}
+
 func ImportWithMode(ctx context.Context, dump *model.DBDump, mode string) (*model.DBImportResult, error) {
 	return ImportWithModeToDB(ctx, db.GetDB(), dump, mode)
 }
@@ -254,6 +296,24 @@ func ImportWithModeToDB(ctx context.Context, target *gorm.DB, dump *model.DBDump
 	// 迁移路径（target 为另开的库）不走这里，relay_logs 跟随 target 一起迁移，
 	// 行为与旧版一致。
 	logToSeparateDB := target == db.GetDB() && db.IsLogDBSeparate()
+
+	// 跨库迁移导入时，源库（尤其 SQLite，历史上 foreign_keys 默认 OFF）可能
+	// 残留孤立的子表行：父行已删但子行（stats_channel / channel_keys / site_*
+	// 等）未同步清理。GORM 依据 `foreignKey:` struct tag 在 MySQL/Postgres/SQLite
+	// 目标库建出真实外键约束，导入这些孤立行会触发 Error 1452 / 23503 / 787
+	// （issue #112）。这里在导入期间临时关闭目标会话的外键校验，导入完成后恢复
+	// ——会话级变量（SQLite 为 per-connection，单连接池等同会话级），不影响连接池
+	// 里其他会话。
+	fkRestore, fkErr := disableForeignKeyChecks(cfg.conn)
+	defer func() {
+		if fkRestore != nil {
+			_ = fkRestore()
+		}
+	}()
+	if fkErr != nil {
+		// 仅记录，不阻断导入：关闭失败时按原行为继续，由数据库自身约束兜底。
+		fkRestore = nil
+	}
 
 	err := cfg.conn.Transaction(func(tx *gorm.DB) error {
 		cfg.conn = tx
