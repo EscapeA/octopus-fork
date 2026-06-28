@@ -111,13 +111,13 @@ function AuditRecordCard({ item }: { item: AuditLogEntry }) {
             </MorphingDialogTrigger>
 
             <MorphingDialogContainer>
-                <MorphingDialogContent className="relative w-[calc(100vw-2rem)] max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-xl bg-card px-6 py-4 text-card-foreground md:w-[62rem]">
+                <MorphingDialogContent className="relative flex max-h-[calc(100dvh-2rem)] min-h-0 w-[calc(100vw-2rem)] max-w-full flex-col overflow-hidden rounded-xl bg-card px-6 py-4 text-card-foreground md:w-[62rem]">
                     <MorphingDialogClose className="right-5 top-4 text-muted-foreground hover:text-foreground" />
                     <MorphingDialogTitle className="flex items-center gap-2 text-sm">
                         <ShieldAlert className="h-4 w-4 text-primary" />
                         <span>{t('audit.detail.entryTitle', { id: item.id })}</span>
                     </MorphingDialogTitle>
-                    <MorphingDialogDescription className="mt-4">
+                    <MorphingDialogDescription className="flex min-h-0 flex-1 flex-col overflow-y-auto">
                         {isLoading ? (
                             <div className="flex min-h-60 items-center justify-center">
                                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
