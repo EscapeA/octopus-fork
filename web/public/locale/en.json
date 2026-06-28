@@ -570,7 +570,28 @@
       "exportSuccess": "Snapshot downloaded",
       "exportError": "Failed to export snapshot",
       "copySuccess": "Snapshot copied to clipboard",
-      "copyError": "Failed to copy to clipboard"
+      "copyError": "Failed to copy to clipboard",
+      "selectData": "Select data to include",
+      "selectAll": "Select all",
+      "clearAll": "Clear all",
+      "selectSection": "Select section",
+      "clearSection": "Clear section",
+      "emptySelection": "No data selected. Toggle items below to include them in the snapshot.",
+      "items": "{count, plural, one {# item} other {# items}}",
+      "section": {
+        "overview": "Overview",
+        "latency": "Latency",
+        "cache": "Semantic Cache",
+        "topProviders": "Top Providers",
+        "topModels": "Top Models",
+        "topApiKeys": "Top API Keys",
+        "routeHealth": "Route Health"
+      },
+      "metric": {
+        "cacheHits": "Cache Hits",
+        "cacheMisses": "Cache Misses",
+        "totalGroups": "Total Groups"
+      }
     }
   },
   "ops": {

@@ -570,7 +570,28 @@
       "exportSuccess": "快照已下载",
       "exportError": "导出快照失败",
       "copySuccess": "快照已复制到剪贴板",
-      "copyError": "复制到剪贴板失败"
+      "copyError": "复制到剪贴板失败",
+      "selectData": "选择要包含的数据",
+      "selectAll": "全选",
+      "clearAll": "清空",
+      "selectSection": "选择分组",
+      "clearSection": "清空分组",
+      "emptySelection": "未选择任何数据。在下方勾选要包含在快照中的数据。",
+      "items": "{count, plural, other {# 项}}",
+      "section": {
+        "overview": "概览",
+        "latency": "延迟",
+        "cache": "语义缓存",
+        "topProviders": "热门渠道",
+        "topModels": "热门模型",
+        "topApiKeys": "热门 API Key",
+        "routeHealth": "路由健康"
+      },
+      "metric": {
+        "cacheHits": "缓存命中",
+        "cacheMisses": "缓存未命中",
+        "totalGroups": "路由组总数"
+      }
     }
   },
   "ops": {

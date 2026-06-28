@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { PageWrapper } from '@/components/common/PageWrapper';
 import { Tabs, TabsContents, TabsContent, TabsList, TabsTrigger } from '@/components/animate-ui/components/animate/tabs';
@@ -10,13 +10,16 @@ import {
     type AnalyticsCacheTtl,
     useAnalyticsOverview,
     useAnalyticsEvaluationSummary,
+    useAnalyticsUtilization,
+    useAnalyticsLatencyDistribution,
+    useAnalyticsGroupHealth,
 } from '@/api/endpoints/analytics';
 import { Utilization } from './Utilization';
 import { GroupHealth } from './GroupHealth';
 import { ChannelModel } from './ChannelModel';
 import { Evaluation } from './Evaluation';
 import { LatencyDistribution } from './LatencyDistribution';
-import { ShareSnapshot } from './ShareSnapshot';
+import { ShareSnapshot, type SnapshotSection } from './ShareSnapshot';
 import { Cache } from '@/components/modules/ops/Cache';
 import { formatCount, formatMoney } from '@/lib/utils';
 import { formatPercent } from './shared';
@@ -39,8 +42,152 @@ export function Analytics() {
     const [cacheTtl, setCacheTtl] = useState<AnalyticsCacheTtl>('30s');
     const { data: overview } = useAnalyticsOverview(range, cacheTtl);
     const { data: evaluationData } = useAnalyticsEvaluationSummary();
+    const { data: utilizationData } = useAnalyticsUtilization(range, cacheTtl);
+    const { data: latencyData } = useAnalyticsLatencyDistribution(range, cacheTtl);
+    const { data: groupHealthData } = useAnalyticsGroupHealth(cacheTtl);
 
     const isMoreRange = MORE_RANGES.includes(range);
+
+    const snapshotSections = useMemo<SnapshotSection[]>(() => {
+        const sections: SnapshotSection[] = [];
+
+        // Overview metrics (default selected)
+        if (overview) {
+            const fmt = formatCount(overview.request_count).formatted;
+            const tokens = formatCount(overview.total_tokens).formatted;
+            const cost = formatMoney(overview.total_cost).formatted;
+            sections.push({
+                id: 'overview',
+                label: t('share.section.overview'),
+                type: 'metrics',
+                defaultSelected: true,
+                items: [
+                    { id: 'requests', label: t('metrics.requestCount'), value: fmt.value + fmt.unit },
+                    { id: 'totalTokens', label: t('metrics.totalTokens'), value: tokens.value + tokens.unit },
+                    { id: 'totalCost', label: t('metrics.totalCost'), value: cost.value + cost.unit },
+                    { id: 'successRate', label: t('metrics.successRate'), value: `${formatPercent(overview.success_rate).formatted.value}%` },
+                    { id: 'fallbackRate', label: t('metrics.fallbackRate'), value: `${formatPercent(overview.fallback_rate).formatted.value}%` },
+                    { id: 'providerCount', label: t('metrics.providerCount'), value: `${overview.provider_count}` },
+                    { id: 'apiKeyCount', label: t('metrics.apiKeyCount'), value: `${overview.api_key_count}` },
+                    { id: 'modelCount', label: t('metrics.modelCount'), value: `${overview.model_count}` },
+                ],
+            });
+        }
+
+        // Latency metrics
+        if (latencyData) {
+            sections.push({
+                id: 'latency',
+                label: t('share.section.latency'),
+                type: 'metrics',
+                defaultSelected: false,
+                items: [
+                    { id: 'latAvg', label: `${t('latency.useTime')} ${t('latency.avg')}`, value: `${latencyData.avg_ms}ms` },
+                    { id: 'latP50', label: `${t('latency.useTime')} P50`, value: `${latencyData.p50_ms}ms` },
+                    { id: 'latP95', label: `${t('latency.useTime')} P95`, value: `${latencyData.p95_ms}ms` },
+                    { id: 'latP99', label: `${t('latency.useTime')} P99`, value: `${latencyData.p99_ms}ms` },
+                    { id: 'ftutAvg', label: `${t('latency.ftut')} ${t('latency.avg')}`, value: `${latencyData.ftut_avg_ms}ms` },
+                    { id: 'ftutP50', label: `${t('latency.ftut')} P50`, value: `${latencyData.ftut_p50_ms}ms` },
+                    { id: 'ftutP95', label: `${t('latency.ftut')} P95`, value: `${latencyData.ftut_p95_ms}ms` },
+                    { id: 'ftutP99', label: `${t('latency.ftut')} P99`, value: `${latencyData.ftut_p99_ms}ms` },
+                ],
+            });
+        }
+
+        // Semantic cache metrics
+        if (evaluationData?.semantic_cache.enabled) {
+            const sc = evaluationData.semantic_cache;
+            sections.push({
+                id: 'cache',
+                label: t('share.section.cache'),
+                type: 'metrics',
+                defaultSelected: true,
+                items: [
+                    { id: 'cacheHitRate', label: t('cache.metrics.hitRate'), value: `${formatPercent(sc.hit_rate).formatted.value}%` },
+                    { id: 'cacheEntries', label: t('cache.metrics.entries'), value: `${sc.current_entries}` },
+                    { id: 'cacheHits', label: t('share.metric.cacheHits'), value: `${sc.hits}` },
+                    { id: 'cacheMisses', label: t('share.metric.cacheMisses'), value: `${sc.misses}` },
+                ],
+            });
+        }
+
+        // Top providers by requests
+        if (utilizationData && utilizationData.provider_breakdown.length > 0) {
+            const top = [...utilizationData.provider_breakdown]
+                .sort((a, b) => b.request_count - a.request_count)
+                .slice(0, 5);
+            sections.push({
+                id: 'topProviders',
+                label: t('share.section.topProviders'),
+                type: 'list',
+                defaultSelected: false,
+                rows: top.map((p) => ({
+                    label: p.channel_name,
+                    value: formatCount(p.request_count).formatted.value + formatCount(p.request_count).formatted.unit,
+                    meta: formatMoney(p.total_cost).formatted.value + formatMoney(p.total_cost).formatted.unit,
+                })),
+            });
+        }
+
+        // Top models by requests
+        if (utilizationData && utilizationData.model_breakdown.length > 0) {
+            const top = [...utilizationData.model_breakdown]
+                .sort((a, b) => b.request_count - a.request_count)
+                .slice(0, 5);
+            sections.push({
+                id: 'topModels',
+                label: t('share.section.topModels'),
+                type: 'list',
+                defaultSelected: false,
+                rows: top.map((m) => ({
+                    label: m.model_name,
+                    value: formatCount(m.request_count).formatted.value + formatCount(m.request_count).formatted.unit,
+                    meta: formatMoney(m.total_cost).formatted.value + formatMoney(m.total_cost).formatted.unit,
+                })),
+            });
+        }
+
+        // Top API keys by requests
+        if (utilizationData && utilizationData.apikey_breakdown.length > 0) {
+            const top = [...utilizationData.apikey_breakdown]
+                .sort((a, b) => b.request_count - a.request_count)
+                .slice(0, 5);
+            sections.push({
+                id: 'topApiKeys',
+                label: t('share.section.topApiKeys'),
+                type: 'list',
+                defaultSelected: false,
+                rows: top.map((k) => ({
+                    label: k.name,
+                    value: formatCount(k.request_count).formatted.value + formatCount(k.request_count).formatted.unit,
+                    meta: formatMoney(k.total_cost).formatted.value + formatMoney(k.total_cost).formatted.unit,
+                })),
+            });
+        }
+
+        // Route health summary
+        if (groupHealthData && groupHealthData.length > 0) {
+            const healthy = groupHealthData.filter((g) => g.status === 'healthy').length;
+            const warning = groupHealthData.filter((g) => g.status === 'warning').length;
+            const degraded = groupHealthData.filter((g) => g.status === 'degraded').length;
+            const down = groupHealthData.filter((g) => g.status === 'down').length;
+            sections.push({
+                id: 'routeHealth',
+                label: t('share.section.routeHealth'),
+                type: 'metrics',
+                defaultSelected: false,
+                items: [
+                    { id: 'rhTotal', label: t('share.metric.totalGroups'), value: `${groupHealthData.length}` },
+                    { id: 'rhHealthy', label: t('routeHealth.statuses.healthy'), value: `${healthy}` },
+                    { id: 'rhWarning', label: t('routeHealth.statuses.warning'), value: `${warning}` },
+                    { id: 'rhDegraded', label: t('routeHealth.statuses.degraded'), value: `${degraded}` },
+                    { id: 'rhDown', label: t('routeHealth.statuses.down'), value: `${down}` },
+                ],
+            });
+        }
+
+        return sections;
+    }, [overview, latencyData, evaluationData, utilizationData, groupHealthData, t]);
 
     return (
         <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain space-y-6 rounded-t-xl pb-3 md:pb-4">
@@ -104,16 +251,8 @@ export function Analytics() {
                                     data={{
                                         title: t('title'),
                                         subtitle: t('subtitle'),
-                                        stats: overview
-                                            ? [
-                                                { label: t('metrics.requestCount'), value: formatCount(overview.request_count).formatted.value + formatCount(overview.request_count).formatted.unit },
-                                                { label: t('metrics.totalTokens'), value: formatCount(overview.total_tokens).formatted.value + formatCount(overview.total_tokens).formatted.unit },
-                                                { label: t('metrics.totalCost'), value: formatMoney(overview.total_cost).formatted.value + formatMoney(overview.total_cost).formatted.unit },
-                                                { label: t('metrics.providerCount'), value: `${overview.provider_count}` },
-                                                { label: t('cache.metrics.hitRate'), value: evaluationData?.semantic_cache.enabled ? `${formatPercent(evaluationData.semantic_cache.hit_rate).formatted.value}%` : t('cache.status.configuredOff') },
-                                            ]
-                                            : [],
                                         timestamp: new Date().toLocaleString(),
+                                        sections: snapshotSections,
                                     }}
                                 />
                             </div>
