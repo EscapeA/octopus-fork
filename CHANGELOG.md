@@ -5,7 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v2.2.4] - 2026-06-28
+
+### 🚀 Features
+- **Log (issue #117)**: logs now support filtering by one or more specific models (exact, case-insensitive match on `request_model_name` / `actual_model_name`), with a multi-select popover in the filter bar. Coexists with the existing fuzzy search via OR.
+- **Analytics (issue #114)**: ranking lists (Usage Breakdown cards + Channel × Model) now support sorting by success rate, request count, or cost, with ascending/descending toggle — pure frontend sort, no backend changes.
+- **Home**: the home stats chart gained an "All" time range option.
+- **Analytics**: share snapshot now supports selecting more data sections with custom checkboxes.
+
+### 🐛 Bug Fixes
+- **Backup (issue #118)**: after migrating from SQLite to MySQL/Postgres, the old SQLite connection is now closed and the `.db` / `.db-wal` / `.db-shm` files are deleted, preventing the process from getting stuck in D state (IO blocked) due to continued reads on the stale SQLite file.
+- **Ops**: fixed the audit-detail dialog being clipped when zoomed.
 
 ## [v2.2.3] - 2026-06-27
 
