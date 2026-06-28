@@ -70,6 +70,7 @@ export interface LogListParams {
     start_time?: number;
     end_time?: number;
     model?: string;
+    models?: string[];
     channel_id?: number;
     api_key_id?: number;
     endpoint_type?: string;
@@ -81,6 +82,10 @@ export interface LogListParams {
  */
 export interface LogFilter {
     model?: string;
+    // 指定一个或多个模型名做精确匹配（不区分大小写），命中
+    // request_model_name 或 actual_model_name 任一即通过。与 model 模糊
+    // 匹配为 OR 关系（issue #117）。
+    models?: string[];
     channel_id?: number;
     api_key_id?: number;
     endpoint_type?: string;
@@ -195,6 +200,7 @@ export function useLogs(options: { pageSize?: number; filter?: LogFilter } = {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const stableFilter = useMemo(() => filter, [
         filter.model,
+        filter.models,
         filter.channel_id,
         filter.api_key_id,
         filter.endpoint_type,
@@ -213,6 +219,9 @@ export function useLogs(options: { pageSize?: number; filter?: LogFilter } = {})
             params.set('page', String(pageParam));
             params.set('page_size', String(pageSize));
             if (stableFilter.model) params.set('model', stableFilter.model);
+            if (stableFilter.models && stableFilter.models.length > 0) {
+                params.set('models', stableFilter.models.join(','));
+            }
             if (stableFilter.channel_id != null) params.set('channel_id', String(stableFilter.channel_id));
             if (stableFilter.api_key_id != null) params.set('api_key_id', String(stableFilter.api_key_id));
             if (stableFilter.endpoint_type) params.set('endpoint_type', stableFilter.endpoint_type);
@@ -273,7 +282,7 @@ export function useLogs(options: { pageSize?: number; filter?: LogFilter } = {})
                 }, delayMs);
             });
 
-        const hasActiveFilter = !!(stableFilter.model || stableFilter.channel_id != null || stableFilter.api_key_id != null || stableFilter.endpoint_type || stableFilter.status || stableFilter.start_time != null || stableFilter.end_time != null || stableFilter.include_attempts != null || stableFilter.is_test != null);
+        const hasActiveFilter = !!(stableFilter.model || (stableFilter.models && stableFilter.models.length > 0) || stableFilter.channel_id != null || stableFilter.api_key_id != null || stableFilter.endpoint_type || stableFilter.status || stableFilter.start_time != null || stableFilter.end_time != null || stableFilter.include_attempts != null || stableFilter.is_test != null);
 
         const mergeIncomingLog = (log: RelayLog) => {
             // When a filter is active, skip merging SSE logs to avoid showing unfiltered results

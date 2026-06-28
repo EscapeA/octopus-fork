@@ -495,9 +495,13 @@ func RelayLogStreamExcluded(requestModelName string) bool {
 
 // LogFilter 日志列表筛选参数
 type LogFilter struct {
-	StartTime    *int
-	EndTime      *int
-	Model        string // 模糊匹配 request_model_name 或 actual_model_name
+	StartTime *int
+	EndTime   *int
+	Model     string // 模糊匹配 request_model_name 或 actual_model_name
+	// Models 指定一个或多个模型名做精确匹配（不区分大小写），命中
+	// request_model_name 或 actual_model_name 任一即通过。与 Model 模糊
+	// 匹配可共存，两者为 OR 关系（issue #117）。
+	Models       []string
 	ChannelID    *int
 	APIKeyID     *int
 	EndpointType string
@@ -539,8 +543,16 @@ func RelayLogList(ctx context.Context, filter LogFilter, page, pageSize int) ([]
 		return nil, err
 	}
 	hasFilter := filter.StartTime != nil || filter.EndTime != nil ||
-		filter.Model != "" || filter.ChannelID != nil || filter.APIKeyID != nil ||
-		filter.EndpointType != "" || filter.HasError != nil || filter.IsTest != nil
+		filter.Model != "" || len(filter.Models) > 0 || filter.ChannelID != nil ||
+		filter.APIKeyID != nil || filter.EndpointType != "" || filter.HasError != nil ||
+		filter.IsTest != nil
+	// modelsLower 预计算 Models 的 小写集合，供缓存路径与 DB 路径共用。
+	modelsLower := make(map[string]struct{}, len(filter.Models))
+	for _, m := range filter.Models {
+		if m = strings.TrimSpace(m); m != "" {
+			modelsLower[strings.ToLower(m)] = struct{}{}
+		}
+	}
 	excludedGroups := loadExcludedGroupSet()
 
 	matchesFilter := func(log model.RelayLog) bool {
@@ -555,10 +567,25 @@ func RelayLogList(ctx context.Context, filter LogFilter, page, pageSize int) ([]
 				return false
 			}
 		}
-		if filter.Model != "" {
-			modelLower := strings.ToLower(filter.Model)
-			if !strings.Contains(strings.ToLower(log.RequestModelName), modelLower) &&
-				!strings.Contains(strings.ToLower(log.ActualModelName), modelLower) {
+		// 模型过滤：Model（模糊）与 Models（精确，不区分大小写）为 OR 关系。
+		// 二者均设置时命中任一即通过；均未设置时跳过。issue #117。
+		if filter.Model != "" || len(modelsLower) > 0 {
+			ok := false
+			if filter.Model != "" {
+				modelLower := strings.ToLower(filter.Model)
+				if strings.Contains(strings.ToLower(log.RequestModelName), modelLower) ||
+					strings.Contains(strings.ToLower(log.ActualModelName), modelLower) {
+					ok = true
+				}
+			}
+			if !ok && len(modelsLower) > 0 {
+				if _, hit := modelsLower[strings.ToLower(log.RequestModelName)]; hit {
+					ok = true
+				} else if _, hit := modelsLower[strings.ToLower(log.ActualModelName)]; hit {
+					ok = true
+				}
+			}
+			if !ok {
 				return false
 			}
 		}
@@ -669,9 +696,28 @@ func RelayLogList(ctx context.Context, filter LogFilter, page, pageSize int) ([]
 				}
 				query = query.Where("request_model_name NOT IN ?", names)
 			}
-			if filter.Model != "" {
-				modelPattern := "%" + strings.ToLower(filter.Model) + "%"
-				query = query.Where("LOWER(request_model_name) LIKE ? OR LOWER(actual_model_name) LIKE ?", modelPattern, modelPattern)
+			if filter.Model != "" || len(modelsLower) > 0 {
+				// Model（模糊）与 Models（精确，不区分大小写）为 OR 关系（issue #117）。
+				// 用 LOWER() 比较，兼容 SQLite/MySQL/Postgres。
+				// GORM 不会自动给 OR 组加括号，这里用 Raw 子句包裹以免与其它 WHERE
+				// 条件（AND）发生优先级错误。
+				var conds []string
+				var args []any
+				if filter.Model != "" {
+					modelPattern := "%" + strings.ToLower(filter.Model) + "%"
+					conds = append(conds, "LOWER(request_model_name) LIKE ?", "LOWER(actual_model_name) LIKE ?")
+					args = append(args, modelPattern, modelPattern)
+				}
+				if len(modelsLower) > 0 {
+					names := make([]string, 0, len(modelsLower))
+					for n := range modelsLower {
+						names = append(names, n)
+					}
+					conds = append(conds, "LOWER(request_model_name) IN ?", "LOWER(actual_model_name) IN ?")
+					args = append(args, names, names)
+				}
+				clause := strings.Join(conds, " OR ")
+				query = query.Where("("+clause+")", args...)
 			}
 			if filter.ChannelID != nil {
 				if filter.IncludeAttempts {

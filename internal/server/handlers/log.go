@@ -86,6 +86,17 @@ func listLog(c *gin.Context) {
 	if v := c.Query("model"); v != "" {
 		filter.Model = v
 	}
+	// models 支持逗号分隔的多个模型名（精确匹配，不区分大小写），issue #117。
+	// 空字符串、纯空白条目会被过滤逻辑忽略。
+	if v := c.Query("models"); v != "" {
+		parts := strings.Split(v, ",")
+		filter.Models = make([]string, 0, len(parts))
+		for _, p := range parts {
+			if t := strings.TrimSpace(p); t != "" {
+				filter.Models = append(filter.Models, t)
+			}
+		}
+	}
 	if v := c.Query("channel_id"); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil {

@@ -569,4 +569,140 @@ func TestRelayLogListFiltersByFields(t *testing.T) {
 	})
 }
 
+// TestRelayLogListFiltersByModels 覆盖 issue #117 的 Models 多模型精确匹配。
+// 验证：精确匹配 request_model_name / actual_model_name、大小写不敏感、
+// 多模型 OR、与 Model 模糊匹配共存、DB 路径行为与缓存路径一致。
+func TestRelayLogListFiltersByModels(t *testing.T) {
+	dsn := filepath.Join(t.TempDir(), "relaylog-models.db")
+	if err := db.InitDB("sqlite", dsn, false); err != nil {
+		t.Fatalf("InitDB failed: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := setting.RefreshCache(context.Background()); err != nil {
+		t.Fatalf("RefreshCache failed: %v", err)
+	}
+	// 关闭日志保存：先测缓存路径。
+	if err := setting.SetString(model.SettingKeyRelayLogKeepEnabled, "false"); err != nil {
+		t.Fatalf("disable relay log keep failed: %v", err)
+	}
+
+	seed := []model.RelayLog{
+		{ID: 1, Time: 10, RequestModelName: "gpt-4o", ActualModelName: "gpt-4o-2024"},
+		{ID: 2, Time: 20, RequestModelName: "claude-3", ActualModelName: "claude-3-opus"},
+		{ID: 3, Time: 30, RequestModelName: "gpt-4o-mini", ActualModelName: "gpt-4o-mini"},
+		{ID: 4, Time: 40, RequestModelName: "gemini", ActualModelName: "gemini-pro"},
+	}
+	restore := SetCacheForTest(seed)
+	t.Cleanup(restore)
+
+	ids := func(logs []model.RelayLogListItem) []int64 {
+		out := make([]int64, 0, len(logs))
+		for _, l := range logs {
+			out = append(out, l.ID)
+		}
+		return out
+	}
+	equal := func(got []int64, want ...int64) bool {
+		if len(got) != len(want) {
+			return false
+		}
+		for i := range got {
+			if got[i] != want[i] {
+				return false
+			}
+		}
+		return true
+	}
+
+	// 单个模型精确匹配 request_model_name（大小写不敏感）
+	t.Run("single model matches request_model_name", func(t *testing.T) {
+		logs, err := RelayLogList(context.Background(), LogFilter{Models: []string{"GPT-4o"}}, 1, 50)
+		if err != nil {
+			t.Fatalf("RelayLogList error: %v", err)
+		}
+		if got := ids(logs); !equal(got, 1) {
+			t.Fatalf("models filter got %v, want [1]", got)
+		}
+	})
+
+	// 单个模型精确匹配 actual_model_name
+	t.Run("single model matches actual_model_name", func(t *testing.T) {
+		logs, err := RelayLogList(context.Background(), LogFilter{Models: []string{"claude-3-opus"}}, 1, 50)
+		if err != nil {
+			t.Fatalf("RelayLogList error: %v", err)
+		}
+		if got := ids(logs); !equal(got, 2) {
+			t.Fatalf("models filter got %v, want [2]", got)
+		}
+	})
+
+	// 多模型 OR：命中多个日志，按「新 -> 旧」返回
+	t.Run("multiple models OR", func(t *testing.T) {
+		logs, err := RelayLogList(context.Background(), LogFilter{Models: []string{"gpt-4o", "gemini"}}, 1, 50)
+		if err != nil {
+			t.Fatalf("RelayLogList error: %v", err)
+		}
+		if got := ids(logs); !equal(got, 4, 1) {
+			t.Fatalf("models filter got %v, want [4 1]", got)
+		}
+	})
+
+	// 精确匹配不命中子串：gpt-4o 不应匹配 gpt-4o-mini
+	t.Run("exact match does not match substring", func(t *testing.T) {
+		logs, err := RelayLogList(context.Background(), LogFilter{Models: []string{"gpt-4o"}}, 1, 50)
+		if err != nil {
+			t.Fatalf("RelayLogList error: %v", err)
+		}
+		for _, l := range logs {
+			if l.ID == 3 {
+				t.Fatalf("models exact match should not hit gpt-4o-mini (id=3), got %v", ids(logs))
+			}
+		}
+	})
+
+	// Models 与 Model 模糊匹配共存（OR 关系）
+	t.Run("models OR model fuzzy", func(t *testing.T) {
+		// Models 精确 gpt-4o-mini（命中 id=3），Model 模糊 opus（命中 id=2）→ [3 2]
+		logs, err := RelayLogList(context.Background(), LogFilter{Models: []string{"gpt-4o-mini"}, Model: "opus"}, 1, 50)
+		if err != nil {
+			t.Fatalf("RelayLogList error: %v", err)
+		}
+		if got := ids(logs); !equal(got, 3, 2) {
+			t.Fatalf("models+model OR got %v, want [3 2]", got)
+		}
+	})
+
+	// 空白条目被忽略，不报错
+	t.Run("whitespace entries ignored", func(t *testing.T) {
+		logs, err := RelayLogList(context.Background(), LogFilter{Models: []string{"  ", "gpt-4o", ""}}, 1, 50)
+		if err != nil {
+			t.Fatalf("RelayLogList error: %v", err)
+		}
+		if got := ids(logs); !equal(got, 1) {
+			t.Fatalf("models filter with whitespace got %v, want [1]", got)
+		}
+	})
+
+	// --- DB 路径验证：开启日志保存，清空缓存，让查询走数据库 ---
+	t.Run("db path multiple models OR", func(t *testing.T) {
+		if err := setting.SetString(model.SettingKeyRelayLogKeepEnabled, "true"); err != nil {
+			t.Fatalf("enable relay log keep failed: %v", err)
+		}
+		// 写入 DB
+		if err := db.GetDB().Create(&seed).Error; err != nil {
+			t.Fatalf("seed relay logs to DB failed: %v", err)
+		}
+		// 清空缓存，强制走 DB 路径
+		restoreCache := SetCacheForTest(nil)
+		t.Cleanup(restoreCache)
+
+		logs, err := RelayLogList(context.Background(), LogFilter{Models: []string{"gpt-4o", "gemini"}}, 1, 50)
+		if err != nil {
+			t.Fatalf("RelayLogList db path error: %v", err)
+		}
+		if got := ids(logs); !equal(got, 4, 1) {
+			t.Fatalf("models filter db path got %v, want [4 1]", got)
+		}
+	})
+}
 func intPtr(v int) *int { return &v }

@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useChannelList } from '@/api/endpoints/channel';
 import { useAPIKeyList } from '@/api/endpoints/apikey';
 import { useLogs, type LogFilter } from '@/api/endpoints/log';
+import { useModelList } from '@/api/endpoints/model';
 import { LogCard } from './Item';
-import { Loader2, X, Columns3 } from 'lucide-react';
+import { Loader2, X, Columns3, Check, ChevronsUpDown, Search } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useLogFieldVisibilityStore, useLogModelSearchStore, type LogFieldName } from './ui-store';
 import { useTranslations } from 'next-intl';
@@ -37,6 +38,7 @@ function LogFilterBar({
     const tView = useTranslations('log.viewOptions');
     const { data: channels = [] } = useChannelList();
     const { data: apiKeys = [] } = useAPIKeyList();
+    const { data: models = [] } = useModelList();
     const visibility = useLogFieldVisibilityStore((s) => s.visibility);
 
     const hasFilter = !!(
@@ -44,8 +46,36 @@ function LogFilterBar({
         filter.api_key_id != null ||
         filter.endpoint_type ||
         filter.status ||
-        filter.is_test != null
+        filter.is_test != null ||
+        (filter.models && filter.models.length > 0)
     );
+
+    const selectedModels = useMemo(() => new Set(filter.models ?? []), [filter.models]);
+    const [modelSearchTerm, setModelSearchTerm] = useState('');
+    const modelSearchInputRef = useRef<HTMLInputElement>(null);
+
+    const filteredModelOptions = useMemo(() => {
+        const term = modelSearchTerm.trim().toLowerCase();
+        const sorted = [...models].sort((a, b) => a.name.localeCompare(b.name));
+        if (!term) return sorted;
+        return sorted.filter((m) => m.name.toLowerCase().includes(term));
+    }, [models, modelSearchTerm]);
+
+    const toggleModel = useCallback((name: string) => {
+        const next = { ...filter };
+        const set = new Set(next.models ?? []);
+        if (set.has(name)) {
+            set.delete(name);
+        } else {
+            set.add(name);
+        }
+        if (set.size > 0) {
+            next.models = Array.from(set);
+        } else {
+            delete next.models;
+        }
+        onChange(next);
+    }, [filter, onChange]);
 
     const setModelSearch = useLogModelSearchStore((s) => s.setModelSearch);
     const handleClear = useCallback(() => {
@@ -175,6 +205,75 @@ function LogFilterBar({
                     <SelectItem value="false">{t('nonTest')}</SelectItem>
                 </SelectContent>
             </Select>
+            <Popover
+                onOpenChange={(open) => {
+                    if (open) {
+                        setModelSearchTerm('');
+                        requestAnimationFrame(() => modelSearchInputRef.current?.focus());
+                    }
+                }}
+            >
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        className="flex h-7 items-center gap-1 rounded-md border border-border/50 bg-background px-2 text-xs hover:bg-muted transition-colors min-w-[7rem]"
+                    >
+                        <span className="truncate">
+                            {selectedModels.size > 0
+                                ? `${t('modelsSelected', { count: selectedModels.size })}`
+                                : t('allModels')}
+                        </span>
+                        <ChevronsUpDown className="size-3 shrink-0 opacity-50" />
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-64 p-0">
+                    <div className="flex items-center gap-1.5 border-b border-border/50 px-2.5 py-2">
+                        <Search className="size-3.5 shrink-0 text-muted-foreground" />
+                        <input
+                            ref={modelSearchInputRef}
+                            value={modelSearchTerm}
+                            onChange={(e) => setModelSearchTerm(e.target.value)}
+                            placeholder={t('searchModel')}
+                            className="h-5 min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/50"
+                        />
+                        {selectedModels.size > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const next = { ...filter };
+                                    delete next.models;
+                                    onChange(next);
+                                }}
+                                className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
+                            >
+                                {t('clearModels')}
+                            </button>
+                        )}
+                    </div>
+                    <div className="max-h-60 overflow-y-auto py-1">
+                        {filteredModelOptions.length === 0 ? (
+                            <p className="px-2.5 py-2 text-xs text-muted-foreground">{t('noModels')}</p>
+                        ) : (
+                            filteredModelOptions.map((m) => {
+                                const checked = selectedModels.has(m.name);
+                                return (
+                                    <button
+                                        key={m.name}
+                                        type="button"
+                                        onClick={() => toggleModel(m.name)}
+                                        className="flex w-full items-center gap-2 px-2.5 py-1 text-xs hover:bg-muted transition-colors"
+                                    >
+                                        <span className={`flex size-3.5 shrink-0 items-center justify-center rounded border ${checked ? 'border-primary bg-primary text-primary-foreground' : 'border-border/60'}`}>
+                                            {checked && <Check className="size-3" />}
+                                        </span>
+                                        <span className="truncate">{m.name}</span>
+                                    </button>
+                                    );
+                                })
+                        )}
+                    </div>
+                </PopoverContent>
+            </Popover>
 
             {hasFilter && (
                 <button
