@@ -81,10 +81,13 @@ type DatabaseMigrationRequest struct {
 }
 
 type DatabaseMigrationResult struct {
-	Type          string         `json:"type"`
-	Path          string         `json:"path"`
-	IncludeLogs   bool           `json:"include_logs"`
-	IncludeStats  bool           `json:"include_stats"`
-	RestartNeeded bool           `json:"restart_needed"`
-	ImportResult  DBImportResult `json:"import_result"`
+	Type          string `json:"type"`
+	Path          string `json:"path"`
+	IncludeLogs   bool   `json:"include_logs"`
+	IncludeStats  bool   `json:"include_stats"`
+	RestartNeeded bool   `json:"restart_needed"`
+	// CleanedFiles 迁移成功后已删除的旧 SQLite 文件路径（issue #118）。
+	// 仅当源库为 SQLite、目标库为非 SQLite 时非空。
+	CleanedFiles []string       `json:"cleaned_files"`
+	ImportResult DBImportResult `json:"import_result"`
 }

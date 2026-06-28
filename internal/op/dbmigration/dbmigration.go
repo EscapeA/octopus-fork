@@ -101,12 +101,22 @@ func Migrate(ctx context.Context, req model.DatabaseMigrationRequest) (*model.Da
 	if err := saveDatabaseConfig(req.Type, req.Path); err != nil {
 		return nil, err
 	}
+
+	// 源库为 SQLite、目标库为非 SQLite 时，关闭旧 SQLite 连接并删除文件，
+	// 避免进程持续读盘陷入 D 状态（issue #118）。数据已导入目标库、新配置已
+	// 写入 config.json，旧 SQLite 不再需要。调用后进程处于「必须重启」终态。
+	var cleanedFiles []string
+	if db.IsSQLite() && req.Type != "sqlite" {
+		cleanedFiles = db.CloseAndCleanupSQLite()
+	}
+
 	return &model.DatabaseMigrationResult{
 		Type:          req.Type,
 		Path:          req.Path,
 		IncludeLogs:   req.IncludeLogs,
 		IncludeStats:  req.IncludeStats,
 		RestartNeeded: true,
+		CleanedFiles:  cleanedFiles,
 		ImportResult:  *importResult,
 	}, nil
 }

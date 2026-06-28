@@ -22,6 +22,7 @@ import (
 
 var db *gorm.DB
 var currentDBType string
+var currentDBPath string // 主库 DSN/路径，供迁移后清理旧 SQLite 文件使用
 
 // SQLiteOptions 承载 SQLite per-connection PRAGMA 的可配置项。
 //
@@ -100,6 +101,7 @@ func InitDB(dbType, dsn string, debug bool) error {
 // config.json 注入低内存调优使用（见 issue #97）。
 func InitDBWithOptions(dbType, dsn string, debug bool, opts SQLiteOptions) error {
 	currentDBType = dbType
+	currentDBPath = dsn
 	var err error
 	db, err = OpenStandaloneWithOptions(dbType, dsn, debug, opts)
 	if err != nil {
@@ -468,6 +470,66 @@ func Close() error {
 
 func GetDB() *gorm.DB {
 	return db
+}
+
+// CurrentDBPath 返回主库的 DSN/路径（启动时记录），供迁移逻辑判断旧库类型与文件路径。
+func CurrentDBPath() string {
+	return currentDBPath
+}
+
+// CurrentLogDBPath 返回独立日志库的路径（空表示共用主库）。
+func CurrentLogDBPath() string {
+	logDBLock.RLock()
+	defer logDBLock.RUnlock()
+	return logDBPath
+}
+
+// CloseAndCleanupSQLite 关闭当前主库与日志库连接，并删除 SQLite 文件
+// （.db / .db-shm / .db-wal）。仅用于数据库迁移成功后清理旧 SQLite 文件
+// （issue #118）：迁移已把数据导入目标库并写好新配置，旧 SQLite 连接与文件
+// 不再需要，残留会导致进程持续读盘陷入 D 状态。
+//
+// 返回实际删除的文件路径列表（供 UI 提示用户）。删除失败不报错——文件可能
+// 被其它进程占用或已不存在，清理是「尽力而为」。
+//
+// 调用后 db / logDB 全局变量置为 nil，任何后续 DB 访问都会 panic，因此仅应在
+// 迁移完成、进程即将重启的终态下调用。
+func CloseAndCleanupSQLite() []string {
+	var removed []string
+
+	// 收集要删除的 SQLite 文件路径（主库 + 独立日志库）。
+	candidates := make([]string, 0, 6)
+	if p, ok := sqliteFilePath(currentDBPath); ok {
+		candidates = append(candidates, p)
+	}
+	logDBLock.RLock()
+	logP := logDBPath
+	logDBLock.RUnlock()
+	if logP != "" {
+		if p, ok := sqliteFilePath(logP); ok {
+			candidates = append(candidates, p)
+		}
+	}
+
+	// 先关闭连接释放文件句柄（Windows 下未关闭的文件无法删除）。
+	_ = CloseLogDB()
+	if db != nil {
+		if sqlDB, err := db.DB(); err == nil {
+			_ = sqlDB.Close()
+		}
+		db = nil
+	}
+
+	// 删除 SQLite 主文件及其 WAL/SHM 侧车文件。
+	for _, p := range candidates {
+		for _, suffix := range []string{"", "-wal", "-shm"} {
+			fp := p + suffix
+			if err := os.Remove(fp); err == nil {
+				removed = append(removed, fp)
+			}
+		}
+	}
+	return removed
 }
 
 // FastClearTable 以方言最快的方式清空整张表，并重建表结构与索引。

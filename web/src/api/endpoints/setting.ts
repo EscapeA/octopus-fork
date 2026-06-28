@@ -170,6 +170,9 @@ export interface DatabaseMigrationResult {
     include_logs: boolean;
     include_stats: boolean;
     restart_needed: boolean;
+    // 迁移成功后已删除的旧 SQLite 文件路径（issue #118）。
+    // 仅当源库为 SQLite、目标库为非 SQLite 时非空。
+    cleaned_files?: string[];
     import_result: DBImportResult;
 }
 

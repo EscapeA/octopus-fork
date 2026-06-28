@@ -302,8 +302,19 @@ export function SettingBackup() {
                 </div>
 
                 {migrateDatabase.data ? (
-                    <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/8 p-3 text-xs text-emerald-700 dark:text-emerald-300 break-words">
-                        {t('backup.migration.successDetail', { type: migrateDatabase.data.type, path: migrateDatabase.data.path })}
+                    <div className="space-y-2 rounded-lg border border-emerald-500/20 bg-emerald-500/8 p-3 text-xs text-emerald-700 dark:text-emerald-300 break-words">
+                        <div>{t('backup.migration.successDetail', { type: migrateDatabase.data.type, path: migrateDatabase.data.path })}</div>
+                        {migrateDatabase.data.cleaned_files && migrateDatabase.data.cleaned_files.length > 0 ? (
+                            <div className="text-amber-600 dark:text-amber-400">
+                                {t('backup.migration.cleanedFiles', { count: migrateDatabase.data.cleaned_files.length })}
+                                <ul className="mt-1 list-inside list-disc space-y-0.5 break-all">
+                                    {migrateDatabase.data.cleaned_files.map((f) => (
+                                        <li key={f}>{f}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ) : null}
+                        <div className="font-semibold text-amber-600 dark:text-amber-400">{t('backup.migration.restartNotice')}</div>
                     </div>
                 ) : null}
             </div>
