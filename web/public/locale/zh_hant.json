@@ -405,6 +405,14 @@
       "modelCount": "模型數",
       "fallbackRate": "回退率"
     },
+    "sort": {
+      "byRequests": "按請求數",
+      "bySuccessRate": "按成功率",
+      "byCost": "按費用",
+      "byFailed": "按失敗數",
+      "ascending": "升序",
+      "descending": "降序"
+    },
     "utilization": {
       "description": "按供應商 / 模型 / API 密鑰拆解請求次數、成功率、消耗金額與 Token。金額來自計費請求彙總，與首頁圖表的即時統計來源不同。",
       "providers": "供應源",

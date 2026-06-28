@@ -1,14 +1,17 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { KeyRound, Layers3, Radio, Waves } from 'lucide-react';
+import { ArrowDownUp, KeyRound, Layers3, Radio, Waves } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useAnalyticsUtilization, type AnalyticsRange, type AnalyticsProviderBreakdownItem, type AnalyticsModelBreakdownItem, type AnalyticsAPIKeyBreakdownItem } from '@/api/endpoints/analytics';
 import { formatCount, formatMoney } from '@/lib/utils';
 import { ObservatorySection, QueryState, StatusBadge, formatPercent } from './shared';
 import { useAnalyticsCacheTtl } from './cache-context';
+import { useBreakdownSort, type AnalyticsSortKey } from './use-sort';
 
 type BreakdownItem = AnalyticsProviderBreakdownItem | AnalyticsModelBreakdownItem | AnalyticsAPIKeyBreakdownItem;
+
+const SORT_OPTIONS: AnalyticsSortKey[] = ['requests', 'success_rate', 'cost'];
 
 function BreakdownCard({
     title,
@@ -25,18 +28,48 @@ function BreakdownCard({
     getMeta?: (item: BreakdownItem) => ReactNode;
     noBillingHint?: string;
 }) {
+    const t = useTranslations('analytics');
+    const { sorted, sortKey, setSortKey, sortOrder, toggleOrder } = useBreakdownSort(items);
     const allCostZero = items.length > 0 && items.every((item) => item.total_cost === 0);
+    const sortLabelKeys: Record<AnalyticsSortKey, string> = {
+        requests: 'sort.byRequests',
+        success_rate: 'sort.bySuccessRate',
+        cost: 'sort.byCost',
+    };
     return (
         <article className="rounded-lg border border-border/30 bg-card p-4 shadow-sm ">
-            <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shadow-sm">
-                    <Icon className="h-4 w-4" />
+            <div className="mb-4 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shadow-sm">
+                        <Icon className="h-4 w-4" />
+                    </div>
+                    <h4 className="text-sm font-semibold">{title}</h4>
                 </div>
-                <h4 className="text-sm font-semibold">{title}</h4>
+                <div className="flex items-center gap-1">
+                    <select
+                        value={sortKey}
+                        onChange={(e) => setSortKey(e.target.value as AnalyticsSortKey)}
+                        className="h-6 rounded-md border border-border/50 bg-background px-1.5 text-[11px] outline-none focus:border-primary/30"
+                    >
+                        {SORT_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>
+                                {t(sortLabelKeys[opt])}
+                            </option>
+                        ))}
+                    </select>
+                    <button
+                        type="button"
+                        onClick={toggleOrder}
+                        title={sortOrder === 'desc' ? t('sort.descending') : t('sort.ascending')}
+                        className="flex h-6 w-6 items-center justify-center rounded-md border border-border/50 bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    >
+                        <ArrowDownUp className={`size-3 ${sortOrder === 'asc' ? 'rotate-180' : ''}`} />
+                    </button>
+                </div>
             </div>
 
             <div className="max-h-80 space-y-3 overflow-y-auto pr-1">
-                {items.map((item) => (
+                {sorted.map((item) => (
                     <div key={`${title}-${getName(item)}`} className="rounded-lg border border-border/25 bg-card px-3 py-3 shadow-sm">
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">

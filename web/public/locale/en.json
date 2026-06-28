@@ -405,6 +405,14 @@
       "modelCount": "Models",
       "fallbackRate": "Fallback Rate"
     },
+    "sort": {
+      "byRequests": "By requests",
+      "bySuccessRate": "By success rate",
+      "byCost": "By cost",
+      "byFailed": "By failed",
+      "ascending": "Ascending",
+      "descending": "Descending"
+    },
     "utilization": {
       "description": "Break down request volume, success rate, cost, and tokens by provider / model / API key. Costs are aggregated from billed requests; the home chart pulls from realtime stats.",
       "providers": "Providers",

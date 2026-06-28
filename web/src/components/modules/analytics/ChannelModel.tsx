@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Boxes } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ArrowDownUp, Boxes } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import {
     useAnalyticsChannelModel,
@@ -15,6 +15,11 @@ import { useNavStore } from '@/components/modules/navbar/nav-store';
 import { useNavHandoff } from '@/lib/nav-handoff';
 import { UsageDistribution } from './UsageDistribution';
 import { useAnalyticsCacheTtl } from './cache-context';
+import type { AnalyticsSortKey } from './use-sort';
+
+type ChannelModelSortKey = AnalyticsSortKey | 'failed';
+
+const CHANNEL_MODEL_SORT_OPTIONS: ChannelModelSortKey[] = ['failed', 'requests', 'success_rate', 'cost'];
 
 function successRateClass(rate: number) {
     if (rate < 50) return 'text-destructive';
@@ -79,6 +84,8 @@ export function ChannelModel({ range }: { range: AnalyticsRange }) {
     const t = useTranslations('analytics');
     const { data: groups = [] } = useGroupList();
     const [groupId, setGroupId] = useState<number | undefined>(undefined);
+    const [sortKey, setSortKey] = useState<ChannelModelSortKey>('failed');
+    const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
     const cacheTtl = useAnalyticsCacheTtl();
     const { data, isLoading, error } = useAnalyticsChannelModel(range, groupId, cacheTtl);
 
@@ -94,6 +101,44 @@ export function ChannelModel({ range }: { range: AnalyticsRange }) {
         });
         setActiveItem('log');
     };
+
+    const sortLabelKeys: Record<ChannelModelSortKey, string> = {
+        failed: 'sort.byFailed',
+        requests: 'sort.byRequests',
+        success_rate: 'sort.bySuccessRate',
+        cost: 'sort.byCost',
+    };
+
+    const sortedData = useMemo(() => {
+        if (!data) return [];
+        const result = [...data];
+        const dir = sortOrder === 'desc' ? -1 : 1;
+        result.sort((a, b) => {
+            let cmp = 0;
+            switch (sortKey) {
+                case 'success_rate':
+                    cmp = a.success_rate - b.success_rate;
+                    break;
+                case 'cost':
+                    cmp = a.total_cost - b.total_cost;
+                    break;
+                case 'requests':
+                    cmp = a.request_count - b.request_count;
+                    break;
+                default: {
+                    // failed：失败数 = round(RequestCount * (1 - SuccessRate/100))
+                    const af = a.request_count * (1 - a.success_rate / 100);
+                    const bf = b.request_count * (1 - b.success_rate / 100);
+                    cmp = af - bf;
+                    break;
+                }
+            }
+            if (cmp !== 0) return cmp * dir;
+            if (a.request_count !== b.request_count) return b.request_count - a.request_count;
+            return 0;
+        });
+        return result;
+    }, [data, sortKey, sortOrder]);
 
     return (
         <div className="space-y-4">
@@ -120,6 +165,25 @@ export function ChannelModel({ range }: { range: AnalyticsRange }) {
                                 </option>
                             ))}
                         </select>
+                        <select
+                            value={sortKey}
+                            onChange={(e) => setSortKey(e.target.value as ChannelModelSortKey)}
+                            className="h-7 rounded-md border border-border/50 bg-background px-2 text-xs outline-none focus:border-primary/30"
+                        >
+                            {CHANNEL_MODEL_SORT_OPTIONS.map((opt) => (
+                                <option key={opt} value={opt}>
+                                    {t(sortLabelKeys[opt])}
+                                </option>
+                            ))}
+                        </select>
+                        <button
+                            type="button"
+                            onClick={() => setSortOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
+                            title={sortOrder === 'desc' ? t('sort.descending') : t('sort.ascending')}
+                            className="flex h-7 w-7 items-center justify-center rounded-md border border-border/50 bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        >
+                            <ArrowDownUp className={`size-3 ${sortOrder === 'asc' ? 'rotate-180' : ''}`} />
+                        </button>
                     </div>
                 }
             >
@@ -130,7 +194,7 @@ export function ChannelModel({ range }: { range: AnalyticsRange }) {
                     emptyLabel={isLoading ? t('states.loading') : t('channelModel.empty')}
                 >
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                        {(data ?? []).map((item) => (
+                        {sortedData.map((item) => (
                             <ChannelModelRow
                                 key={`${item.channel_id}-${item.model_name}`}
                                 item={item}

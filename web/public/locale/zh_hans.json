@@ -405,6 +405,14 @@
       "modelCount": "模型数",
       "fallbackRate": "回退率"
     },
+    "sort": {
+      "byRequests": "按请求数",
+      "bySuccessRate": "按成功率",
+      "byCost": "按费用",
+      "byFailed": "按失败数",
+      "ascending": "升序",
+      "descending": "降序"
+    },
     "utilization": {
       "description": "按供应商 / 模型 / API 密钥拆解请求次数、成功率、消耗金额与 Token。金额来自计费请求聚合，与首页图表的实时统计来源不同。",
       "providers": "供给源",
