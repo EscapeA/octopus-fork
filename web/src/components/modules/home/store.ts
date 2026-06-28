@@ -6,12 +6,12 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 export type RankSortMode = 'cost' | 'count' | 'tokens' | 'key-usage';
 export type ChartMetricType = 'cost' | 'count' | 'tokens' | 'success-rate';
 export type ChartPeriod = '1' | '7' | '30';
-export type OverviewRange = '7d' | '30d' | '90d';
+export type OverviewRange = '7d' | '30d' | '90d' | 'all';
 
 const RANK_SORT_MODES: readonly RankSortMode[] = ['cost', 'count', 'tokens', 'key-usage'];
 const CHART_METRIC_TYPES: readonly ChartMetricType[] = ['cost', 'count', 'tokens', 'success-rate'];
 const CHART_PERIODS: readonly ChartPeriod[] = ['1', '7', '30'];
-const OVERVIEW_RANGES: readonly OverviewRange[] = ['7d', '30d', '90d'];
+const OVERVIEW_RANGES: readonly OverviewRange[] = ['7d', '30d', '90d', 'all'];
 
 function normalizeRankSortMode(value: string | null | undefined): RankSortMode {
     return RANK_SORT_MODES.includes(value as RankSortMode) ? (value as RankSortMode) : 'cost';

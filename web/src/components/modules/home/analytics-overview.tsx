@@ -27,7 +27,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn, formatCount, formatMoney } from '@/lib/utils';
 import { useHomeViewStore, type OverviewMetricKey, type OverviewRange } from './store';
 
-const RANGE_OPTIONS: readonly OverviewRange[] = ['7d', '30d', '90d'];
+const RANGE_OPTIONS: readonly OverviewRange[] = ['7d', '30d', '90d', 'all'];
 
 type OverviewData = NonNullable<ReturnType<typeof useAnalyticsOverview>['data']>;
 type MetricIcon = typeof BarChart3;
