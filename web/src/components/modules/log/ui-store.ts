@@ -9,7 +9,9 @@ export type LogFieldName =
     | 'actualModel'
     | 'apiKeyName'
     | 'clientIP'
-    | 'cost';
+    | 'cost'
+    | 'tps'
+    | 'cacheHitRate';
 
 export type LogFieldVisibility = Record<LogFieldName, boolean>;
 
@@ -20,6 +22,8 @@ export const DEFAULT_LOG_FIELD_VISIBILITY: LogFieldVisibility = {
     apiKeyName: true,
     clientIP: true,
     cost: true,
+    tps: true,
+    cacheHitRate: true,
 };
 
 type LogFieldVisibilityState = {

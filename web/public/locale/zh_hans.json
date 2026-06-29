@@ -2428,7 +2428,9 @@
       "apiKeyName": "密钥名称",
       "clientIP": "客户端 IP",
       "cost": "费用",
-      "reset": "重置"
+      "reset": "重置",
+      "tps": "TPS",
+      "cacheHitRate": "缓存命中率"
     },
     "card": {
       "error": "错误",
@@ -2469,7 +2471,9 @@
         "anthropicMessages": "Anthropic Messages",
         "gemini": "Gemini",
         "volcengine": "Volcengine"
-      }
+      },
+      "tps": "TPS",
+      "cacheHitRate": "缓存命中率"
     }
   },
   "channel": {

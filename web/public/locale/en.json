@@ -2428,7 +2428,9 @@
       "apiKeyName": "API Key Name",
       "clientIP": "Client IP",
       "cost": "Cost",
-      "reset": "Reset"
+      "reset": "Reset",
+      "tps": "TPS",
+      "cacheHitRate": "Cache Hit Rate"
     },
     "card": {
       "error": "Error",
@@ -2469,7 +2471,9 @@
         "anthropicMessages": "Anthropic Messages",
         "gemini": "Gemini",
         "volcengine": "Volcengine"
-      }
+      },
+      "tps": "TPS",
+      "cacheHitRate": "Cache Hit Rate"
     }
   },
   "channel": {
