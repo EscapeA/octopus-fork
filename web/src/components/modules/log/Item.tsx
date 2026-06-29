@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useMemo, useState, useEffect } from 'react';
-import { Clock, Cpu, Zap, AlertCircle, ArrowDownToLine, ArrowUpFromLine, DollarSign, JapaneseYen, ArrowRight, ArrowDown, Send, MessageSquare, Loader2, RotateCw, ChevronDown, ChevronUp, Pin, KeyRound, Globe, ChevronsDownUp, ChevronsUpDown, TestTube2, Sigma } from 'lucide-react';
+import { Clock, Cpu, Gauge, Zap, AlertCircle, ArrowDownToLine, ArrowUpFromLine, DollarSign, JapaneseYen, ArrowRight, ArrowDown, Send, MessageSquare, Loader2, Percent, RotateCw, ChevronDown, ChevronUp, Pin, KeyRound, Globe, ChevronsDownUp, ChevronsUpDown, TestTube2, Sigma } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'motion/react';
 import JsonView from '@uiw/react-json-view';
@@ -62,6 +62,25 @@ function formatTime(timestamp: number): string {
 function formatDuration(ms: number): string {
     if (ms < 1000) return `${ms}ms`;
     return `${(ms / 1000).toFixed(2)}s`;
+}
+
+/** Format tokens-per-second for display. */
+function formatTPS(tokens: number, timeMs: number): string {
+    if (tokens <= 0 || timeMs <= 0) return '- tk/s';
+    const seconds = timeMs / 1000;
+    const tps = tokens / seconds;
+    if (tps >= 100) return `${tps.toFixed(0)} tk/s`;
+    if (tps >= 10) return `${tps.toFixed(1)} tk/s`;
+    return `${tps.toFixed(2)} tk/s`;
+}
+
+/** Format cache hit rate = cacheReadTokens / totalTokens. */
+function formatCacheHitRate(cacheRead: number, total: number): string {
+    if (cacheRead <= 0 || total <= 0) return '-';
+    const rate = (cacheRead / total) * 100;
+    if (rate >= 100) return '100%';
+    if (rate >= 10) return `${rate.toFixed(1)}%`;
+    return `${rate.toFixed(2)}%`;
 }
 
 /** Resolve the badge styling and label key for a single attempt status.
@@ -441,6 +460,18 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                     <Cpu className="size-3.5 shrink-0 text-blue-500" />
                                     <span>{t('totalTime')} {formatDuration(log.use_time)}</span>
                                 </div>
+                                {vis.tps && (
+                                    <div className="flex items-center gap-1.5">
+                                        <Gauge className="size-3.5 shrink-0 text-lime-500" />
+                                        <span>{t('tps')} {formatTPS(log.output_tokens, log.use_time)}</span>
+                                    </div>
+                                )}
+                                {vis.cacheHitRate && cacheReadTokens > 0 && (
+                                    <div className="flex items-center gap-1.5">
+                                        <Percent className="size-3.5 shrink-0 text-teal-500" />
+                                        <span>{t('cacheHitRate')} {formatCacheHitRate(cacheReadTokens, totalTokens)}</span>
+                                    </div>
+                                )}
                                 <div className="flex items-center gap-1.5">
                                     <ArrowDownToLine className="size-3.5 shrink-0 text-green-500" />
                                     <span>{inputLabel} {inputTokenDisplay}</span>
@@ -774,6 +805,18 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                 <Cpu className="size-3.5 text-blue-500" />
                                 <span>{t('totalTime')}: {formatDuration(log.use_time)}</span>
                             </div>
+                            {vis.tps && (
+                                <div className="flex items-center gap-1.5">
+                                    <Gauge className="size-3.5 text-lime-500" />
+                                    <span>{t('tps')}: {formatTPS(log.output_tokens, log.use_time)}</span>
+                                </div>
+                            )}
+                            {vis.cacheHitRate && cacheReadTokens > 0 && (
+                                <div className="flex items-center gap-1.5">
+                                    <Percent className="size-3.5 text-teal-500" />
+                                    <span>{t('cacheHitRate')}: {formatCacheHitRate(cacheReadTokens, totalTokens)}</span>
+                                </div>
+                            )}
                             <div className="flex items-center gap-1.5">
                                 <Sigma className="size-3.5 text-rose-500" />
                                 <span className="font-medium text-rose-600 dark:text-rose-400">{t('totalTokens')}: {totalTokenDisplay}</span>

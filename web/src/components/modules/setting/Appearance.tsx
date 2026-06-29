@@ -185,7 +185,8 @@ function NavigationPreferences() {
                                                         'flex items-center justify-between gap-3 rounded-lg border-border/30 bg-card px-3 py-3 shadow-sm transition-[transform,border-color,box-shadow]',
                                                         snapshot.isDragging && 'border-primary/40 shadow-md'
                                                     )}
-                                                    style={draggableProvided.draggableProps.style}
+                                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                                    style={draggableProvided.draggableProps.style as any}
                                                 >
                                                     <div className="flex min-w-0 items-center gap-3">
                                                         <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
