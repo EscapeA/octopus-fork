@@ -794,21 +794,28 @@ func GroupDel(id int, ctx context.Context) error {
 	return nil
 }
 
-// UpdateGroupTestStatus 回写分组最近一次测试的成败状态（issue #113）。
-// passed=true 表示全部通过，false 表示存在失败。由 group_probe 测试完成时调用，
-// 前端据此对失败分组做灰色化标记。回写后刷新缓存使列表响应立即携带新状态。
-func UpdateGroupTestStatus(id int, passed bool, ctx context.Context) error {
+// UpdateGroupTestStatus 回写分组最近一次测试的成败状态（issue #113/#119）。
+// passed=true 表示全部通过，false 表示存在失败。allFailed 区分全部失败与部分失败，
+// 仅当 passed=false 时有意义（passed=true 时自动置 false）。由 group_probe 测试
+// 完成时调用，前端据此决定是否对整张卡片灰色化。回写后刷新缓存使列表响应立即
+// 携带新状态。
+func UpdateGroupTestStatus(id int, passed bool, allFailed bool, ctx context.Context) error {
 	if _, ok := groupCache.Get(id); !ok {
 		return fmt.Errorf("group not found")
 	}
 	now := time.Now().Unix()
+	updates := map[string]interface{}{
+		"last_test_passed":     passed,
+		"last_test_at":         now,
+		"last_test_all_failed": false,
+	}
+	if !passed {
+		updates["last_test_all_failed"] = allFailed
+	}
 	if err := db.GetDB().WithContext(ctx).
 		Model(&model.Group{}).
 		Where("id = ?", id).
-		Updates(map[string]interface{}{
-			"last_test_passed": passed,
-			"last_test_at":     now,
-		}).Error; err != nil {
+		Updates(updates).Error; err != nil {
 		return fmt.Errorf("failed to update group test status: %w", err)
 	}
 	return RefreshCacheByID(id, ctx)

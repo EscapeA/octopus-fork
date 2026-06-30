@@ -26,6 +26,11 @@ type Group struct {
 	// nil = 从未测试；true = 全部通过；false = 存在失败。测试完成时由
 	// group_probe 回写，前端据此对失败分组做灰色化标记。
 	LastTestPassed *bool `json:"last_test_passed,omitempty" gorm:"column:last_test_passed"`
+	// LastTestAllFailed 区分"全部失败"与"部分失败"（issue #119）。
+	// nil = 从未测试；true = 所有模型均失败；false = 至少一个模型通过。
+	// 仅当 LastTestPassed=false 时有意义：前端据此决定是否对整张卡片
+	// 灰色化（全部失败）还是仅标记部分失败（卡片边框保持正常）。
+	LastTestAllFailed *bool `json:"last_test_all_failed,omitempty" gorm:"column:last_test_all_failed"`
 	// LastTestAt 最近一次分组测试完成时间（unix 秒），0 = 从未测试。
 	LastTestAt int64 `json:"last_test_at,omitempty" gorm:"column:last_test_at;default:0"`
 }

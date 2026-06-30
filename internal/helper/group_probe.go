@@ -87,18 +87,30 @@ func TestGroupModels(ctx context.Context, group *appmodel.Group, channels map[in
 	return runGroupModelTest(ctx, group, channels, progress)
 }
 
-// recordGroupTestStatus 回写分组最近一次测试的成败状态到 DB（issue #113）。
+// recordGroupTestStatus 回写分组最近一次测试的成败状态到 DB（issue #113/#119）。
 // 草稿测试（StartDraftGroupModelTest）不回写，因为 group 无持久化 ID。
+// allFailed 区分全部失败与部分失败（issue #119），仅当 passed=false 时有意义。
 // 回写失败仅记日志，不影响测试结果本身。
-func recordGroupTestStatus(groupID int, passed bool) {
+func recordGroupTestStatus(groupID int, passed bool, allFailed bool) {
 	if groupID <= 0 {
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := grp.UpdateGroupTestStatus(groupID, passed, ctx); err != nil {
-		log.Errorf("failed to record group test status: group_id=%d passed=%v err=%v", groupID, passed, err)
+	if err := grp.UpdateGroupTestStatus(groupID, passed, allFailed, ctx); err != nil {
+		log.Errorf("failed to record group test status: group_id=%d passed=%v allFailed=%v err=%v", groupID, passed, allFailed, err)
 	}
+}
+
+// groupTestAnyPassed 检查 summary 中是否有任意一条测试结果通过。
+// 用于区分全部失败与部分失败（issue #119）。
+func groupTestAnyPassed(summary *GroupModelTestSummary) bool {
+	for _, r := range summary.Results {
+		if r.Passed {
+			return true
+		}
+	}
+	return false
 }
 
 func StartGroupModelTest(group *appmodel.Group, channels map[int]appmodel.Channel) (*GroupModelTestProgress, error) {
@@ -123,7 +135,7 @@ func StartGroupModelTest(group *appmodel.Group, channels map[int]appmodel.Channe
 			Message:   "dev mock success",
 		}
 		storeGroupModelProgress(progress)
-		recordGroupTestStatus(group.ID, summary.Passed)
+		recordGroupTestStatus(group.ID, summary.Passed, false)
 		log.Infof("dev mock group test success: group=%s total=%d", group.Name, len(group.Items))
 		return progress, nil
 	}
@@ -146,7 +158,7 @@ func StartGroupModelTest(group *appmodel.Group, channels map[int]appmodel.Channe
 				failed.Passed = false
 				failed.Message = fmt.Sprintf("internal error: %v", r)
 				storeGroupModelProgress(&failed)
-				recordGroupTestStatus(group.ID, false)
+				recordGroupTestStatus(group.ID, false, true)
 			}
 		}()
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -159,11 +171,12 @@ func StartGroupModelTest(group *appmodel.Group, channels map[int]appmodel.Channe
 			failed.Done = true
 			failed.Message = err.Error()
 			storeGroupModelProgress(&failed)
-			recordGroupTestStatus(group.ID, false)
+			recordGroupTestStatus(group.ID, false, true)
 			return
 		}
-		// 正常完成：summary 携带最终 Passed，回写分组测试状态（issue #113）。
-		recordGroupTestStatus(group.ID, summary.Passed)
+		// 正常完成：summary 携带最终 Passed，回写分组测试状态（issue #113/#119）。
+		allFailed := !summary.Passed && !groupTestAnyPassed(summary)
+		recordGroupTestStatus(group.ID, summary.Passed, allFailed)
 		log.Infof("group model test completed: group=%s progress_id=%s", group.Name, id)
 	}()
 

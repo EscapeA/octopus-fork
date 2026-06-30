@@ -945,8 +945,15 @@ export function GroupListItem({ group }: { group: Group }) {
     // ---- Member list adaptive height ----
     const needsScroll = members.length >= 4;
 
+    const allFailed = group.last_test_passed === false && group.last_test_all_failed === true;
+    const partialFailed = group.last_test_passed === false && group.last_test_all_failed !== true;
+
     return (
-        <article className={cn('group relative overflow-hidden rounded-xl border border-border bg-card text-card-foreground transition-shadow hover:shadow-sm', group.last_test_passed === false && 'opacity-60 grayscale')}>
+        <article className={cn(
+            'group relative overflow-hidden rounded-xl border border-border bg-card text-card-foreground transition-shadow hover:shadow-sm',
+            allFailed && 'opacity-60 grayscale',
+            partialFailed && 'border-l-4 border-l-amber-400 dark:border-l-amber-500'
+        )}>
             {/* ===== Collapsed row (always visible) ===== */}
             <div
                 className="flex cursor-pointer items-center gap-3 px-4 py-3 md:py-4"
@@ -967,7 +974,7 @@ export function GroupListItem({ group }: { group: Group }) {
                     <div className="min-w-0 flex-1">
                         <h3 className="truncate text-sm font-semibold text-card-foreground md:text-base">
                             {group.name}
-                            {group.last_test_passed === false && (
+                            {allFailed && (
                                 <Tooltip side="top" sideOffset={6} align="center">
                                     <TooltipTrigger asChild>
                                         <span className="ml-1.5 inline-flex translate-y-0.5">
@@ -976,6 +983,18 @@ export function GroupListItem({ group }: { group: Group }) {
                                     </TooltipTrigger>
                                     <TooltipContent>
                                         {t('card.lastTestFailed')}
+                                    </TooltipContent>
+                                </Tooltip>
+                            )}
+                            {partialFailed && (
+                                <Tooltip side="top" sideOffset={6} align="center">
+                                    <TooltipTrigger asChild>
+                                        <span className="ml-1.5 inline-flex translate-y-0.5">
+                                            <AlertTriangle className="size-3.5 text-amber-500" />
+                                        </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        {t('toast.testPartialFailed')}
                                     </TooltipContent>
                                 </Tooltip>
                             )}

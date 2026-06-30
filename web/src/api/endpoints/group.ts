@@ -44,6 +44,7 @@ export interface Group {
     session_keep_time?: number;
     items?: GroupItem[];
     last_test_passed?: boolean | null;
+    last_test_all_failed?: boolean | null;
     last_test_at?: number;
 }
 
