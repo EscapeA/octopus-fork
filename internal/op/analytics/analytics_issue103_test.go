@@ -106,11 +106,10 @@ func TestIssue103_FailingChannelVisibleWithAttempts(t *testing.T) {
 	}
 }
 
-// TestIssue103_LegacyLogUsesTopLevelColumns 关联表无行（keepEnabled 切换或部署前
-// 历史日志）时，legacy 分支用 DB 端顶层列 GROUP BY 聚合，只反映最终渠道的成败。
-// 中间重试失败渠道（如 channelB）仅在 attempts JSON 中、顶层列未记录，故不显示——
-// 这是有意降级：避免整行加载（含 attempts JSON 大字段）导致的内存爆炸与磁盘读飙升。
-// 新日志的中间重试失败已由 attempts 表分支（RelayLogAttemptsAdd）完整覆盖。
+// TestIssue103_LegacyLogParsesAttemptsJSON 关联表无行（keepEnabled 切换或部署前
+// 历史日志）时，legacy 分支从 relay_logs 的 attempts JSON 字段解析尝试维度
+// （issue #121），使中间重试失败渠道（如 channelB）也能被捕获。此前仅用顶层列
+// 聚合，中间重试失败不可见——该降级策略已由 issue #121 修复取消。
 func TestIssue103_LegacyLogUsesTopLevelColumns(t *testing.T) {
 	setupIssue103DB(t)
 	seedIssue103Group(t, 1, "gpt-4o")
@@ -136,16 +135,17 @@ func TestIssue103_LegacyLogUsesTopLevelColumns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AnalyticsChannelModelBreakdownGet error: %v", err)
 	}
-	foundA, foundB, _, _ := findIssue103Rows(t, items)
-	// 最终成功渠道 channelA(11) 由顶层列聚合显示。
+	foundA, foundB, _, rateB := findIssue103Rows(t, items)
+	// 最终成功渠道 channelA(11) 由 attempts JSON 解析显示。
 	if !foundA {
 		t.Errorf("channelA(11) missing from breakdown")
 	}
-	// 中间失败渠道 channelB(22) 仅存在于 attempts JSON，顶层列未记录，故不显示。
-	// 这是有意降级——见 TestIssue103_FailingChannelVisibleWithAttempts（关联表有行时
-	// 失败渠道仍可见）。
-	if foundB {
-		t.Errorf("channelB(22) should NOT appear in legacy breakdown (top-level columns only)")
+	// 中间失败渠道 channelB(22) 从 attempts JSON 解析可见（issue #121 修复）。
+	if !foundB {
+		t.Errorf("channelB(22) should appear in legacy breakdown (attempts JSON parsed)")
+	}
+	if rateB != 0 {
+		t.Errorf("channelB success_rate=%f, want 0 (failed)", rateB)
 	}
 }
 

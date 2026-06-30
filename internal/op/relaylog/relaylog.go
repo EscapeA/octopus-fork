@@ -254,8 +254,10 @@ func RelayLogAdd(ctx context.Context, relayLog model.RelayLog) error {
 
 // RelayLogAttemptsAdd 把一条 RelayLog 的各次尝试写入 relay_log_attempts 关联表，
 // 使失败尝试（尤其"渠道A 失败→重试到B 成功"中的渠道A）可被按 channel_id 过滤/聚合。
-// 日志关闭时不写（enabled=false）。写入走日志库连接，SQLite 下排队进写队列避免争用。
-// relayLogID 必须已分配（即 RelayLogAdd 之后调用）。返回错误仅供记录，调用方通常忽略。
+// 日志关闭时不写（enabled=false）。所有数据库方言均同步写入，确保 attempts 在
+// relay_logs 异步刷盘并截断内存缓存之前已落库，消除"relay_logs 已入 DB 但 attempts
+// 尚未写入"的竞态窗口（issue #121）。relayLogID 必须已分配（即 RelayLogAdd 之后
+// 调用）。返回错误仅供记录，调用方通常忽略。
 func RelayLogAttemptsAdd(ctx context.Context, relayLogID int64, attempts []model.ChannelAttempt, logTime int64) error {
 	if len(attempts) == 0 {
 		return nil
@@ -286,18 +288,11 @@ func RelayLogAttemptsAdd(ctx context.Context, relayLogID int64, attempts []model
 		return nil
 	}
 
-	write := func(c context.Context) error {
-		conn := db.GetLogDB()
-		if conn == nil {
-			return nil
-		}
-		return conn.WithContext(c).Create(&rows).Error
-	}
-	if db.IsLogSQLite() {
-		db.EnqueueWrite(db.WriteJob{Name: "relay_log_attempts", Fn: write})
+	conn := db.GetLogDB()
+	if conn == nil {
 		return nil
 	}
-	return write(ctx)
+	return conn.WithContext(ctx).Create(&rows).Error
 }
 
 func RelayLogSaveDBTask(ctx context.Context) error {
