@@ -38,6 +38,12 @@ const (
 type keyAvailabilityEntry struct {
 	score       float64   // 当前分数（已含懒恢复补偿）
 	lastDecayAt time.Time // 上次分数变化时刻，用于懒恢复计算
+	// lastActivity 是用于空闲回收判定的"最后活跃时刻"。与 lastDecayAt 解耦：
+	// lastDecayAt 是分数恢复锚点，会被读路径的 applyRecovery 推进；若用它做回收
+	// 判定，频繁被查询的垃圾 key 永不满足空闲阈值（见 issue #124）。lastActivity 仅
+	// 在写路径（RecordKeyAvailability）刷新，读路径不触碰，从而让只读垃圾 key 可被
+	// PurgeStaleKeyAvailability 周期回收。并发访问见 PurgeStaleKeyAvailability 注释。
+	lastActivity time.Time
 }
 
 // globalKeyAvailability 全局可用度分数存储，key: "channelID:keyID:modelName"。
@@ -76,7 +82,7 @@ func getOrCreateAvailabilityEntry(key string) *keyAvailabilityEntry {
 			return entry
 		}
 	}
-	entry := &keyAvailabilityEntry{score: keyAvailabilityMaxScore, lastDecayAt: now}
+	entry := &keyAvailabilityEntry{score: keyAvailabilityMaxScore, lastDecayAt: now, lastActivity: now}
 	actual, _ := globalKeyAvailability.LoadOrStore(key, entry)
 	if e, ok := actual.(*keyAvailabilityEntry); ok {
 		return e
@@ -151,11 +157,20 @@ func RecordKeyAvailability(channelID, keyID int, modelName string, statusCode in
 		}
 	}
 	entry.lastDecayAt = now
+	// lastActivity 是「回收判定锚点」，仅在真实事件（成功/失败）发生时刷新；
+	// 读路径 GetKeyAvailabilityScore 不触碰它，故频繁被查询但不被写的垃圾 key
+	// 仍会在 maxAge 后被 PurgeStaleKeyAvailability 回收（见 issue #124）。
+	entry.lastActivity = now
 }
 
 // PurgeStaleKeyAvailability 清理长时间未活动的可用度条目，防止 map 无界增长。
 // maxAge 为最大空闲时长，超过则删除。由 relay log flush 定时任务周期性调用。
 // 注意：清理后该 key 下次查询会回到满分（冷启动语义），符合可用度的短期软信号定位。
+//
+// 回收锚点用 lastActivity 而非 lastDecayAt（issue #124）：lastDecayAt 是分数恢复
+// 计算锚点，applyRecovery 在读路径 GetKeyAvailabilityScore 中也会前移它，导致频繁被
+// 查询（但不再被写）的垃圾 key 永不满足空闲阈值。lastActivity 仅在 RecordKeyAvailability
+// （写路径）更新，读路径不触碰，故只读垃圾 key 可在 maxAge 后被正常回收。
 func PurgeStaleKeyAvailability(maxAge time.Duration) int {
 	if maxAge <= 0 {
 		return 0
@@ -169,7 +184,7 @@ func PurgeStaleKeyAvailability(maxAge time.Duration) int {
 			removed++
 			return true
 		}
-		if entry.lastDecayAt.Before(threshold) {
+		if entry.lastActivity.Before(threshold) {
 			globalKeyAvailability.Delete(k)
 			removed++
 			releaseAvailabilityLock(k.(string))

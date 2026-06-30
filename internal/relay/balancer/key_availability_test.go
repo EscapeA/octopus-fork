@@ -135,13 +135,14 @@ func TestPurgeStaleKeyAvailability(t *testing.T) {
 	resetKeyAvailability()
 	RecordKeyAvailability(1, 1, "gpt-4o", http.StatusTooManyRequests, false)
 
-	// 模拟条目过期
+	// 模拟条目过期。回收锚点是 lastActivity（仅写路径更新），非 lastDecayAt
+	// （后者在读路径 applyRecovery 中也会前移，见 issue #124）。
 	key := availabilityKey(1, 1, "gpt-4o")
 	v, _ := globalKeyAvailability.Load(key)
 	entry := v.(*keyAvailabilityEntry)
 	mu := getAvailabilityLock(key)
 	mu.Lock()
-	entry.lastDecayAt = time.Now().Add(-2 * time.Hour)
+	entry.lastActivity = time.Now().Add(-2 * time.Hour)
 	mu.Unlock()
 
 	removed := PurgeStaleKeyAvailability(time.Hour)
@@ -152,5 +153,33 @@ func TestPurgeStaleKeyAvailability(t *testing.T) {
 	score := GetKeyAvailabilityScore(1, 1, "gpt-4o")
 	if score != keyAvailabilityMaxScore {
 		t.Fatalf("after purge, score = %v, want max", score)
+	}
+}
+
+// TestPurgeStaleKeyAvailability_ReadPathDoesNotRefreshAnchor 回归保护（issue #124）：
+// 读路径 GetKeyAvailabilityScore 不应刷新回收锚点 lastActivity。把 lastActivity 倒拨
+// 到过期阈值之前后反复读取，条目仍应被 PurgeStaleKeyAvailability 回收——否则频繁被
+// 查询（但不再被写）的垃圾 key 永不满足空闲阈值，导致 map 无界增长。
+func TestPurgeStaleKeyAvailability_ReadPathDoesNotRefreshAnchor(t *testing.T) {
+	resetKeyAvailability()
+	RecordKeyAvailability(1, 1, "gpt-4o", http.StatusTooManyRequests, false)
+
+	key := availabilityKey(1, 1, "gpt-4o")
+	v, _ := globalKeyAvailability.Load(key)
+	entry := v.(*keyAvailabilityEntry)
+	mu := getAvailabilityLock(key)
+	mu.Lock()
+	// 模拟条目已超过空闲阈值：lastActivity 倒拨到 2 小时前。
+	entry.lastActivity = time.Now().Add(-2 * time.Hour)
+	mu.Unlock()
+
+	// 反复读取（读路径会前移 lastDecayAt，但不应触碰 lastActivity）。
+	for i := 0; i < 3; i++ {
+		_ = GetKeyAvailabilityScore(1, 1, "gpt-4o")
+	}
+
+	removed := PurgeStaleKeyAvailability(time.Hour)
+	if removed < 1 {
+		t.Fatalf("read path should not refresh purge anchor; expected purge, removed = %d", removed)
 	}
 }

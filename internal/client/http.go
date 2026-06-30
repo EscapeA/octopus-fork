@@ -20,12 +20,21 @@ const (
 )
 
 var (
-	systemDirectClient      *http.Client
-	systemProxyClient       *http.Client
-	systemProxyURL          string
+	systemDirectClient       *http.Client
+	systemProxyClient        *http.Client
+	systemProxyURL           string
 	shortTimeoutDirectClient *http.Client
 	shortTimeoutProxyClient  *http.Client
-	clientLock              sync.RWMutex
+	clientLock               sync.RWMutex
+
+	// customProxyClients 缓存按 (timeout 分桶, proxyURL) 复用的 *http.Client。
+	// 之前每次调用 GetHTTPClientCustomProxy* 都新建 client + 新 clone transport + 新
+	// 空闲连接池，transport/连接不重用、闲置 90s 才 GC，在带 channel_proxy 的转发请求
+	// 上会造成内存与连接数持续增长（见 issue #124）。proxyURL 集合受限于用户配置的
+	// channel 数量，基数可控，无需 LRU。外层 key 为超时分桶（customProxyClientBucket），
+	// 内层 key 为 proxyURL。
+	customProxyClients     = make(map[string]map[string]*http.Client)
+	customProxyClientsLock sync.RWMutex
 )
 
 // GetHTTPClientSystemProxy returns a cached http.Client.
@@ -86,13 +95,67 @@ func GetHTTPClientSystemProxy(useProxy bool) (*http.Client, error) {
 	return systemDirectClient, nil
 }
 
-// GetHTTPClientCustomProxy returns a NEW http.Client every time (no reuse).
-// proxyURL supports: http, https, socks, socks5
+// GetHTTPClientCustomProxy returns a cached http.Client for the given proxy URL.
+// 缓存以 (proxyURL, timeout-bucket) 为 key（issue #124）：此前每次调用都新建
+// *http.Client + 新 clone 的 http.Transport + 新空闲连接池，transport/连接不重用、
+// 闲置 90s 才 GC，在带 per-channel 代理的转发请求上会造成显著的内存与 GC 压力。
+// proxyURL 集合受限于用户配置的 channel 数量，基数可控，无需 LRU。
+// proxyURL supports: http, https, socks, socks5.
 func GetHTTPClientCustomProxy(proxyURL string) (*http.Client, error) {
 	if proxyURL == "" {
 		return nil, fmt.Errorf("proxy url is empty")
 	}
-	return newHTTPClientCustomProxy(proxyURL)
+	return getOrBuildCustomProxyClient(proxyURL, 600*time.Second)
+}
+
+// GetHTTPClientCustomProxyWithTimeout returns a cached http.Client with the given
+// proxy URL and timeout. 同 GetHTTPClientCustomProxy 按 (proxyURL, timeout-bucket)
+// 缓存；超时变体与默认超时变体分别缓存，避免超时被覆盖。
+func GetHTTPClientCustomProxyWithTimeout(proxyURL string, timeout time.Duration) (*http.Client, error) {
+	if proxyURL == "" {
+		return nil, fmt.Errorf("proxy url is empty")
+	}
+	return getOrBuildCustomProxyClient(proxyURL, timeout)
+}
+
+// getOrBuildCustomProxyClient 是 GetHTTPClientCustomProxy(/WithTimeout) 的缓存核心。
+// 双检锁：先 RLock 查 (bucket, proxyURL)，未命中再 Lock 构造并写入。bucket 由
+// customProxyClientBucket(timeout) 决定，当前仅 "default"(600s) 与 "short"(30s) 两档。
+func getOrBuildCustomProxyClient(proxyURL string, timeout time.Duration) (*http.Client, error) {
+	bucket := customProxyClientBucket(timeout)
+	customProxyClientsLock.RLock()
+	if m, ok := customProxyClients[bucket]; ok {
+		if c, ok := m[proxyURL]; ok {
+			customProxyClientsLock.RUnlock()
+			return c, nil
+		}
+	}
+	customProxyClientsLock.RUnlock()
+
+	customProxyClientsLock.Lock()
+	defer customProxyClientsLock.Unlock()
+	if m, ok := customProxyClients[bucket]; ok {
+		if c, ok := m[proxyURL]; ok {
+			return c, nil
+		}
+	} else {
+		customProxyClients[bucket] = make(map[string]*http.Client)
+	}
+	client, err := newHTTPClientCustomProxyWithTimeout(proxyURL, timeout)
+	if err != nil {
+		return nil, err
+	}
+	customProxyClients[bucket][proxyURL] = client
+	return client, nil
+}
+
+// customProxyClientBucket 把 timeout 映射为缓存分桶 key。同 timeout 复用同一 map，
+// 避免不同 timeout 的 client 互相覆盖。当前仅 600s（转发）与 30s（后台任务）两档。
+func customProxyClientBucket(timeout time.Duration) string {
+	if timeout <= shortTaskTimeout {
+		return "short"
+	}
+	return "default"
 }
 
 // GetHTTPClientShortTimeout returns a cached http.Client with short timeout (30s).
@@ -153,21 +216,26 @@ func GetHTTPClientShortTimeout(useProxy bool) (*http.Client, error) {
 	return shortTimeoutDirectClient, nil
 }
 
-// GetHTTPClientCustomProxyWithTimeout returns a NEW http.Client with custom timeout.
-// proxyURL supports: http, https, socks, socks5
-func GetHTTPClientCustomProxyWithTimeout(proxyURL string, timeout time.Duration) (*http.Client, error) {
-	if proxyURL == "" {
-		return nil, fmt.Errorf("proxy url is empty")
-	}
-	return newHTTPClientCustomProxyWithTimeout(proxyURL, timeout)
-}
+// httpTransportPoolLimits 显式设定连接池上限，覆盖 http.DefaultTransport 的默认值
+// （MaxIdleConns=0 无界、MaxIdleConnsPerHost=2）。所有派生 client 共享同一组上限，
+// 避免多上游 channel 场景下空闲连接无界累积（见 issue #124）。
+const (
+	httpMaxIdleConns        = 100
+	httpMaxIdleConnsPerHost = 20
+	httpIdleConnTimeout     = 90 * time.Second
+)
 
 func clonedDefaultTransport() (*http.Transport, error) {
 	transport, ok := http.DefaultTransport.(*http.Transport)
 	if !ok {
 		return nil, fmt.Errorf("default transport is not *http.Transport")
 	}
-	return transport.Clone(), nil
+	cloned := transport.Clone()
+	// 显式设定连接池上限与空闲超时，避免默认 MaxIdleConns=0（无界）带来的内存累积。
+	cloned.MaxIdleConns = httpMaxIdleConns
+	cloned.MaxIdleConnsPerHost = httpMaxIdleConnsPerHost
+	cloned.IdleConnTimeout = httpIdleConnTimeout
+	return cloned, nil
 }
 
 func newHTTPClientNoProxy() (*http.Client, error) {

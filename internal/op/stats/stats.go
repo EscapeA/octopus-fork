@@ -93,6 +93,16 @@ var modelCacheNeedUpdate = make(map[int64]struct{})
 var modelCacheNeedUpdateLock sync.Mutex
 var modelMutationLock sync.Mutex
 
+// modelLastActivity 追踪每个 model 统计条目的最后活跃时间（unixNano），用于
+// 周期回收空闲条目。与 balancer.ChannelStats.lastActivity() 等价，但因
+// model.StatsModel 是 DB 映射结构体（改动面大），这里用独立的 sync.Map 追踪，
+// 不污染 DB schema。key: modelID(int64) -> *int64(unixNano)。
+//
+// 背景：modelCache 的 key = FNV(channelID:clientModelName)，model 名由客户端
+// 请求携带、基数不受控；此前仅测试代码 Clear()，无空闲回收，刷量/随机 model 名
+// 会导致 map 终生驻留（见 issue #124）。
+var modelLastActivity sync.Map // int64(modelID) -> *int64(unixNano)
+
 var apiKeyCache = cache.New[int, model.StatsAPIKey](16)
 var apiKeyCacheNeedUpdate = make(map[int]struct{})
 var apiKeyCacheNeedUpdateLock sync.Mutex
@@ -503,11 +513,31 @@ func ModelUpdate(s model.StatsModel) error {
 	modelCacheNeedUpdateLock.Lock()
 	modelCacheNeedUpdate[s.ID] = struct{}{}
 	modelCacheNeedUpdateLock.Unlock()
+	// 记录最后活跃时间，供 PurgeIdleModelStats 周期回收判定（见 issue #124）。
+	touchModelActivity(s.ID)
 	// Redis 增量：实时累加到 Redis，崩溃不丢（issue #123）。
 	if store.Enabled() {
 		_ = store.GetStats().IncrMetrics(context.Background(), statsScopeModel, strconv.FormatInt(s.ID, 10), s.StatsMetrics)
 	}
 	return nil
+}
+
+// touchModelActivity 更新某 modelID 的最后活跃时间为当前时刻。
+// 使用 *int64 原地写入，避免每次记录都向 sync.Map 分配新指针。
+func touchModelActivity(modelID int64) {
+	now := time.Now().UnixNano()
+	if v, ok := modelLastActivity.Load(modelID); ok {
+		if p, ok := v.(*int64); ok {
+			atomic.StoreInt64(p, now)
+			return
+		}
+	}
+	p := new(int64)
+	atomic.StoreInt64(p, now)
+	actual, _ := modelLastActivity.LoadOrStore(modelID, p)
+	if ap, ok := actual.(*int64); ok && ap != p {
+		atomic.StoreInt64(ap, now)
+	}
 }
 
 // ModelList returns all cached model statistics.
@@ -542,6 +572,52 @@ func buildModelID(channelID int, modelName string) int64 {
 	hash := fnv.New64a()
 	_, _ = hash.Write([]byte(fmt.Sprintf("%d:%s", channelID, strings.ToLower(strings.TrimSpace(modelName)))))
 	return int64(hash.Sum64() & 0x7fffffffffffffff)
+}
+
+// PurgeIdleModelStats 清理长时间未活动的 per-model 统计条目，防止 modelCache 无界增长。
+// idleFor 为最大空闲时长，超过则删除。由 relay log flush 定时任务周期性调用
+// （见 issue #124）。
+//
+// 安全性：若某 modelID 仍处于 modelCacheNeedUpdate（自上次 SaveDB 尚未落盘），则跳过
+// 本次回收，避免丢失未持久化的统计增量；下一次 SaveDB 清除 dirty 标记后，再下一轮即可
+// 回收。这与 requeueDirtyIDs 的"不丢增量"语义一致。返回删除的条目数。
+func PurgeIdleModelStats(idleFor time.Duration) int {
+	if idleFor <= 0 {
+		return 0
+	}
+	threshold := time.Now().Add(-idleFor).UnixNano()
+	removed := 0
+	modelLastActivity.Range(func(key, value any) bool {
+		modelID, ok := key.(int64)
+		if !ok {
+			modelLastActivity.Delete(key)
+			removed++
+			return true
+		}
+		p, ok := value.(*int64)
+		if !ok {
+			modelLastActivity.Delete(key)
+			removed++
+			return true
+		}
+		last := atomic.LoadInt64(p)
+		// 零值（从未记录，理论不会发生）或最后活跃时间早于阈值（空闲超过 idleFor）才回收。
+		// last >= threshold 表示近期有活动，保留。
+		if last == 0 || last < threshold {
+			// 仍在 dirty 集合中：尚未落盘，跳过以防丢失增量。
+			modelCacheNeedUpdateLock.Lock()
+			_, dirty := modelCacheNeedUpdate[modelID]
+			modelCacheNeedUpdateLock.Unlock()
+			if dirty {
+				return true
+			}
+			modelCache.Del(modelID)
+			modelLastActivity.Delete(key)
+			removed++
+		}
+		return true
+	})
+	return removed
 }
 
 // APIKeyUpdate adds metrics to a specific API key's statistics.
@@ -815,11 +891,20 @@ func ClearAllCachesForTest() {
 	modelCacheNeedUpdateLock.Lock()
 	modelCacheNeedUpdate = make(map[int64]struct{})
 	modelCacheNeedUpdateLock.Unlock()
+	clearModelActivityForTest()
 
 	apiKeyCache.Clear()
 	apiKeyCacheNeedUpdateLock.Lock()
 	apiKeyCacheNeedUpdate = make(map[int]struct{})
 	apiKeyCacheNeedUpdateLock.Unlock()
+}
+
+// clearModelActivityForTest 清空 modelLastActivity，供测试隔离使用。
+func clearModelActivityForTest() {
+	modelLastActivity.Range(func(key, _ any) bool {
+		modelLastActivity.Delete(key)
+		return true
+	})
 }
 
 // ResetCachesForTest resets all stats caches to a known state for testing.
@@ -844,6 +929,7 @@ func ResetCachesForTest(total model.StatsTotal, daily model.StatsDaily, channelI
 		modelCacheNeedUpdateLock.Lock()
 		modelCacheNeedUpdate[modelID] = struct{}{}
 		modelCacheNeedUpdateLock.Unlock()
+		touchModelActivity(modelID)
 	}
 	if apiKeyID != 0 {
 		apiKeyCache.Set(apiKeyID, model.StatsAPIKey{APIKeyID: apiKeyID})

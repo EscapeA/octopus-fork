@@ -75,8 +75,12 @@ func RefreshCache(ctx context.Context) error {
 	modelCacheNeedUpdateLock.Lock()
 	modelCacheNeedUpdate = make(map[int64]struct{})
 	modelCacheNeedUpdateLock.Unlock()
+	// 同步重置活跃时间追踪，并将从 DB 恢复的条目标记为"刚活跃"，避免启动后立刻被
+	// PurgeIdleModelStats 回收（见 issue #124）。
+	modelLastActivity.Range(func(k, _ any) bool { modelLastActivity.Delete(k); return true })
 	for _, v := range loadedModels {
 		modelCache.Set(v.ID, v)
+		touchModelActivity(v.ID)
 	}
 
 	var loadedAPIKeys []model.StatsAPIKey
