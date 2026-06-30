@@ -71,6 +71,24 @@ type Security struct {
 	EncryptionKey string `mapstructure:"encryption_key"`
 }
 
+// Cache 配置可选的缓存与状态存储后端。Type 为空（默认）时保持现有
+// 内存 + 数据库策略不变（零破坏性变更）；设为 "redis" 时启用 Redis 后端，
+// 将统计/运行时状态/限流冷却/失败提示/频道延迟等卸载到 Redis，支持多实例共享。
+// 与 database 字段平级，配置方式见 issue #123。
+type Cache struct {
+	Type  string      `mapstructure:"type"` // "" | "redis"（空=内存，向后兼容）
+	Redis RedisConfig `mapstructure:"redis"`
+}
+
+// RedisConfig 描述 Redis 单机连接参数。哨兵/集群模式留待后续迭代。
+type RedisConfig struct {
+	Addr     string `mapstructure:"addr"`      // "127.0.0.1:6379"
+	Password string `mapstructure:"password"`  // 可选
+	Username string `mapstructure:"username"`  // ACL 用户名（可选）
+	DB       int    `mapstructure:"db"`        // 0-15
+	PoolSize int    `mapstructure:"pool_size"` // 0=go-redis 默认（GOMAXPROCS*10）
+}
+
 type Config struct {
 	Server   Server   `mapstructure:"server"`
 	Log      Log      `mapstructure:"log"`
@@ -79,6 +97,7 @@ type Config struct {
 	Relay    Relay    `mapstructure:"relay"`
 	External External `mapstructure:"external"`
 	Security Security `mapstructure:"security"`
+	Cache    Cache    `mapstructure:"cache"`
 }
 
 var AppConfig Config
@@ -166,6 +185,27 @@ func SaveDatabaseConfig(dbType, path string) error {
 	return nil
 }
 
+// SaveCacheConfig 将缓存后端配置（Redis）写回 config.json。
+// 镜像 SaveDatabaseConfig 模式：viper.Set 各字段后 WriteConfig 落盘，再同步内存 AppConfig。
+// cacheType 为空表示使用内存后端（关闭 Redis），与未配置时行为一致。
+// 因为 Redis 启用是启动时决策（cmd/start.go 仅在 boot 时读 AppConfig.Cache），
+// 保存后需重启生效——调用方应提示用户重启（与数据库迁移一致）。
+func SaveCacheConfig(cacheType string, redis RedisConfig) error {
+	cacheType = strings.TrimSpace(cacheType)
+	viper.Set("cache.type", cacheType)
+	viper.Set("cache.redis.addr", redis.Addr)
+	viper.Set("cache.redis.password", redis.Password)
+	viper.Set("cache.redis.username", redis.Username)
+	viper.Set("cache.redis.db", redis.DB)
+	viper.Set("cache.redis.pool_size", redis.PoolSize)
+	if err := viper.WriteConfig(); err != nil {
+		return fmt.Errorf("write config: %w", err)
+	}
+	AppConfig.Cache.Type = cacheType
+	AppConfig.Cache.Redis = redis
+	return nil
+}
+
 func setDefaults() {
 	viper.SetDefault("server.host", "0.0.0.0")
 	viper.SetDefault("server.port", 8080)
@@ -187,6 +227,9 @@ func setDefaults() {
 	viper.SetDefault("external.update_url", "https://github.com/lingyuins/octopus/releases/latest/download")
 	viper.SetDefault("external.update_api_url", "https://api.github.com/repos/lingyuins/octopus/releases/latest")
 	viper.SetDefault("security.encryption_key", "")
+	// 缓存/状态后端默认留空：留空表示沿用内存 + 数据库策略（向后兼容）。
+	// 配置 "redis" 时启用 Redis 后端（见 issue #123）。
+	viper.SetDefault("cache.type", "")
 }
 
 func defaultDataDir() string {

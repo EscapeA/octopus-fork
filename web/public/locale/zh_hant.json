@@ -1479,6 +1479,31 @@
         "advancedDSN": "進階：直接編輯 DSN"
       }
     },
+    "redis": {
+      "title": "快取後端",
+      "description": "設定可選的 Redis 後端，將統計、執行時狀態、限流冷卻、失敗提示等從行程記憶體卸載到 Redis，支援多實例水平擴展（issue #123）。未設定時使用記憶體模式（預設）。",
+      "type": {
+        "label": "後端類型",
+        "memory": "記憶體（預設）",
+        "redis": "Redis"
+      },
+      "fields": {
+        "addr": { "label": "位址", "placeholder": "127.0.0.1:6379" },
+        "password": { "label": "密碼", "placeholder": "••••••" },
+        "username": { "label": "使用者名稱（ACL）", "placeholder": "default" },
+        "db": { "label": "資料庫索引", "placeholder": "0" },
+        "poolSize": { "label": "連線池大小", "placeholder": "10" }
+      },
+      "testButton": "測試連線",
+      "testSuccess": "Redis 連線成功",
+      "testFailed": "連線測試失敗：{error}",
+      "saveButton": "儲存設定",
+      "saving": "儲存中…",
+      "saved": "快取設定已儲存",
+      "typeRedisRequired": "請先選擇 Redis 作為後端類型",
+      "addrRequired": "Redis 位址不能為空",
+      "restartNotice": "變更需重啟服務後生效。"
+    },
     "webdav": {
       "title": "WebDAV 雲端備份",
       "enabled": "自動備份",

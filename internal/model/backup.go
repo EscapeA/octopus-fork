@@ -91,3 +91,32 @@ type DatabaseMigrationResult struct {
 	CleanedFiles []string       `json:"cleaned_files"`
 	ImportResult DBImportResult `json:"import_result"`
 }
+
+// CacheConfig 描述当前缓存后端配置（config.json 的 cache 字段镜像）。
+// Type 为空表示内存模式（向后兼容），"redis" 表示启用 Redis 后端（issue #123）。
+type CacheConfig struct {
+	Type  string           `json:"type"`
+	Redis CacheRedisConfig `json:"redis"`
+}
+
+// CacheRedisConfig 是 CacheConfig 内的 Redis 连接参数（与 conf.RedisConfig 同构，
+// 独立定义避免 model 包反向依赖 conf 包）。
+type CacheRedisConfig struct {
+	Addr     string `json:"addr"`
+	Password string `json:"password"`
+	Username string `json:"username"`
+	DB       int    `json:"db"`
+	PoolSize int    `json:"pool_size"`
+}
+
+// CacheConfigRequest 用于测试连接 / 保存配置（POST body）。
+type CacheConfigRequest struct {
+	Type  string           `json:"type"`
+	Redis CacheRedisConfig `json:"redis"`
+}
+
+// CacheConfigResult 保存配置后的响应。重启后生效（与数据库迁移一致）。
+type CacheConfigResult struct {
+	Type          string `json:"type"`
+	RestartNeeded bool   `json:"restart_needed"`
+}

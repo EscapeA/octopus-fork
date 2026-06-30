@@ -13,6 +13,7 @@ import (
 
 	dbmodel "github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op/setting"
+	"github.com/lingyuins/octopus/internal/store"
 	transmodel "github.com/lingyuins/octopus/internal/transformer/model"
 	"github.com/lingyuins/octopus/internal/utils/semantic_cache"
 	"golang.org/x/sync/singleflight"
@@ -184,13 +185,50 @@ func recordFailureHint(channelID, keyID int, modelName string, decision RetryDec
 	})
 }
 
+// failureHintKeyPrefix 是失败提示缓存在 KVStore 中的子系统前缀（追加到 store 统一前缀后）。
+// 完整 Redis key 形如 octopus:fhint:{channelID}:{keyID}:{modelName}。
+const failureHintKeyPrefix = "fhint:"
+
+func failureHintKVKey(channelID, keyID int, modelName string) string {
+	return failureHintKeyPrefix + failureHintKey(channelID, keyID, modelName)
+}
+
 func (c *failureHintCache) set(channelID, keyID int, modelName string, entry failureHintEntry) {
+	// Redis 后端：序列化整条 entry 写入 KVStore，TTL 由 Redis 原生过期保证，
+	// 无需维护 expiresAt 与主动 purge。降级（Redis err）时回退内存。
+	if store.Enabled() {
+		data, err := json.Marshal(entry)
+		if err == nil {
+			ttl := time.Until(entry.expiresAt)
+			if ttl > 0 {
+				kv := store.GetKV()
+				if err := kv.Set(context.Background(), failureHintKVKey(channelID, keyID, modelName), data, ttl); err == nil {
+					return
+				}
+			}
+		}
+		// 序列化/写入失败时回退内存路径，保证失败提示不丢（容错）。
+	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.entries[failureHintKey(channelID, keyID, modelName)] = entry
 }
 
 func (c *failureHintCache) get(channelID, keyID int, modelName string) (failureHintEntry, bool) {
+	// Redis 后端：直接读 KVStore，TTL 过期由 Redis 保证。
+	if store.Enabled() {
+		kv := store.GetKV()
+		data, found, err := kv.Get(context.Background(), failureHintKVKey(channelID, keyID, modelName))
+		if err == nil && found {
+			var entry failureHintEntry
+			if json.Unmarshal(data, &entry) == nil {
+				return entry, true
+			}
+		}
+		// 未找到或出错（Redis 宕机）时回退内存读取，保证降级可用。
+	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	key := failureHintKey(channelID, keyID, modelName)
@@ -206,8 +244,11 @@ func (c *failureHintCache) get(channelID, keyID int, modelName string) (failureH
 }
 
 // purgeExpired 主动清理所有已过期的条目，防止 map 无限增长。
-// 由定时任务周期性调用。
+// 由定时任务周期性调用。Redis 模式下 TTL 自动过期，此处为 no-op。
 func (c *failureHintCache) purgeExpired() {
+	if store.Enabled() {
+		return
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	now := time.Now()

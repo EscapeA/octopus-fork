@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { SettingAppearance } from './Appearance';
 import { SettingAccount } from './Account';
 import { SettingBackup } from './Backup';
+import { SettingCache } from './Cache';
 import { SettingSystem } from './System';
 import { SettingInfo } from './Info';
 import { SettingLLMSync } from './LLMSync';
@@ -41,6 +42,7 @@ const SETTING_ITEM_DEFS: SettingItemDef[] = [
     { id: 'system',            icon: <Monitor className="h-5 w-5" />,           titleKey: 'system',               component: <SettingSystem /> },
     { id: 'llmsync',           icon: <RefreshCw className="h-5 w-5" />,        titleKey: 'llmSync.title',        component: <SettingLLMSync /> },
     { id: 'backup',            icon: <Database className="h-5 w-5" />,          titleKey: 'backup.title',         component: <SettingBackup /> },
+    { id: 'redis',              icon: <Database className="h-5 w-5" />,          titleKey: 'redis.title',          component: <SettingCache /> },
     { id: 'webdav',            icon: <Cloud className="h-5 w-5" />,             titleKey: 'webdav.title',         component: <SettingWebDAV /> },
     { id: 'webauthn',          icon: <Fingerprint className="h-5 w-5" />,      titleKey: 'webauthn.title',       component: <SettingWebAuthn /> },
     { id: 'normalize',         icon: <Wand2 className="h-5 w-5" />,           titleKey: 'normalize.title',      component: <SettingNormalize /> },

@@ -1,0 +1,188 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { Database, Loader2, Check, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { toast } from '@/components/common/Toast';
+import { useGetCacheConfig, useTestCacheConnection, useSaveCacheConfig } from '@/api/endpoints/setting';
+
+// CacheType 缓存后端类型：空字符串=内存（默认，向后兼容），"redis"=启用 Redis 后端。
+type CacheType = '' | 'redis';
+
+export function SettingCache() {
+    const t = useTranslations('setting');
+
+    const { data: cacheConfig, isLoading } = useGetCacheConfig();
+    const testCache = useTestCacheConnection();
+    const saveCache = useSaveCacheConfig();
+
+    const [cacheType, setCacheType] = useState<CacheType>('');
+    const [addr, setAddr] = useState('127.0.0.1:6379');
+    const [password, setPassword] = useState('');
+    const [username, setUsername] = useState('');
+    const [db, setDb] = useState('0');
+    const [poolSize, setPoolSize] = useState('');
+
+    // 挂载/配置到达时回填表单（从 config.json 的 cache 字段读取当前值）。
+    useEffect(() => {
+        if (!cacheConfig) return;
+        setCacheType((cacheConfig.type || '') as CacheType);
+        const r = cacheConfig.redis;
+        setAddr(r?.addr || '127.0.0.1:6379');
+        setPassword(r?.password || '');
+        setUsername(r?.username || '');
+        setDb(r?.db != null ? String(r.db) : '0');
+        setPoolSize(r?.pool_size ? String(r.pool_size) : '');
+    }, [cacheConfig]);
+
+    const buildRequest = () => ({
+        type: cacheType,
+        redis: {
+            addr: addr.trim(),
+            password,
+            username,
+            db: db.trim() === '' ? 0 : Number(db),
+            pool_size: poolSize.trim() === '' ? 0 : Number(poolSize),
+        },
+    });
+
+    const onTest = () => {
+        if (cacheType !== 'redis') {
+            toast.error(t('redis.testFailed', { error: t('redis.typeRedisRequired') }));
+            return;
+        }
+        if (!addr.trim()) {
+            toast.error(t('redis.testFailed', { error: t('redis.fields.addr.label') }));
+            return;
+        }
+        testCache.mutate(buildRequest(), {
+            onSuccess: () => toast.success(t('redis.testSuccess')),
+            onError: (err) => toast.error(t('redis.testFailed', { error: (err as Error).message })),
+        });
+    };
+
+    const onSave = () => {
+        if (cacheType === 'redis' && !addr.trim()) {
+            toast.error(t('redis.testFailed', { error: t('redis.fields.addr.label') }));
+            return;
+        }
+        saveCache.mutate(buildRequest(), {
+            onSuccess: () => toast.success(t('redis.saved')),
+            onError: (err) => toast.error(t('redis.testFailed', { error: (err as Error).message })),
+        });
+    };
+
+    return (
+        <div className="space-y-5 p-4 sm:p-6">
+            <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                    <Database className="size-5 text-muted-foreground" />
+                    <h2 className="text-lg font-semibold text-card-foreground">{t('redis.title')}</h2>
+                </div>
+                <p className="text-xs leading-5 text-muted-foreground">{t('redis.description')}</p>
+            </div>
+
+            <div className="space-y-3 rounded-lg border border-border/30 bg-card p-3 sm:p-4 shadow-sm">
+                <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">{t('redis.type.label')}</label>
+                    <select
+                        value={cacheType}
+                        onChange={(e) => setCacheType(e.target.value as CacheType)}
+                        className="h-10 rounded-xl border border-input bg-background px-3 text-sm w-full"
+                    >
+                        <option value="">{t('redis.type.memory')}</option>
+                        <option value="redis">{t('redis.type.redis')}</option>
+                    </select>
+                </div>
+
+                {cacheType === 'redis' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1.5 sm:col-span-2">
+                            <label className="text-xs text-muted-foreground">{t('redis.fields.addr.label')}</label>
+                            <Input
+                                className="rounded-xl"
+                                value={addr}
+                                onChange={(e) => setAddr(e.target.value)}
+                                placeholder="127.0.0.1:6379"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs text-muted-foreground">{t('redis.fields.password.label')}</label>
+                            <Input
+                                type="password"
+                                className="rounded-xl"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="••••••"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs text-muted-foreground">{t('redis.fields.username.label')}</label>
+                            <Input
+                                className="rounded-xl"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                placeholder="default"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs text-muted-foreground">{t('redis.fields.db.label')}</label>
+                            <Input
+                                type="number"
+                                className="rounded-xl"
+                                value={db}
+                                onChange={(e) => setDb(e.target.value)}
+                                placeholder="0"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs text-muted-foreground">{t('redis.fields.poolSize.label')}</label>
+                            <Input
+                                type="number"
+                                className="rounded-xl"
+                                value={poolSize}
+                                onChange={(e) => setPoolSize(e.target.value)}
+                                placeholder="10"
+                            />
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full sm:flex-1 rounded-xl"
+                        onClick={onTest}
+                        disabled={testCache.isPending || saveCache.isPending || cacheType !== 'redis'}
+                    >
+                        {testCache.isPending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+                        {t('redis.testButton')}
+                    </Button>
+                    <Button
+                        type="button"
+                        className="w-full sm:flex-1 rounded-xl"
+                        onClick={onSave}
+                        disabled={saveCache.isPending || testCache.isPending || isLoading}
+                    >
+                        {saveCache.isPending ? <Loader2 className="size-4 animate-spin" /> : <Database className="size-4" />}
+                        {saveCache.isPending ? t('redis.saving') : t('redis.saveButton')}
+                    </Button>
+                </div>
+
+                {saveCache.data ? (
+                    <div className="space-y-1 rounded-lg border border-emerald-500/20 bg-emerald-500/8 p-3 text-xs text-emerald-700 dark:text-emerald-300 break-words">
+                        <div className="font-semibold text-amber-600 dark:text-amber-400">{t('redis.restartNotice')}</div>
+                    </div>
+                ) : null}
+            </div>
+
+            <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-300">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                <div className="leading-5">{t('redis.restartNotice')}</div>
+            </div>
+        </div>
+    );
+}

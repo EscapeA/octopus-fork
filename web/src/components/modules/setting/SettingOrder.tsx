@@ -25,6 +25,7 @@ export type SettingItemId =
     | 'system'
     | 'llmsync'
     | 'backup'
+    | 'redis'
     | 'normalize'
     | 'webdav'
     | 'webauthn';
@@ -40,6 +41,7 @@ export const DEFAULT_SETTING_ORDER: SettingItemId[] = [
     'system',
     'llmsync',
     'backup',
+    'redis',
     'webdav',
     'normalize',
     'webauthn',
@@ -113,6 +115,7 @@ export function SettingOrder() {
             system: settingT('system'),
             llmsync: settingT('llmSync.title'),
             backup: settingT('backup.title'),
+            redis: settingT('redis.title'),
             normalize: settingT('normalize.title'),
             webdav: settingT('webdav.title'),
             webauthn: settingT('webauthn.title'),

@@ -1479,6 +1479,31 @@
         "advancedDSN": "Advanced: edit DSN directly"
       }
     },
+    "redis": {
+      "title": "Cache Backend",
+      "description": "Configure an optional Redis backend to offload stats, runtime state, rate-limit cooldowns, and failure hints from process memory (issue #123). Takes effect after restart.",
+      "type": {
+        "label": "Backend Type",
+        "memory": "Memory (default)",
+        "redis": "Redis"
+      },
+      "fields": {
+        "addr": { "label": "Address", "placeholder": "127.0.0.1:6379" },
+        "password": { "label": "Password", "placeholder": "••••••" },
+        "username": { "label": "Username (ACL)", "placeholder": "default" },
+        "db": { "label": "DB Index", "placeholder": "0" },
+        "poolSize": { "label": "Pool Size", "placeholder": "10" }
+      },
+      "testButton": "Test connection",
+      "testSuccess": "Redis connection successful",
+      "testFailed": "Connection test failed: {error}",
+      "saveButton": "Save",
+      "saving": "Saving...",
+      "saved": "Cache configuration saved",
+      "typeRedisRequired": "Select Redis as the backend type first",
+      "addrRequired": "Redis address is required",
+      "restartNotice": "Changes take effect after service restart."
+    },
     "webdav": {
       "title": "WebDAV Cloud Backup",
       "enabled": "Auto Backup",

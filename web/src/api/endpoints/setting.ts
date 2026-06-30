@@ -328,3 +328,74 @@ export function useMigrateDatabase() {
         },
     });
 }
+
+/**
+ * 缓存后端配置（Redis 可选，issue #123）
+ */
+export interface CacheRedisConfig {
+    addr: string;
+    password: string;
+    username: string;
+    db: number;
+    pool_size: number;
+}
+
+export interface CacheConfig {
+    type: '' | 'redis';
+    redis: CacheRedisConfig;
+}
+
+export interface CacheConfigRequest {
+    type: '' | 'redis';
+    redis: CacheRedisConfig;
+}
+
+export interface CacheConfigResult {
+    type: string;
+    restart_needed: boolean;
+}
+
+/**
+ * 获取当前缓存后端配置（回显 config.json 的 cache 字段）
+ */
+export function useGetCacheConfig() {
+    return useQuery({
+        queryKey: ['settings', 'cache-config'],
+        queryFn: async () => {
+            return apiClient.get<CacheConfig>('/api/v1/setting/cache/config');
+        },
+        refetchOnMount: 'always',
+    });
+}
+
+/**
+ * 测试 Redis 连接连通性（不改变运行中状态）
+ */
+export function useTestCacheConnection() {
+    return useMutation({
+        mutationFn: async (data: CacheConfigRequest) => {
+            return apiClient.post<boolean>('/api/v1/setting/cache/test', data);
+        },
+        onError: (error) => {
+            logger.error('测试 Redis 连接失败:', error);
+        },
+    });
+}
+
+/**
+ * 保存缓存配置到 config.json（需重启生效）
+ */
+export function useSaveCacheConfig() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (data: CacheConfigRequest) => {
+            return apiClient.post<CacheConfigResult>('/api/v1/setting/cache/save', data);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['settings', 'cache-config'] });
+        },
+        onError: (error) => {
+            logger.error('保存缓存配置失败:', error);
+        },
+    });
+}

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lingyuins/octopus/internal/conf"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op"
 	"github.com/lingyuins/octopus/internal/op/backup"
@@ -22,6 +23,7 @@ import (
 	"github.com/lingyuins/octopus/internal/server/middleware"
 	"github.com/lingyuins/octopus/internal/server/resp"
 	"github.com/lingyuins/octopus/internal/server/router"
+	"github.com/lingyuins/octopus/internal/store"
 	"github.com/lingyuins/octopus/internal/task"
 	"github.com/lingyuins/octopus/internal/utils/log"
 )
@@ -66,6 +68,22 @@ func init() {
 				Use(middleware.RequirePermission(auth.PermSettingsWrite)).
 				Use(middleware.RequireJSON()).
 				Handle(migrateDatabase),
+		).
+		AddRoute(
+			router.NewRoute("/cache/config", http.MethodGet).
+				Handle(getCacheConfig),
+		).
+		AddRoute(
+			router.NewRoute("/cache/test", http.MethodPost).
+				Use(middleware.RequirePermission(auth.PermSettingsWrite)).
+				Use(middleware.RequireJSON()).
+				Handle(testCacheConnection),
+		).
+		AddRoute(
+			router.NewRoute("/cache/save", http.MethodPost).
+				Use(middleware.RequirePermission(auth.PermSettingsWrite)).
+				Use(middleware.RequireJSON()).
+				Handle(saveCacheConfig),
 		)
 }
 
@@ -253,6 +271,87 @@ func migrateDatabase(c *gin.Context) {
 		return
 	}
 	resp.Success(c, result)
+}
+
+// toModelRedis 把 conf.RedisConfig 转成 model.CacheRedisConfig（避免 model 反向依赖 conf）。
+func toModelRedis(r conf.RedisConfig) model.CacheRedisConfig {
+	return model.CacheRedisConfig{
+		Addr:     r.Addr,
+		Password: r.Password,
+		Username: r.Username,
+		DB:       r.DB,
+		PoolSize: r.PoolSize,
+	}
+}
+
+// toConfRedis 把 model.CacheRedisConfig 转成 conf.RedisConfig。
+func toConfRedis(r model.CacheRedisConfig) conf.RedisConfig {
+	return conf.RedisConfig{
+		Addr:     r.Addr,
+		Password: r.Password,
+		Username: r.Username,
+		DB:       r.DB,
+		PoolSize: r.PoolSize,
+	}
+}
+
+// getCacheConfig 返回当前 cache 配置（config.json 中的 cache.type / cache.redis.*）。
+// 供设置页「缓存」卡片回显当前值。Redis 启用是启动时决策，此处只读运行中进程的配置。
+func getCacheConfig(c *gin.Context) {
+	resp.Success(c, model.CacheConfig{
+		Type:  conf.AppConfig.Cache.Type,
+		Redis: toModelRedis(conf.AppConfig.Cache.Redis),
+	})
+}
+
+// testCacheConnection 测试 Redis 连接连通性（不改变全局 store 状态）。
+// 供设置页「测试连接」按钮调用，验证填写的 addr/password 等是否可达。
+func testCacheConnection(c *gin.Context) {
+	var req model.CacheConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.Error(c, http.StatusBadRequest, resp.ErrInvalidJSON)
+		return
+	}
+	if req.Type != "redis" {
+		resp.Error(c, http.StatusBadRequest, "cache type is not redis")
+		return
+	}
+	if req.Redis.Addr == "" {
+		resp.Error(c, http.StatusBadRequest, "redis addr is required")
+		return
+	}
+	if err := store.TestConnection(toConfRedis(req.Redis)); err != nil {
+		resp.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	resp.Success(c, true)
+}
+
+// saveCacheConfig 将 cache 配置写入 config.json 并更新内存中的 AppConfig。
+// Redis 启用是启动时决策（cmd/start.go 仅 boot 时读取），保存后需重启生效，
+// 故返回 restart_needed: true（与数据库迁移一致）。
+func saveCacheConfig(c *gin.Context) {
+	var req model.CacheConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.Error(c, http.StatusBadRequest, resp.ErrInvalidJSON)
+		return
+	}
+	if req.Type != "" && req.Type != "redis" {
+		resp.Error(c, http.StatusBadRequest, "cache type must be empty or redis")
+		return
+	}
+	if req.Type == "redis" && req.Redis.Addr == "" {
+		resp.Error(c, http.StatusBadRequest, "redis addr is required when type is redis")
+		return
+	}
+	if err := conf.SaveCacheConfig(req.Type, toConfRedis(req.Redis)); err != nil {
+		resp.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	resp.Success(c, model.CacheConfigResult{
+		Type:          req.Type,
+		RestartNeeded: true,
+	})
 }
 
 func decodeDBDump(body []byte, dump *model.DBDump) error {

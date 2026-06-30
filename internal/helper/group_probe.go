@@ -18,6 +18,7 @@ import (
 	grp "github.com/lingyuins/octopus/internal/op/group"
 	"github.com/lingyuins/octopus/internal/op/relaylog"
 	"github.com/lingyuins/octopus/internal/price"
+	"github.com/lingyuins/octopus/internal/store"
 	transmodel "github.com/lingyuins/octopus/internal/transformer/model"
 	"github.com/lingyuins/octopus/internal/transformer/outbound"
 	"github.com/lingyuins/octopus/internal/utils/log"
@@ -76,6 +77,12 @@ type groupModelTestProgressEntry struct {
 var groupProbeProgress sync.Map
 
 var groupProbeProgressTTL = 10 * time.Minute
+
+// groupProbeKVKeyPrefix 是分组探测进度在 KVStore 中的子系统前缀。
+// 完整 Redis key 形如 octopus:groupprobe:{id}。
+const groupProbeKVKeyPrefix = "groupprobe:"
+
+func groupProbeKVKey(id string) string { return groupProbeKVKeyPrefix + id }
 
 const maxConcurrentGroupModelTests = 6
 
@@ -265,6 +272,17 @@ func StartDraftGroupModelTest(endpointType string, items []GroupModelDraftTestIt
 }
 
 func GetGroupModelTestProgress(id string) (*GroupModelTestProgress, bool) {
+	// Redis 后端：直接读 KVStore，TTL 过期由 Redis 保证。降级（err/未找到）回退内存。
+	if store.Enabled() {
+		data, found, err := store.GetKV().Get(context.Background(), groupProbeKVKey(id))
+		if err == nil && found {
+			var p GroupModelTestProgress
+			if json.Unmarshal(data, &p) == nil {
+				return &p, true
+			}
+		}
+	}
+
 	cleanupExpiredGroupModelProgress(time.Now())
 
 	value, ok := groupProbeProgress.Load(id)
@@ -591,6 +609,17 @@ func storeGroupModelProgressAt(progress *GroupModelTestProgress, now time.Time) 
 		return
 	}
 
+	// Redis 后端：序列化 progress 写入 KVStore，TTL 原生过期，无需维护内存 map 与主动清理。
+	// 降级（序列化/写入失败）回退内存路径，保证探测进度不丢（容错）。
+	if store.Enabled() {
+		if data, err := json.Marshal(progress); err == nil {
+			if err := store.GetKV().Set(context.Background(),
+				groupProbeKVKey(progress.ID), data, groupProbeProgressTTL); err == nil {
+				return
+			}
+		}
+	}
+
 	cleanupExpiredGroupModelProgress(now)
 	groupProbeProgress.Store(progress.ID, groupModelTestProgressEntry{
 		progress:  cloneGroupModelProgress(progress),
@@ -599,6 +628,10 @@ func storeGroupModelProgressAt(progress *GroupModelTestProgress, now time.Time) 
 }
 
 func cleanupExpiredGroupModelProgress(now time.Time) {
+	// Redis 模式下 TTL 自动过期，无需主动清理。
+	if store.Enabled() {
+		return
+	}
 	groupProbeProgress.Range(func(key, value any) bool {
 		entry, ok := value.(groupModelTestProgressEntry)
 		if !ok || (!entry.expiresAt.IsZero() && !now.Before(entry.expiresAt)) {

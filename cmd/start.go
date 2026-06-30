@@ -10,6 +10,7 @@ import (
 	"github.com/lingyuins/octopus/internal/op"
 	"github.com/lingyuins/octopus/internal/relay/balancer"
 	"github.com/lingyuins/octopus/internal/server"
+	"github.com/lingyuins/octopus/internal/store"
 	"github.com/lingyuins/octopus/internal/task"
 	"github.com/lingyuins/octopus/internal/utils/crypto"
 	"github.com/lingyuins/octopus/internal/utils/log"
@@ -66,6 +67,19 @@ func runStart() error {
 		return fmt.Errorf("log database init error: %w", err)
 	}
 	shutdown.Register(db.Close)
+
+	// 可选 Redis 缓存与状态存储后端（issue #123）。
+	// cache.type="redis" 且 redis.addr 非空时启用，将统计/运行时状态/限流冷却/
+	// 失败提示/频道延迟等卸载到 Redis，支持多实例共享与低内存主机。
+	// 未配置时所有 store 后端保持内存实现，行为与旧版完全一致（零破坏性）。
+	// 必须在 op.InitCache 之前初始化——RefreshCache/LoadRuntimeState 会从 Redis 叠加增量。
+	if conf.AppConfig.Cache.Type == "redis" && conf.AppConfig.Cache.Redis.Addr != "" {
+		if err := store.Init(conf.AppConfig.Cache.Redis); err != nil {
+			return fmt.Errorf("redis init error: %w", err)
+		}
+		shutdown.Register(store.Close)
+		log.Infof("redis cache backend enabled: %s", conf.AppConfig.Cache.Redis.Addr)
+	}
 
 	startupTaskCtx, startupTaskCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	if interruptedCount, err := op.AIRouteTaskMarkActiveInterrupted(startupTaskCtx, op.DefaultAIRouteTaskInterruptedMessage); err != nil {

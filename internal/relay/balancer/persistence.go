@@ -10,6 +10,7 @@ import (
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
 	ch "github.com/lingyuins/octopus/internal/op/channel"
+	"github.com/lingyuins/octopus/internal/store"
 	"github.com/lingyuins/octopus/internal/utils/log"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -21,14 +22,29 @@ func LoadRuntimeState(ctx context.Context) error {
 		return nil
 	}
 
+	// Redis 后端优先：多实例共享的实时状态从 Redis 加载（issue #123）。
+	// Redis 为空（首次启动/Redis 刚清空）时回落 DB，保证不丢历史状态。
 	var autoStates []model.AutoStrategyState
-	if err := dbConn.WithContext(ctx).Find(&autoStates).Error; err != nil {
-		return err
-	}
-
 	var circuitStates []model.CircuitBreakerState
-	if err := dbConn.WithContext(ctx).Find(&circuitStates).Error; err != nil {
-		return err
+	loadedFromRedis := false
+	if store.Enabled() {
+		rs := store.GetRuntimeState()
+		if as, err := rs.LoadAuto(ctx); err == nil && len(as) > 0 {
+			autoStates = as
+			loadedFromRedis = true
+		}
+		if cs, err := rs.LoadCircuit(ctx); err == nil && len(cs) > 0 {
+			circuitStates = cs
+			loadedFromRedis = true
+		}
+	}
+	if !loadedFromRedis {
+		if err := dbConn.WithContext(ctx).Find(&autoStates).Error; err != nil {
+			return err
+		}
+		if err := dbConn.WithContext(ctx).Find(&circuitStates).Error; err != nil {
+			return err
+		}
 	}
 
 	clearAutoStats()
@@ -98,6 +114,12 @@ func SaveRuntimeState(ctx context.Context) error {
 		circuitStates[i].UpdatedAt = generation
 	}
 
+	// Redis 后端：双写到 Redis（多实例共享状态，issue #123）。
+	// DB 仍是持久快照，Redis 作为实时共享态。失败仅记录日志，不阻塞 DB 落盘。
+	if store.Enabled() {
+		saveRuntimeStateToRedis(ctx, autoStates, circuitStates)
+	}
+
 	return dbConn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if len(autoStates) > 0 {
 			if err := tx.Clauses(clause.OnConflict{
@@ -125,6 +147,30 @@ func SaveRuntimeState(ctx context.Context) error {
 
 		return nil
 	})
+}
+
+// saveRuntimeStateToRedis 将 circuit breaker / auto strategy 状态快照写入 Redis
+// （多实例共享，issue #123）。失败仅记录日志，不影响 DB 落盘主流程。
+func saveRuntimeStateToRedis(ctx context.Context, autoStates []model.AutoStrategyState, circuitStates []model.CircuitBreakerState) {
+	rt := store.GetRuntimeState()
+	for _, s := range autoStates {
+		key := strings.TrimSpace(s.Key)
+		if key == "" {
+			key = statsKey(s.ChannelID, s.ModelName)
+		}
+		if err := rt.SaveAuto(ctx, key, s); err != nil {
+			log.Warnf("redis save auto state %s: %v", key, err)
+		}
+	}
+	for _, s := range circuitStates {
+		key := strings.TrimSpace(s.Key)
+		if key == "" {
+			key = circuitKey(s.ChannelID, s.ChannelKeyID, s.ModelName)
+		}
+		if err := rt.SaveCircuit(ctx, key, s); err != nil {
+			log.Warnf("redis save circuit state %s: %v", key, err)
+		}
+	}
 }
 
 func RuntimeStateSaveDBTask() {

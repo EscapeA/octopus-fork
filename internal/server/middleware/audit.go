@@ -54,6 +54,8 @@ var auditedManagementWriteRoutes = map[string]struct{}{
 	"POST /api/v1/route/ai-generate":                                                 {},
 	"POST /api/v1/setting/database/migrate":                                          {},
 	"POST /api/v1/setting/database/test":                                             {},
+	"POST /api/v1/setting/cache/save":                                                {},
+	"POST /api/v1/setting/cache/test":                                                {},
 	"POST /api/v1/setting/import":                                                    {},
 	"POST /api/v1/setting/set":                                                       {},
 	"POST /api/v1/update":                                                            {},
@@ -259,6 +261,10 @@ func buildAuditTarget(c *gin.Context, fullPath string, bodyFields map[string]any
 		return "database-migration"
 	case "/api/v1/setting/database/test":
 		return "database-test"
+	case "/api/v1/setting/cache/save":
+		return "cache-config"
+	case "/api/v1/setting/cache/test":
+		return "cache-test"
 	case "/api/v1/update":
 		return "self-update"
 	case "/api/v1/user/change-password":

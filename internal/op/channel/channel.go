@@ -7,6 +7,7 @@ import (
 
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
+	"github.com/lingyuins/octopus/internal/store"
 	"github.com/lingyuins/octopus/internal/utils/cache"
 	"github.com/lingyuins/octopus/internal/utils/xstrings"
 	"gorm.io/gorm/clause"
@@ -115,6 +116,15 @@ func BaseUrlUpdate(channelID int, baseUrl []model.BaseUrl) error {
 		ch.BaseUrls = cp
 	}
 	chCache.Set(channelID, ch)
+
+	// Redis 后端：同步探测延迟到 ChannelDelayStore，重启后保留（issue #123）。
+	// 内存模式下 ChannelDelayStore 为 no-op，行为与旧版一致（重启丢失探测结果）。
+	if store.Enabled() && len(ch.BaseUrls) > 0 {
+		ds := store.GetChannelDelay()
+		for _, bu := range ch.BaseUrls {
+			_ = ds.SetDelay(context.Background(), channelID, bu.URL, bu.Delay)
+		}
+	}
 	return nil
 }
 
@@ -414,7 +424,19 @@ func RefreshCache(ctx context.Context) error {
 	}
 	keyCacheNeedUpdateLock.Unlock()
 
-	for _, ch := range channels {
+	for i := range channels {
+		ch := channels[i]
+		// Redis 后端：恢复频道 base URL 延迟探测结果（重启后保留）。
+		// 内存模式下 GetDelays 返回空（memoryChannelDelay 是 no-op），不影响行为。
+		if store.Enabled() {
+			if delays, err := store.GetChannelDelay().GetDelays(ctx, ch.ID); err == nil && len(delays) > 0 {
+				for j := range ch.BaseUrls {
+					if d, ok := delays[ch.BaseUrls[j].URL]; ok {
+						ch.BaseUrls[j].Delay = d
+					}
+				}
+			}
+		}
 		chCache.Set(ch.ID, ch)
 		for _, k := range ch.Keys {
 			if k.ID != 0 {

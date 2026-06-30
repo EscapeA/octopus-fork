@@ -1,6 +1,8 @@
 package balancer
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -8,6 +10,7 @@ import (
 
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op/setting"
+	"github.com/lingyuins/octopus/internal/store"
 )
 
 // keyCooldownEntry 记录某个 (channelID, keyID, modelName) 维度的冷却状态。
@@ -23,10 +26,19 @@ type keyCooldownEntry struct {
 
 // globalKeyCooldown 全局 key 冷却存储，key: "channelID:keyID:modelName"。
 // 与 globalBreaker / globalFailureHintCache 同维度，便于复用清理与日志。
+// Redis 启用时冷却记录写入 store.KVStore（TTL 原生过期），此 map 仅作内存回退。
 var globalKeyCooldown sync.Map // key: string -> *keyCooldownEntry
 
 func cooldownKey(channelID, keyID int, modelName string) string {
 	return fmt.Sprintf("%d:%d:%s", channelID, keyID, strings.TrimSpace(modelName))
+}
+
+// cooldownKVKeyPrefix 是 key 冷却在 KVStore 中的子系统前缀。
+// 完整 Redis key 形如 octopus:cooldown:{channelID}:{keyID}:{modelName}。
+const cooldownKVKeyPrefix = "cooldown:"
+
+func cooldownKVKey(channelID, keyID int, modelName string) string {
+	return cooldownKVKeyPrefix + cooldownKey(channelID, keyID, modelName)
 }
 
 // getRatelimitCooldown 读取 key 错误冷却配置（秒），与 relay.getRatelimitCooldown 一致。
@@ -49,6 +61,14 @@ func IsKeyOnCooldown(channelID, keyID int, modelName string) bool {
 	cooldown := getRatelimitCooldown()
 	if cooldown <= 0 {
 		return false
+	}
+	// Redis 后端：EXISTS 语义，TTL 过期由 Redis 保证。降级（err/未找到）回退内存。
+	if store.Enabled() {
+		kv := store.GetKV()
+		_, found, err := kv.Get(context.Background(), cooldownKVKey(channelID, keyID, modelName))
+		if err == nil {
+			return found
+		}
 	}
 	key := cooldownKey(channelID, keyID, modelName)
 	v, ok := globalKeyCooldown.Load(key)
@@ -79,6 +99,21 @@ func RecordKeyCooldown(channelID, keyID int, modelName string, statusCode int) {
 	if cooldown <= 0 {
 		return
 	}
+	// Redis 后端：冷却记录写入 KVStore，TTL 原生过期，无需维护内存 map。
+	// statusCode 用 JSON 序列化存入（与 failureHintCache 一致的模式）。
+	if store.Enabled() {
+		entry := keyCooldownEntry{
+			statusCode: statusCode,
+			expiresAt:  time.Now().Add(cooldown),
+		}
+		if data, err := json.Marshal(entry); err == nil {
+			if err := store.GetKV().Set(context.Background(),
+				cooldownKVKey(channelID, keyID, modelName), data, cooldown); err == nil {
+				return
+			}
+		}
+		// 序列化/写入失败回退内存路径，保证冷却不丢（容错）。
+	}
 	key := cooldownKey(channelID, keyID, modelName)
 	globalKeyCooldown.Store(key, &keyCooldownEntry{
 		statusCode: statusCode,
@@ -88,7 +123,11 @@ func RecordKeyCooldown(channelID, keyID int, modelName string, statusCode int) {
 
 // PurgeExpiredKeyCooldowns 清理所有已过期的冷却条目，防止 map 无界增长。
 // 由 relay log flush 定时任务周期性调用，与 PurgeFailureHintCache 同点清理。
+// Redis 模式下 TTL 自动过期，此处为 no-op。
 func PurgeExpiredKeyCooldowns() int {
+	if store.Enabled() {
+		return 0
+	}
 	now := time.Now()
 	removed := 0
 	globalKeyCooldown.Range(func(key, value any) bool {
@@ -109,7 +148,14 @@ func PurgeExpiredKeyCooldowns() int {
 
 // RemoveChannelKeyCooldowns 删除指定渠道的所有冷却条目。
 // 在渠道被删除时调用，注册于 OnChannelDeletedHooks，防止 globalKeyCooldown 无限增长。
+// Redis 模式下按前缀删除（octopus:cooldown:{channelID}:*）。
 func RemoveChannelKeyCooldowns(channelID int) {
+	if store.Enabled() {
+		// 按前缀删除：octopus:cooldown:{channelID}:*
+		_ = store.GetKV().DelByPrefix(context.Background(),
+			fmt.Sprintf("%s%d:", cooldownKVKeyPrefix, channelID))
+		return
+	}
 	prefix := fmt.Sprintf("%d:", channelID)
 	globalKeyCooldown.Range(func(key, _ any) bool {
 		if k, ok := key.(string); ok && strings.HasPrefix(k, prefix) {
@@ -122,11 +168,17 @@ func RemoveChannelKeyCooldowns(channelID int) {
 // RemoveKeyCooldowns 删除指定 key 的所有冷却条目（跨模型）。
 // 供 key 禁用/删除时可选调用。key 形如 "channelID:keyID:modelName"，
 // 按 ":keyID:" 子串定位（channelID 段不含冒号，故该子串唯一匹配该 keyID）。
+// Redis 模式下用 SCAN + 子串匹配删除（前缀无法表达 ":keyID:"）。
 func RemoveKeyCooldowns(keyID int) {
 	if keyID == 0 {
 		return
 	}
 	needle := fmt.Sprintf(":%d:", keyID)
+	if store.Enabled() {
+		// 在 cooldown 命名空间下按子串删除（KVStore.DelBySubstring 内部 SCAN + 客户端过滤）。
+		_ = store.GetKV().DelBySubstring(context.Background(), cooldownKVKeyPrefix, needle)
+		return
+	}
 	globalKeyCooldown.Range(func(key, _ any) bool {
 		k, ok := key.(string)
 		if !ok {

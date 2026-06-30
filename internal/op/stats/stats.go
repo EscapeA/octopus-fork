@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -12,11 +13,38 @@ import (
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op/setting"
+	"github.com/lingyuins/octopus/internal/store"
 	"github.com/lingyuins/octopus/internal/utils/cache"
 	"github.com/lingyuins/octopus/internal/utils/log"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+// --- Redis 后端 scope 常量（issue #123） ---
+// 统计指标在 StatsStore 中的 scope 命名空间。启用 Redis 时，每次 *Update
+// 实时增量写入 Redis（HINCRBY/HINCRBYFLOAT + Lua max），SaveDB 时 SnapshotAll
+// 读全量落盘 DB 并清空 Redis scope；RefreshCache 启动时从 DB + Redis 叠加恢复。
+// 未启用 Redis 时这些常量不参与逻辑，行为与旧版完全一致。
+const (
+	statsScopeTotal   = "total"
+	statsScopeDaily   = "daily"
+	statsScopeHourly  = "hourly"
+	statsScopeChannel = "channel"
+	statsScopeModel   = "model"
+	statsScopeAPIKey  = "apikey"
+)
+
+// statsIDTotal 是 total scope 的固定 id（StatsTotal 单行表，主键 ID=1）。
+const statsIDTotal = "1"
+
+// incrStatsRedis 将 delta 增量写入 Redis（启用时）。降级（err/未启用）静默忽略，
+// 内存镜像仍由调用方维护，保证统计不丢。
+func incrStatsRedis(scope, id string, delta model.StatsMetrics) {
+	if !store.Enabled() || id == "" {
+		return
+	}
+	_ = store.GetStats().IncrMetrics(context.Background(), scope, id, delta)
+}
 
 var dailyCache model.StatsDaily
 var dailyCacheLock sync.RWMutex
@@ -143,7 +171,24 @@ func SaveDB(ctx context.Context) error {
 		requeueDirtyIDs(channelIDs, modelIDs, apiKeyIDs)
 		return err
 	}
+	// Redis 后端：落盘成功后清除已持久化的 scope，开始下一轮增量累积（issue #123）。
+	// 失败仅记录日志，不影响主流程（下次 SaveDB 会重新落盘累积值，幂等）。
+	clearRedisStatsScopes(ctx)
 	return nil
+}
+
+// clearRedisStatsScopes 清除所有统计 scope 的 Redis 增量，仅在 SaveDB 成功后调用。
+// 用 SCAN + DEL 逐 scope 清理（stats key 形如 octopus:stats:{scope}:{id}）。
+func clearRedisStatsScopes(ctx context.Context) {
+	if !store.Enabled() {
+		return
+	}
+	scopes := []string{statsScopeTotal, statsScopeDaily, statsScopeHourly, statsScopeChannel, statsScopeModel, statsScopeAPIKey}
+	for _, scope := range scopes {
+		// SnapshotAll 用 SCAN，这里复用其命名空间；Delete 逐 id 删除较慢，
+		// 直接用 DelByPrefix 清理整个 scope 命名空间（KVStore 接口）。
+		_ = store.GetKV().DelByPrefix(ctx, "stats:"+scope+":")
+	}
 }
 
 func persistSnapshots(
@@ -341,6 +386,11 @@ func requeueDirtyIDs(channelIDs []int, modelIDs []int64, apiKeyIDs []int) {
 func DailyUpdate(ctx context.Context, metrics model.StatsMetrics) error {
 	todayDate := today()
 
+	// Redis 增量：实时累加到今日 daily scope，崩溃不丢（issue #123）。
+	if store.Enabled() {
+		_ = store.GetStats().IncrMetrics(context.Background(), statsScopeDaily, todayDate, metrics)
+	}
+
 	dailyCacheLock.Lock()
 	if dailyCache.Date == todayDate {
 		dailyCache.StatsMetrics.Add(metrics)
@@ -374,6 +424,10 @@ func TotalUpdate(metrics model.StatsMetrics) error {
 		totalCache.ID = 1
 	}
 	totalCache.StatsMetrics.Add(metrics)
+	// Redis 增量：实时累加到 Redis，崩溃不丢（issue #123）。内存镜像仍更新供同步读。
+	if store.Enabled() {
+		_ = store.GetStats().IncrMetrics(context.Background(), statsScopeTotal, statsIDTotal, metrics)
+	}
 	return nil
 }
 
@@ -393,6 +447,10 @@ func ChannelUpdate(channelID int, metrics model.StatsMetrics) error {
 	channelCacheNeedUpdateLock.Lock()
 	channelCacheNeedUpdate[channelID] = struct{}{}
 	channelCacheNeedUpdateLock.Unlock()
+	// Redis 增量：实时累加到 Redis，崩溃不丢（issue #123）。内存镜像仍更新供同步读。
+	if store.Enabled() {
+		_ = store.GetStats().IncrMetrics(context.Background(), statsScopeChannel, strconv.Itoa(channelID), metrics)
+	}
 	return nil
 }
 
@@ -413,6 +471,11 @@ func HourlyUpdate(metrics model.StatsMetrics) error {
 	}
 
 	hourlyCache[nowHour].StatsMetrics.Add(metrics)
+	// Redis 增量：实时累加到 Redis（issue #123）。scope=id 按 "date:hour" 维度。
+	if store.Enabled() {
+		_ = store.GetStats().IncrMetrics(context.Background(), statsScopeHourly,
+			fmt.Sprintf("%s:%d", todayDate, nowHour), metrics)
+	}
 	return nil
 }
 
@@ -440,6 +503,10 @@ func ModelUpdate(s model.StatsModel) error {
 	modelCacheNeedUpdateLock.Lock()
 	modelCacheNeedUpdate[s.ID] = struct{}{}
 	modelCacheNeedUpdateLock.Unlock()
+	// Redis 增量：实时累加到 Redis，崩溃不丢（issue #123）。
+	if store.Enabled() {
+		_ = store.GetStats().IncrMetrics(context.Background(), statsScopeModel, strconv.FormatInt(s.ID, 10), s.StatsMetrics)
+	}
 	return nil
 }
 
@@ -493,6 +560,10 @@ func APIKeyUpdate(apiKeyID int, metrics model.StatsMetrics) error {
 	apiKeyCacheNeedUpdateLock.Lock()
 	apiKeyCacheNeedUpdate[apiKeyID] = struct{}{}
 	apiKeyCacheNeedUpdateLock.Unlock()
+	// Redis 增量：实时累加到 Redis，崩溃不丢（issue #123）。
+	if store.Enabled() {
+		_ = store.GetStats().IncrMetrics(context.Background(), statsScopeAPIKey, strconv.Itoa(apiKeyID), metrics)
+	}
 	return nil
 }
 
@@ -508,6 +579,10 @@ func ChannelDel(id int) error {
 	channelCacheNeedUpdateLock.Lock()
 	delete(channelCacheNeedUpdate, id)
 	channelCacheNeedUpdateLock.Unlock()
+	// Redis 后端：同步删除该渠道的增量 scope，避免残留（issue #123）。
+	if store.Enabled() {
+		_ = store.GetStats().Delete(context.Background(), statsScopeChannel, strconv.Itoa(id))
+	}
 	return db.GetDB().Delete(&model.StatsChannel{}, id).Error
 }
 
@@ -523,6 +598,10 @@ func APIKeyDel(id int) error {
 	apiKeyCacheNeedUpdateLock.Lock()
 	delete(apiKeyCacheNeedUpdate, id)
 	apiKeyCacheNeedUpdateLock.Unlock()
+	// Redis 后端：同步删除该 apikey 的增量 scope，避免残留（issue #123）。
+	if store.Enabled() {
+		_ = store.GetStats().Delete(context.Background(), statsScopeAPIKey, strconv.Itoa(id))
+	}
 	return db.GetDB().Delete(&model.StatsAPIKey{}, id).Error
 }
 
@@ -666,6 +745,10 @@ func OnChannelDeleted(channelID int) {
 	delete(channelCacheNeedUpdate, channelID)
 	channelCacheNeedUpdateLock.Unlock()
 	channelMutationLock.Unlock()
+	// Redis 后端：同步删除该 channel 的 stats 增量 scope，避免残留（issue #123）。
+	if store.Enabled() {
+		_ = store.GetStats().Delete(context.Background(), statsScopeChannel, strconv.Itoa(channelID))
+	}
 }
 
 // OnAPIKeyDeleted is called by the op package when an API key is deleted,
@@ -677,6 +760,10 @@ func OnAPIKeyDeleted(apiKeyID int) {
 	delete(apiKeyCacheNeedUpdate, apiKeyID)
 	apiKeyCacheNeedUpdateLock.Unlock()
 	apiKeyMutationLock.Unlock()
+	// Redis 后端：同步删除该 apikey 的 stats scope，避免残留增量（issue #123）。
+	if store.Enabled() {
+		_ = store.GetStats().Delete(context.Background(), statsScopeAPIKey, strconv.Itoa(apiKeyID))
+	}
 }
 
 // ModelMetricsByName aggregates model statistics by model name (across all channels).
