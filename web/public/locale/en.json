@@ -2186,6 +2186,8 @@
       "searchAriaLabel": "Search models",
       "firstTokenTimeOut": "First Token Timeout",
       "firstTokenTimeOutHint": "Unit: seconds, only effective for streaming response, 0 = no limit",
+      "attemptTimeOut": "Attempt Timeout",
+      "attemptTimeOutHint": "Unit: seconds, per-attempt relay timeout, 0 = no limit (applies to both streaming and non-streaming)",
       "sessionKeepTime": "Session Keep Time",
       "sessionKeepTimeHint": "Unit: seconds, keeps using the same channel within a session, 0 = disabled",
       "condition": {

@@ -160,6 +160,7 @@ function EditDialogContent({
                             condition: group.condition ?? '',
                             mode: group.mode,
                             first_token_time_out: group.first_token_time_out ?? 0,
+                            attempt_time_out: group.attempt_time_out ?? 0,
                             session_keep_time: group.session_keep_time ?? 0,
                             members: editMembers,
                         }}
@@ -682,6 +683,8 @@ export function GroupListItem({ group }: { group: Group }) {
             const nextCondition = values.condition.trim();
             const nextFirstTokenTimeOut =
                 values.first_token_time_out ?? 0;
+            const nextAttemptTimeOut =
+                values.attempt_time_out ?? 0;
             const nextSessionKeepTime =
                 values.session_keep_time ?? 0;
 
@@ -713,6 +716,11 @@ export function GroupListItem({ group }: { group: Group }) {
             )
                 payload.first_token_time_out = nextFirstTokenTimeOut;
             if (
+                nextAttemptTimeOut !==
+                (group.attempt_time_out ?? 0)
+            )
+                payload.attempt_time_out = nextAttemptTimeOut;
+            if (
                 nextSessionKeepTime !==
                 (group.session_keep_time ?? 0)
             )
@@ -741,6 +749,7 @@ export function GroupListItem({ group }: { group: Group }) {
             group.endpoint_provider,
             group.endpoint_type,
             group.first_token_time_out,
+            group.attempt_time_out,
             group.session_keep_time,
             group.id,
             group.items,
@@ -810,6 +819,7 @@ export function GroupListItem({ group }: { group: Group }) {
             condition: group.condition ?? '',
             mode: group.mode,
             first_token_time_out: group.first_token_time_out ?? 0,
+            attempt_time_out: group.attempt_time_out ?? 0,
             session_keep_time: group.session_keep_time ?? 0,
             members: nextMembers,
         };
@@ -825,6 +835,7 @@ export function GroupListItem({ group }: { group: Group }) {
         group.endpoint_provider,
         group.endpoint_type,
         group.first_token_time_out,
+        group.attempt_time_out,
         group.id,
         group.match_regex,
         group.mode,

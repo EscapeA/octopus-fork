@@ -333,6 +333,7 @@ type groupListResponseItem struct {
 	Mode              model.GroupMode   `json:"mode"`
 	MatchRegex        string            `json:"match_regex"`
 	FirstTokenTimeOut int               `json:"first_token_time_out"`
+	AttemptTimeOut    int               `json:"attempt_time_out"`
 	SessionKeepTime   int               `json:"session_keep_time"`
 	Condition         string            `json:"condition,omitempty"`
 	Items             []model.GroupItem `json:"items"`
@@ -360,6 +361,7 @@ func normalizeGroupListResponse(groups []model.Group) []groupListResponseItem {
 			Mode:              group.Mode,
 			MatchRegex:        group.MatchRegex,
 			FirstTokenTimeOut: group.FirstTokenTimeOut,
+			AttemptTimeOut:    group.AttemptTimeOut,
 			SessionKeepTime:   group.SessionKeepTime,
 			Items:             groupItems,
 			LastTestPassed:    group.LastTestPassed,

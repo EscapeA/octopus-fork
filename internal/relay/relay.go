@@ -571,6 +571,15 @@ func parseRequest(inboundType inbound.InboundType, c *gin.Context) (*model.Inter
 func (ra *relayAttempt) forward() (int, error) {
 	ctx := ra.operationCtx
 
+	// 单次转发尝试超时（issue #122）：当分组配置了 attempt_time_out 时，
+	// 为本次尝试创建带超时的派生上下文。超时后 context deadline exceeded
+	// 被 isTimeoutError() 匹配，产生 ScopeNextChannel 决策。
+	if ra.attemptTimeOutSec > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(ra.attemptTimeOutSec)*time.Second)
+		defer cancel()
+	}
+
 	requestForOutbound, effectiveRewrite, err := prepareInternalRequestForOutbound(ra.channel, ra.internalRequest, ra.groupEndpointType)
 	if err != nil {
 		log.Warnf("failed to prepare outbound request data: %v", err)
@@ -1259,6 +1268,7 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 						channel:              channel,
 						usedKey:              usedKey,
 						firstTokenTimeOutSec: group.FirstTokenTimeOut,
+						attemptTimeOutSec:    group.AttemptTimeOut,
 						tryIndex:             keyRound,
 						tryTotal:             maxKeyRetriesPerRoute,
 					}

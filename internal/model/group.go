@@ -11,17 +11,21 @@ const (
 )
 
 type Group struct {
-	ID                int         `json:"id" gorm:"primaryKey"`
-	Name              string      `json:"name" gorm:"unique;not null;size:191"`
-	EndpointType      string      `json:"endpoint_type" gorm:"not null;default:*;index;size:191"`
-	EndpointProvider  string      `json:"endpoint_provider,omitempty" gorm:"not null;default:''"`
-	OutboundFormat    string      `json:"outbound_format,omitempty" gorm:"not null;default:''"` // 出站格式: "" (auto), "chat", "responses"
-	Mode              GroupMode   `json:"mode" gorm:"not null"`
-	MatchRegex        string      `json:"match_regex"`
-	FirstTokenTimeOut int         `json:"first_token_time_out"` // 单个渠道首个Token响应超时时间(秒)
-	SessionKeepTime   int         `json:"session_keep_time"`    // 会话保持时间(秒) 0 为禁用
-	Condition         string      `json:"condition,omitempty"`  // 条件路由 JSON：[{"key":"model","op":"contains","value":"gpt-4"}]
-	Items             []GroupItem `json:"items,omitempty" gorm:"foreignKey:GroupID"`
+	ID                int       `json:"id" gorm:"primaryKey"`
+	Name              string    `json:"name" gorm:"unique;not null;size:191"`
+	EndpointType      string    `json:"endpoint_type" gorm:"not null;default:*;index;size:191"`
+	EndpointProvider  string    `json:"endpoint_provider,omitempty" gorm:"not null;default:''"`
+	OutboundFormat    string    `json:"outbound_format,omitempty" gorm:"not null;default:''"` // 出站格式: "" (auto), "chat", "responses"
+	Mode              GroupMode `json:"mode" gorm:"not null"`
+	MatchRegex        string    `json:"match_regex"`
+	FirstTokenTimeOut int       `json:"first_token_time_out"` // 单个渠道首个Token响应超时时间(秒)
+	// AttemptTimeOut 单次转发尝试的超时时间（秒），0 = 不启用（issue #122）。
+	// 覆盖整个转发过程（HTTP 请求 + 响应读取），流式和非流式均生效。
+	// 超时后自动视为错误，按现有重试策略切换到下一个渠道。
+	AttemptTimeOut  int         `json:"attempt_time_out" gorm:"column:attempt_time_out;default:0"`
+	SessionKeepTime int         `json:"session_keep_time"`   // 会话保持时间(秒) 0 为禁用
+	Condition       string      `json:"condition,omitempty"` // 条件路由 JSON：[{"key":"model","op":"contains","value":"gpt-4"}]
+	Items           []GroupItem `json:"items,omitempty" gorm:"foreignKey:GroupID"`
 	// LastTestPassed 记录最近一次分组测试是否全部通过（issue #113）。
 	// nil = 从未测试；true = 全部通过；false = 存在失败。测试完成时由
 	// group_probe 回写，前端据此对失败分组做灰色化标记。
@@ -55,6 +59,7 @@ type GroupUpdateRequest struct {
 	MatchRegex        *string                  `json:"match_regex,omitempty"`          // 仅在匹配正则变更时发送
 	Condition         *string                  `json:"condition,omitempty"`            // 仅在条件变更时发送
 	FirstTokenTimeOut *int                     `json:"first_token_time_out,omitempty"` // 仅在超时变更时发送(秒)
+	AttemptTimeOut    *int                     `json:"attempt_time_out,omitempty"`     // 仅在转发超时变更时发送(秒)
 	SessionKeepTime   *int                     `json:"session_keep_time,omitempty"`    // 仅在会话保持时间变更时发送(秒)
 	ItemsToAdd        []GroupItemAddRequest    `json:"items_to_add,omitempty"`         // 新增的 items
 	ItemsToUpdate     []GroupItemUpdateRequest `json:"items_to_update,omitempty"`      // 更新的 items (priority 变更)

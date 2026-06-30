@@ -175,6 +175,7 @@ type relayAttempt struct {
 	channel              *dbmodel.Channel
 	usedKey              dbmodel.ChannelKey
 	firstTokenTimeOutSec int
+	attemptTimeOutSec    int
 	tryIndex             int
 	tryTotal             int
 

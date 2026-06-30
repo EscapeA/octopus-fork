@@ -682,6 +682,10 @@ func GroupUpdate(req *model.GroupUpdateRequest, ctx context.Context) (*model.Gro
 		selectFields = append(selectFields, "first_token_time_out")
 		updates.FirstTokenTimeOut = *req.FirstTokenTimeOut
 	}
+	if req.AttemptTimeOut != nil {
+		selectFields = append(selectFields, "attempt_time_out")
+		updates.AttemptTimeOut = *req.AttemptTimeOut
+	}
 	if req.SessionKeepTime != nil {
 		selectFields = append(selectFields, "session_keep_time")
 		updates.SessionKeepTime = *req.SessionKeepTime

@@ -2179,6 +2179,8 @@
       "searchAriaLabel": "搜尋模型",
       "firstTokenTimeOut": "首字逾時",
       "firstTokenTimeOutHint": "單位秒，僅串流響應起效，0 表示不限制",
+      "attemptTimeOut": "轉發逾時",
+      "attemptTimeOutHint": "單位秒，單次轉發嘗試的逾時時間，0 表示不限制（串流和非串流均生效）",
       "sessionKeepTime": "會話保持",
       "sessionKeepTimeHint": "單位秒，會話期間保持使用同一供應源，0 表示停用",
       "condition": {

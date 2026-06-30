@@ -29,6 +29,7 @@ export type GroupEditorValues = {
     condition: string;
     mode: GroupMode;
     first_token_time_out: number;
+    attempt_time_out: number;
     session_keep_time: number;
     members: SelectedMember[];
 };
@@ -288,6 +289,7 @@ export function GroupEditor({
     const [matchRegex, setMatchRegex] = useState(initial?.match_regex ?? '');
     const [mode, setMode] = useState<GroupMode>((initial?.mode ?? GroupMode.Auto) as GroupMode);
     const [firstTokenTimeOut, setFirstTokenTimeOut] = useState<number>(initial?.first_token_time_out ?? 0);
+    const [attemptTimeOut, setAttemptTimeOut] = useState<number>(initial?.attempt_time_out ?? 0);
     const [sessionKeepTime, setSessionKeepTime] = useState<number>(initial?.session_keep_time ?? 0);
     const [condition, setCondition] = useState(initial?.condition ?? '');
     const [selectedMembers, setSelectedMembers] = useState<SelectedMember[]>(dedupeSelectedMembers(initial?.members ?? []));
@@ -377,6 +379,7 @@ export function GroupEditor({
             match_regex: regexKey,
             mode,
             first_token_time_out: firstTokenTimeOut,
+            attempt_time_out: attemptTimeOut,
             session_keep_time: sessionKeepTime,
             condition,
             members: dedupeSelectedMembers(selectedMembers),
@@ -576,6 +579,39 @@ export function GroupEditor({
                                             }
                                             const n = Number.parseInt(raw, 10);
                                             setFirstTokenTimeOut(Number.isFinite(n) && n > 0 ? n : 0);
+                                        }}
+                                        className="h-10 rounded-lg text-sm md:h-11"
+                                    />
+                                </Field>
+                                <Field>
+                                    <FieldLabel htmlFor="group-attempt-time-out">
+                                        {t('form.attemptTimeOut')}
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <HelpCircle className="size-4 cursor-help text-muted-foreground" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    {t('form.attemptTimeOutHint')}
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </FieldLabel>
+                                    <Input
+                                        id="group-attempt-time-out"
+                                        type="number"
+                                        inputMode="numeric"
+                                        min={0}
+                                        step={1}
+                                        value={String(attemptTimeOut)}
+                                        onChange={(e) => {
+                                            const raw = e.target.value;
+                                            if (raw.trim() === '') {
+                                                setAttemptTimeOut(0);
+                                                return;
+                                            }
+                                            const n = Number.parseInt(raw, 10);
+                                            setAttemptTimeOut(Number.isFinite(n) && n > 0 ? n : 0);
                                         }}
                                         className="h-10 rounded-lg text-sm md:h-11"
                                     />

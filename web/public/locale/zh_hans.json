@@ -2186,6 +2186,8 @@
       "searchAriaLabel": "搜索模型",
       "firstTokenTimeOut": "首字超时",
       "firstTokenTimeOutHint": "单位秒，仅流式响应起效，0 表示不限制",
+      "attemptTimeOut": "转发超时",
+      "attemptTimeOutHint": "单位秒，单次转发尝试的超时时间，0 表示不限制（流式和非流式均生效）",
       "sessionKeepTime": "会话保持",
       "sessionKeepTimeHint": "单位秒，会话期间保持使用同一渠道，0 表示禁用",
       "condition": {

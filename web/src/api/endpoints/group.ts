@@ -41,6 +41,7 @@ export interface Group {
     match_regex: string;
     condition?: string;
     first_token_time_out?: number;
+    attempt_time_out?: number;
     session_keep_time?: number;
     items?: GroupItem[];
     last_test_passed?: boolean | null;
@@ -369,6 +370,7 @@ export interface GroupUpdateRequest {
     match_regex?: string;
     condition?: string;
     first_token_time_out?: number;
+    attempt_time_out?: number;
     session_keep_time?: number;
     items_to_add?: GroupItemAddRequest[];
     items_to_update?: GroupItemUpdateRequest[];
