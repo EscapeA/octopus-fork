@@ -2258,13 +2258,15 @@
       },
       "outboundFormat": {
         "label": "出站请求格式",
-        "hint": "选择首选的出站 API 格式。自动模式将优先尝试 Chat Completions，失败后回退到 Responses；「仅」模式不会回退到另一种格式。",
+        "hint": "选择首选的出站 API 格式。自动模式优先尝试 Chat Completions，失败后回退到 Responses；Messages 优先使用 Anthropic Messages；「仅」模式不会回退到其他格式，适合只支持单一格式（如公益站）的上游。",
         "options": {
           "auto": "自动",
           "chat": "Chat Completions",
           "responses": "Responses",
+          "messages": "Anthropic Messages",
           "chatOnly": "仅 Chat Completions",
-          "responsesOnly": "仅 Responses"
+          "responsesOnly": "仅 Responses",
+          "messagesOnly": "仅 Anthropic Messages"
         }
       }
     },
