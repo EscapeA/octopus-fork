@@ -154,6 +154,9 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
         auto_sync: channel.auto_sync,
         auto_group: channel.auto_group,
         skip_model_test: channel.skip_model_test,
+        disposable: channel.disposable ?? false,
+        expire_at: channel.expire_at ? channel.expire_at.slice(0, 16) : '',
+        notif_channel_id: channel.notif_channel_id ?? null,
         key_selection_strategy: channel.key_selection_strategy,
         match_regex: channel.match_regex ?? '',
     });
@@ -192,6 +195,14 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
         if (formData.proxy !== channel.proxy) req.proxy = formData.proxy;
         if (formData.auto_sync !== channel.auto_sync) req.auto_sync = formData.auto_sync;
         if (formData.skip_model_test !== channel.skip_model_test) req.skip_model_test = formData.skip_model_test;
+        if (formData.disposable !== (channel.disposable ?? false)) req.disposable = formData.disposable;
+        const curExpireAt = channel.expire_at ? channel.expire_at.slice(0, 16) : '';
+        if (formData.expire_at !== curExpireAt) {
+            req.expire_at = formData.expire_at || null;
+        }
+        if (formData.notif_channel_id !== (channel.notif_channel_id ?? null)) {
+            req.notif_channel_id = formData.notif_channel_id;
+        }
         if (formData.key_selection_strategy !== channel.key_selection_strategy) req.key_selection_strategy = formData.key_selection_strategy;
         if (formData.auto_group !== channel.auto_group) req.auto_group = formData.auto_group;
 
@@ -352,7 +363,7 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
                     <TabsContents>
                         <TabsContent value="viewing" className="flex flex-col">
                             <div className="space-y-4 pr-1 sm:space-y-5">
-                                <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                <dl className="grid grid-cols-3 gap-2 sm:gap-3">
                                     <div className="rounded-lg border border-chart-1/18 bg-linear-to-br from-chart-1/10 via-background/42 to-chart-1/5 p-3.5 shadow-sm sm:p-4">
                                         <dt className="flex items-center gap-2 mb-2 text-xs font-medium text-muted-foreground">
                                             <Activity className="size-4 text-chart-1" />
@@ -516,7 +527,7 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
                                     </h4>
                                     <div className="space-y-2">
                                         {channel.keys?.map((key) => (
-                                            <div key={key.id} className="flex items-center gap-3 rounded-lg border border-border/25 bg-card p-3 shadow-sm">
+                                            <div key={key.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-border/25 bg-card p-3 shadow-sm sm:gap-3">
                                                 <div className={cn("size-2 shrink-0 rounded-full", key.enabled ? "bg-emerald-500" : "bg-destructive")} />
 
                                                 <span className="font-mono text-sm truncate min-w-0 flex-1">

@@ -12,6 +12,7 @@ import {
     useTestChannel,
     type TestChannelSummary,
 } from '@/api/endpoints/channel';
+import { useAlertNotifChannelList } from '@/api/endpoints/alert';
 import { channelTemplates } from './templates';
 import { CHANNEL_TYPE_OPTIONS } from './type-options';
 import { isOpenAICompatBaseUrlSuffixMode } from './base-url-suffix';
@@ -70,6 +71,9 @@ export interface ChannelFormData {
     auto_sync: boolean;
     auto_group: AutoGroupType;
     skip_model_test: boolean;
+    disposable: boolean;
+    expire_at: string;
+    notif_channel_id: number | null;
     key_selection_strategy: string;
     match_regex: string;
 }
@@ -471,6 +475,7 @@ export function ChannelForm({
 }: ChannelFormProps) {
     const t = useTranslations('channel.form');
     const { data: channelGroups = [] } = useChannelGroupList();
+    const { data: notifChannels = [] } = useAlertNotifChannelList();
     const requestRewriteSupported = isRequestRewriteSupportedChannelType(formData.type);
     const sectionClassName = 'space-y-4 rounded-lg bg-card/70 p-4 md:p-5';
     const labelClassName = 'text-sm font-medium text-card-foreground';
@@ -776,7 +781,7 @@ export function ChannelForm({
 
             <section className={sectionClassName}>
                 <SectionHeader icon={Orbit} title={t('basicInfo')} />
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     <div className={fieldGroupClassName}>
                         <label htmlFor={`${idPrefix}-name`} className={labelClassName}>
                         {t('name')}
@@ -874,7 +879,7 @@ export function ChannelForm({
                                         value={isOpenAICompatBaseUrlSuffixMode(u.suffix_mode) ? 'openai_compat' : 'custom'}
                                         onValueChange={(value) => handleUpdateBaseUrl(idx, { suffix_mode: value as Channel['base_urls'][number]['suffix_mode'] })}
                                     >
-                                        <SelectTrigger className="h-10 min-w-0 flex-1 rounded-lg sm:w-44 sm:flex-none">
+                                        <SelectTrigger className="h-10 min-w-0 flex-1 rounded-lg sm:w-36 lg:w-44 sm:flex-none">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent className="rounded-lg">
@@ -942,7 +947,7 @@ export function ChannelForm({
                 </div>
                 <div className="space-y-2">
                     {(formData.keys ?? []).map((k, idx) => (
-                        <div key={k.id ?? `new-${idx}`} className="grid gap-2 rounded-lg border border-border/25 bg-card p-2 md:grid-cols-[minmax(0,1fr)_10rem_auto_auto] md:items-center">
+                        <div key={k.id ?? `new-${idx}`} className="grid gap-2 rounded-lg border border-border/25 bg-card p-2 lg:grid-cols-[minmax(0,1fr)_10rem_auto_auto] lg:items-center">
                             <Input
                                 type="text"
                                 value={k.channel_key}
@@ -1201,7 +1206,7 @@ export function ChannelForm({
                             </div>
                             <div className="space-y-2">
                                 {(formData.custom_header ?? []).map((h, idx) => (
-                                    <div key={`hdr-${idx}`} className="grid gap-2 rounded-lg border border-border/25 bg-card p-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-center">
+                                    <div key={`hdr-${idx}`} className="grid gap-2 rounded-lg border border-border/25 bg-card p-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-center">
                                         <Input
                                             type="text"
                                             value={h.header_key}
@@ -1281,7 +1286,7 @@ export function ChannelForm({
                                 </label>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <div className={fieldGroupClassName}>
                                     <label htmlFor={`${idPrefix}-request-rewrite-profile`} className={labelClassName}>
                                         {t('requestRewriteProfile')}
@@ -1389,7 +1394,7 @@ export function ChannelForm({
             </Accordion>
             </div>
 
-            <section className={`${sectionClassName} mt-4 flex shrink-0 flex-col gap-4 border-t border-border/20 pt-4 md:flex-row md:items-center md:justify-between`}>
+            <section className={`${sectionClassName} mt-4 flex shrink-0 flex-col gap-4 border-t border-border/20 pt-4`}>
                 <label className="flex items-center gap-2 cursor-pointer">
                     <Switch
                         checked={formData.enabled}
@@ -1397,7 +1402,7 @@ export function ChannelForm({
                     />
                     <span className="text-sm font-medium text-card-foreground">{t('enabled')}</span>
                 </label>
-                <div className="flex items-center gap-6">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-border/10 pt-4">
                     <label className="flex items-center gap-2 cursor-pointer">
                         <Switch
                             checked={formData.proxy}
@@ -1419,6 +1424,47 @@ export function ChannelForm({
                         />
                         <span className="text-sm text-card-foreground">{t('skipModelTest')}</span>
                     </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                        <Switch
+                            checked={formData.disposable}
+                            onCheckedChange={(checked) => onFormDataChange({ ...formData, disposable: checked })}
+                        />
+                        <span className="text-sm text-card-foreground">{t('disposable')}</span>
+                    </label>
+                    {formData.disposable && (
+                        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-card-foreground whitespace-nowrap">{t('expireAt')}</span>
+                                <Input
+                                    type="datetime-local"
+                                    className="h-8 w-48 rounded-lg"
+                                    value={formData.expire_at || ''}
+                                    onChange={(e) => onFormDataChange({ ...formData, expire_at: e.target.value })}
+                                />
+                            </div>
+                            {notifChannels.length > 0 && (
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm text-card-foreground whitespace-nowrap">{t('notifChannel')}</span>
+                                    <Select
+                                        value={formData.notif_channel_id != null ? String(formData.notif_channel_id) : '__none__'}
+                                        onValueChange={(value) => onFormDataChange({ ...formData, notif_channel_id: value === '__none__' ? null : Number(value) })}
+                                    >
+                                        <SelectTrigger className="h-8 w-36 rounded-lg">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-lg">
+                                            <SelectItem className="rounded-xl" value="__none__">{t('notifChannelNone')}</SelectItem>
+                                            {notifChannels.map((nc) => (
+                                                <SelectItem key={nc.id} className="rounded-xl" value={String(nc.id)}>
+                                                    {nc.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+                        </div>
+                    )}
                     <div className="flex items-center gap-2">
                         <span className="text-sm text-card-foreground whitespace-nowrap">{t('keySelectionStrategy')}</span>
                         <Select
