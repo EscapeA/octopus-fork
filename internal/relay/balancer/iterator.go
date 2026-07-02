@@ -2,10 +2,16 @@ package balancer
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/lingyuins/octopus/internal/model"
 )
+
+// DisposableChannelFunc 由 relay 层在 init 时注入，用于查询某个渠道是否为「一次性渠道」。
+// 一次性渠道在路由组内绝对优先（趁未过期先用掉），由 init_hooks.go 从 channel cache 注入。
+// nil 表示未启用（不做一次性优先排序），后台任务等场景不受影响。
+var DisposableChannelFunc func(channelID int) bool
 
 // Iterator 统一的负载均衡迭代器
 // 内部编排：策略排序 + 粘性优先 + 决策追踪
@@ -37,6 +43,16 @@ func NewIterator(group model.Group, apiKeyID int, requestModel string, excludedC
 			}
 		}
 		candidates = filtered
+	}
+	// 一次性渠道绝对优先：将 disposable=true 的候选稳定地提到前面，同类内保持策略排序。
+	// 优先级链：sticky > 一次性渠道 > 普通渠道（按策略）。sticky 逻辑在后面会把粘性通道
+	// 移到 index 0，覆盖此排序——这是预期的（进行中的会话优先于一次性优先）。
+	if DisposableChannelFunc != nil {
+		sort.SliceStable(candidates, func(i, j int) bool {
+			di := DisposableChannelFunc(candidates[i].ChannelID)
+			dj := DisposableChannelFunc(candidates[j].ChannelID)
+			return di && !dj
+		})
 	}
 
 	stickyIdx := -1

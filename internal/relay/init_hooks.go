@@ -1,9 +1,12 @@
 package relay
 
 import (
+	"context"
+
 	dbmodel "github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op"
 	"github.com/lingyuins/octopus/internal/op/apikey"
+	ch "github.com/lingyuins/octopus/internal/op/channel"
 	"github.com/lingyuins/octopus/internal/op/ratelimitstore"
 	"github.com/lingyuins/octopus/internal/op/setting"
 	"github.com/lingyuins/octopus/internal/relay/balancer"
@@ -14,6 +17,17 @@ func init() {
 	// model 包不能直接 import balancer，故由 relay 层在初始化时注入实现。
 	dbmodel.KeyCooldownFunc = balancer.IsKeyOnCooldown
 	dbmodel.KeyAvailabilityScoreFunc = balancer.GetKeyAvailabilityScore
+
+	// 注入一次性渠道查询函数：从 channel cache 查询 Disposable 字段。
+	// 一次性渠道在路由组内绝对优先（趁未过期先用掉），由 balancer.NewIterator 调用。
+	balancer.DisposableChannelFunc = func(channelID int) bool {
+		channel, err := ch.Get(channelID, context.Background())
+		if err != nil {
+			return false
+		}
+		return channel.Disposable
+	}
+
 	dbmodel.GlobalKeySelectionStrategyFunc = func() string {
 		v, err := setting.GetString(dbmodel.SettingKeyKeySelectionStrategy)
 		if err != nil || v == "" {

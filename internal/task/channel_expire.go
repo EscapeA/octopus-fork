@@ -1,0 +1,126 @@
+package task
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/lingyuins/octopus/internal/db"
+	"github.com/lingyuins/octopus/internal/helper"
+	"github.com/lingyuins/octopus/internal/model"
+	"github.com/lingyuins/octopus/internal/op/alert"
+	ch "github.com/lingyuins/octopus/internal/op/channel"
+	"github.com/lingyuins/octopus/internal/op/setting"
+	st "github.com/lingyuins/octopus/internal/op/stats"
+	"github.com/lingyuins/octopus/internal/utils/log"
+)
+
+const TaskChannelExpire = "channel_expire"
+
+// ExpireDisposableChannels 扫描已过期的一次性渠道，发送通知后自动删除。
+// 一次性渠道（disposable=true）设置 expire_at 后，到期即由本任务清理。
+func ExpireDisposableChannels() {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// 直接查 DB（不经过缓存），找出所有已过期的一次性渠道。
+	var channels []model.Channel
+	if err := db.GetDB().WithContext(ctx).
+		Where("disposable = ? AND expire_at IS NOT NULL AND expire_at <= ?", true, time.Now()).
+		Find(&channels).Error; err != nil {
+		log.Errorf("channel expire: failed to query expired channels: %v", err)
+		return
+	}
+	if len(channels) == 0 {
+		return
+	}
+
+	log.Infof("channel expire: found %d expired disposable channels", len(channels))
+
+	// 预加载通知渠道列表（仅在有过期渠道配了 notif_channel_id 时才加载）。
+	var notifChannels map[int]*model.AlertNotifChannel
+	for _, c := range channels {
+		if c.NotifChannelID != nil && *c.NotifChannelID > 0 {
+			notifChannels = loadNotifChannels(ctx)
+			break
+		}
+	}
+
+	for _, channel := range channels {
+		deleteExpiredChannel(ctx, channel, notifChannels)
+	}
+}
+
+func deleteExpiredChannel(ctx context.Context, channel model.Channel, notifChannels map[int]*model.AlertNotifChannel) {
+	// 先发通知（删除前发，删除后渠道已不存在）。
+	if channel.NotifChannelID != nil && *channel.NotifChannelID > 0 {
+		sendChannelExpireNotification(channel, *channel.NotifChannelID, notifChannels)
+	}
+
+	// 删除渠道。
+	if err := ch.Delete(channel.ID, ctx); err != nil {
+		log.Errorf("channel expire: failed to delete channel %d (%s): %v", channel.ID, channel.Name, err)
+		return
+	}
+	st.OnChannelDeleted(channel.ID)
+	log.Infof("channel expire: deleted expired disposable channel %d (%s)", channel.ID, channel.Name)
+}
+
+func sendChannelExpireNotification(channel model.Channel, notifChannelID int, notifChannels map[int]*model.AlertNotifChannel) {
+	notifCh, ok := notifChannels[notifChannelID]
+	if !ok || notifCh == nil {
+		log.Warnf("channel expire: channel %d references notif_channel_id=%d which was not found; notification skipped", channel.ID, notifChannelID)
+		return
+	}
+
+	title, message := buildChannelExpireMessage(channel)
+	if err := helper.SendNotificationMessage(notifCh, title, message); err != nil {
+		log.Warnf("channel expire: failed to send notification for channel %d (%s): %v", channel.ID, channel.Name, err)
+	}
+}
+
+func loadNotifChannels(ctx context.Context) map[int]*model.AlertNotifChannel {
+	channels, err := alert.NotifChannelList(ctx)
+	if err != nil {
+		log.Warnf("channel expire: failed to list notification channels: %v", err)
+		return nil
+	}
+	m := make(map[int]*model.AlertNotifChannel, len(channels))
+	for i := range channels {
+		m[channels[i].ID] = &channels[i]
+	}
+	return m
+}
+
+func buildChannelExpireMessage(channel model.Channel) (title, message string) {
+	language := resolveChannelExpireLanguage()
+	expireStr := ""
+	if channel.ExpireAt != nil {
+		expireStr = channel.ExpireAt.Format(time.RFC3339)
+	}
+	switch language {
+	case "zh-Hans":
+		title = "一次性渠道已到期删除"
+		message = fmt.Sprintf("一次性渠道 \"%s\" (ID: %d) 已于 %s 到期并被自动删除。", channel.Name, channel.ID, expireStr)
+	case "zh-Hant":
+		title = "一次性管道已到期刪除"
+		message = fmt.Sprintf("一次性管道 \"%s\" (ID: %d) 已於 %s 到期並被自動刪除。", channel.Name, channel.ID, expireStr)
+	default:
+		title = "Disposable Channel Expired"
+		message = fmt.Sprintf("Disposable channel \"%s\" (ID: %d) expired at %s and has been automatically deleted.", channel.Name, channel.ID, expireStr)
+	}
+	return title, message
+}
+
+func resolveChannelExpireLanguage() string {
+	v, err := setting.GetString(model.SettingKeyAlertNotifyLanguage)
+	if err != nil || v == "" {
+		return "en"
+	}
+	switch v {
+	case "zh-Hans", "zh-Hant", "en":
+		return v
+	default:
+		return "en"
+	}
+}

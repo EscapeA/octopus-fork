@@ -539,6 +539,399 @@ func TestNotification(channel *model.AlertNotifChannel) error {
 	return SendNotification(channel, payload)
 }
 
+// SendNotificationMessage sends a plain title+message notification to the given
+// channel, reusing the same per-type HTTP dispatch as SendNotification but
+// without alert-specific payload formatting. Used by the disposable-channel
+// expiry task to notify users when a one-time channel is auto-deleted.
+func SendNotificationMessage(channel *model.AlertNotifChannel, title, message string) error {
+	if channel == nil {
+		return fmt.Errorf("notification channel is required")
+	}
+	now := time.Now().Format(time.RFC3339)
+	switch model.AlertNotifChannelType(channel.Type) {
+	case model.AlertNotifGotify:
+		return sendGotifyMessage(channel, title, message)
+	case model.AlertNotifEmail:
+		return sendEmailMessage(channel, title, message)
+	case model.AlertNotifTelegram:
+		return sendTelegramMessage(channel, title, message)
+	case model.AlertNotifFeishu:
+		return sendFeishuMessage(channel, title, message)
+	case model.AlertNotifDingTalk:
+		return sendDingTalkMessage(channel, title, message)
+	case model.AlertNotifWeCom:
+		return sendWeComMessage(channel, title, message)
+	case model.AlertNotifNtfy:
+		return sendNtfyMessage(channel, title, message)
+	case model.AlertNotifWebhook:
+		fallthrough
+	default:
+		return sendWebhookMessage(channel, title, message, now)
+	}
+}
+
+// sendWebhookMessage sends a plain message to a webhook endpoint.
+func sendWebhookMessage(channel *model.AlertNotifChannel, title, message, timeStr string) error {
+	body, err := json.Marshal(map[string]string{
+		"title":   title,
+		"message": message,
+		"time":    timeStr,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal webhook payload: %w", err)
+	}
+	req, err := http.NewRequest("POST", channel.URL, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create webhook request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if channel.Secret != "" {
+		req.Header.Set("Authorization", "Bearer "+channel.Secret)
+	}
+	if channel.Headers != "" {
+		var headers map[string]string
+		if err := json.Unmarshal([]byte(channel.Headers), &headers); err == nil {
+			for k, v := range headers {
+				req.Header.Set(k, v)
+			}
+		}
+	}
+	client := notifyHTTPClient()
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("send webhook: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("webhook responded %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func sendGotifyMessage(channel *model.AlertNotifChannel, title, message string) error {
+	var cfg model.GotifyConfig
+	if channel.Config != "" {
+		if err := json.Unmarshal([]byte(channel.Config), &cfg); err != nil {
+			return fmt.Errorf("parse gotify config: %w", err)
+		}
+	}
+	serverURL := cfg.ServerURL
+	if serverURL == "" {
+		serverURL = strings.TrimRight(channel.URL, "/")
+	}
+	token := cfg.Token
+	if token == "" {
+		token = channel.Secret
+	}
+	if serverURL == "" || token == "" {
+		return fmt.Errorf("gotify: server_url and token are required")
+	}
+	priority := cfg.Priority
+	if priority <= 0 {
+		priority = 5
+	}
+	msgBody, err := json.Marshal(map[string]interface{}{
+		"title":    fmt.Sprintf("Octopus: %s", title),
+		"message":  message,
+		"priority": priority,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal gotify message: %w", err)
+	}
+	endpoint := fmt.Sprintf("%s/message?token=%s", strings.TrimRight(serverURL, "/"), token)
+	req, err := http.NewRequest("POST", endpoint, bytes.NewReader(msgBody))
+	if err != nil {
+		return fmt.Errorf("create gotify request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := notifyHTTPClient()
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("send gotify: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("gotify responded %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func sendEmailMessage(channel *model.AlertNotifChannel, title, message string) error {
+	var cfg model.EmailConfig
+	if channel.Config != "" {
+		if err := json.Unmarshal([]byte(channel.Config), &cfg); err != nil {
+			return fmt.Errorf("parse email config: %w", err)
+		}
+	}
+	if cfg.SMTPHost == "" || cfg.From == "" || cfg.To == "" {
+		return fmt.Errorf("email: smtp_host, from, and to are required")
+	}
+	port := cfg.SMTPPort
+	if port == 0 {
+		port = 587
+	}
+	subject := fmt.Sprintf("Octopus: %s", title)
+	fromHeader := cfg.From
+	toAddrs := strings.Split(cfg.To, ",")
+	for i, a := range toAddrs {
+		toAddrs[i] = strings.TrimSpace(a)
+	}
+	var msg strings.Builder
+	msg.WriteString("From: " + fromHeader + "\r\n")
+	msg.WriteString("To: " + cfg.To + "\r\n")
+	msg.WriteString("Subject: " + subject + "\r\n")
+	msg.WriteString("MIME-Version: 1.0\r\n")
+	msg.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
+	msg.WriteString("\r\n")
+	msg.WriteString(message)
+	addr := fmt.Sprintf("%s:%d", cfg.SMTPHost, port)
+	useTLS := cfg.UseTLS
+	if !useTLS && port == 465 {
+		useTLS = true
+	}
+	if cfg.Username == "" && cfg.Password == "" {
+		if err := smtp.SendMail(addr, nil, fromHeader, toAddrs, []byte(msg.String())); err != nil {
+			return fmt.Errorf("send email (no auth): %w", err)
+		}
+		return nil
+	}
+	auth := smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.SMTPHost)
+	if err := smtp.SendMail(addr, auth, fromHeader, toAddrs, []byte(msg.String())); err != nil {
+		return fmt.Errorf("send email: %w", err)
+	}
+	return nil
+}
+
+func sendTelegramMessage(channel *model.AlertNotifChannel, title, message string) error {
+	var cfg model.TelegramConfig
+	if channel.Config != "" {
+		if err := json.Unmarshal([]byte(channel.Config), &cfg); err != nil {
+			return fmt.Errorf("parse telegram config: %w", err)
+		}
+	}
+	if cfg.BotToken == "" || cfg.ChatID == "" {
+		return fmt.Errorf("telegram: bot_token and chat_id are required")
+	}
+	text := fmt.Sprintf("🐙 %s\n%s", title, message)
+	if len(text) > 4096 {
+		text = text[:4096]
+	}
+	body, _ := json.Marshal(map[string]interface{}{
+		"chat_id":                  cfg.ChatID,
+		"text":                     text,
+		"disable_web_page_preview": true,
+	})
+	endpoint := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", cfg.BotToken)
+	req, err := http.NewRequest("POST", endpoint, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create telegram request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := notifyHTTPClient()
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("send telegram: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return fmt.Errorf("telegram responded %d: %s", resp.StatusCode, string(respBody))
+	}
+	var result struct {
+		OK          bool   `json:"ok"`
+		Description string `json:"description"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err == nil && !result.OK {
+		return fmt.Errorf("telegram API error: %s", result.Description)
+	}
+	return nil
+}
+
+func sendFeishuMessage(channel *model.AlertNotifChannel, title, message string) error {
+	var cfg model.FeishuConfig
+	if channel.Config != "" {
+		if err := json.Unmarshal([]byte(channel.Config), &cfg); err != nil {
+			return fmt.Errorf("parse feishu config: %w", err)
+		}
+	}
+	if cfg.WebhookKey == "" {
+		return fmt.Errorf("feishu: webhook_key is required")
+	}
+	text := fmt.Sprintf("🐙 %s\n%s", title, message)
+	body, _ := json.Marshal(map[string]interface{}{
+		"msg_type": "text",
+		"content":  map[string]string{"text": text},
+	})
+	endpoint := fmt.Sprintf("https://open.feishu.cn/open-apis/bot/v2/hook/%s", cfg.WebhookKey)
+	req, err := http.NewRequest("POST", endpoint, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create feishu request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := notifyHTTPClient()
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("send feishu: %w", err)
+	}
+	defer resp.Body.Close()
+	var result struct {
+		Code       int `json:"code"`
+		StatusCode int `json:"StatusCode"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err == nil {
+		if result.Code != 0 || result.StatusCode != 0 {
+			return fmt.Errorf("feishu API error: code=%d statusCode=%d", result.Code, result.StatusCode)
+		}
+	}
+	return nil
+}
+
+func sendDingTalkMessage(channel *model.AlertNotifChannel, title, message string) error {
+	var cfg model.DingTalkConfig
+	if channel.Config != "" {
+		if err := json.Unmarshal([]byte(channel.Config), &cfg); err != nil {
+			return fmt.Errorf("parse dingtalk config: %w", err)
+		}
+	}
+	if cfg.WebhookKey == "" {
+		return fmt.Errorf("dingtalk: webhook_key is required")
+	}
+	endpoint := fmt.Sprintf("https://oapi.dingtalk.com/robot/send?access_token=%s", cfg.WebhookKey)
+	if cfg.Secret != "" {
+		timestamp := fmt.Sprintf("%d", time.Now().UnixMilli())
+		stringToSign := timestamp + "\n" + cfg.Secret
+		mac := hmac.New(sha256.New, []byte(cfg.Secret))
+		mac.Write([]byte(stringToSign))
+		sign := url.QueryEscape(base64.StdEncoding.EncodeToString(mac.Sum(nil)))
+		endpoint += "&timestamp=" + timestamp + "&sign=" + sign
+	}
+	text := fmt.Sprintf("🐙 %s\n%s", title, message)
+	body, _ := json.Marshal(map[string]interface{}{
+		"msgtype": "text",
+		"text":    map[string]string{"content": text},
+		"at":      map[string]interface{}{"isAtAll": false},
+	})
+	req, err := http.NewRequest("POST", endpoint, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create dingtalk request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json;charset=utf-8")
+	client := notifyHTTPClient()
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("send dingtalk: %w", err)
+	}
+	defer resp.Body.Close()
+	var result struct {
+		ErrCode interface{} `json:"errcode"`
+		ErrMsg  string      `json:"errmsg"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err == nil {
+		switch v := result.ErrCode.(type) {
+		case float64:
+			if v != 0 {
+				return fmt.Errorf("dingtalk API error: errcode=%v errmsg=%s", v, result.ErrMsg)
+			}
+		case string:
+			if v != "0" && v != "" {
+				return fmt.Errorf("dingtalk API error: errcode=%s errmsg=%s", v, result.ErrMsg)
+			}
+		}
+	}
+	return nil
+}
+
+func sendWeComMessage(channel *model.AlertNotifChannel, title, message string) error {
+	var cfg model.WeComConfig
+	if channel.Config != "" {
+		if err := json.Unmarshal([]byte(channel.Config), &cfg); err != nil {
+			return fmt.Errorf("parse wecom config: %w", err)
+		}
+	}
+	if cfg.WebhookKey == "" {
+		return fmt.Errorf("wecom: webhook_key is required")
+	}
+	text := fmt.Sprintf("🐙 %s\n%s", title, message)
+	body, _ := json.Marshal(map[string]interface{}{
+		"msgtype": "text",
+		"text":    map[string]string{"content": text},
+	})
+	endpoint := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=%s", cfg.WebhookKey)
+	req, err := http.NewRequest("POST", endpoint, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create wecom request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := notifyHTTPClient()
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("send wecom: %w", err)
+	}
+	defer resp.Body.Close()
+	var result struct {
+		ErrCode interface{} `json:"errcode"`
+		ErrMsg  string      `json:"errmsg"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err == nil {
+		switch v := result.ErrCode.(type) {
+		case float64:
+			if v != 0 {
+				return fmt.Errorf("wecom API error: errcode=%v errmsg=%s", v, result.ErrMsg)
+			}
+		case string:
+			if v != "0" && v != "" {
+				return fmt.Errorf("wecom API error: errcode=%s errmsg=%s", v, result.ErrMsg)
+			}
+		}
+	}
+	return nil
+}
+
+func sendNtfyMessage(channel *model.AlertNotifChannel, title, message string) error {
+	var cfg model.NtfyConfig
+	if channel.Config != "" {
+		if err := json.Unmarshal([]byte(channel.Config), &cfg); err != nil {
+			return fmt.Errorf("parse ntfy config: %w", err)
+		}
+	}
+	if cfg.TopicURL == "" {
+		return fmt.Errorf("ntfy: topic_url is required")
+	}
+	topicURL := cfg.TopicURL
+	if !strings.HasPrefix(topicURL, "http://") && !strings.HasPrefix(topicURL, "https://") {
+		if strings.Contains(topicURL, "/") || strings.Contains(topicURL, ".") {
+			topicURL = "https://" + topicURL
+		} else {
+			topicURL = "https://ntfy.sh/" + topicURL
+		}
+	}
+	req, err := http.NewRequest("POST", topicURL, strings.NewReader(message))
+	if err != nil {
+		return fmt.Errorf("create ntfy request: %w", err)
+	}
+	ntfyTitle := fmt.Sprintf("🐙 Octopus: %s", title)
+	if needsMimeEncoding(ntfyTitle) {
+		ntfyTitle = mime.QEncoding.Encode("utf-8", ntfyTitle)
+	}
+	req.Header.Set("Title", ntfyTitle)
+	req.Header.Set("Priority", "default")
+	req.Header.Set("Tags", "bell")
+	if cfg.AccessToken != "" {
+		req.Header.Set("Authorization", "Bearer "+cfg.AccessToken)
+	}
+	client := notifyHTTPClient()
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("send ntfy: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return fmt.Errorf("ntfy responded %d: %s", resp.StatusCode, string(respBody))
+	}
+	return nil
+}
+
 // FormatEmailAddress validates and formats an email address.
 func FormatEmailAddress(addr string) (string, error) {
 	a, err := mail.ParseAddress(addr)

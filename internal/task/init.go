@@ -182,4 +182,7 @@ func Init() {
 		siteCheckinInterval := time.Duration(siteCheckinIntervalHours) * time.Hour
 		Register(string(model.SettingKeySiteCheckinInterval), siteCheckinInterval, true, SiteCheckinTask)
 	}
+
+	// Disposable channel expiry: scan every 1 minute for expired one-time channels.
+	Register(TaskChannelExpire, 1*time.Minute, false, ExpireDisposableChannels)
 }

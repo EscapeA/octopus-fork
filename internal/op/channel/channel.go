@@ -260,6 +260,18 @@ func Update(req *model.ChannelUpdateRequest, ctx context.Context) (*model.Channe
 		selectFields = append(selectFields, "skip_model_test")
 		updates.SkipModelTest = *req.SkipModelTest
 	}
+	if req.Disposable != nil {
+		selectFields = append(selectFields, "disposable")
+		updates.Disposable = *req.Disposable
+	}
+	if req.ExpireAt != nil {
+		selectFields = append(selectFields, "expire_at")
+		updates.ExpireAt = req.ExpireAt
+	}
+	if req.NotifChannelID != nil {
+		selectFields = append(selectFields, "notif_channel_id")
+		updates.NotifChannelID = req.NotifChannelID
+	}
 	if req.KeySelectionStrategy != nil {
 		selectFields = append(selectFields, "key_selection_strategy")
 		updates.KeySelectionStrategy = *req.KeySelectionStrategy
