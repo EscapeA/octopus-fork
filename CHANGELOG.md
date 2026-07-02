@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.2.6] - 2026-07-02
+
+### 🚀 Features
+- **Home (issue #125)**: the home stats panel now has a manual refresh button (refetches all stats/analytics queries and replays the count-up animation) and a configurable auto-refresh interval selector (5s / 10s / 15s / 30s / 60s / off, default 30s). The preference is persisted to localStorage. Stats hooks (`useStatsToday`/`Daily`/`Hourly`/`Total`/`APIKey`/`Channel`) and `useAnalyticsOverview` gained an optional `refetchIntervalMs` parameter (backward compatible).
+- **Group**: outbound format gained `messages` and `messages_only` modes for upstream gateways that accept both OpenAI and Anthropic Messages formats.
+
+## [v2.2.5-fix] - 2026-06-30
+
+### 🛠 Optimizations
+- **Memory (issue #124)**: `stats.modelCache` now periodically purges idle entries (1h threshold, tracked via a `modelLastActivity` sync.Map; dirty entries skip purge to avoid losing unflushed increments); the per-channel-proxy `*http.Client` is now cached by timeout bucket to eliminate per-request transport/connection-pool churn, with explicit connection-pool caps on the cloned default transport. Fixes the `key_availability` / HTTP-client memory growth.
+
+## [v2.2.5] - 2026-06-30
+
+### 🚀 Features
+- **Cache (issue #123)**: optional Redis backend (`internal/store`) for stats persistence, runtime state, rate-limit/cooldown, failure-hint cache, and channel-delay probing — unloads runtime data to Redis for low-memory hosts and multi-instance horizontal scaling. Zero-breaking when Redis is not configured. Stats switched to Redis native incremental semantics (`HINCRBY` + Lua max), crash-safe. Circuit-breaker / auto-strategy dual-write to Redis for multi-instance sharing. A Redis cache-backend config card (test connection / save, restart to apply) was added to Settings.
+- **Group (issue #122)**: group-level per-forward timeout `attempt_time_out` (default 0 = disabled) covers the entire forward (HTTP request + response read), both streaming and non-streaming — previously you could only wait for the HTTP client timeout (600s) or the global upstream timeout before failover triggered.
+- **Group (issue #119)**: group-test card now distinguishes all-failed vs. partial-failed (new `last_test_all_failed` field); only all-failed cards get the full grey-out, partial-failed stays normal.
+- **Log**: log cards gained TPS (output_tokens ÷ use_time, tk/s) and cache-hit-rate (cache_read_tokens ÷ (input+output) × 100%) metrics, each toggleable in the "show fields" panel.
+
+### 🐛 Bug Fixes
+- **Analytics (issue #121)**: the Channel × Model view no longer drops intermediate retry-failed channels. Root cause was a SQLite write-queue race — `relay_logs` async flush truncated the in-memory cache before `relay_log_attempts` landed via `EnqueueWrite`, so the analytics query could neither JOIN the attempts table nor read the cache. Fixed by ensuring attempts are flushed before truncating the cache.
+
 ## [v2.2.4] - 2026-06-28
 
 ### 🚀 Features
