@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -240,23 +241,26 @@ func queryMiniMaxTokenPlan(ctx context.Context, apiKey string) (*TokenPlanResult
 	for _, m := range resp.ModelRemains {
 		total := m.CurrentIntervalTotalCount
 		usage := m.CurrentIntervalUsageCount
+		// MiniMax 字段语义：total=该计费区间总额度，usage=已使用额度。
+		// QuotaUsed 必须是"已使用"而非"剩余"（total-usage），否则前端用量百分比会被
+		// 颠倒成剩余率（issue #126 修复项）。
 		models = append(models, TokenPlanModelUsage{
 			ModelName:  m.ModelName,
 			QuotaTotal: total,
-			QuotaUsed:  max(0, total-usage),
+			QuotaUsed:  max(0, usage),
 		})
 
 		// 以第一个模型的数据作为汇总
 		if result.QuotaTotal == 0 {
 			result.QuotaTotal = total
-			result.QuotaUsed = max(0, total-usage)
+			result.QuotaUsed = max(0, usage)
 			if m.RemainsTime > 0 {
 				t := time.Now().Add(time.Duration(m.RemainsTime) * time.Millisecond)
 				result.QuotaResetAt = &t
 			}
 			if m.CurrentWeeklyTotalCount > 0 {
 				result.WeeklyTotal = m.CurrentWeeklyTotalCount
-				result.WeeklyUsed = max(0, m.CurrentWeeklyTotalCount-m.CurrentWeeklyUsageCount)
+				result.WeeklyUsed = max(0, m.CurrentWeeklyUsageCount)
 				if m.WeeklyRemainsTime > 0 {
 					t := time.Now().Add(time.Duration(m.WeeklyRemainsTime) * time.Millisecond)
 					result.WeeklyResetAt = &t
@@ -403,40 +407,29 @@ func queryNovitaBalance(ctx context.Context, apiKey string) (*BalanceResult, err
 // --- OpenAI ---
 
 func queryOpenAIBalance(ctx context.Context, apiKey string) (*BalanceResult, error) {
-	// 尝试新接口 /v1/balances
+	// OpenAI 官方余额接口。/dashboard/billing/subscription 已被 OpenAI 废弃
+	// （需 session token，API key 无法访问，2023 年底停用），故不再回退。
 	body, err := doGet(ctx, "https://api.openai.com/v1/balances", apiKey)
-	if err == nil {
-		var resp struct {
-			TotalGrantedUSD   float64 `json:"total_granted_usd"`
-			TotalUsedUSD      float64 `json:"total_used_usd"`
-			TotalAvailableUSD float64 `json:"total_available_usd"`
-			ExpiresAt         string  `json:"expires_at"`
-		}
-		if err := json.Unmarshal(body, &resp); err == nil && resp.TotalGrantedUSD > 0 {
-			return &BalanceResult{
-				Balance:     resp.TotalAvailableUSD,
-				BalanceUsed: resp.TotalUsedUSD,
-				Currency:    "USD",
-			}, nil
-		}
+	if err != nil {
+		return nil, fmt.Errorf("openai: query /v1/balances failed (this endpoint requires an organization with grant credits; standard pay-as-you-go accounts may not be supported): %w", err)
 	}
 
-	// 回退到半官方 billing 接口
-	subBody, subErr := doGet(ctx, "https://api.openai.com/dashboard/billing/subscription", apiKey)
-	if subErr != nil {
-		return nil, fmt.Errorf("openai: /v1/balances and /dashboard/billing/subscription both failed (account may not support these endpoints): %w", subErr)
+	var resp struct {
+		TotalGrantedUSD   float64 `json:"total_granted_usd"`
+		TotalUsedUSD      float64 `json:"total_used_usd"`
+		TotalAvailableUSD float64 `json:"total_available_usd"`
+		ExpiresAt         string  `json:"expires_at"`
 	}
-
-	var sub struct {
-		HardLimitUSD float64 `json:"hard_limit_usd"`
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("openai: parse response: %w", err)
 	}
-	if err := json.Unmarshal(subBody, &sub); err != nil {
-		return nil, fmt.Errorf("openai: parse subscription: %w", err)
+	if resp.TotalGrantedUSD <= 0 {
+		return nil, fmt.Errorf("openai: /v1/balances returned no grant credits (total_granted_usd=%.2f); this account may not support balance query via API key", resp.TotalGrantedUSD)
 	}
 
 	return &BalanceResult{
-		Balance:     sub.HardLimitUSD,
-		BalanceUsed: 0,
+		Balance:     resp.TotalAvailableUSD,
+		BalanceUsed: resp.TotalUsedUSD,
 		Currency:    "USD",
 	}, nil
 }
@@ -469,12 +462,24 @@ func doGet(ctx context.Context, url, apiKey string) ([]byte, error) {
 	return body, nil
 }
 
+// parseFloat 解析 API 返回的数字字符串为 float64。
+// 优先使用 strconv.ParseFloat（比 fmt.Sscanf 更严格、更快、容错更好）；
+// 失败时清理常见干扰字符（货币符号、千分位逗号、空白）后重试，仍失败返回 0。
 func parseFloat(s string) float64 {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return 0
 	}
-	var v float64
-	fmt.Sscanf(s, "%f", &v)
-	return v
+	if v, err := strconv.ParseFloat(s, 64); err == nil {
+		return v
+	}
+	// 清理常见干扰字符：货币符号、千分位逗号、空白。
+	cleaned := strings.NewReplacer(
+		"$", "", "€", "", "£", "", "¥", "", "￥", "",
+		",", "", " ", "", "\t", "",
+	).Replace(s)
+	if v, err := strconv.ParseFloat(cleaned, 64); err == nil {
+		return v
+	}
+	return 0
 }

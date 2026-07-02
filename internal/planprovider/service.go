@@ -2,6 +2,7 @@ package planprovider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -10,6 +11,8 @@ import (
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op"
 	"github.com/lingyuins/octopus/internal/transformer/outbound"
+	"github.com/lingyuins/octopus/internal/utils/log"
+	"gorm.io/gorm"
 )
 
 const planGroupName = "Plan"
@@ -118,12 +121,15 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 		return nil, fmt.Errorf("create channel: %w", err)
 	}
 
-	// 4. 加入 Plan 分组
+	// 4. 加入 Plan 分组（失败则补偿删除刚创建的 channel，避免孤儿）
 	if err := addChannelToGroup(ctx, channel.ID, channel.Model, groupID); err != nil {
+		if delErr := op.ChannelDel(channel.ID, ctx); delErr != nil {
+			log.Warnf("planprovider: compensate delete channel %d after addChannelToGroup failed: %v", channel.ID, delErr)
+		}
 		return nil, fmt.Errorf("add channel to plan group: %w", err)
 	}
 
-	// 5. 持久化 PlanProvider
+	// 5. 持久化 PlanProvider（失败则补偿删除 channel + group items）
 	now := time.Now()
 	provider := &model.PlanProvider{
 		Name:         name,
@@ -156,6 +162,10 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 	provider.UpdatedAt = now
 
 	if err := db.GetDB().WithContext(ctx).Create(provider).Error; err != nil {
+		// 补偿：provider 落盘失败，回滚已创建的 channel（含 group items / channel keys / stats）
+		if delErr := op.ChannelDel(channel.ID, ctx); delErr != nil {
+			log.Warnf("planprovider: compensate delete channel %d after provider create failed: %v", channel.ID, delErr)
+		}
 		return nil, fmt.Errorf("create plan provider record: %w", err)
 	}
 
@@ -204,30 +214,35 @@ func RefreshProvider(ctx context.Context, id int) (*model.PlanProvider, error) {
 	return &provider, nil
 }
 
-// DeleteProvider 删除 Plan Provider，同时删除关联的 Channel
+// DeleteProvider 删除 Plan Provider，同时删除关联的 Channel。
+//
+// 顺序：先删 provider 记录，再用 op.ChannelDel 清理 channel 及其依赖
+// （GroupItems / ChannelKeys / StatsChannel + chCache / keyCache / stats cache + Redis scope）。
+// op.ChannelDel 是 channel 删除的统一入口，内部事务性删除并触发 cache 失效，
+// 不能用裸 DB 删除替代——否则会留下 chCache/keyCache/stats cache 残留，且非事务性
+// （见 issue #126 修复项；对比 task/channel_expire.go 同样使用 ch.Delete + OnChannelDeleted）。
+//
+// 若 provider 删除成功而 channel 删除失败：provider 已不存在，留下一个 channel 孤儿，
+// 用户可在渠道管理页手动删除；这比反过来（provider 指向不存在的 channel）更易恢复。
 func DeleteProvider(ctx context.Context, id int) error {
 	var provider model.PlanProvider
 	if err := db.GetDB().WithContext(ctx).First(&provider, id).Error; err != nil {
 		return fmt.Errorf("find plan provider: %w", err)
 	}
 
-	// 删除关联的 GroupItems
-	if provider.ChannelID > 0 {
-		if err := db.GetDB().WithContext(ctx).Where("channel_id = ?", provider.ChannelID).Delete(&model.GroupItem{}).Error; err != nil {
-			return fmt.Errorf("delete group items: %w", err)
-		}
-		// 删除 Channel
-		if err := db.GetDB().WithContext(ctx).Delete(&model.Channel{}, provider.ChannelID).Error; err != nil {
-			return fmt.Errorf("delete channel: %w", err)
-		}
-		// 删除 ChannelKeys
-		if err := db.GetDB().WithContext(ctx).Where("channel_id = ?", provider.ChannelID).Delete(&model.ChannelKey{}).Error; err != nil {
-			return fmt.Errorf("delete channel keys: %w", err)
-		}
-	}
-
+	// 先删 provider 记录。
 	if err := db.GetDB().WithContext(ctx).Delete(&provider).Error; err != nil {
 		return fmt.Errorf("delete plan provider: %w", err)
+	}
+
+	// 再清理关联的 channel（含 group items / channel keys / stats channel / cache）。
+	if provider.ChannelID > 0 {
+		if err := op.ChannelDel(provider.ChannelID, ctx); err != nil {
+			// channel 可能已被手动删除（channel.Get 失败），或删除过程出错。
+			// provider 记录已删，记录日志但不阻塞返回——避免调用方卡在
+			// "channel 不存在"的边缘 case 下无法重试（重试时 provider 已不存在）。
+			log.Warnf("planprovider: delete channel %d for provider %d failed: %v (provider record already deleted)", provider.ChannelID, id, err)
+		}
 	}
 
 	return nil
@@ -256,11 +271,15 @@ func getCategoryInfo(category model.PlanProviderCategory) *model.PlanProviderCat
 }
 
 func ensurePlanGroup(ctx context.Context) (int, error) {
-	// 查找已有 Plan 分组
+	// 查找已有 Plan 分组。只有 ErrRecordNotFound 才进创建分支，
+	// 其他 DB 错误（连接断开、语法错等）必须返回，否则会产生重名 Plan 分组。
 	var group model.Group
 	err := db.GetDB().WithContext(ctx).Where("name = ?", planGroupName).First(&group).Error
 	if err == nil {
 		return group.ID, nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return 0, fmt.Errorf("find plan group: %w", err)
 	}
 
 	// 创建 Plan 分组

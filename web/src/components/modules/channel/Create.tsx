@@ -120,7 +120,9 @@ export function CreateDialogContent() {
                 key_selection_strategy: formData.key_selection_strategy,
                 skip_model_test: formData.skip_model_test,
                 disposable: formData.disposable,
-                expire_at: formData.disposable && formData.expire_at ? formData.expire_at : undefined,
+                // datetime-local 返回无时区的 "YYYY-MM-DDTHH:mm"，浏览器按本地时区解释。
+                // 转 ISO 字符串（带 Z 时区）发给后端，避免 Go 按解析无时区字符串为 UTC 导致时区偏移。
+                expire_at: formData.disposable && formData.expire_at ? new Date(formData.expire_at).toISOString() : undefined,
                 notif_channel_id: formData.disposable && formData.notif_channel_id != null ? formData.notif_channel_id : undefined,
                 custom_header: normalizedHeaders,
                 channel_proxy: channelProxy,

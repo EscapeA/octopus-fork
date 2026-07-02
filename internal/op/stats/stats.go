@@ -578,9 +578,19 @@ func buildModelID(channelID int, modelName string) int64 {
 // idleFor 为最大空闲时长，超过则删除。由 relay log flush 定时任务周期性调用
 // （见 issue #124）。
 //
-// 安全性：若某 modelID 仍处于 modelCacheNeedUpdate（自上次 SaveDB 尚未落盘），则跳过
-// 本次回收，避免丢失未持久化的统计增量；下一次 SaveDB 清除 dirty 标记后，再下一轮即可
-// 回收。这与 requeueDirtyIDs 的"不丢增量"语义一致。返回删除的条目数。
+// 安全性：
+//  1. 若某 modelID 仍处于 modelCacheNeedUpdate（自上次 SaveDB 尚未落盘），则跳过
+//     本次回收，避免丢失未持久化的统计增量。
+//  2. 仅回收零统计条目（StatsMetrics.IsZero()==true）。有真实统计数据的条目即使
+//     空闲也必须保留在内存 cache 中——模型广场（ModelMarket）通过
+//     modelCache.GetAll() 读取数据，而 RefreshCache 只在启动时执行一次；若把有
+//     数据的条目从内存删除，DB 虽仍有记录，但模型广场会持续显示该模型统计数据为空，
+//     直到下次重启才会恢复（issue #126）。
+//  3. 真正可安全回收的是"零统计"条目：刷量/随机 model 名探测产生的空壳条目，
+//     从未真正完成过有效请求。这类条目既不在内存有意义，DB 中也是零行，删除
+//     不会影响模型广场展示。
+//
+// 返回删除的条目数。
 func PurgeIdleModelStats(idleFor time.Duration) int {
 	if idleFor <= 0 {
 		return 0
@@ -609,6 +619,21 @@ func PurgeIdleModelStats(idleFor time.Duration) int {
 			_, dirty := modelCacheNeedUpdate[modelID]
 			modelCacheNeedUpdateLock.Unlock()
 			if dirty {
+				return true
+			}
+			// 仅回收零统计条目。有真实统计数据的条目即使空闲也保留在内存 cache，
+			// 否则模型广场会丢失该模型的数据展示（issue #126）。
+			entry, ok := modelCache.Get(modelID)
+			if !ok {
+				// cache 与 activity 索引不一致：cache 已无此条目，清理 activity 索引。
+				modelLastActivity.Delete(key)
+				removed++
+				return true
+			}
+			if !entry.StatsMetrics.IsZero() {
+				// 有统计数据：保留在内存中供模型广场读取，但刷新活动时间戳，
+				// 避免每轮都重复走到这里（轻微优化）。
+				touchModelActivity(modelID)
 				return true
 			}
 			modelCache.Del(modelID)

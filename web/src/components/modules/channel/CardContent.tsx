@@ -198,7 +198,9 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
         if (formData.disposable !== (channel.disposable ?? false)) req.disposable = formData.disposable;
         const curExpireAt = channel.expire_at ? channel.expire_at.slice(0, 16) : '';
         if (formData.expire_at !== curExpireAt) {
-            req.expire_at = formData.expire_at || null;
+            // datetime-local 返回无时区的 "YYYY-MM-DDTHH:mm"，浏览器按本地时区解释。
+            // 转 ISO 字符串（带 Z 时区）发给后端，避免 Go 解析无时区字符串为 UTC 导致时区偏移。
+            req.expire_at = formData.expire_at ? new Date(formData.expire_at).toISOString() : null;
         }
         if (formData.notif_channel_id !== (channel.notif_channel_id ?? null)) {
             req.notif_channel_id = formData.notif_channel_id;

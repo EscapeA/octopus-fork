@@ -115,3 +115,34 @@ func (s *StatsMetrics) Add(delta StatsMetrics) {
 	s.Histogram1kto5k += delta.Histogram1kto5k
 	s.HistogramGt5k += delta.HistogramGt5k
 }
+
+// IsZero reports whether the metrics have no accumulated data at all.
+// Used by the idle-purge path (PurgeIdleModelStats) to distinguish truly
+// garbage entries (random/spam model names that never produced a real
+// request) from legitimate entries that merely went idle. Only zero-stat
+// entries are safe to drop from the in-memory cache without making the
+// model-market page lose data — the DB still has the record, but the
+// model-market reads from the in-memory cache and RefreshCache only runs
+// at startup, so dropping a non-zero entry would make that model's stats
+// "disappear" from the UI until the next restart.
+func (s StatsMetrics) IsZero() bool {
+	return s.InputToken == 0 &&
+		s.OutputToken == 0 &&
+		s.InputCost == 0 &&
+		s.OutputCost == 0 &&
+		s.WaitTime == 0 &&
+		s.RequestSuccess == 0 &&
+		s.RequestFailed == 0 &&
+		s.LatencyP50 == 0 &&
+		s.LatencyP95 == 0 &&
+		s.LatencyP99 == 0 &&
+		s.FtutAvg == 0 &&
+		s.FtutP50 == 0 &&
+		s.FtutP95 == 0 &&
+		s.FtutP99 == 0 &&
+		s.HistogramLt100 == 0 &&
+		s.Histogram100to500 == 0 &&
+		s.Histogram500to1k == 0 &&
+		s.Histogram1kto5k == 0 &&
+		s.HistogramGt5k == 0
+}

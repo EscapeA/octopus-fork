@@ -52,18 +52,20 @@ func ExpireDisposableChannels() {
 }
 
 func deleteExpiredChannel(ctx context.Context, channel model.Channel, notifChannels map[int]*model.AlertNotifChannel) {
-	// 先发通知（删除前发，删除后渠道已不存在）。
-	if channel.NotifChannelID != nil && *channel.NotifChannelID > 0 {
-		sendChannelExpireNotification(channel, *channel.NotifChannelID, notifChannels)
-	}
-
-	// 删除渠道。
+	// 先删除渠道，删除成功后再发通知。
+	// 反过来（先通知后删除）会在删除失败时导致下一轮重复发送通知（issue #126 修复项）。
+	// channel 是局部变量，删除后其字段仍在内存中，通知内容（name/id/expire_at）不受影响。
 	if err := ch.Delete(channel.ID, ctx); err != nil {
-		log.Errorf("channel expire: failed to delete channel %d (%s): %v", channel.ID, channel.Name, err)
+		log.Errorf("channel expire: failed to delete channel %d (%s): %v (will retry next cycle)", channel.ID, channel.Name, err)
 		return
 	}
 	st.OnChannelDeleted(channel.ID)
 	log.Infof("channel expire: deleted expired disposable channel %d (%s)", channel.ID, channel.Name)
+
+	// 删除成功后发送通知。
+	if channel.NotifChannelID != nil && *channel.NotifChannelID > 0 {
+		sendChannelExpireNotification(channel, *channel.NotifChannelID, notifChannels)
+	}
 }
 
 func sendChannelExpireNotification(channel model.Channel, notifChannelID int, notifChannels map[int]*model.AlertNotifChannel) {
