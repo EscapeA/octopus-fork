@@ -117,20 +117,22 @@ export interface StatsAPIKeyFormatted extends StatsMetricsFormatted {
 /**
  * 获取今日统计数据 Hook
  */
-export function useStatsToday() {
+export function useStatsToday(options?: { refetchIntervalMs?: number | false }) {
+    const { refetchIntervalMs = REFETCH_INTERVAL_CONFIG } = options ?? {};
     return useQuery({
         queryKey: ['stats', 'today'],
         queryFn: async () => {
             return apiClient.get<StatsDaily>('/api/v1/stats/today');
         },
-        refetchInterval: REFETCH_INTERVAL_CONFIG,
+        refetchInterval: refetchIntervalMs,
     });
 }
 
 /**
  * 获取每日统计数据 Hook
  */
-export function useStatsDaily() {
+export function useStatsDaily(options?: { refetchIntervalMs?: number | false }) {
+    const { refetchIntervalMs = REFETCH_INTERVAL_SLOW } = options ?? {};
     return useQuery({
         queryKey: ['stats', 'daily'],
         queryFn: async () => {
@@ -161,13 +163,14 @@ export function useStatsDaily() {
             request_count: formatCount(item.request_success + item.request_failed),
             date: item.date,
         })),
-        refetchInterval: REFETCH_INTERVAL_SLOW,
+        refetchInterval: refetchIntervalMs,
     });
 }
 /**
  * 获取总统计数据 Hook
  */
-export function useStatsHourly() {
+export function useStatsHourly(options?: { refetchIntervalMs?: number | false }) {
+    const { refetchIntervalMs = REFETCH_INTERVAL_CONFIG } = options ?? {};
     return useQuery({
         queryKey: ['stats', 'hourly'],
         queryFn: async () => {
@@ -199,11 +202,12 @@ export function useStatsHourly() {
             histogram_gt_5k: formatCount(item.histogram_gt_5k),
             request_count: formatCount(item.request_success + item.request_failed),
         })),
-        refetchInterval: REFETCH_INTERVAL_CONFIG,
+        refetchInterval: refetchIntervalMs,
     });
 }
 
-export function useStatsTotal() {
+export function useStatsTotal(options?: { refetchIntervalMs?: number | false }) {
+    const { refetchIntervalMs = REFETCH_INTERVAL_CONFIG } = options ?? {};
     return useQuery({
         queryKey: ['stats', 'total'],
         queryFn: async () => {
@@ -233,7 +237,7 @@ export function useStatsTotal() {
             histogram_gt_5k: formatCount(data.histogram_gt_5k),
             request_count: formatCount(data.request_success + data.request_failed),
         }),
-        refetchInterval: REFETCH_INTERVAL_CONFIG,
+        refetchInterval: refetchIntervalMs,
     });
 }
 
@@ -242,8 +246,8 @@ export function useStatsTotal() {
 /**
  * 获取 API Key 统计数据列表 Hook
  */
-export function useStatsAPIKey(options?: { enabled?: boolean }) {
-    const { enabled = true } = options ?? {};
+export function useStatsAPIKey(options?: { enabled?: boolean; refetchIntervalMs?: number | false }) {
+    const { enabled = true, refetchIntervalMs = REFETCH_INTERVAL_CONFIG } = options ?? {};
 
     return useQuery({
         queryKey: ['stats', 'apikey'],
@@ -277,12 +281,12 @@ export function useStatsAPIKey(options?: { enabled?: boolean }) {
             request_count: formatCount(item.request_success + item.request_failed),
         })),
         enabled,
-        refetchInterval: REFETCH_INTERVAL_CONFIG,
+        refetchInterval: refetchIntervalMs,
     });
 }
 
-export function useStatsChannel(options?: { enabled?: boolean }) {
-    const { enabled = true } = options ?? {};
+export function useStatsChannel(options?: { enabled?: boolean; refetchIntervalMs?: number | false }) {
+    const { enabled = true, refetchIntervalMs = REFETCH_INTERVAL_CONFIG } = options ?? {};
 
     return useQuery({
         queryKey: ['stats', 'channel'],
@@ -317,6 +321,6 @@ export function useStatsChannel(options?: { enabled?: boolean }) {
             request_count: formatCount(item.request_success + item.request_failed),
         })),
         enabled,
-        refetchInterval: REFETCH_INTERVAL_CONFIG,
+        refetchInterval: refetchIntervalMs,
     });
 }

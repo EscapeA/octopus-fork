@@ -5,7 +5,7 @@ import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Leaf, Loader2, TrendingUp, Trophy } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContents, TabsContent } from '@/components/animate-ui/components/animate/tabs';
-import { useHomeViewStore, type RankSortMode } from '@/components/modules/home/store';
+import { useHomeStatsRefreshMs, useHomeViewStore, type RankSortMode } from '@/components/modules/home/store';
 import { cn } from '@/lib/utils';
 
 type ChannelData = NonNullable<ReturnType<typeof useStatsChannel>['data']>[number];
@@ -13,17 +13,18 @@ type APIKeyStatsData = NonNullable<ReturnType<typeof useStatsAPIKey>['data']>[nu
 type APIKeyRankData = APIKeyStatsData & { name: string };
 
 export function Rank() {
+    const statsRefreshMs = useHomeStatsRefreshMs();
     const {
         data: channelData,
         isLoading: isChannelListLoading,
-    } = useStatsChannel();
+    } = useStatsChannel({ refetchIntervalMs: statsRefreshMs });
     const t = useTranslations('home.rank');
     const rankSortMode = useHomeViewStore((state) => state.rankSortMode);
     const setRankSortMode = useHomeViewStore((state) => state.setRankSortMode);
     const {
         data: apiKeyStats,
         isLoading: isAPIKeyStatsLoading,
-    } = useStatsAPIKey({ enabled: rankSortMode === 'key-usage' });
+    } = useStatsAPIKey({ enabled: rankSortMode === 'key-usage', refetchIntervalMs: statsRefreshMs });
 
     const channelsWithUsage = useMemo<ChannelData[]>(() => {
         if (!channelData) return [];

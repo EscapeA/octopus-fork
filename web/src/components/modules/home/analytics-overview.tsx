@@ -25,7 +25,7 @@ import { AnimatedNumber } from '@/components/common/AnimatedNumber';
 import { EASING } from '@/lib/animations/fluid-transitions';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn, formatCount, formatMoney } from '@/lib/utils';
-import { useHomeViewStore, type OverviewMetricKey, type OverviewRange } from './store';
+import { useHomeStatsRefreshMs, useHomeViewStore, type OverviewMetricKey, type OverviewRange } from './store';
 
 const RANGE_OPTIONS: readonly OverviewRange[] = ['7d', '30d', '90d', 'all'];
 
@@ -50,7 +50,8 @@ export function HomeAnalyticsOverview() {
     const setOverviewMetricHidden = useHomeViewStore((state) => state.setOverviewMetricHidden);
     const moveOverviewMetric = useHomeViewStore((state) => state.moveOverviewMetric);
     const resetOverviewMetrics = useHomeViewStore((state) => state.resetOverviewMetrics);
-    const { data, isLoading, error } = useAnalyticsOverview(range);
+    const statsRefreshMs = useHomeStatsRefreshMs();
+    const { data, isLoading, error } = useAnalyticsOverview(range, '30s', statsRefreshMs);
 
     // 标题不依赖接口数据，配置面板在数据未加载时也能列出全部指标。
     const titleByKey: Record<OverviewMetricKey, string> = {

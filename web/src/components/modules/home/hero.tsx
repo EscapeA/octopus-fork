@@ -4,13 +4,16 @@ import { motion } from 'motion/react';
 import { Activity, DollarSign, ShieldCheck, Waves } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useStatsToday } from '@/api/endpoints/stats';
+import { useHomeStatsRefreshMs } from './store';
+import { StatsRefreshControls } from './refresh-controls';
 import { AnimatedNumber } from '@/components/common/AnimatedNumber';
 import { EASING } from '@/lib/animations/fluid-transitions';
 import { formatCount, formatMoney, formatTime } from '@/lib/utils';
 
 export function HomeHero() {
     const t = useTranslations('home.hero');
-    const { data: statsToday } = useStatsToday();
+    const statsRefreshMs = useHomeStatsRefreshMs();
+    const { data: statsToday } = useStatsToday({ refetchIntervalMs: statsRefreshMs });
 
     const requestCount = (statsToday?.request_success ?? 0) + (statsToday?.request_failed ?? 0);
     const successCount = statsToday?.request_success ?? 0;
@@ -83,16 +86,19 @@ export function HomeHero() {
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(20rem,0.88fr)]">
                 <div className="space-y-5">
                     <div className="space-y-3">
-                        <div className="flex items-center gap-3 sm:gap-4">
-                            <div className="grid h-11 w-11 sm:h-14 sm:w-14 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-card text-primary">
-                                <Waves className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />
+                        <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
+                            <div className="flex items-center gap-3 sm:gap-4">
+                                <div className="grid h-11 w-11 sm:h-14 sm:w-14 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-card text-primary">
+                                    <Waves className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />
+                                </div>
+                                <div className="space-y-1">
+                                    <h1 className="text-[1.65rem] font-semibold tracking-tight sm:text-2xl md:text-3xl lg:text-4xl">{t('title')}</h1>
+                                    {t('subtitle') ? (
+                                        <p className="text-sm leading-6 text-muted-foreground md:text-base">{t('subtitle')}</p>
+                                    ) : null}
+                                </div>
                             </div>
-                            <div className="space-y-1">
-                                <h1 className="text-[1.65rem] font-semibold tracking-tight sm:text-2xl md:text-3xl lg:text-4xl">{t('title')}</h1>
-                                {t('subtitle') ? (
-                                    <p className="text-sm leading-6 text-muted-foreground md:text-base">{t('subtitle')}</p>
-                                ) : null}
-                            </div>
+                            <StatsRefreshControls />
                         </div>
 
                         {t('description') ? (

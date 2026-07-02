@@ -1,6 +1,7 @@
 'use client';
 
 import { useStatsDaily, type StatsDailyFormatted } from '@/api/endpoints/stats';
+import { useHomeStatsRefreshMs } from './store';
 import { useMemo, useRef, useLayoutEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
@@ -34,7 +35,8 @@ function formatCompactDate(dateStr: string): string {
 }
 
 export function Activity() {
-    const { data: statsDailyFormatted, isLoading } = useStatsDaily();
+    const statsRefreshMs = useHomeStatsRefreshMs();
+    const { data: statsDailyFormatted, isLoading } = useStatsDaily({ refetchIntervalMs: statsRefreshMs });
     const scrollRef = useRef<HTMLDivElement>(null);
     const t = useTranslations('home.activity');
 

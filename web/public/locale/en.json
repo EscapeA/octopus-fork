@@ -1121,6 +1121,17 @@
         "costPerRequest": "Cost per Call"
       }
     },
+    "refresh": {
+      "manual": "Refresh",
+      "interval": {
+        "5s": "5s",
+        "10s": "10s",
+        "15s": "15s",
+        "30s": "30s",
+        "60s": "60s",
+        "off": "Off"
+      }
+    },
     "overview": {
       "badge": "Hub Overview",
       "title": "Usage Overview",

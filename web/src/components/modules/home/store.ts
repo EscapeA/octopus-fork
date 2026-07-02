@@ -7,11 +7,23 @@ export type RankSortMode = 'cost' | 'count' | 'tokens' | 'key-usage';
 export type ChartMetricType = 'cost' | 'count' | 'tokens' | 'success-rate';
 export type ChartPeriod = '1' | '7' | '30';
 export type OverviewRange = '7d' | '30d' | '90d' | 'all';
+export type StatsRefreshInterval = '5s' | '10s' | '15s' | '30s' | '60s' | 'off';
 
-const RANK_SORT_MODES: readonly RankSortMode[] = ['cost', 'count', 'tokens', 'key-usage'];
-const CHART_METRIC_TYPES: readonly ChartMetricType[] = ['cost', 'count', 'tokens', 'success-rate'];
-const CHART_PERIODS: readonly ChartPeriod[] = ['1', '7', '30'];
-const OVERVIEW_RANGES: readonly OverviewRange[] = ['7d', '30d', '90d', 'all'];
+ const RANK_SORT_MODES: readonly RankSortMode[] = ['cost', 'count', 'tokens', 'key-usage'];
+ const CHART_METRIC_TYPES: readonly ChartMetricType[] = ['cost', 'count', 'tokens', 'success-rate'];
+ const CHART_PERIODS: readonly ChartPeriod[] = ['1', '7', '30'];
+ const OVERVIEW_RANGES: readonly OverviewRange[] = ['7d', '30d', '90d', 'all'];
+const STATS_REFRESH_INTERVALS: readonly StatsRefreshInterval[] = ['5s', '10s', '15s', '30s', '60s', 'off'];
+
+/** 首页统计自动刷新间隔可选项（用于 UI 渲染）。 */
+export const STATS_REFRESH_INTERVAL_OPTIONS: readonly StatsRefreshInterval[] = STATS_REFRESH_INTERVALS;
+
+/** 将刷新间隔转换为毫秒数；off 表示关闭自动刷新（返回 false 让 refetchInterval 停止轮询）。 */
+export function statsRefreshIntervalMs(value: StatsRefreshInterval): number | false {
+    if (value === 'off') return false;
+    const seconds = Number(value.slice(0, -1));
+    return Number.isFinite(seconds) ? seconds * 1000 : false;
+}
 
 function normalizeRankSortMode(value: string | null | undefined): RankSortMode {
     return RANK_SORT_MODES.includes(value as RankSortMode) ? (value as RankSortMode) : 'cost';
@@ -46,6 +58,12 @@ function normalizeChartPeriod(value: string | null | undefined): ChartPeriod {
 
 export function normalizeOverviewRange(value: string | null | undefined): OverviewRange {
     return OVERVIEW_RANGES.includes(value as OverviewRange) ? (value as OverviewRange) : '7d';
+}
+
+function normalizeStatsRefreshInterval(value: string | null | undefined): StatsRefreshInterval {
+    return STATS_REFRESH_INTERVALS.includes(value as StatsRefreshInterval)
+        ? (value as StatsRefreshInterval)
+        : '30s';
 }
 
 // 首页 analytics 概览的 8 个指标卡，用户可显隐与排序。
@@ -117,11 +135,13 @@ interface HomeViewState {
     overviewRange: OverviewRange;
     overviewMetricOrder: OverviewMetricKey[];
     overviewHiddenMetrics: OverviewMetricKey[];
+    statsRefreshInterval: StatsRefreshInterval;
     setRankSortMode: (value: RankSortMode) => void;
     setChartMetricType: (value: ChartMetricType) => void;
     toggleChartMetric: (value: ChartMetricType) => void;
     setChartPeriod: (value: ChartPeriod) => void;
     setOverviewRange: (value: OverviewRange) => void;
+    setStatsRefreshInterval: (value: StatsRefreshInterval) => void;
     setOverviewMetricHidden: (key: OverviewMetricKey, hidden: boolean) => void;
     moveOverviewMetric: (key: OverviewMetricKey, direction: 'up' | 'down') => void;
     resetOverviewMetrics: () => void;
@@ -137,6 +157,7 @@ export const useHomeViewStore = create<HomeViewState>()(
             overviewRange: '7d',
             overviewMetricOrder: [...OVERVIEW_METRIC_KEYS],
             overviewHiddenMetrics: [],
+            statsRefreshInterval: '30s',
             setRankSortMode: (value) => set({ rankSortMode: normalizeRankSortMode(value) }),
             setChartMetricType: (value) => set({
                 chartMetricType: normalizeChartMetricType(value),
@@ -148,6 +169,8 @@ export const useHomeViewStore = create<HomeViewState>()(
             }),
             setChartPeriod: (value) => set({ chartPeriod: normalizeChartPeriod(value) }),
             setOverviewRange: (value) => set({ overviewRange: normalizeOverviewRange(value) }),
+            setStatsRefreshInterval: (value) =>
+                set({ statsRefreshInterval: normalizeStatsRefreshInterval(value) }),
             setOverviewMetricHidden: (key, hidden) => set((state) => {
                 const hiddenNow = state.overviewHiddenMetrics;
                 const alreadyHidden = hiddenNow.includes(key);
@@ -174,7 +197,7 @@ export const useHomeViewStore = create<HomeViewState>()(
                 set({ overviewMetricOrder: [...OVERVIEW_METRIC_KEYS], overviewHiddenMetrics: [] }),
         }),
         {
-            name: 'home-view-options-storage-v2',
+            name: 'home-view-options-storage-v3',
             storage: createJSONStorage(() => localStorage),
             partialize: (state) => ({
                 rankSortMode: state.rankSortMode,
@@ -184,6 +207,7 @@ export const useHomeViewStore = create<HomeViewState>()(
                 overviewRange: state.overviewRange,
                 overviewMetricOrder: state.overviewMetricOrder,
                 overviewHiddenMetrics: state.overviewHiddenMetrics,
+                statsRefreshInterval: state.statsRefreshInterval,
             }),
             merge: (persistedState, currentState) => {
                 const typed = (persistedState as Partial<HomeViewState> | null) ?? null;
@@ -199,8 +223,17 @@ export const useHomeViewStore = create<HomeViewState>()(
                     overviewRange: normalizeOverviewRange(typed?.overviewRange),
                     overviewMetricOrder: normalizeOverviewMetricOrder(typed?.overviewMetricOrder),
                     overviewHiddenMetrics: normalizeOverviewHiddenMetrics(typed?.overviewHiddenMetrics),
+                    statsRefreshInterval: normalizeStatsRefreshInterval(typed?.statsRefreshInterval),
                 };
             },
         }
     )
 );
+
+/**
+ * 读取首页统计自动刷新间隔，返回 TanStack Query 的 refetchInterval 可直接消费的值。
+ * off → false（关闭轮询）；其余 → 毫秒数。
+ */
+export function useHomeStatsRefreshMs(): number | false {
+    return useHomeViewStore((state) => statsRefreshIntervalMs(state.statsRefreshInterval));
+}

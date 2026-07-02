@@ -220,11 +220,15 @@ export function useAnalyticsEvaluationRuntime(): AnalyticsEvaluationRuntime {
     };
 }
 
-export function useAnalyticsOverview(range: AnalyticsRange, cacheTtl: AnalyticsCacheTtl = '30s') {
+export function useAnalyticsOverview(
+    range: AnalyticsRange,
+    cacheTtl: AnalyticsCacheTtl = '30s',
+    refetchIntervalMs?: number | false,
+) {
     return useQuery({
         queryKey: ['analytics', 'overview', range, cacheTtl],
         queryFn: async () => apiClient.get<AnalyticsOverview>('/api/v1/analytics/overview', { range, ...cacheTtlParam(cacheTtl) }),
-        refetchInterval: CACHE_TTL_MS[cacheTtl],
+        refetchInterval: refetchIntervalMs ?? CACHE_TTL_MS[cacheTtl],
     });
 }
 

@@ -8,7 +8,7 @@ import { useTranslations } from 'next-intl';
 import { formatCount, formatMoney } from '@/lib/utils';
 import { formatDateOnly } from '@/lib/time';
 import { AnimatedNumber } from '@/components/common/AnimatedNumber';
-import { useHomeViewStore, type ChartMetricType, type ChartPeriod } from '@/components/modules/home/store';
+import { useHomeStatsRefreshMs, useHomeViewStore, type ChartMetricType, type ChartPeriod } from '@/components/modules/home/store';
 import { BarChart3, CalendarClock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -21,8 +21,9 @@ const METRIC_DATA_KEYS: Record<ChartMetricType, string> = {
 
 export function StatsChart() {
     const PERIODS: readonly ChartPeriod[] = ['1', '7', '30'];
-    const { data: statsDaily } = useStatsDaily();
-    const { data: statsHourly } = useStatsHourly();
+    const statsRefreshMs = useHomeStatsRefreshMs();
+    const { data: statsDaily } = useStatsDaily({ refetchIntervalMs: statsRefreshMs });
+    const { data: statsHourly } = useStatsHourly({ refetchIntervalMs: statsRefreshMs });
     const t = useTranslations('home.chart');
 
     const chartMetrics = useHomeViewStore((state) => state.chartMetrics);
