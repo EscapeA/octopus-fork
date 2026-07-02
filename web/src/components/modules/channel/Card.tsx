@@ -117,7 +117,7 @@ export function Card({ channel, stats, layout = 'grid' }: { channel: Channel; st
                 </MorphingDialogTrigger>
 
                 <MorphingDialogContainer>
-                    <MorphingDialogContent className="relative flex max-h-[calc(100dvh-2rem)] min-h-0 w-[min(100vw-1rem,56rem)] max-w-full flex-col overflow-hidden rounded-xl border border-border bg-card px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] text-card-foreground md:px-6 md:py-5">
+                    <MorphingDialogContent className="relative flex max-h-[calc(100dvh-2rem)] min-h-0 w-[min(100vw-1rem,64rem)] max-w-full flex-col overflow-hidden rounded-xl border border-border bg-card px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] text-card-foreground md:px-6 md:py-5">
                         <CardContent channel={channel} stats={stats} />
                     </MorphingDialogContent>
                 </MorphingDialogContainer>
@@ -129,7 +129,7 @@ export function Card({ channel, stats, layout = 'grid' }: { channel: Channel; st
     return (
         <MorphingDialog>
             <MorphingDialogTrigger
-                className={`group relative flex w-full rounded-xl border border-border bg-card p-4 text-card-foreground transition-all duration-200 hover:border-border/80 hover:shadow-md hover:bg-muted/20 active:scale-[0.995] md:hover:-translate-y-0.5 md:active:translate-y-0 ${isListLayout ? 'min-h-[12rem]' : 'min-h-[18rem]'}`}
+                className={`group relative flex w-full rounded-xl border border-border bg-card p-4 text-card-foreground transition-all duration-200 hover:border-border/80 hover:shadow-md hover:bg-muted/20 active:scale-[0.995] md:hover:-translate-y-0.5 md:active:translate-y-0 ${isListLayout ? 'min-h-[12rem]' : 'min-h-[16rem]'}`}
             >
                 <div className="relative flex w-full flex-col gap-3 sm:gap-4">
                     <header className="flex items-start justify-between gap-2 sm:gap-3">
@@ -289,7 +289,7 @@ export function Card({ channel, stats, layout = 'grid' }: { channel: Channel; st
             </MorphingDialogTrigger>
 
             <MorphingDialogContainer>
-                <MorphingDialogContent className="relative flex max-h-[calc(100dvh-2rem)] min-h-0 w-[min(100vw-1rem,56rem)] max-w-full flex-col overflow-hidden rounded-xl border border-border bg-card px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] text-card-foreground md:px-6 md:py-5">
+                <MorphingDialogContent className="relative flex max-h-[calc(100dvh-2rem)] min-h-0 w-[min(100vw-1rem,64rem)] max-w-full flex-col overflow-hidden rounded-xl border border-border bg-card px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] text-card-foreground md:px-6 md:py-5">
                     <CardContent channel={channel} stats={stats} />
                 </MorphingDialogContent>
             </MorphingDialogContainer>
