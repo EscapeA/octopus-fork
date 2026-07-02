@@ -313,6 +313,7 @@ func Migrate(conn *gorm.DB) error {
 		&model.SiteUserGroup{},
 		&model.SiteModel{},
 		&model.SiteChannelBinding{},
+		&model.PlanProvider{},
 		&model.ProxyConfiguration{},
 		&model.WSResponseAffinity{},
 		&model.WebAuthnCredential{},

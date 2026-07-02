@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type HubTab = 'sites' | 'site-channels' | 'automation';
+export type HubTab = 'sites' | 'site-channels' | 'automation' | 'balance' | 'tokenplan';
 
 interface HubTabState {
     activeTab: HubTab;

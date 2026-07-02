@@ -8,6 +8,7 @@ import { Tabs, TabsContents, TabsContent, TabsList, TabsTrigger } from '@/compon
 import { Site } from '@/components/modules/site';
 import { SiteChannelSection } from '@/components/modules/site-channel';
 import { SettingSiteAutomation } from '@/components/modules/setting/SiteAutomation';
+import { BalanceSection, TokenPlanSection } from '@/components/modules/plan-provider';
 import { useHubTabStore, type HubTab } from './hub-tab-store';
 import { useSiteUIStore } from '@/components/modules/site/ui-store';
 
@@ -26,6 +27,8 @@ export function RemoteSite() {
                                 <TabsTrigger value="sites">{t('tabs.sites')}</TabsTrigger>
                                 <TabsTrigger value="site-channels">{t('tabs.siteChannels')}</TabsTrigger>
                                 <TabsTrigger value="automation">{t('tabs.automation')}</TabsTrigger>
+                                <TabsTrigger value="balance">{t('plan.balance') || '额度'}</TabsTrigger>
+                                <TabsTrigger value="tokenplan">{t('plan.tokenPlan') || 'TokenPlan'}</TabsTrigger>
                             </TabsList>
                         </div>
                         {activeTab === 'sites' && (
@@ -54,6 +57,12 @@ export function RemoteSite() {
                                 <SettingSiteAutomation />
                             </div>
                         ) : <div />}
+                    </TabsContent>
+                    <TabsContent value="balance">
+                        <BalanceSection />
+                    </TabsContent>
+                    <TabsContent value="tokenplan">
+                        <TokenPlanSection />
                     </TabsContent>
                 </TabsContents>
             </Tabs>
