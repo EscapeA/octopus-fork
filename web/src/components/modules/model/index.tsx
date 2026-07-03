@@ -231,7 +231,9 @@ export function Model() {
     return (
         <section className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-t-xl" aria-label={pageKey}>
             {view === 'endpoints' ? (
-                <EndpointsView />
+                <div className="flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain rounded-t-xl pb-3 md:pb-4">
+                    <EndpointsView />
+                </div>
             ) : (
                 visibleModels.length > 0 ? (
                     <MotionConfig transition={{ layout: { duration: 0 } }}>
