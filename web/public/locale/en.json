@@ -152,7 +152,10 @@
       "monitorOnly": "Monitor Only",
       "forwardApiKeyLabel": "API Key (Optional)",
       "forwardApiKeyPlaceholder": "sk- API Key for forwarding",
-      "forwardApiKeyHint": "When provided, a forwarding channel will be created or reused (endpoint api.stepfun.com/step_plan/v1). Channels with the same models are merged. Leave empty to monitor quota only."
+      "forwardApiKeyHint": "When provided, a forwarding channel will be created or reused. Channels with the same models are merged. Leave empty to monitor quota only.",
+      "consoleTokenLabel": "Console Token",
+      "sensenovaTokenPlaceholder": "Paste console Bearer Token value",
+      "sensenovaTokenHint": "Log in to platform.sensenova.cn console, copy the Bearer Token from request headers. Valid for ~3 hours; re-obtain after expiry."
     },
     "title": "Remote Sites",
     "addSite": "Add Site",

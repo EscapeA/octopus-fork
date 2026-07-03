@@ -25,9 +25,10 @@ const (
 	PlanProviderOpenAI      PlanProviderCategory = "openai"
 
 	// TokenPlan 类厂商
-	PlanProviderMiniMax     PlanProviderCategory = "minimax"
-	PlanProviderZhipu       PlanProviderCategory = "zhipu"
-	PlanProviderStepFunPlan PlanProviderCategory = "stepfun_plan"
+	PlanProviderMiniMax       PlanProviderCategory = "minimax"
+	PlanProviderZhipu         PlanProviderCategory = "zhipu"
+	PlanProviderStepFunPlan   PlanProviderCategory = "stepfun_plan"
+	PlanProviderSenseNovaPlan PlanProviderCategory = "sensenova_plan"
 )
 
 // PlanProviderCategoryInfo 厂商元信息（非 DB 字段）
@@ -141,6 +142,15 @@ var PlanProviderCategories = []PlanProviderCategoryInfo{
 		Models:      "step-3.7-flash,step-3.7,step-3.7-pro",
 		Description: "StepFun 套餐额度查询（Oasis-Token 必填，约 30 分钟有效期）。可选填 API Key 自动创建/复用转发渠道（接入点 api.stepfun.com/step_plan/v1）",
 		HelpURL:     "https://platform.stepfun.com/plan-subscribe",
+	},
+	{
+		Category:    PlanProviderSenseNovaPlan,
+		Name:        "SenseNova 套餐 (商汤日日新)",
+		Type:        PlanProviderTypeTokenPlan,
+		BaseURL:     "https://platform.sensenova.cn",
+		Models:      "sensenova-6.7-flash-lite,sensenova-u1-fast,deepseek-v4-flash",
+		Description: "SenseNova Coding Plan 套餐用量查询（控制台 Bearer Token 必填，约 3 小时有效期）。可选填 API Key 自动创建/复用转发渠道（接入点 token.sensenova.cn/v1）",
+		HelpURL:     "https://platform.sensenova.cn/console",
 	},
 }
 

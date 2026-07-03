@@ -100,7 +100,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
     const [forwardApiKey, setForwardApiKey] = useState('');
     const [customName, setCustomName] = useState('');
 
-    const isStepFunPlan = selectedCategory === 'stepfun_plan';
+    const isConsoleTokenPlan = selectedCategory === 'stepfun_plan' || selectedCategory === 'sensenova_plan';
 
     const handleAdd = useCallback(async () => {
         if (!selectedCategory || !apiKey.trim()) return;
@@ -108,7 +108,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
             await addMutation.mutateAsync({
                 category: selectedCategory,
                 api_key: apiKey.trim(),
-                forward_api_key: isStepFunPlan && forwardApiKey.trim() ? forwardApiKey.trim() : undefined,
+                forward_api_key: isConsoleTokenPlan && forwardApiKey.trim() ? forwardApiKey.trim() : undefined,
                 name: customName.trim() || undefined,
             });
             toast.success('已添加');
@@ -121,7 +121,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
             const msg = e instanceof Error ? e.message : '添加失败';
             toast.error(msg);
         }
-    }, [selectedCategory, apiKey, forwardApiKey, isStepFunPlan, customName, addMutation]);
+    }, [selectedCategory, apiKey, forwardApiKey, isConsoleTokenPlan, customName, addMutation]);
 
     const handleRefresh = useCallback(async (id: number) => {
         try {
@@ -199,25 +199,29 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
 
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">
-                                    {selectedInfo?.category === 'stepfun_plan'
-                                        ? (t('plan.oasisTokenLabel') || 'Oasis-Token')
+                                    {isConsoleTokenPlan
+                                        ? (t('plan.consoleTokenLabel') || '控制台 Token')
                                         : (t('plan.apiKeyLabel') || 'API Key')}
                                 </label>
                                 <Input
                                     type="password"
-                                    placeholder={selectedInfo?.category === 'stepfun_plan'
-                                        ? (t('plan.oasisTokenPlaceholder') || '粘贴控制台 Cookie 中的 Oasis-Token 值')
+                                    placeholder={isConsoleTokenPlan
+                                        ? (selectedInfo?.category === 'sensenova_plan'
+                                            ? (t('plan.sensenovaTokenPlaceholder') || '粘贴控制台 Bearer Token 值')
+                                            : (t('plan.oasisTokenPlaceholder') || '粘贴控制台 Cookie 中的 Oasis-Token 值'))
                                         : (t('plan.apiKeyPlaceholder') || '请输入 API Key')}
                                     value={apiKey}
                                     onChange={(e) => setApiKey(e.target.value)}
                                 />
-                                {selectedInfo?.category === 'stepfun_plan' && (
+                                {isConsoleTokenPlan && (
                                     <p className="text-xs text-amber-500">
-                                        {t('plan.oasisTokenHint') || '需登录 platform.stepfun.com 控制台，从浏览器 Cookie 复制 Oasis-Token 值（格式：access...refresh）。该 Token 有效期约 30 分钟，过期后需重新获取。'}
+                                        {selectedInfo?.category === 'sensenova_plan'
+                                            ? (t('plan.sensenovaTokenHint') || '需登录 platform.sensenova.cn 控制台，从请求头复制 Bearer Token 值。有效期约 3 小时，过期后需重新获取。')
+                                            : (t('plan.oasisTokenHint') || '需登录 platform.stepfun.com 控制台，从浏览器 Cookie 复制 Oasis-Token 值（格式：access...refresh）。该 Token 有效期约 30 分钟，过期后需重新获取。')}
                                     </p>
                                 )}
                             </div>
-                            {isStepFunPlan && (
+                            {isConsoleTokenPlan && (
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">
                                         {t('plan.forwardApiKeyLabel') || 'API Key（可选）'}
@@ -229,7 +233,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                         onChange={(e) => setForwardApiKey(e.target.value)}
                                     />
                                     <p className="text-xs text-muted-foreground">
-                                        {t('plan.forwardApiKeyHint') || '填写后将自动创建或复用转发渠道（接入点 api.stepfun.com/step_plan/v1），模型相同的合并为同一渠道。留空则仅监控套餐额度。'}
+                                        {t('plan.forwardApiKeyHint') || '填写后将自动创建或复用转发渠道，模型相同的合并为同一渠道。留空则仅监控套餐额度。'}
                                     </p>
                                 </div>
                             )}

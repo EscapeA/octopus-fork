@@ -152,7 +152,10 @@
       "monitorOnly": "仅监控",
       "forwardApiKeyLabel": "API Key（可选）",
       "forwardApiKeyPlaceholder": "sk- 开头的 API Key，用于转发",
-      "forwardApiKeyHint": "填写后将自动创建或复用转发渠道（接入点 api.stepfun.com/step_plan/v1），模型相同的合并为同一渠道。留空则仅监控套餐额度。"
+      "forwardApiKeyHint": "填写后将自动创建或复用转发渠道，模型相同的合并为同一渠道。留空则仅监控套餐额度。",
+      "consoleTokenLabel": "控制台 Token",
+      "sensenovaTokenPlaceholder": "粘贴控制台 Bearer Token 值",
+      "sensenovaTokenHint": "需登录 platform.sensenova.cn 控制台，从请求头复制 Bearer Token 值。有效期约 3 小时，过期后需重新获取。"
     },
     "title": "远程站点",
     "addSite": "添加站点",

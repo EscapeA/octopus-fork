@@ -105,7 +105,7 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 	// 2. 渠道创建/复用
 	var channelID int
 	needCreateChannel := info.Type == model.PlanProviderTypeBalance ||
-		(category == model.PlanProviderStepFunPlan && forwardAPIKey != "")
+		(isConsoleTokenPlanCategory(category) && forwardAPIKey != "")
 	if needCreateChannel {
 		groupID, err := ensurePlanGroup(ctx)
 		if err != nil {
@@ -117,25 +117,24 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 			return nil, fmt.Errorf("ensure plan channel group: %w", err)
 		}
 
-		// 渠道名：balance 类用 info.Name，stepfun_plan 用专门的转发名
+		// 渠道接入点与凭据：balance 类用 info.BaseURL + apiKey；
+		// 控制台 token plan 类用各自的转发 API 地址 + forwardAPIKey。
+		channelBaseURL := info.BaseURL
+		channelModel := info.Models
+		channelKey := apiKey
 		channelName := fmt.Sprintf("[%s] %s", info.Name, name)
 		if customName != "" {
 			channelName = fmt.Sprintf("[%s] %s", info.Name, customName)
 		}
-
-		// 渠道接入点：balance 用 info.BaseURL，stepfun_plan 用 step_plan API 地址
-		channelBaseURL := info.BaseURL
-		channelModel := info.Models
-		channelKey := apiKey
-		if category == model.PlanProviderStepFunPlan {
-			channelBaseURL = stepFunPlanAPIBaseURL
+		if isConsoleTokenPlanCategory(category) {
+			channelBaseURL = planForwardAPIBaseURL(category)
 			channelKey = forwardAPIKey
-			// stepfun_plan 渠道名固定，便于复用查找
-			channelName = fmt.Sprintf("[StepFun Plan] %s", name)
+			channelName = fmt.Sprintf("[%s] %s", planForwardLabel(category), name)
 		}
 
-		// 查找可复用的已有渠道（同 category 的 plan provider 关联的、模型相同的渠道）
-		reuseChannelID := findReusableStepFunPlanChannel(ctx, channelModel)
+		// 查找可复用的已有渠道（同 category + 接入点 + 模型相同的渠道）
+		reuseChannelID := findReusablePlanChannel(ctx, category, channelBaseURL, channelModel)
+
 		if reuseChannelID > 0 {
 			// 复用：追加 key 到已有渠道
 			addReq := &model.ChannelUpdateRequest{
@@ -403,30 +402,62 @@ func addChannelToGroup(ctx context.Context, channelID int, modelList string, gro
 }
 
 // stepFunPlanAPIBaseURL 是 StepFun 套餐转发的 API 接入点。
-// 与控制台查询地址（platform.stepfun.com）不同，这是 OpenAI 兼容的转发端点。
 const stepFunPlanAPIBaseURL = "https://api.stepfun.com/step_plan/v1"
 
-// findReusableStepFunPlanChannel 查找可复用的 StepFun Plan 渠道。
-// 条件：已有同 category=stepfun_plan 的 PlanProvider 记录，且其关联渠道的模型列表相同，
-// 且渠道接入点为 stepFunPlanAPIBaseURL。返回渠道 ID，未找到返回 0。
-func findReusableStepFunPlanChannel(ctx context.Context, modelList string) int {
+// senseNovaPlanAPIBaseURL 是 SenseNova 套餐转发的 API 接入点。
+const senseNovaPlanAPIBaseURL = "https://token.sensenova.cn/v1"
+
+// isConsoleTokenPlanCategory 判断是否为"控制台 token plan"类厂商
+// （使用控制台会话 token 查套餐、可选 sk- key 创建转发渠道的厂商）。
+func isConsoleTokenPlanCategory(category model.PlanProviderCategory) bool {
+	return category == model.PlanProviderStepFunPlan || category == model.PlanProviderSenseNovaPlan
+}
+
+// planForwardAPIBaseURL 返回控制台 token plan 类厂商的转发 API 接入点。
+func planForwardAPIBaseURL(category model.PlanProviderCategory) string {
+	switch category {
+	case model.PlanProviderStepFunPlan:
+		return stepFunPlanAPIBaseURL
+	case model.PlanProviderSenseNovaPlan:
+		return senseNovaPlanAPIBaseURL
+	default:
+		return ""
+	}
+}
+
+// planForwardLabel 返回控制台 token plan 类厂商的渠道名前缀标签。
+func planForwardLabel(category model.PlanProviderCategory) string {
+	switch category {
+	case model.PlanProviderStepFunPlan:
+		return "StepFun Plan"
+	case model.PlanProviderSenseNovaPlan:
+		return "SenseNova Plan"
+	default:
+		return "Plan"
+	}
+}
+
+// findReusablePlanChannel 查找可复用的 Plan 渠道。
+// 条件：已有同 category 的 PlanProvider 记录，且其关联渠道的接入点和模型列表均相同。
+// 返回渠道 ID，未找到返回 0。
+func findReusablePlanChannel(ctx context.Context, category model.PlanProviderCategory, baseURL, modelList string) int {
 	var providers []model.PlanProvider
 	if err := db.GetDB().WithContext(ctx).
-		Where("category = ? AND channel_id > 0", model.PlanProviderStepFunPlan).
+		Where("category = ? AND channel_id > 0", category).
 		Find(&providers).Error; err != nil {
 		return 0
 	}
+	normalizedBaseURL := strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	for _, p := range providers {
 		ch, err := op.ChannelGet(p.ChannelID, ctx)
 		if err != nil || ch == nil {
 			continue
 		}
-		// 接入点匹配 step_plan
 		if len(ch.BaseUrls) == 0 {
 			continue
 		}
-		baseURL := strings.TrimRight(strings.TrimSpace(ch.BaseUrls[0].URL), "/")
-		if baseURL != stepFunPlanAPIBaseURL {
+		chBaseURL := strings.TrimRight(strings.TrimSpace(ch.BaseUrls[0].URL), "/")
+		if chBaseURL != normalizedBaseURL {
 			continue
 		}
 		// 模型列表相同则复用（模型相同的合并）
