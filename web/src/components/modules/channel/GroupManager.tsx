@@ -175,7 +175,7 @@ export function ChannelGroupManagerPanel({
                 </div>
             ) : null}
 
-            <div className="mt-4 max-h-64 space-y-2 overflow-y-auto pr-1 md:max-h-72">
+            <div className="mt-4 max-h-[55vh] space-y-2 overflow-y-auto pr-1 md:max-h-[65vh]">
                 {isLoading ? (
                     <div className="rounded-lg border border-dashed border-border/30 bg-card p-4 text-sm text-muted-foreground">
                         {t('loading')}
@@ -360,7 +360,7 @@ export function ChannelGroupManagerDialog({ className }: { className?: string })
                 </span>
             </MorphingDialogTrigger>
             <MorphingDialogContainer>
-                <MorphingDialogContent className="w-[min(100vw-1rem,42rem)] max-w-full rounded-xl border border-border bg-card p-3 text-card-foreground shadow-lg md:w-[min(100vw-3rem,48rem)] md:p-4">
+                <MorphingDialogContent className="w-[min(100vw-2rem,42rem)] max-w-full rounded-xl border border-border bg-card p-3 text-card-foreground shadow-lg md:w-[min(100vw-3rem,64rem)] md:p-4">
                     <MorphingDialogClose />
                     <MorphingDialogDescription
                         disableLayoutAnimation
