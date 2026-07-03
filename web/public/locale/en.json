@@ -145,7 +145,14 @@
       "getKey": "Get Key",
       "apiKeyLabel": "API Key",
       "querying": "Querying...",
-      "loading": "Loading..."
+      "loading": "Loading...",
+      "oasisTokenLabel": "Oasis-Token",
+      "oasisTokenPlaceholder": "Paste Oasis-Token from console browser cookie",
+      "oasisTokenHint": "Log in to platform.stepfun.com console, copy the Oasis-Token value from browser cookies (format: access...refresh). The token is valid for ~30 minutes; re-obtain after expiry.",
+      "monitorOnly": "Monitor Only",
+      "forwardApiKeyLabel": "API Key (Optional)",
+      "forwardApiKeyPlaceholder": "sk- API Key for forwarding",
+      "forwardApiKeyHint": "When provided, a forwarding channel will be created or reused (endpoint api.stepfun.com/step_plan/v1). Channels with the same models are merged. Leave empty to monitor quota only."
     },
     "title": "Remote Sites",
     "addSite": "Add Site",

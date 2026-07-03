@@ -97,7 +97,10 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
     const [addOpen, setAddOpen] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState('');
     const [apiKey, setApiKey] = useState('');
+    const [forwardApiKey, setForwardApiKey] = useState('');
     const [customName, setCustomName] = useState('');
+
+    const isStepFunPlan = selectedCategory === 'stepfun_plan';
 
     const handleAdd = useCallback(async () => {
         if (!selectedCategory || !apiKey.trim()) return;
@@ -105,18 +108,20 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
             await addMutation.mutateAsync({
                 category: selectedCategory,
                 api_key: apiKey.trim(),
+                forward_api_key: isStepFunPlan && forwardApiKey.trim() ? forwardApiKey.trim() : undefined,
                 name: customName.trim() || undefined,
             });
             toast.success('已添加');
             setAddOpen(false);
             setSelectedCategory('');
             setApiKey('');
+            setForwardApiKey('');
             setCustomName('');
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : '添加失败';
             toast.error(msg);
         }
-    }, [selectedCategory, apiKey, customName, addMutation]);
+    }, [selectedCategory, apiKey, forwardApiKey, isStepFunPlan, customName, addMutation]);
 
     const handleRefresh = useCallback(async (id: number) => {
         try {
@@ -193,14 +198,41 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">{t('plan.apiKeyLabel') || 'API Key'}</label>
+                                <label className="text-sm font-medium">
+                                    {selectedInfo?.category === 'stepfun_plan'
+                                        ? (t('plan.oasisTokenLabel') || 'Oasis-Token')
+                                        : (t('plan.apiKeyLabel') || 'API Key')}
+                                </label>
                                 <Input
                                     type="password"
-                                    placeholder={t('plan.apiKeyPlaceholder') || '请输入 API Key'}
+                                    placeholder={selectedInfo?.category === 'stepfun_plan'
+                                        ? (t('plan.oasisTokenPlaceholder') || '粘贴控制台 Cookie 中的 Oasis-Token 值')
+                                        : (t('plan.apiKeyPlaceholder') || '请输入 API Key')}
                                     value={apiKey}
                                     onChange={(e) => setApiKey(e.target.value)}
                                 />
+                                {selectedInfo?.category === 'stepfun_plan' && (
+                                    <p className="text-xs text-amber-500">
+                                        {t('plan.oasisTokenHint') || '需登录 platform.stepfun.com 控制台，从浏览器 Cookie 复制 Oasis-Token 值（格式：access...refresh）。该 Token 有效期约 30 分钟，过期后需重新获取。'}
+                                    </p>
+                                )}
                             </div>
+                            {isStepFunPlan && (
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">
+                                        {t('plan.forwardApiKeyLabel') || 'API Key（可选）'}
+                                    </label>
+                                    <Input
+                                        type="password"
+                                        placeholder={t('plan.forwardApiKeyPlaceholder') || 'sk- 开头的 API Key，用于转发'}
+                                        value={forwardApiKey}
+                                        onChange={(e) => setForwardApiKey(e.target.value)}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        {t('plan.forwardApiKeyHint') || '填写后将自动创建或复用转发渠道（接入点 api.stepfun.com/step_plan/v1），模型相同的合并为同一渠道。留空则仅监控套餐额度。'}
+                                    </p>
+                                </div>
+                            )}
 
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">{t('plan.customName') || '自定义名称（可选）'}</label>
@@ -322,7 +354,7 @@ function ProviderCard({
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                         <p className="text-xs text-muted-foreground truncate">
-                            {provider.channel_name || `渠道 #${provider.channel_id}`}
+                            {provider.channel_name || (provider.channel_id > 0 ? `渠道 #${provider.channel_id}` : (t('plan.monitorOnly') || '仅监控'))}
                         </p>
                         {provider.last_refresh && (
                             <span className="text-xs text-muted-foreground shrink-0">

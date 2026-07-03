@@ -17,6 +17,7 @@ export interface PlanProvider {
     category: string;
     provider_type: 'balance' | 'tokenplan';
     api_key: string;
+    forward_api_key: string;
     base_url: string;
     channel_id: number;
     balance: number;
@@ -71,7 +72,7 @@ export function useTokenPlanCategories() {
 export function useAddPlanProvider() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (data: { category: string; api_key: string; name?: string }) =>
+        mutationFn: (data: { category: string; api_key: string; forward_api_key?: string; name?: string }) =>
             apiClient.post('/api/v1/plan-provider/add', data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['plan-provider'] });

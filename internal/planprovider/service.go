@@ -47,8 +47,13 @@ func ListProviders(ctx context.Context, providerType model.PlanProviderType) ([]
 	return result, nil
 }
 
-// AddProvider 添加 Plan Provider：查询余额 → 创建 Channel → 加入 Plan 分组
-func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKey, customName string) (*model.PlanProvider, error) {
+// AddProvider 添加 Plan Provider：查询额度 → （可选）创建/复用 Channel → 加入 Plan 分组
+//
+// apiKey 是主凭据（balance 类厂商的 sk- key，或 stepfun_plan 的 Oasis-Token）。
+// forwardAPIKey 仅 stepfun_plan 使用：可选的 sk- API Key，用于转发。
+//   - 填了：创建或复用接入点 api.stepfun.com/step_plan/v1 的渠道，key 追加到模型相同的已有渠道。
+//   - 不填：仅监控套餐额度，不创建渠道。
+func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKey, forwardAPIKey, customName string) (*model.PlanProvider, error) {
 	info := getCategoryInfo(category)
 	if info == nil {
 		return nil, fmt.Errorf("unknown plan provider category: %s", category)
@@ -58,6 +63,8 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 	if apiKey == "" {
 		return nil, fmt.Errorf("API key is required")
 	}
+
+	forwardAPIKey = strings.TrimSpace(forwardAPIKey)
 
 	name := customName
 	if name == "" {
@@ -95,66 +102,100 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 		}
 	}
 
-	// 2. 确保 Plan 路由分组存在
-	groupID, err := ensurePlanGroup(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("ensure plan group: %w", err)
-	}
-
-	// 2.1 确保 Plan 渠道分组存在（用于渠道页面的分组归属）
-	channelGroupID, err := ensurePlanChannelGroup(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("ensure plan channel group: %w", err)
-	}
-
-	// 3. 创建 Channel
-	channelName := fmt.Sprintf("[%s] %s", info.Name, name)
-	if customName != "" {
-		channelName = fmt.Sprintf("[%s] %s", info.Name, customName)
-	}
-
-	channel := &model.Channel{
-		Name:    channelName,
-		GroupID: channelGroupID,
-		Type:    outbound.OutboundTypeOpenAIChat,
-		Enabled: true,
-		BaseUrls: []model.BaseUrl{
-			{URL: info.BaseURL, Delay: 0},
-		},
-		Keys: []model.ChannelKey{
-			{Enabled: true, ChannelKey: apiKey},
-		},
-		Model:     info.Models,
-		AutoSync:  false,
-		AutoGroup: model.AutoGroupTypeNone,
-	}
-	if err := op.ChannelCreate(channel, ctx); err != nil {
-		return nil, fmt.Errorf("create channel: %w", err)
-	}
-
-	// 4. 加入 Plan 分组（失败则补偿删除刚创建的 channel，避免孤儿）
-	if err := addChannelToGroup(ctx, channel.ID, channel.Model, groupID); err != nil {
-		if delErr := op.ChannelDel(channel.ID, ctx); delErr != nil {
-			log.Warnf("planprovider: compensate delete channel %d after addChannelToGroup failed: %v", channel.ID, delErr)
+	// 2. 渠道创建/复用
+	var channelID int
+	needCreateChannel := info.Type == model.PlanProviderTypeBalance ||
+		(category == model.PlanProviderStepFunPlan && forwardAPIKey != "")
+	if needCreateChannel {
+		groupID, err := ensurePlanGroup(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("ensure plan group: %w", err)
 		}
-		return nil, fmt.Errorf("add channel to plan group: %w", err)
+
+		channelGroupID, err := ensurePlanChannelGroup(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("ensure plan channel group: %w", err)
+		}
+
+		// 渠道名：balance 类用 info.Name，stepfun_plan 用专门的转发名
+		channelName := fmt.Sprintf("[%s] %s", info.Name, name)
+		if customName != "" {
+			channelName = fmt.Sprintf("[%s] %s", info.Name, customName)
+		}
+
+		// 渠道接入点：balance 用 info.BaseURL，stepfun_plan 用 step_plan API 地址
+		channelBaseURL := info.BaseURL
+		channelModel := info.Models
+		channelKey := apiKey
+		if category == model.PlanProviderStepFunPlan {
+			channelBaseURL = stepFunPlanAPIBaseURL
+			channelKey = forwardAPIKey
+			// stepfun_plan 渠道名固定，便于复用查找
+			channelName = fmt.Sprintf("[StepFun Plan] %s", name)
+		}
+
+		// 查找可复用的已有渠道（同 category 的 plan provider 关联的、模型相同的渠道）
+		reuseChannelID := findReusableStepFunPlanChannel(ctx, channelModel)
+		if reuseChannelID > 0 {
+			// 复用：追加 key 到已有渠道
+			addReq := &model.ChannelUpdateRequest{
+				ID: reuseChannelID,
+				KeysToAdd: []model.ChannelKeyAddRequest{
+					{Enabled: true, ChannelKey: channelKey},
+				},
+			}
+			if _, err := op.ChannelUpdate(addReq, ctx); err != nil {
+				return nil, fmt.Errorf("reuse channel add key: %w", err)
+			}
+			channelID = reuseChannelID
+		} else {
+			// 新建渠道
+			channel := &model.Channel{
+				Name:    channelName,
+				GroupID: channelGroupID,
+				Type:    outbound.OutboundTypeOpenAIChat,
+				Enabled: true,
+				BaseUrls: []model.BaseUrl{
+					{URL: channelBaseURL, Delay: 0},
+				},
+				Keys: []model.ChannelKey{
+					{Enabled: true, ChannelKey: channelKey},
+				},
+				Model:     channelModel,
+				AutoSync:  false,
+				AutoGroup: model.AutoGroupTypeNone,
+			}
+			if err := op.ChannelCreate(channel, ctx); err != nil {
+				return nil, fmt.Errorf("create channel: %w", err)
+			}
+
+			// 加入 Plan 分组（失败则补偿删除刚创建的 channel）
+			if err := addChannelToGroup(ctx, channel.ID, channel.Model, groupID); err != nil {
+				if delErr := op.ChannelDel(channel.ID, ctx); delErr != nil {
+					log.Warnf("planprovider: compensate delete channel %d after addChannelToGroup failed: %v", channel.ID, delErr)
+				}
+				return nil, fmt.Errorf("add channel to plan group: %w", err)
+			}
+			channelID = channel.ID
+		}
 	}
 
-	// 5. 持久化 PlanProvider（失败则补偿删除 channel + group items）
+	// 3. 持久化 PlanProvider
 	now := time.Now()
 	provider := &model.PlanProvider{
-		Name:         name,
-		Category:     category,
-		ProviderType: info.Type,
-		APIKey:       apiKey,
-		BaseURL:      info.BaseURL,
-		ChannelID:    channel.ID,
-		Balance:      balance,
-		BalanceUsed:  balanceUsed,
-		QuotaTotal:   quotaTotal,
-		QuotaUsed:    quotaUsed,
-		WeeklyTotal:  weeklyTotal,
-		WeeklyUsed:   weeklyUsed,
+		Name:          name,
+		Category:      category,
+		ProviderType:  info.Type,
+		APIKey:        apiKey,
+		ForwardAPIKey: forwardAPIKey,
+		BaseURL:       info.BaseURL,
+		ChannelID:     channelID,
+		Balance:       balance,
+		BalanceUsed:   balanceUsed,
+		QuotaTotal:    quotaTotal,
+		QuotaUsed:     quotaUsed,
+		WeeklyTotal:   weeklyTotal,
+		WeeklyUsed:    weeklyUsed,
 	}
 
 	if quotaResetAt != nil {
@@ -173,9 +214,14 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 	provider.UpdatedAt = now
 
 	if err := db.GetDB().WithContext(ctx).Create(provider).Error; err != nil {
-		// 补偿：provider 落盘失败，回滚已创建的 channel（含 group items / channel keys / stats）
-		if delErr := op.ChannelDel(channel.ID, ctx); delErr != nil {
-			log.Warnf("planprovider: compensate delete channel %d after provider create failed: %v", channel.ID, delErr)
+		// 补偿：provider 落盘失败，回滚已创建的 channel（仅新建的，复用的不删）
+		if channelID > 0 && needCreateChannel {
+			// 只在新建渠道时补偿；复用渠道追加的 key 留在渠道上（无害，用户可手动清理）
+			if !isReusedChannel(ctx, channelID) {
+				if delErr := op.ChannelDel(channelID, ctx); delErr != nil {
+					log.Warnf("planprovider: compensate delete channel %d after provider create failed: %v", channelID, delErr)
+				}
+			}
 		}
 		return nil, fmt.Errorf("create plan provider record: %w", err)
 	}
@@ -354,4 +400,75 @@ func addChannelToGroup(ctx context.Context, channelID int, modelList string, gro
 		return fmt.Errorf("refresh group cache: %w", err)
 	}
 	return nil
+}
+
+// stepFunPlanAPIBaseURL 是 StepFun 套餐转发的 API 接入点。
+// 与控制台查询地址（platform.stepfun.com）不同，这是 OpenAI 兼容的转发端点。
+const stepFunPlanAPIBaseURL = "https://api.stepfun.com/step_plan/v1"
+
+// findReusableStepFunPlanChannel 查找可复用的 StepFun Plan 渠道。
+// 条件：已有同 category=stepfun_plan 的 PlanProvider 记录，且其关联渠道的模型列表相同，
+// 且渠道接入点为 stepFunPlanAPIBaseURL。返回渠道 ID，未找到返回 0。
+func findReusableStepFunPlanChannel(ctx context.Context, modelList string) int {
+	var providers []model.PlanProvider
+	if err := db.GetDB().WithContext(ctx).
+		Where("category = ? AND channel_id > 0", model.PlanProviderStepFunPlan).
+		Find(&providers).Error; err != nil {
+		return 0
+	}
+	for _, p := range providers {
+		ch, err := op.ChannelGet(p.ChannelID, ctx)
+		if err != nil || ch == nil {
+			continue
+		}
+		// 接入点匹配 step_plan
+		if len(ch.BaseUrls) == 0 {
+			continue
+		}
+		baseURL := strings.TrimRight(strings.TrimSpace(ch.BaseUrls[0].URL), "/")
+		if baseURL != stepFunPlanAPIBaseURL {
+			continue
+		}
+		// 模型列表相同则复用（模型相同的合并）
+		if normalizeModelList(ch.Model) == normalizeModelList(modelList) {
+			return ch.ID
+		}
+	}
+	return 0
+}
+
+// isReusedChannel 判断渠道是否是已有 provider 关联的复用渠道（非本次新建）。
+// 通过查 PlanProvider 表看是否有其他 provider 也指向该渠道。
+func isReusedChannel(ctx context.Context, channelID int) bool {
+	var count int64
+	db.GetDB().WithContext(ctx).Model(&model.PlanProvider{}).
+		Where("channel_id = ?", channelID).Count(&count)
+	return count > 0
+}
+
+// normalizeModelList 规范化模型列表用于比较：去空格、去重、排序后拼接。
+func normalizeModelList(modelList string) string {
+	parts := strings.Split(modelList, ",")
+	seen := make(map[string]struct{})
+	var result []string
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		if _, ok := seen[p]; ok {
+			continue
+		}
+		seen[p] = struct{}{}
+		result = append(result, p)
+	}
+	// 排序保证顺序无关
+	for i := 0; i < len(result); i++ {
+		for j := i + 1; j < len(result); j++ {
+			if result[i] > result[j] {
+				result[i], result[j] = result[j], result[i]
+			}
+		}
+	}
+	return strings.Join(result, ",")
 }

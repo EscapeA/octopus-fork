@@ -145,7 +145,14 @@
       "getKey": "获取 Key",
       "apiKeyLabel": "API Key",
       "querying": "查询中...",
-      "loading": "正在加载..."
+      "loading": "正在加载...",
+      "oasisTokenLabel": "Oasis-Token",
+      "oasisTokenPlaceholder": "粘贴控制台 Cookie 中的 Oasis-Token 值",
+      "oasisTokenHint": "需登录 platform.stepfun.com 控制台，从浏览器 Cookie 复制 Oasis-Token 值（格式：access...refresh）。该 Token 有效期约 30 分钟，过期后需重新获取。",
+      "monitorOnly": "仅监控",
+      "forwardApiKeyLabel": "API Key（可选）",
+      "forwardApiKeyPlaceholder": "sk- 开头的 API Key，用于转发",
+      "forwardApiKeyHint": "填写后将自动创建或复用转发渠道（接入点 api.stepfun.com/step_plan/v1），模型相同的合并为同一渠道。留空则仅监控套餐额度。"
     },
     "title": "远程站点",
     "addSite": "添加站点",

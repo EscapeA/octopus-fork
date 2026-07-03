@@ -61,9 +61,10 @@ func getTokenPlanCategories(c *gin.Context) {
 }
 
 type addPlanProviderRequest struct {
-	Category model.PlanProviderCategory `json:"category" binding:"required"`
-	APIKey   string                     `json:"api_key" binding:"required"`
-	Name     string                     `json:"name"`
+	Category      model.PlanProviderCategory `json:"category" binding:"required"`
+	APIKey        string                     `json:"api_key"`
+	ForwardAPIKey string                     `json:"forward_api_key,omitempty"`
+	Name          string                     `json:"name"`
 }
 
 func addPlanProvider(c *gin.Context) {
@@ -73,7 +74,7 @@ func addPlanProvider(c *gin.Context) {
 		return
 	}
 
-	provider, err := planprovider.AddProvider(c.Request.Context(), req.Category, req.APIKey, req.Name)
+	provider, err := planprovider.AddProvider(c.Request.Context(), req.Category, req.APIKey, req.ForwardAPIKey, req.Name)
 	if err != nil {
 		resp.Error(c, http.StatusInternalServerError, err.Error())
 		return

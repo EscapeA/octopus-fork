@@ -25,8 +25,9 @@ const (
 	PlanProviderOpenAI      PlanProviderCategory = "openai"
 
 	// TokenPlan 类厂商
-	PlanProviderMiniMax PlanProviderCategory = "minimax"
-	PlanProviderZhipu   PlanProviderCategory = "zhipu"
+	PlanProviderMiniMax     PlanProviderCategory = "minimax"
+	PlanProviderZhipu       PlanProviderCategory = "zhipu"
+	PlanProviderStepFunPlan PlanProviderCategory = "stepfun_plan"
 )
 
 // PlanProviderCategoryInfo 厂商元信息（非 DB 字段）
@@ -132,19 +133,29 @@ var PlanProviderCategories = []PlanProviderCategoryInfo{
 		Description: "智谱 GLM Coding Plan 套餐用量查询（含日/月/季/年额度）",
 		HelpURL:     "https://open.bigmodel.cn/usercenter/apikeys",
 	},
+	{
+		Category:    PlanProviderStepFunPlan,
+		Name:        "StepFun 套餐 (阶跃星辰)",
+		Type:        PlanProviderTypeTokenPlan,
+		BaseURL:     "https://platform.stepfun.com",
+		Models:      "step-3.7-flash,step-3.7,step-3.7-pro",
+		Description: "StepFun 套餐额度查询（Oasis-Token 必填，约 30 分钟有效期）。可选填 API Key 自动创建/复用转发渠道（接入点 api.stepfun.com/step_plan/v1）",
+		HelpURL:     "https://platform.stepfun.com/plan-subscribe",
+	},
 }
 
 // PlanProvider 持久化的 Plan Provider 记录
 type PlanProvider struct {
-	ID           int                  `json:"id" gorm:"primaryKey"`
-	Name         string               `json:"name" gorm:"not null"`
-	Category     PlanProviderCategory `json:"category" gorm:"type:varchar(32);not null;index"`
-	ProviderType PlanProviderType     `json:"provider_type" gorm:"type:varchar(16);not null;default:'balance'"`
-	APIKey       string               `json:"api_key" gorm:"not null"`
-	BaseURL      string               `json:"base_url" gorm:"not null"`
-	ChannelID    int                  `json:"channel_id" gorm:"not null;default:0;index"`
-	Balance      float64              `json:"balance" gorm:"default:0"`
-	BalanceUsed  float64              `json:"balance_used" gorm:"default:0"`
+	ID            int                  `json:"id" gorm:"primaryKey"`
+	Name          string               `json:"name" gorm:"not null"`
+	Category      PlanProviderCategory `json:"category" gorm:"type:varchar(32);not null;index"`
+	ProviderType  PlanProviderType     `json:"provider_type" gorm:"type:varchar(16);not null;default:'balance'"`
+	APIKey        string               `json:"api_key" gorm:"not null"`
+	ForwardAPIKey string               `json:"forward_api_key" gorm:"default:''"`
+	BaseURL       string               `json:"base_url" gorm:"not null"`
+	ChannelID     int                  `json:"channel_id" gorm:"not null;default:0;index"`
+	Balance       float64              `json:"balance" gorm:"default:0"`
+	BalanceUsed   float64              `json:"balance_used" gorm:"default:0"`
 	// TokenPlan 专用
 	QuotaTotal    float64    `json:"quota_total" gorm:"default:0"`
 	QuotaUsed     float64    `json:"quota_used" gorm:"default:0"`

@@ -2,6 +2,7 @@ package planprovider
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -70,6 +71,8 @@ func QueryTokenPlan(ctx context.Context, category model.PlanProviderCategory, ap
 	switch category {
 	case model.PlanProviderMiniMax:
 		return queryMiniMaxTokenPlan(ctx, apiKey)
+	case model.PlanProviderStepFunPlan:
+		return queryStepFunPlanTokenPlan(ctx, apiKey)
 	case model.PlanProviderZhipu:
 		return queryZhipuTokenPlan(ctx, apiKey)
 	default:
@@ -353,6 +356,145 @@ func queryStepFunBalance(ctx context.Context, apiKey string) (*BalanceResult, er
 	}
 
 	return &BalanceResult{Balance: resp.Balance, BalanceUsed: 0, Currency: "CNY"}, nil
+}
+
+// stepFunPlanURL 是 StepFun 控制台套餐用量查询端点。
+// 提取为包级变量以便测试覆盖（httptest mock server）。
+var stepFunPlanURL = "https://platform.stepfun.com/api/step.openapi.devcenter.Dashboard/QueryStepPlanRateLimit"
+
+// --- StepFun Plan 套餐用量（控制台 Oasis-Token 鉴权）---
+//
+// StepFun 控制台的套餐用量查询与 OpenAI 兼容 API 完全不同：
+//   - 域名：platform.stepfun.com（控制台），非 api.stepfun.ai（API）
+//   - 凭据：Oasis-Token（access_jwt...refresh_jwt 格式），非 sk- API key
+//   - 鉴权：Cookie + oasis-appid header，非 Bearer auth
+//   - access token 仅约 30 分钟有效，过期后查询失败需用户重新获取
+//
+// Oasis-Webid（device_id）从 refresh token payload 自动解码，用户只需填 Oasis-Token。
+func queryStepFunPlanTokenPlan(ctx context.Context, oasisToken string) (*TokenPlanResult, error) {
+	if oasisToken == "" {
+		return nil, fmt.Errorf("stepfun_plan: oasis token is required")
+	}
+
+	// 从 refresh token（Oasis-Token 的 ... 后半段）解码 device_id 作为 Oasis-Webid
+	webid := decodeStepFunWebID(oasisToken)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, stepFunPlanURL, strings.NewReader("{}"))
+	if err != nil {
+		return nil, fmt.Errorf("stepfun_plan: create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Connect-Protocol-Version", "1")
+	req.Header.Set("Cookie", "Oasis-Token="+oasisToken+"; Oasis-Webid="+webid)
+	req.Header.Set("oasis-appid", "10300")
+	req.Header.Set("oasis-platform", "web")
+	req.Header.Set("oasis-webid", webid)
+	req.Header.Set("Origin", "https://platform.stepfun.com")
+	req.Header.Set("Referer", "https://platform.stepfun.com/plan-subscribe")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36")
+
+	client := &http.Client{Timeout: requestTimeout}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("stepfun_plan: http request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("stepfun_plan: read body: %w", err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		// 解析 Connect 错误信息，给出友好提示
+		var errResp struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		}
+		_ = json.Unmarshal(body, &errResp)
+		msg := errResp.Message
+		if msg == "" {
+			msg = fmt.Sprintf("http status %d", resp.StatusCode)
+		}
+		// access token 过期或被判盗用时返回 401
+		if resp.StatusCode == 401 {
+			return nil, fmt.Errorf("stepfun_plan: 鉴权失败（%s），Oasis-Token 可能已过期，请重新获取", msg)
+		}
+		return nil, fmt.Errorf("stepfun_plan: %s", msg)
+	}
+
+	var data struct {
+		Status              int    `json:"status"`
+		Desc                string `json:"desc"`
+		PlanFamily          int    `json:"plan_family"`
+		PlanCreditRateLimit struct {
+			SubscriptionCreditLeftRate  float64 `json:"subscription_credit_left_rate"`
+			SubscriptionCreditResetTime string  `json:"subscription_credit_reset_time"`
+			CreditBuckets               []struct {
+				Type           int    `json:"type"`
+				CreditTotal    string `json:"credit_total"`
+				CreditResidual string `json:"credit_residual"`
+				ExpireAt       string `json:"expire_at"`
+				NextResetAt    string `json:"next_reset_at"`
+			} `json:"credit_buckets"`
+		} `json:"plan_credit_rate_limit"`
+	}
+	if err := json.Unmarshal(body, &data); err != nil {
+		return nil, fmt.Errorf("stepfun_plan: parse response: %w", err)
+	}
+
+	result := &TokenPlanResult{}
+	// 取第一个 credit bucket 作为主配额
+	if len(data.PlanCreditRateLimit.CreditBuckets) > 0 {
+		bucket := data.PlanCreditRateLimit.CreditBuckets[0]
+		total := parseFloat(bucket.CreditTotal)
+		residual := parseFloat(bucket.CreditResidual)
+		result.QuotaTotal = total
+		result.QuotaUsed = max(0, total-residual)
+
+		// next_reset_at 是 Unix 时间戳字符串
+		if bucket.NextResetAt != "" {
+			if ts, err := strconv.ParseInt(bucket.NextResetAt, 10, 64); err == nil && ts > 0 {
+				t := time.Unix(ts, 0)
+				result.QuotaResetAt = &t
+			}
+		}
+	}
+	return result, nil
+}
+
+// decodeStepFunWebID 从 Oasis-Token 中解码 refresh token 的 device_id 字段作为 Oasis-Webid。
+// Oasis-Token 格式为 "access_jwt...refresh_jwt"，取 ... 后半段解码 payload。
+// 解码失败返回空字符串（服务端会接受空 webid 的请求，或返回明确鉴权错误）。
+func decodeStepFunWebID(oasisToken string) string {
+	// 分割 access...refresh
+	idx := strings.Index(oasisToken, "...")
+	if idx < 0 {
+		return ""
+	}
+	refresh := oasisToken[idx+3:]
+	// JWT 格式 header.payload.signature，取 payload
+	parts := strings.Split(refresh, ".")
+	if len(parts) < 2 {
+		return ""
+	}
+	payload := parts[1]
+	// base64url 解码
+	decoded, err := base64.URLEncoding.DecodeString(payload)
+	if err != nil {
+		// 尝试不带 padding 的 base64url
+		decoded, err = base64.RawURLEncoding.DecodeString(payload)
+		if err != nil {
+			return ""
+		}
+	}
+	var claims struct {
+		DeviceID string `json:"device_id"`
+	}
+	if err := json.Unmarshal(decoded, &claims); err != nil {
+		return ""
+	}
+	return claims.DeviceID
 }
 
 // --- 302.ai ---
