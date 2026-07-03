@@ -2009,6 +2009,17 @@
       "minimumVisibleError": "最少需要保留 {count} 个页面",
       "toggleAriaLabel": "切换页面显示状态：{page}"
     },
+    "subTab": {
+      "title": "子标签顺序与显示",
+      "description": "拖拽调整站点管理、分析中心、运维中心的子标签顺序，可隐藏不需要的子标签。",
+      "hub": "站点管理",
+      "analytics": "分析中心",
+      "ops": "运维中心",
+      "reset": "恢复默认",
+      "resetSuccess": "子标签顺序已恢复默认",
+      "minimumVisibleHint": "每个模块最少保留 {count} 个子标签。",
+      "minimumVisibleError": "每个模块最少需要保留 {count} 个子标签"
+    },
     "settingOrder": {
       "title": "设置项排序",
       "description": "拖拽调整设置页面各选项的排列顺序，松手后立即保存。",

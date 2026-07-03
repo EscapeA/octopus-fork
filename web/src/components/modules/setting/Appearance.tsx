@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { SettingOrder } from './SettingOrder';
 import { useTranslations } from 'next-intl';
-import { Bell, Clock3, GripVertical, Languages, ListOrdered, Monitor, Moon, RotateCcw, Sun, Landmark } from 'lucide-react';
+import { Bell, Clock3, GripVertical, Layers, Languages, ListOrdered, Monitor, Moon, RotateCcw, Sun, Landmark } from 'lucide-react';
 import {
     DragDropContext,
     Draggable,
@@ -24,6 +24,21 @@ import {
     useNavStore,
     type NavItem,
 } from '@/components/modules/navbar';
+import {
+    DEFAULT_HUB_TABS,
+    DEFAULT_ANALYTICS_TABS,
+    DEFAULT_OPS_TABS,
+    DEFAULT_SUB_TABS,
+    MIN_VISIBLE_SUB_TABS,
+    serializeSubTabOrder,
+    serializeSubTabVisible,
+    useSubTabStore,
+    type ModuleId,
+    type SubTab,
+    type HubTab,
+    type AnalyticsTab,
+    type OpsTab,
+} from '@/components/modules/navbar/sub-tab-store';
 import { serializeNavOrder, serializeNavVisible } from '@/components/modules/navbar';
 import { useSettingStore, type Locale } from '@/stores/setting';
 import { SettingKey, useSetSetting, useSettingList } from '@/api/endpoints/setting';
@@ -226,6 +241,7 @@ function NavigationPreferences() {
                                         </Draggable>
                                     );
                                 })}
+
                                 {droppableProvided.placeholder}
                             </div>
                         )}
@@ -235,6 +251,173 @@ function NavigationPreferences() {
 
             <p className="text-xs leading-5 text-muted-foreground">
                 {t('navOrder.minimumVisibleHint', { count: MIN_VISIBLE_NAV_ITEMS })}
+            </p>
+        </div>
+    );
+}
+
+const HUB_TAB_LABEL_KEY: Record<HubTab, string> = {
+    sites: 'tabs.sites',
+    'site-channels': 'tabs.siteChannels',
+    automation: 'tabs.automation',
+    balance: 'plan.balance',
+    tokenplan: 'plan.tokenPlan',
+};
+
+const ANALYTICS_TAB_LABEL: Record<AnalyticsTab, { ns: 'analytics' | 'ops'; key: string }> = {
+    cache: { ns: 'ops', key: 'tabs.cache' },
+    utilization: { ns: 'analytics', key: 'cards.utilization.title' },
+    'route-health': { ns: 'analytics', key: 'cards.routeHealth.title' },
+    'channel-model': { ns: 'analytics', key: 'cards.channelModel.title' },
+    evaluation: { ns: 'analytics', key: 'evaluation.title' },
+    latency: { ns: 'analytics', key: 'latency.title' },
+};
+
+const OPS_TAB_LABEL_KEY: Record<OpsTab, string> = {
+    telemetry: 'tabs.telemetry',
+    quota: 'tabs.quota',
+    health: 'tabs.health',
+    maintenance: 'tabs.maintenance',
+    system: 'tabs.system',
+    audit: 'tabs.audit',
+};
+
+function SubTabPreferences() {
+    const t = useTranslations('setting');
+    const hubT = useTranslations('hub');
+    const analyticsT = useTranslations('analytics');
+    const opsT = useTranslations('ops');
+    const setSetting = useSetSetting();
+
+    const hubTabs = useSubTabStore((s) => s.hub);
+    const analyticsTabs = useSubTabStore((s) => s.analytics);
+    const opsTabs = useSubTabStore((s) => s.ops);
+    const setOrderedTabs = useSubTabStore((s) => s.setOrderedTabs);
+    const setTabVisible = useSubTabStore((s) => s.setTabVisible);
+    const resetModule = useSubTabStore((s) => s.resetModule);
+
+    const MODULES = [
+        { id: 'hub' as ModuleId, label: t('subTab.hub'), state: hubTabs, tabs: DEFAULT_HUB_TABS, getLabel: (tab: string) => hubT(HUB_TAB_LABEL_KEY[tab as HubTab] ?? tab) },
+        { id: 'analytics' as ModuleId, label: t('subTab.analytics'), state: analyticsTabs, tabs: DEFAULT_ANALYTICS_TABS, getLabel: (tab: string) => {
+            const label = ANALYTICS_TAB_LABEL[tab as AnalyticsTab];
+            if (!label) return tab;
+            return label.ns === 'ops' ? opsT(label.key) : analyticsT(label.key);
+        } },
+        { id: 'ops' as ModuleId, label: t('subTab.ops'), state: opsTabs, tabs: DEFAULT_OPS_TABS, getLabel: (tab: string) => opsT(OPS_TAB_LABEL_KEY[tab as OpsTab] ?? tab) },
+    ];
+
+    const persistOrder = useCallback((module: ModuleId, items: readonly SubTab[]) => {
+        const key = module === 'hub' ? SettingKey.HubTabOrder : module === 'analytics' ? SettingKey.AnalyticsTabOrder : SettingKey.OpsTabOrder;
+        setSetting.mutate({ key, value: serializeSubTabOrder(module, items) }, { onError: () => toast.error(t('saveFailed')) });
+    }, [setSetting, t]);
+
+    const persistVisible = useCallback((module: ModuleId, items: readonly SubTab[]) => {
+        const key = module === 'hub' ? SettingKey.HubTabVisible : module === 'analytics' ? SettingKey.AnalyticsTabVisible : SettingKey.OpsTabVisible;
+        setSetting.mutate({ key, value: serializeSubTabVisible(module, items) }, { onError: () => toast.error(t('saveFailed')) });
+    }, [setSetting, t]);
+
+    const handleDragEnd = useCallback((module: ModuleId, result: DropResult) => {
+        const { destination, source } = result;
+        if (!destination || destination.index === source.index) return;
+        const state = useSubTabStore.getState()[module];
+        const next = reorderList(state.orderedTabs, source.index, destination.index);
+        setOrderedTabs(module, next);
+        persistOrder(module, next);
+    }, [persistOrder, setOrderedTabs]);
+
+    const handleVisibleChange = useCallback((module: ModuleId, tab: SubTab, checked: boolean) => {
+        const state = useSubTabStore.getState()[module];
+        if (!checked && state.visibleTabs.length <= MIN_VISIBLE_SUB_TABS) {
+            toast.error(t('subTab.minimumVisibleError', { count: MIN_VISIBLE_SUB_TABS }));
+            return;
+        }
+        setTabVisible(module, tab, checked);
+        const next = checked
+            ? Array.from(new Set([...state.visibleTabs, tab]))
+            : state.visibleTabs.filter((t) => t !== tab);
+        persistVisible(module, next);
+    }, [persistVisible, setTabVisible, t]);
+
+    const handleReset = useCallback((module: ModuleId) => {
+        resetModule(module);
+        persistOrder(module, DEFAULT_SUB_TABS[module]);
+        persistVisible(module, DEFAULT_SUB_TABS[module]);
+        toast.success(t('subTab.resetSuccess'));
+    }, [persistOrder, persistVisible, resetModule, t]);
+
+    return (
+        <div className="space-y-4 rounded-lg border-border/30 bg-card p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                        <Layers className="size-4 text-muted-foreground" />
+                        <h3 className="text-sm font-semibold text-foreground">{t('subTab.title')}</h3>
+                    </div>
+                    <p className="text-xs leading-5 text-muted-foreground">{t('subTab.description')}</p>
+                </div>
+            </div>
+
+            <div className="space-y-4">
+                {MODULES.map((mod) => {
+                    const visibleSet = new Set(mod.state.visibleTabs);
+                    const visibleCount = mod.state.visibleTabs.length;
+                    return (
+                        <div key={mod.id} className="rounded-lg border border-border/30 bg-card p-3 shadow-sm">
+                            <div className="mb-2 flex items-center justify-between">
+                                <span className="text-sm font-medium text-foreground">{mod.label}</span>
+                                <Button type="button" variant="ghost" size="sm" className="h-7 rounded-lg text-xs" onClick={() => handleReset(mod.id)}>
+                                    <RotateCcw className="mr-1 size-3" />
+                                    {t('subTab.reset')}
+                                </Button>
+                            </div>
+                            <DragDropContext onDragEnd={(result) => handleDragEnd(mod.id, result)}>
+                                <Droppable droppableId={`sub-tab-${mod.id}`}>
+                                    {(droppableProvided) => (
+                                        <div ref={droppableProvided.innerRef} {...droppableProvided.droppableProps} className="space-y-1.5">
+                                            {mod.state.orderedTabs.map((tab, index) => {
+                                                const isVisible = visibleSet.has(tab);
+                                                const disableToggle = isVisible && visibleCount <= MIN_VISIBLE_SUB_TABS;
+                                                return (
+                                                    <Draggable key={tab} draggableId={`${mod.id}-${tab}`} index={index}>
+                                                        {(draggableProvided, snapshot) => (
+                                                            <div
+                                                                ref={draggableProvided.innerRef}
+                                                                {...draggableProvided.draggableProps}
+                                                                className={cn(
+                                                                    'flex items-center justify-between gap-2 rounded-lg border-border/30 bg-card px-3 py-2 shadow-sm transition-[transform,border-color,box-shadow]',
+                                                                    snapshot.isDragging && 'border-primary/40 shadow-md'
+                                                                )}
+                                                                style={draggableProvided.draggableProps.style as React.CSSProperties}
+                                                            >
+                                                                <div className="flex min-w-0 items-center gap-2">
+                                                                    <div className="rounded-lg p-1 text-muted-foreground" {...(draggableProvided.dragHandleProps as DraggableProvided['dragHandleProps'])}>
+                                                                        <GripVertical className="size-3.5" />
+                                                                    </div>
+                                                                    <span className="truncate text-sm text-foreground">{mod.getLabel(tab)}</span>
+                                                                </div>
+                                                                <Switch
+                                                                    checked={isVisible}
+                                                                    onCheckedChange={(checked) => handleVisibleChange(mod.id, tab, checked)}
+                                                                    disabled={disableToggle}
+                                                                    aria-label={mod.getLabel(tab)}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </Draggable>
+                                                );
+                                            })}
+                                            {droppableProvided.placeholder}
+                                        </div>
+                                    )}
+                                </Droppable>
+                            </DragDropContext>
+                        </div>
+                    );
+                })}
+            </div>
+
+            <p className="text-xs leading-5 text-muted-foreground">
+                {t('subTab.minimumVisibleHint', { count: MIN_VISIBLE_SUB_TABS })}
             </p>
         </div>
     );
@@ -442,6 +625,7 @@ export function SettingAppearance() {
                     </div>
                     <div className="grid items-start gap-4 xl:grid-cols-2">
                         <NavigationPreferences />
+                        <SubTabPreferences />
                         <SettingOrder />
                     </div>
                 </div>

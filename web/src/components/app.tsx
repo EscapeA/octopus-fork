@@ -20,6 +20,7 @@ import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { REFETCH_INTERVAL_CONFIG } from '@/api/constants';
 import { CONTENT_MAP } from '@/route';
 import { parseNavOrder, parseNavVisible } from '@/components/modules/navbar';
+import { useSubTabStore, parseSubTabOrder, parseSubTabVisible, type ModuleId } from '@/components/modules/navbar/sub-tab-store';
 import { apiClient } from '@/api/client';
 import { logger } from '@/lib/logger';
 import { FirstRunSetup } from '@/components/modules/first-run-setup';
@@ -48,6 +49,26 @@ function getNavOrderFromSettings(settings: Setting[] | undefined): NavItem[] {
 function getNavVisibleFromSettings(settings: Setting[] | undefined): NavItem[] {
     const navVisibleValue = settings?.find((item) => item.key === SettingKey.NavVisible)?.value;
     return parseNavVisible(navVisibleValue);
+}
+
+const SUB_TAB_SETTING_KEYS: Record<ModuleId, { order: string; visible: string }> = {
+    hub: { order: SettingKey.HubTabOrder, visible: SettingKey.HubTabVisible },
+    analytics: { order: SettingKey.AnalyticsTabOrder, visible: SettingKey.AnalyticsTabVisible },
+    ops: { order: SettingKey.OpsTabOrder, visible: SettingKey.OpsTabVisible },
+};
+
+function hydrateSubTabsFromSettings(settings: Setting[] | undefined) {
+    if (!settings) return;
+    const store = useSubTabStore.getState();
+    for (const modId of ['hub', 'analytics', 'ops'] as ModuleId[]) {
+        const keys = SUB_TAB_SETTING_KEYS[modId];
+        const orderValue = settings.find((s) => s.key === keys.order)?.value;
+        const visibleValue = settings.find((s) => s.key === keys.visible)?.value;
+        const orderedTabs = parseSubTabOrder(modId, orderValue);
+        const visibleTabs = parseSubTabVisible(modId, visibleValue, orderedTabs);
+        store.setOrderedTabs(modId, orderedTabs);
+        store.setVisibleTabs(modId, visibleTabs);
+    }
 }
 
 function HeaderActions({ activeItem }: { activeItem: NavItem }) {
@@ -159,12 +180,14 @@ export function AppContainer() {
     useEffect(() => {
         if (!isAuthenticated || isAPIKeyAuth) {
             resetNavOrder();
+            useSubTabStore.getState().resetAll();
             return;
         }
 
         if (!settings) return;
         setNavOrder(getNavOrderFromSettings(settings));
         setVisibleItems(getNavVisibleFromSettings(settings));
+        hydrateSubTabsFromSettings(settings);
     }, [isAPIKeyAuth, isAuthenticated, resetNavOrder, setNavOrder, setVisibleItems, settings]);
 
     useEffect(() => {
@@ -202,6 +225,7 @@ export function AppContainer() {
                             }
                             useNavStore.getState().setNavOrder(getNavOrderFromSettings(nextSettings));
                             useNavStore.getState().setVisibleItems(getNavVisibleFromSettings(nextSettings));
+                            hydrateSubTabsFromSettings(nextSettings);
                         })
                     );
 

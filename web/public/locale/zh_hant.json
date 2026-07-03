@@ -2009,6 +2009,17 @@
       "minimumVisibleError": "最少需要保留 {count} 個頁面",
       "toggleAriaLabel": "切換頁面顯示狀態：{page}"
     },
+    "subTab": {
+      "title": "子標籤順序與顯示",
+      "description": "拖拽調整站點管理、分析中心、運維中心的子標籤順序，可隱藏不需要的子標籤。",
+      "hub": "站點管理",
+      "analytics": "分析中心",
+      "ops": "運維中心",
+      "reset": "恢復預設",
+      "resetSuccess": "子標籤順序已恢復預設",
+      "minimumVisibleHint": "每個模組最少保留 {count} 個子標籤。",
+      "minimumVisibleError": "每個模組最少需要保留 {count} 個子標籤"
+    },
     "settingOrder": {
       "title": "設定項排序",
       "description": "拖曳調整設定頁面各選項的排列順序，放開後立即儲存。",

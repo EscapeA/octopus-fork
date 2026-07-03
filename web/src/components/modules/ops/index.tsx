@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { PageWrapper } from '@/components/common/PageWrapper';
 import { Tabs, TabsContents, TabsContent, TabsList, TabsTrigger } from '@/components/animate-ui/components/animate/tabs';
@@ -10,12 +10,31 @@ import { Health } from './Health';
 import { Maintenance } from './Maintenance';
 import { System } from './System';
 import { Audit } from './Audit';
+import { useSubTabStore, type OpsTab } from '@/components/modules/navbar/sub-tab-store';
 
-type OpsTab = 'telemetry' | 'quota' | 'health' | 'maintenance' | 'system' | 'audit';
+const TAB_LABEL_KEY: Record<OpsTab, string> = {
+    telemetry: 'tabs.telemetry',
+    quota: 'tabs.quota',
+    health: 'tabs.health',
+    maintenance: 'tabs.maintenance',
+    system: 'tabs.system',
+    audit: 'tabs.audit',
+};
 
 export function Ops() {
     const t = useTranslations('ops');
+    const { orderedTabs, visibleTabs } = useSubTabStore((s) => s.ops);
     const [activeTab, setActiveTab] = useState<OpsTab>('telemetry');
+
+    // 当可见列表变化且当前 tab 被隐藏时，回退到第一个可见 tab
+    useEffect(() => {
+        if (visibleTabs.length > 0 && !visibleTabs.includes(activeTab)) {
+            setActiveTab(visibleTabs[0] as OpsTab);
+        }
+    }, [visibleTabs, activeTab]);
+
+    const visibleSet = new Set(visibleTabs);
+    const orderedVisible = orderedTabs.filter((tab) => visibleSet.has(tab));
 
     return (
         <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain space-y-6 pb-3 md:pb-4 rounded-t-xl">
@@ -23,12 +42,11 @@ export function Ops() {
                 <section className="rounded-xl border border-border bg-card p-5 text-card-foreground">
                     <div className="-mx-5 overflow-x-auto px-5 scrollbar-hide">
                         <TabsList className="w-max min-w-full xl:min-w-0">
-                            <TabsTrigger value="telemetry">{t('tabs.telemetry')}</TabsTrigger>
-                            <TabsTrigger value="quota">{t('tabs.quota')}</TabsTrigger>
-                            <TabsTrigger value="health">{t('tabs.health')}</TabsTrigger>
-                            <TabsTrigger value="maintenance">{t('tabs.maintenance')}</TabsTrigger>
-                            <TabsTrigger value="system">{t('tabs.system')}</TabsTrigger>
-                            <TabsTrigger value="audit">{t('tabs.audit')}</TabsTrigger>
+                            {orderedVisible.map((tab) => (
+                                <TabsTrigger key={tab} value={tab}>
+                                    {t(TAB_LABEL_KEY[tab as OpsTab])}
+                                </TabsTrigger>
+                            ))}
                         </TabsList>
                     </div>
                 </section>

@@ -2009,6 +2009,17 @@
       "minimumVisibleError": "At least {count} pages must remain visible",
       "toggleAriaLabel": "Toggle page visibility: {page}"
     },
+    "subTab": {
+      "title": "Sub-tab Order & Visibility",
+      "description": "Drag to reorder sub-tabs of Hub, Analytics, and Ops. Hide sub-tabs you don't need.",
+      "hub": "Hub",
+      "analytics": "Analytics",
+      "ops": "Ops",
+      "reset": "Reset Default",
+      "resetSuccess": "Sub-tab order has been reset",
+      "minimumVisibleHint": "Each module must keep at least {count} sub-tab visible.",
+      "minimumVisibleError": "Each module must keep at least {count} sub-tab visible"
+    },
     "settingOrder": {
       "title": "Setting Item Order",
       "description": "Drag to reorder setting page sections. Changes are saved immediately on drop.",

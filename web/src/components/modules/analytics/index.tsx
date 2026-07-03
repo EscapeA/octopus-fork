@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { PageWrapper } from '@/components/common/PageWrapper';
 import { Tabs, TabsContents, TabsContent, TabsList, TabsTrigger } from '@/components/animate-ui/components/animate/tabs';
@@ -25,7 +25,17 @@ import { formatCount, formatMoney } from '@/lib/utils';
 import { formatPercent } from './shared';
 import { AnalyticsCacheTtlProvider } from './cache-context';
 
-type AnalyticsTab = 'utilization' | 'route-health' | 'channel-model' | 'cache' | 'evaluation' | 'latency';
+import { useSubTabStore, type AnalyticsTab } from '@/components/modules/navbar/sub-tab-store';
+
+/** 各子标签的标签文案翻译键。cache 属于 ops 命名空间，其余属于 analytics。 */
+const TAB_LABEL: Record<AnalyticsTab, { ns: 'analytics' | 'ops'; key: string }> = {
+    cache: { ns: 'ops', key: 'tabs.cache' },
+    utilization: { ns: 'analytics', key: 'cards.utilization.title' },
+    'route-health': { ns: 'analytics', key: 'cards.routeHealth.title' },
+    'channel-model': { ns: 'analytics', key: 'cards.channelModel.title' },
+    evaluation: { ns: 'analytics', key: 'evaluation.title' },
+    latency: { ns: 'analytics', key: 'latency.title' },
+};
 
 /** 常用时间范围按钮（1d/7d/30d）。 */
 const PRIMARY_RANGES: AnalyticsRange[] = ['1d', '7d', '30d'];
@@ -38,6 +48,16 @@ export function Analytics() {
     const t = useTranslations('analytics');
     const opsT = useTranslations('ops');
     const [activeTab, setActiveTab] = useState<AnalyticsTab>('channel-model');
+    const { orderedTabs, visibleTabs } = useSubTabStore((s) => s.analytics);
+
+    useEffect(() => {
+        if (visibleTabs.length > 0 && !visibleTabs.includes(activeTab)) {
+            setActiveTab(visibleTabs[0] as AnalyticsTab);
+        }
+    }, [visibleTabs, activeTab]);
+
+    const visibleSet = new Set(visibleTabs);
+    const orderedVisible = orderedTabs.filter((tab) => visibleSet.has(tab));
     const [range, setRange] = useState<AnalyticsRange>('7d');
     const [cacheTtl, setCacheTtl] = useState<AnalyticsCacheTtl>('30s');
     const { data: overview } = useAnalyticsOverview(range, cacheTtl);
@@ -197,15 +217,17 @@ export function Analytics() {
                         <div className="relative flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                             <div className="-mx-1 overflow-x-auto overscroll-x-contain scroll-smooth px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                                 <TabsList className="flex w-max min-w-max flex-nowrap rounded-lg border-border/30 bg-card p-1 xl:min-w-0 xl:flex-wrap">
-                                    <TabsTrigger value="cache">{opsT('tabs.cache')}</TabsTrigger>
-                                    <TabsTrigger value="utilization">{t('cards.utilization.title')}</TabsTrigger>
-                                    <TabsTrigger value="route-health">{t('cards.routeHealth.title')}</TabsTrigger>
-                                    <TabsTrigger value="channel-model">{t('cards.channelModel.title')}</TabsTrigger>
-                                    <TabsTrigger value="evaluation">{t('evaluation.title')}</TabsTrigger>
-                                    <TabsTrigger value="latency">{t('latency.title')}</TabsTrigger>
+                                    {orderedVisible.map((tab) => {
+                                        const label = TAB_LABEL[tab as AnalyticsTab];
+                                        const text = label.ns === 'ops' ? opsT(label.key) : t(label.key);
+                                        return (
+                                            <TabsTrigger key={tab} value={tab}>
+                                                {text}
+                                            </TabsTrigger>
+                                        );
+                                    })}
                                 </TabsList>
                             </div>
-
                             <div className="flex flex-wrap items-center gap-2">
                                 {/* 时间范围：常用按钮 + "更多"下拉 */}
                                 <Tabs value={range} onValueChange={(value) => setRange(value as AnalyticsRange)}>
