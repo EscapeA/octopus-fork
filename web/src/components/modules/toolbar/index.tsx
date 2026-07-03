@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowUpAZ, Clock3, LayoutGrid, List, Rows3, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowUpAZ, Boxes, Clock3, LayoutGrid, List, Plus, RadioTower, RefreshCw, Rows3, Search, SlidersHorizontal, X } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import {
     MorphingDialog,
@@ -12,7 +12,8 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { buttonVariants } from '@/components/ui/button';
 import { useModelMarket, useUpdateModelPrice } from '@/api/endpoints/model';
-import { ModelMarketSummary } from '@/components/modules/model/MarketSummary';
+import { formatAverageLatency } from '@/components/modules/model/latency-format';
+import { formatDateTime } from '@/lib/time';
 import { cn } from '@/lib/utils';
 import { useNavStore, type NavItem } from '@/components/modules/navbar';
 import { CreateDialogContent as ChannelCreateContent } from '@/components/modules/channel/Create';
@@ -294,15 +295,6 @@ export function Toolbar() {
                     <CCSwitchLinkButton className="hidden sm:inline-flex" />
                 )}
                 <div className="flex h-9 min-w-0 items-center gap-0.5 rounded-xl border border-border bg-muted/30 p-0.5 sm:h-11 sm:gap-1 sm:p-1">
-                    {toolbarItem === 'model' && (
-                        <ModelMarketSummary
-                            summary={modelSummary}
-                            onRefresh={() => updateModelPrice.mutate()}
-                            isRefreshing={updateModelPrice.isPending}
-                            compact
-                            triggerClassName="h-8 min-h-8 rounded-md border border-transparent bg-transparent px-1.5 text-muted-foreground shadow-none transition-[color,background-color,border-color] duration-150 hover:border-border hover:bg-muted hover:text-foreground hover:shadow-none sm:h-9 sm:min-h-9 sm:px-3"
-                        />
-                    )}
                     <Popover>
                         <PopoverTrigger asChild>
                             <button
@@ -321,9 +313,64 @@ export function Toolbar() {
                             align="end"
                             side={isMobile ? "top" : "bottom"}
                             sideOffset={isMobile ? 8 : 12}
-                            className="w-72 max-w-[calc(100vw-1rem)] rounded-xl border border-border bg-popover p-3 shadow-md"
+                            className={cn(
+                                "max-w-[calc(100vw-1rem)] rounded-xl border border-border bg-popover p-3 shadow-md",
+                                toolbarItem === 'model' ? "w-[min(100vw-1rem,40rem)]" : "w-72"
+                            )}
                         >
                             <div className="grid gap-3">
+                                {toolbarItem === 'model' && (() => {
+                                    const lastUpdateRaw = modelSummary.last_update_time;
+                                    const formatted = lastUpdateRaw ? formatDateTime(lastUpdateRaw) : '-';
+                                    const lastUpdateLabel = formatted !== '-' && lastUpdateRaw && new Date(lastUpdateRaw).getFullYear() > 1
+                                        ? formatted
+                                        : modelT('summary.neverUpdated');
+                                    const hasData = modelSummary.model_count > 0;
+                                    const summaryMetrics = [
+                                        { key: 'models', icon: Boxes, label: modelT('summary.modelCount'), value: modelSummary.model_count.toLocaleString() },
+                                        { key: 'coverage', icon: Rows3, label: modelT('summary.coverage'), value: modelSummary.coverage_count.toLocaleString() },
+                                        { key: 'unique', icon: RadioTower, label: modelT('summary.uniqueChannels'), value: modelSummary.unique_channel_count.toLocaleString() },
+                                        { key: 'latency', icon: Clock3, label: modelT('summary.averageLatency'), value: formatAverageLatency(modelSummary.average_latency_ms, hasData ? 1 : 0, 'auto') },
+                                    ];
+                                    return (
+                                        <div className="grid gap-2 rounded-lg border border-border bg-muted/20 p-2.5">
+                                            <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+                                                <div className="min-w-0">
+                                                    <div className="text-xs font-semibold text-foreground sm:text-sm">{modelT('summary.title')}</div>
+                                                    <div className="text-[0.65rem] text-muted-foreground sm:text-[11px]">{modelT('summary.description')}</div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => updateModelPrice.mutate()}
+                                                    disabled={updateModelPrice.isPending}
+                                                    className={cn(
+                                                        OPTION_BUTTON_CLASS,
+                                                        'inline-flex items-center gap-1.5 border-border/30 bg-card text-foreground hover:border-border hover:bg-muted',
+                                                    )}
+                                                >
+                                                    <RefreshCw className={cn('size-3.5', updateModelPrice.isPending && 'animate-spin')} />
+                                                    {updateModelPrice.isPending ? modelT('summary.refreshing') : modelT('summary.refresh')}
+                                                </button>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 rounded-lg border border-border/30 bg-card px-2.5 py-1.5 text-[0.65rem] text-muted-foreground sm:gap-2 sm:px-3 sm:py-2 sm:text-[11px]">
+                                                <Clock3 className="size-3.5 shrink-0 text-primary sm:size-4" />
+                                                <span className="min-w-0 truncate">{modelT('summary.lastUpdate')}: {lastUpdateLabel}</span>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-1.5 sm:gap-2 lg:grid-cols-4">
+                                                {summaryMetrics.map((m) => (
+                                                    <div key={m.key} className="min-w-0 overflow-hidden rounded-lg border border-border/30 bg-card px-2 py-1.5 sm:px-2.5 sm:py-2">
+                                                        <div className="flex min-w-0 items-center gap-1 text-[0.6rem] text-muted-foreground sm:gap-1.5 sm:text-[10px]">
+                                                            <m.icon className="size-3 shrink-0 text-primary sm:size-3.5" />
+                                                            <span className="min-w-0 truncate leading-tight">{m.label}</span>
+                                                        </div>
+                                                        <div className="mt-0.5 min-w-0 truncate text-[1.15rem] font-semibold leading-none tracking-tight sm:mt-1 sm:text-[1.45rem]">{m.value}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
                                 {showLayoutOptions && (
                                     <div className="grid gap-2 rounded-lg border border-border bg-muted/20 p-2.5">
                                         <p className="text-xs font-semibold text-muted-foreground">{t('popover.layout')}</p>
