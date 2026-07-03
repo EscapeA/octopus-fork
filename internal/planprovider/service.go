@@ -17,6 +17,10 @@ import (
 
 const planGroupName = "Plan"
 
+// planChannelGroupName 是额度监控渠道在渠道页面的分组名（ChannelGroup）。
+// 与路由分组 planGroupName 同名，但分属不同的表（ChannelGroup vs Group）。
+const planChannelGroupName = "Plan"
+
 // ListProviders 列出所有 Plan Provider
 func ListProviders(ctx context.Context, providerType model.PlanProviderType) ([]model.PlanProviderListItem, error) {
 	var providers []model.PlanProvider
@@ -91,10 +95,16 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 		}
 	}
 
-	// 2. 确保 Plan 分组存在
+	// 2. 确保 Plan 路由分组存在
 	groupID, err := ensurePlanGroup(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("ensure plan group: %w", err)
+	}
+
+	// 2.1 确保 Plan 渠道分组存在（用于渠道页面的分组归属）
+	channelGroupID, err := ensurePlanChannelGroup(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("ensure plan channel group: %w", err)
 	}
 
 	// 3. 创建 Channel
@@ -105,6 +115,7 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 
 	channel := &model.Channel{
 		Name:    channelName,
+		GroupID: channelGroupID,
 		Type:    outbound.OutboundTypeOpenAIChat,
 		Enabled: true,
 		BaseUrls: []model.BaseUrl{
@@ -290,6 +301,26 @@ func ensurePlanGroup(ctx context.Context) (int, error) {
 	}
 	if err := op.GroupCreate(newGroup, ctx); err != nil {
 		return 0, fmt.Errorf("create plan group: %w", err)
+	}
+	return newGroup.ID, nil
+}
+
+// ensurePlanChannelGroup 确保名为 Plan 的渠道分组（ChannelGroup）存在，返回其 ID。
+// 与 ensurePlanGroup 不同：后者操作路由分组（Group 表），本函数操作渠道分组
+// （ChannelGroup 表），用于 channel.GroupID 字段的归属。
+func ensurePlanChannelGroup(ctx context.Context) (int, error) {
+	groups, err := op.ChannelGroupList(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("list channel groups: %w", err)
+	}
+	for _, g := range groups {
+		if g.Name == planChannelGroupName {
+			return g.ID, nil
+		}
+	}
+	newGroup, err := op.ChannelGroupCreate(planChannelGroupName, ctx)
+	if err != nil {
+		return 0, fmt.Errorf("create plan channel group: %w", err)
 	}
 	return newGroup.ID, nil
 }
