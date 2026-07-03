@@ -177,15 +177,15 @@ export function StatsChart() {
     return (
         <div className="relative rounded-xl border border-border bg-card pt-5 text-card-foreground">
             <div className="space-y-4 px-4 pb-3 md:px-5">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="space-y-3">
-                        <div className="inline-flex items-center gap-2 rounded-md border border-primary/12 bg-card px-2.5 py-1 text-xs font-medium text-primary">
-                            <BarChart3 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="inline-flex h-9 items-center gap-2 rounded-lg border border-primary/12 bg-card px-3 text-sm font-medium text-primary">
+                            <BarChart3 className="h-4 w-4" strokeWidth={1.5} />
                             <span>{t('title')}</span>
                         </div>
                         <button
                             type="button"
-                            className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-left text-sm transition-[transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-border/80"
+                            className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3 text-left text-sm transition-[transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-border/80"
                             onClick={handlePeriodClick}
                         >
                             <CalendarClock className="h-4 w-4 text-primary/60" strokeWidth={1.5} />
@@ -220,7 +220,7 @@ export function StatsChart() {
                     </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
                     {summaryMetrics.map((metric) => (
                         <div key={metric.key} className="rounded-lg border border-border bg-card px-3.5 py-3">
                             <div className="mb-2 h-1 w-9 rounded-full bg-primary/18" />
