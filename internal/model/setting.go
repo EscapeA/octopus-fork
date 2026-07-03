@@ -46,6 +46,12 @@ const (
 	SettingKeySemanticCacheEmbeddingTimeoutSeconds SettingKey = "semantic_cache_embedding_timeout_seconds" // 语义缓存 embedding 请求超时（秒）
 	SettingKeyNavOrder                             SettingKey = "nav_order"                                // 顶级页面顺序(JSON)
 	SettingKeyNavVisible                           SettingKey = "nav_visible"                              // 顶级页面显示状态(JSON)
+	SettingKeyHubTabOrder                          SettingKey = "hub_tab_order"                            // Hub 子标签顺序(JSON)
+	SettingKeyHubTabVisible                        SettingKey = "hub_tab_visible"                          // Hub 子标签可见性(JSON)
+	SettingKeyAnalyticsTabOrder                    SettingKey = "analytics_tab_order"                      // 分析中心子标签顺序(JSON)
+	SettingKeyAnalyticsTabVisible                  SettingKey = "analytics_tab_visible"                    // 分析中心子标签可见性(JSON)
+	SettingKeyOpsTabOrder                          SettingKey = "ops_tab_order"                            // 运维中心子标签顺序(JSON)
+	SettingKeyOpsTabVisible                        SettingKey = "ops_tab_visible"                          // 运维中心子标签可见性(JSON)
 	SettingKeyAIRouteGroupID                       SettingKey = "ai_route_group_id"                        // AI路由目标分组 ID
 	SettingKeyAIRouteBaseURL                       SettingKey = "ai_route_base_url"                        // AI路由分析服务 Base URL
 	SettingKeyAIRouteAPIKey                        SettingKey = "ai_route_api_key"                         // AI路由分析服务 API Key
@@ -127,6 +133,12 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeySemanticCacheEmbeddingTimeoutSeconds, Value: "10"},
 		{Key: SettingKeyNavOrder, Value: `["home","hub","channel","group","model","analytics","log","alert","ops","apikey","setting","user"]`},
 		{Key: SettingKeyNavVisible, Value: `["home","hub","channel","group","model","analytics","log","alert","ops","apikey","setting","user"]`},
+		{Key: SettingKeyHubTabOrder, Value: `["sites","site-channels","automation","balance","tokenplan"]`},
+		{Key: SettingKeyHubTabVisible, Value: `["sites","site-channels","automation","balance","tokenplan"]`},
+		{Key: SettingKeyAnalyticsTabOrder, Value: `["cache","utilization","route-health","channel-model","evaluation","latency"]`},
+		{Key: SettingKeyAnalyticsTabVisible, Value: `["cache","utilization","route-health","channel-model","evaluation","latency"]`},
+		{Key: SettingKeyOpsTabOrder, Value: `["telemetry","quota","health","maintenance","system","audit"]`},
+		{Key: SettingKeyOpsTabVisible, Value: `["telemetry","quota","health","maintenance","system","audit"]`},
 		{Key: SettingKeyAIRouteGroupID, Value: "0"},
 		{Key: SettingKeyAIRouteBaseURL, Value: ""},
 		{Key: SettingKeyAIRouteAPIKey, Value: ""},
@@ -316,7 +328,10 @@ func (s *Setting) Validate() error {
 		default:
 			return fmt.Errorf("alert notify language must be zh-Hans, zh-Hant, or en")
 		}
-	case SettingKeyNavOrder, SettingKeyNavVisible:
+	case SettingKeyNavOrder, SettingKeyNavVisible,
+		SettingKeyHubTabOrder, SettingKeyHubTabVisible,
+		SettingKeyAnalyticsTabOrder, SettingKeyAnalyticsTabVisible,
+		SettingKeyOpsTabOrder, SettingKeyOpsTabVisible:
 		var navOrder []string
 		if err := json.Unmarshal([]byte(s.Value), &navOrder); err != nil {
 			return fmt.Errorf("nav setting must be a valid JSON array of strings")
