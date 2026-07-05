@@ -91,6 +91,8 @@ func detectZenPreferredChannelTypes(requestModel string, isEmbeddingRequest bool
 func outboundAttemptTypes(channelType outbound.OutboundType, request *model.InternalLLMRequest, outboundFormat string) []outbound.OutboundType {
 	// For LLM requests (both ChatCompletion and Responses API formats), provide
 	// adapter fallback with configurable priority order.
+	// When outboundFormat is "passthrough", send the original inbound JSON body
+	// to the endpoint matching the inbound API format and disable adapter fallback.
 	// When outboundFormat is "chat", prefer Chat Completions first.
 	// When outboundFormat is "responses", prefer Responses API first.
 	// When outboundFormat is "messages", prefer Anthropic Messages first.
@@ -102,8 +104,15 @@ func outboundAttemptTypes(channelType outbound.OutboundType, request *model.Inte
 	// The internal request/response format abstracts over all API formats, so
 	// the inAdapter handles the final output conversion regardless of which
 	// outbound adapter is used.
+	format := strings.ToLower(strings.TrimSpace(outboundFormat))
+	if format == "passthrough" && request != nil {
+		switch request.RawAPIFormat {
+		case model.APIFormatOpenAIChatCompletion, model.APIFormatOpenAIResponse, model.APIFormatAnthropicMessage:
+			return []outbound.OutboundType{outbound.OutboundTypePassthrough}
+		}
+	}
 	if request != nil && isLLMRequestFormat(request) && (channelType == outbound.OutboundTypeOpenAIChat || channelType == outbound.OutboundTypeOpenAIResponse) {
-		switch strings.ToLower(strings.TrimSpace(outboundFormat)) {
+		switch format {
 		case "responses":
 			return []outbound.OutboundType{outbound.OutboundTypeOpenAIResponse, outbound.OutboundTypeOpenAIChat}
 		case "messages":
@@ -586,10 +595,15 @@ func (ra *relayAttempt) forward() (int, error) {
 		defer cancel()
 	}
 
-	requestForOutbound, effectiveRewrite, err := prepareInternalRequestForOutbound(ra.channel, ra.internalRequest, ra.groupEndpointType)
-	if err != nil {
-		log.Warnf("failed to prepare outbound request data: %v", err)
-		return 0, fmt.Errorf("failed to prepare outbound request data: %w", err)
+	requestForOutbound := ra.internalRequest
+	effectiveRewrite := (*rewrite.EffectiveConfig)(nil)
+	if ra.adapterType != outbound.OutboundTypePassthrough {
+		var err error
+		requestForOutbound, effectiveRewrite, err = prepareInternalRequestForOutbound(ra.channel, ra.internalRequest, ra.groupEndpointType)
+		if err != nil {
+			log.Warnf("failed to prepare outbound request data: %v", err)
+			return 0, fmt.Errorf("failed to prepare outbound request data: %w", err)
+		}
 	}
 
 	// 构建出站请求

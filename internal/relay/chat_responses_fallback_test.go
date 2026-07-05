@@ -183,6 +183,22 @@ func TestOutboundAttemptTypesMessagesOnlyDisablesFallback(t *testing.T) {
 	}
 }
 
+func TestOutboundAttemptTypesPassthroughDisablesFallback(t *testing.T) {
+	req := &model.InternalLLMRequest{RawAPIFormat: model.APIFormatOpenAIChatCompletion}
+
+	got := outboundAttemptTypes(outbound.OutboundTypeOpenAIChat, req, "passthrough")
+	want := []outbound.OutboundType{outbound.OutboundTypePassthrough}
+
+	if len(got) != len(want) {
+		t.Fatalf("attempt types len = %d, want %d: %#v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("attempt types = %#v, want %#v", got, want)
+		}
+	}
+}
+
 // Unknown format values fall back to the default auto behavior so a stale or
 // mistyped setting never disables routing entirely.
 func TestOutboundAttemptTypesUnknownFormatFallsBackToAuto(t *testing.T) {

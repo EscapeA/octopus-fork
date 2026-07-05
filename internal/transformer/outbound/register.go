@@ -7,6 +7,7 @@ import (
 	"github.com/lingyuins/octopus/internal/transformer/outbound/gemini"
 	"github.com/lingyuins/octopus/internal/transformer/outbound/mimo"
 	"github.com/lingyuins/octopus/internal/transformer/outbound/openai"
+	"github.com/lingyuins/octopus/internal/transformer/outbound/passthrough"
 	"github.com/lingyuins/octopus/internal/transformer/outbound/volcengine"
 )
 
@@ -21,6 +22,7 @@ const (
 	OutboundTypeOpenAIEmbedding
 	OutboundTypeMimo
 	OutboundTypeCloudflare
+	OutboundTypePassthrough
 )
 
 func (t OutboundType) String() string {
@@ -41,6 +43,8 @@ func (t OutboundType) String() string {
 		return "mimo"
 	case OutboundTypeCloudflare:
 		return "cloudflare"
+	case OutboundTypePassthrough:
+		return "passthrough"
 	default:
 		return "unknown"
 	}
@@ -81,6 +85,7 @@ var outboundFactories = map[OutboundType]func() model.Outbound{
 	OutboundTypeVolcengine:      func() model.Outbound { return &volcengine.ResponseOutbound{} },
 	OutboundTypeMimo:            func() model.Outbound { return &mimo.ChatOutbound{} },
 	OutboundTypeCloudflare:      func() model.Outbound { return &cloudflare.ChatOutbound{} },
+	OutboundTypePassthrough:     func() model.Outbound { return &passthrough.Outbound{} },
 }
 
 func Get(outboundType OutboundType) model.Outbound {

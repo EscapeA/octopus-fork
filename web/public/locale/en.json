@@ -2318,12 +2318,13 @@
       },
       "outboundFormat": {
         "label": "Outbound Format",
-        "hint": "Select the preferred outbound API format. Auto tries Chat Completions first then falls back to Responses. Messages prefers Anthropic Messages. The only-variants disable the fallback for upstreams that reject the other format.",
+        "hint": "Select the preferred outbound API format. Auto tries Chat Completions first then falls back to Responses. Messages prefers Anthropic Messages. Raw passthrough sends the original client request body upstream without format conversion or fallback. The only-variants disable fallback for upstreams that reject the other format.",
         "options": {
           "auto": "Auto",
           "chat": "Chat Completions",
           "responses": "Responses",
           "messages": "Anthropic Messages",
+          "passthrough": "Raw passthrough",
           "chatOnly": "Chat Completions only",
           "responsesOnly": "Responses only",
           "messagesOnly": "Anthropic Messages only"
