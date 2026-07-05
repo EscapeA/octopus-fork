@@ -2592,6 +2592,7 @@
       },
       "noBaseUrls": "暫無 Base URL",
       "noKeys": "暫無金鑰",
+      "priority": "優先級",
       "ccSwitch": {
         "description": "生成符合 CC Switch v1 協議的供應方匯入連結，可選擇目標應用、路由分組和 Octopus API Key。",
         "app": "目標應用",

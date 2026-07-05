@@ -2592,6 +2592,7 @@
       },
       "noBaseUrls": "No Base URLs",
       "noKeys": "No Keys",
+      "priority": "Priority",
       "ccSwitch": {
         "description": "Generate a CC Switch v1 provider import link with a target app, route group, and Octopus API key.",
         "app": "Target App",
