@@ -9,7 +9,7 @@ export type ChannelTemplate = {
 };
 
 function ensureKeys(keys: ChannelFormData['keys']): ChannelFormData['keys'] {
-    return keys && keys.length > 0 ? keys : [{ enabled: true, channel_key: '', remark: '' }];
+    return keys && keys.length > 0 ? keys : [{ enabled: true, channel_key: '', priority: 0, remark: '' }];
 }
 
 function ensureHeaders(headers: Channel['custom_header']): Channel['custom_header'] {

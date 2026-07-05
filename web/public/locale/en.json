@@ -1357,9 +1357,10 @@
       },
       "keySelectionStrategy": {
         "label": "Key selection strategy",
-        "hint": "Default strategy for choosing among multiple keys in a channel. 'cost' picks the lowest-cost key; 'availability' picks the highest-availability key (penalized on errors, recovers on success/time). Channels can override this individually.",
+        "hint": "Default strategy for choosing among multiple keys in a channel. 'cost' picks the lowest-cost key; 'availability' picks the highest-availability key (penalized on errors, recovers on success/time); 'priority' picks the key with the lower priority number first. Channels can override this individually.",
         "cost": "Cost (lowest first)",
-        "availability": "Availability (highest first)"
+        "availability": "Availability (highest first)",
+        "priority": "Priority (lower first)"
       }
     },
     "autoStrategy": {
@@ -2831,12 +2832,15 @@
       "matchRegex": "Match Regex",
       "matchRegexPlaceholder": "Optional: regex pattern to match request model names",
       "remark": "Remark",
+      "priority": "Priority",
+      "priorityHint": "Lower numbers are used first",
       "typeMiMoChat": "MiMo Chat",
       "typeCloudflare": "Cloudflare",
       "keySelectionStrategy": "Key Strategy",
       "keySelectionStrategyInherit": "Inherit global",
       "keySelectionStrategyCost": "Cost",
-      "keySelectionStrategyAvailability": "Availability"
+      "keySelectionStrategyAvailability": "Availability",
+      "keySelectionStrategyPriority": "Priority"
     }
   },
   "errors": {

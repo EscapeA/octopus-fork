@@ -368,6 +368,7 @@ type channelKeyRequestPayload struct {
 	StatusCode       int     `json:"status_code"`
 	LastUseTimeStamp int64   `json:"last_use_time_stamp"`
 	TotalCost        float64 `json:"total_cost"`
+	Priority         int     `json:"priority"`
 	Remark           string  `json:"remark"`
 }
 
@@ -380,6 +381,7 @@ func (p channelRequestPayload) toChannel() model.Channel {
 		keys = append(keys, model.ChannelKey{
 			Enabled:    key.Enabled,
 			ChannelKey: key.ChannelKey,
+			Priority:   key.Priority,
 			Remark:     key.Remark,
 		})
 	}

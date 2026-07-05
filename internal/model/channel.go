@@ -121,6 +121,7 @@ type ChannelKey struct {
 	StatusCode       int     `json:"status_code"`
 	LastUseTimeStamp int64   `json:"last_use_time_stamp"`
 	TotalCost        float64 `json:"total_cost"`
+	Priority         int     `json:"priority" gorm:"default:0"`
 	Remark           string  `json:"remark"`
 }
 
@@ -135,7 +136,7 @@ type ChannelKey struct {
 var KeyAvailabilityScoreFunc func(channelID, keyID int, modelName string) float64
 
 // GlobalKeySelectionStrategyFunc 由 op/setting 包在启动时注入，用于读取全局 key 选择
-// 策略（"cost" 或 "availability"）。model 包不能导入 internal/op（循环依赖），故用
+// 策略（"cost"、"availability" 或 "priority"）。model 包不能导入 internal/op（循环依赖），故用
 // 函数变量解耦。未注入时返回 "cost"（默认策略）。
 var GlobalKeySelectionStrategyFunc func() string
 var KeyCooldownFunc func(channelID, keyID int, modelName string) bool
@@ -176,6 +177,7 @@ type ChannelUpdateRequest struct {
 type ChannelKeyAddRequest struct {
 	Enabled    bool   `json:"enabled"`
 	ChannelKey string `json:"channel_key" binding:"required"`
+	Priority   int    `json:"priority"`
 	Remark     string `json:"remark"`
 }
 
@@ -183,6 +185,7 @@ type ChannelKeyUpdateRequest struct {
 	ID         int     `json:"id" binding:"required"`
 	Enabled    *bool   `json:"enabled,omitempty"`
 	ChannelKey *string `json:"channel_key,omitempty"`
+	Priority   *int    `json:"priority,omitempty"`
 	Remark     *string `json:"remark,omitempty"`
 }
 
@@ -399,6 +402,8 @@ func (c *Channel) GetChannelKeyWithCooldown(modelName string, ratelimitCooldownS
 //   - "availability"：选可用度分数最高的 key（满分 100，出错衰减、成功/时间恢复）；
 //     同分按 Keys 数组顺序取第一个（初始全满分 → 用第一个 key）；全部分数 ≤ 0 时
 //     回退 cost 策略防卡死。可用度是软优先级，冷却/熔断/失败提示硬隔离仍生效。
+//   - "priority"：选 Priority 数字最小的 key；同优先级选 TotalCost 更低者，仍相同则
+//     按 Keys 数组顺序取第一个。
 //
 // 渠道 KeySelectionStrategy 为空时继承全局策略（GlobalKeySelectionStrategyFunc）。
 func (c *Channel) GetChannelKeyExcludingWithCooldown(excludeKeyIDs []int, modelName string, ratelimitCooldownSec int) ChannelKey {
@@ -441,6 +446,9 @@ func (c *Channel) GetChannelKeyExcludingWithCooldown(excludeKeyIDs []int, modelN
 	if strategy == "availability" && KeyAvailabilityScoreFunc != nil && modelName != "" {
 		return c.selectKeyByAvailability(candidates, modelName)
 	}
+	if strategy == "priority" {
+		return selectKeyByPriority(candidates)
+	}
 	return selectKeyByCost(candidates)
 }
 
@@ -462,6 +470,17 @@ func selectKeyByCost(candidates []ChannelKey) ChannelKey {
 	best := candidates[0]
 	for _, k := range candidates[1:] {
 		if k.TotalCost < best.TotalCost {
+			best = k
+		}
+	}
+	return best
+}
+
+// selectKeyByPriority 选优先级数字最小的 key；同优先级选成本更低者，仍相同则保持候选顺序。
+func selectKeyByPriority(candidates []ChannelKey) ChannelKey {
+	best := candidates[0]
+	for _, k := range candidates[1:] {
+		if k.Priority < best.Priority || (k.Priority == best.Priority && k.TotalCost < best.TotalCost) {
 			best = k
 		}
 	}

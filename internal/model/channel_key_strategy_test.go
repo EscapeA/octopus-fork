@@ -201,3 +201,93 @@ func TestSelectKeyByAvailabilitySkipsZeroScore(t *testing.T) {
 		t.Fatalf("expected key 2 (key 1 has zero score), got key %d", key.ID)
 	}
 }
+
+func setupPriorityTest() func() {
+	oldAvailabilityFunc := KeyAvailabilityScoreFunc
+	oldStrategy := GlobalKeySelectionStrategyFunc
+	oldCooldownFunc := KeyCooldownFunc
+	KeyAvailabilityScoreFunc = nil
+	GlobalKeySelectionStrategyFunc = func() string { return "priority" }
+	KeyCooldownFunc = nil
+	return func() {
+		KeyAvailabilityScoreFunc = oldAvailabilityFunc
+		GlobalKeySelectionStrategyFunc = oldStrategy
+		KeyCooldownFunc = oldCooldownFunc
+	}
+}
+
+func priorityKey(id int, priority int, cost float64) ChannelKey {
+	k := enabledKey(id, cost)
+	k.Priority = priority
+	return k
+}
+
+func TestSelectKeyByPriorityPicksLowestPriority(t *testing.T) {
+	cleanup := setupPriorityTest()
+	defer cleanup()
+
+	ch := makeChannelWithKeys(
+		priorityKey(1, 20, 1.0),
+		priorityKey(2, 10, 5.0),
+		priorityKey(3, 30, 0.1),
+	)
+
+	key := ch.GetChannelKeyWithCooldown("gpt-4o", 300)
+	if key.ID != 2 {
+		t.Fatalf("expected key 2 (lowest priority value), got key %d", key.ID)
+	}
+}
+
+func TestSelectKeyByPriorityTieFallsBackToLowestCost(t *testing.T) {
+	cleanup := setupPriorityTest()
+	defer cleanup()
+
+	ch := makeChannelWithKeys(
+		priorityKey(1, 10, 5.0),
+		priorityKey(2, 10, 1.0),
+		priorityKey(3, 20, 0.1),
+	)
+
+	key := ch.GetChannelKeyWithCooldown("gpt-4o", 300)
+	if key.ID != 2 {
+		t.Fatalf("expected key 2 (same priority, lowest cost), got key %d", key.ID)
+	}
+}
+
+func TestSelectKeyByPrioritySkipsExcludedDisabledEmptyAndCooldown(t *testing.T) {
+	cleanup := setupPriorityTest()
+	defer cleanup()
+	KeyCooldownFunc = func(channelID, keyID int, modelName string) bool {
+		return channelID == 1 && keyID == 3 && modelName == "gpt-4o"
+	}
+
+	disabled := priorityKey(1, 1, 0.1)
+	disabled.Enabled = false
+	empty := priorityKey(2, 2, 0.1)
+	empty.ChannelKey = ""
+	cooldown := priorityKey(3, 3, 0.1)
+	excluded := priorityKey(4, 4, 0.1)
+	eligible := priorityKey(5, 5, 0.1)
+	ch := makeChannelWithKeys(disabled, empty, cooldown, excluded, eligible)
+
+	key := ch.GetChannelKeyExcludingWithCooldown([]int{4}, "gpt-4o", 300)
+	if key.ID != 5 {
+		t.Fatalf("expected key 5 (first eligible priority candidate), got key %d", key.ID)
+	}
+}
+
+func TestChannelInheritsGlobalPriorityStrategy(t *testing.T) {
+	cleanup := setupPriorityTest()
+	defer cleanup()
+
+	ch := makeChannelWithKeys(
+		priorityKey(1, 20, 1.0),
+		priorityKey(2, 10, 5.0),
+	)
+	ch.KeySelectionStrategy = ""
+
+	key := ch.GetChannelKeyWithCooldown("gpt-4o", 300)
+	if key.ID != 2 {
+		t.Fatalf("expected key 2 (global priority strategy), got key %d", key.ID)
+	}
+}

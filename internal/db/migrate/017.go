@@ -15,7 +15,7 @@ func init() {
 }
 
 // 017: 为 channels 增加 key_selection_strategy 列。
-// 空 = 继承全局设置；"cost" = 成本最低优先；"availability" = 可用度优先。
+// 空 = 继承全局设置；"cost" = 成本最低优先；"availability" = 可用度优先；"priority" = 优先级数字小优先。
 // gorm AutoMigrate 通常也会加列，这里幂等兜底，确保跨方言（SQLite/MySQL/Postgres）
 // 以及运行时切换 DB 类型后该列存在。
 func migrateChannelKeySelectionStrategy(db *gorm.DB) error {

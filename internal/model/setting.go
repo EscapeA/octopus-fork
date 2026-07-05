@@ -29,7 +29,7 @@ const (
 	SettingKeyPublicAPIBaseURL                     SettingKey = "public_api_base_url"                      // 对外可访问的 API 基础地址，用于生成示例
 	SettingKeyAlertNotifyLanguage                  SettingKey = "alert_notify_language"                    // 告警通知发送语言
 	SettingKeyRatelimitCooldown                    SettingKey = "ratelimit_cooldown"                       // Key 错误冷却时间（秒），0=关闭
-	SettingKeyKeySelectionStrategy                 SettingKey = "key_selection_strategy"                   // Key 选择策略：cost(默认) | availability
+	SettingKeyKeySelectionStrategy                 SettingKey = "key_selection_strategy"                   // Key 选择策略：cost(默认) | availability | priority
 	SettingKeyRelayMaxTotalAttempts                SettingKey = "relay_max_total_attempts"                 // 所有候选渠道的最大总尝试次数，0 表示不限制
 	SettingKeyRetryEmptyOutput                     SettingKey = "retry_empty_output"                       // 输出为空(CompletionTokens=0 且内容为空)时自动重试，仅非流式
 	SettingKeyAutoStrategyMinSamples               SettingKey = "auto_strategy_min_samples"                // Auto策略最小样本数阈值
@@ -257,8 +257,8 @@ func (s *Setting) Validate() error {
 		}
 		return nil
 	case SettingKeyKeySelectionStrategy:
-		if s.Value != "cost" && s.Value != "availability" {
-			return fmt.Errorf("key selection strategy must be cost or availability")
+		if s.Value != "cost" && s.Value != "availability" && s.Value != "priority" {
+			return fmt.Errorf("key selection strategy must be cost, availability or priority")
 		}
 		return nil
 	case SettingKeyProxyURL, SettingKeySemanticCacheEmbeddingBaseURL, SettingKeyAIRouteBaseURL:

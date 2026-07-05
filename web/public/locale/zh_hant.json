@@ -1357,9 +1357,10 @@
       },
       "keySelectionStrategy": {
         "label": "Key 選擇策略",
-        "hint": "渠道多 Key 選擇的預設策略。「成本」優先選累計成本最低的 Key；「可用度」優先選可用度最高的 Key（出錯降分、成功/時間恢復）。渠道可單獨覆蓋此設定。",
+        "hint": "渠道多 Key 選擇的預設策略。「成本」優先選累計成本最低的 Key；「可用度」優先選可用度最高的 Key（出錯降分、成功/時間恢復）；「優先級」優先選數字更小的 Key。渠道可單獨覆蓋此設定。",
         "cost": "成本（最低優先）",
-        "availability": "可用度（最高優先）"
+        "availability": "可用度（最高優先）",
+        "priority": "優先級（數字小優先）"
       }
     },
     "autoStrategy": {
@@ -2831,12 +2832,15 @@
       "matchRegex": "匹配正規",
       "matchRegexPlaceholder": "可選：用於匹配請求模型名稱的正規表示式",
       "remark": "備註",
+      "priority": "優先級",
+      "priorityHint": "數字越小越優先",
       "typeMiMoChat": "MiMo Chat",
       "typeCloudflare": "Cloudflare",
       "keySelectionStrategy": "Key 策略",
       "keySelectionStrategyInherit": "繼承全域",
       "keySelectionStrategyCost": "成本",
-      "keySelectionStrategyAvailability": "可用度"
+      "keySelectionStrategyAvailability": "可用度",
+      "keySelectionStrategyPriority": "優先級"
     }
   },
   "errors": {

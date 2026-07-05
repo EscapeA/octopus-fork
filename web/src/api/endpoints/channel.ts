@@ -76,6 +76,7 @@ export type ChannelKey = {
     status_code: number;
     last_use_time_stamp: number;
     total_cost: number;
+    priority: number;
     remark: string;
 };
 
@@ -132,7 +133,7 @@ export type CreateChannelRequest = {
     type: ChannelType;
     enabled?: boolean;
     base_urls: BaseUrl[];
-    keys: Array<Pick<ChannelKey, 'enabled' | 'channel_key' | 'remark'>>;
+    keys: Array<Pick<ChannelKey, 'enabled' | 'channel_key' | 'priority' | 'remark'>>;
     model: string;
     custom_model?: string;
     proxy?: boolean;
@@ -176,8 +177,8 @@ export type UpdateChannelRequest = {
     request_rewrite?: RequestRewriteConfig;
     match_regex?: string | null;
     // keys diff
-    keys_to_add?: Array<Pick<ChannelKey, 'enabled' | 'channel_key' | 'remark'>>;
-    keys_to_update?: Array<{ id: number; enabled?: boolean; channel_key?: string; remark?: string }>;
+    keys_to_add?: Array<Pick<ChannelKey, 'enabled' | 'channel_key' | 'priority' | 'remark'>>;
+    keys_to_update?: Array<{ id: number; enabled?: boolean; channel_key?: string; priority?: number; remark?: string }>;
     keys_to_delete?: number[];
 };
 

@@ -164,6 +164,7 @@ func KeySaveDB(ctx context.Context) error {
 			"status_code",
 			"last_use_time_stamp",
 			"total_cost",
+			"priority",
 			"remark",
 		}),
 	}).Create(&keys).Error; err != nil {
@@ -324,6 +325,9 @@ func Update(req *model.ChannelUpdateRequest, ctx context.Context) (*model.Channe
 			if ku.ChannelKey != nil {
 				updates["channel_key"] = *ku.ChannelKey
 			}
+			if ku.Priority != nil {
+				updates["priority"] = *ku.Priority
+			}
 			if ku.Remark != nil {
 				updates["remark"] = *ku.Remark
 			}
@@ -346,6 +350,7 @@ func Update(req *model.ChannelUpdateRequest, ctx context.Context) (*model.Channe
 				ChannelID:  req.ID,
 				Enabled:    ka.Enabled,
 				ChannelKey: ka.ChannelKey,
+				Priority:   ka.Priority,
 				Remark:     ka.Remark,
 			})
 		}

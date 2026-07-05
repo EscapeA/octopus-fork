@@ -50,6 +50,7 @@ export interface ChannelKeyFormItem {
     id?: number;
     enabled: boolean;
     channel_key: string;
+    priority?: number;
     status_code?: number;
     last_use_time_stamp?: number;
     total_cost?: number;
@@ -587,7 +588,7 @@ export function ChannelForm({
             return;
         }
         if (!formData.keys || formData.keys.length === 0) {
-            onFormDataChange({ ...formData, keys: [{ enabled: true, channel_key: '' }] });
+            onFormDataChange({ ...formData, keys: [{ enabled: true, channel_key: '', priority: 0 }] });
             return;
         }
         if (!formData.custom_header || formData.custom_header.length === 0) {
@@ -819,7 +820,7 @@ export function ChannelForm({
     const handleAddKey = () => {
         onFormDataChange({
             ...formData,
-            keys: [...formData.keys, { enabled: true, channel_key: '' }],
+            keys: [...formData.keys, { enabled: true, channel_key: '', priority: 0 }],
         });
     };
 
@@ -1071,13 +1072,21 @@ export function ChannelForm({
                 </div>
                 <div className="space-y-2">
                     {(formData.keys ?? []).map((k, idx) => (
-                        <div key={k.id ?? `new-${idx}`} className="grid gap-2 rounded-lg border border-border/25 bg-card p-2 lg:grid-cols-[minmax(0,1fr)_10rem_auto_auto] lg:items-center">
+                        <div key={k.id ?? `new-${idx}`} className="grid gap-2 rounded-lg border border-border/25 bg-card p-2 lg:grid-cols-[minmax(0,1fr)_7rem_10rem_auto_auto] lg:items-center">
                             <Input
                                 type="text"
                                 value={k.channel_key}
                                 onChange={(e) => handleUpdateKey(idx, { channel_key: e.target.value })}
                                 placeholder={t('apiKey')}
                                 required={idx === 0}
+                                className="rounded-lg"
+                            />
+                            <Input
+                                type="number"
+                                value={k.priority ?? 0}
+                                onChange={(e) => handleUpdateKey(idx, { priority: Number(e.target.value || 0) })}
+                                placeholder={t('priority')}
+                                title={t('priorityHint')}
                                 className="rounded-lg"
                             />
                             <Input
@@ -1604,6 +1613,7 @@ export function ChannelForm({
                                 <SelectItem className="rounded-xl" value="__inherit__">{t('keySelectionStrategyInherit')}</SelectItem>
                                 <SelectItem className="rounded-xl" value="cost">{t('keySelectionStrategyCost')}</SelectItem>
                                 <SelectItem className="rounded-xl" value="availability">{t('keySelectionStrategyAvailability')}</SelectItem>
+                                <SelectItem className="rounded-xl" value="priority">{t('keySelectionStrategyPriority')}</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
