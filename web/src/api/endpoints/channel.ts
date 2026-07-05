@@ -207,6 +207,20 @@ export type TestChannelSummary = {
     results: TestChannelResult[];
 };
 
+export type KeyModelResult = {
+    key_remark?: string;
+    key_masked?: string;
+    models: string[];
+    status_code: number;
+    passed: boolean;
+    message?: string;
+};
+
+export type FetchModelsPerKeyResponse = {
+    results: KeyModelResult[];
+    all_models: string[];
+};
+
 /**
  * 获取渠道列表 Hook
  *
@@ -458,6 +472,35 @@ export function useFetchModel() {
         },
         onError: (error) => {
             logger.error('模型列表获取失败:', error);
+        },
+    });
+}
+
+/**
+ * 按 key 逐个拉取模型列表 Hook。
+ * 后端路由: POST /api/v1/channel/fetch-models-per-key
+ * 返回每个 key 的模型列表和所有模型的并集。
+ *
+ * @example
+ * const fetchModelsPerKey = useFetchModelsPerKey();
+ * fetchModelsPerKey.mutate({
+ *   type: ChannelType.OpenAIChat,
+ *   base_urls: [{ url: 'https://api.openai.com', delay: 0 }],
+ *   keys: [{ enabled: true, channel_key: 'sk-xxx' }],
+ * });
+ * // fetchModelsPerKey.data.results[0] -> { key_masked: 'sk-o...0001', models: [...], passed: true }
+ * // fetchModelsPerKey.data.all_models -> ['gpt-4o', 'gpt-4.1', ...]
+ */
+export function useFetchModelsPerKey() {
+    return useMutation({
+        mutationFn: async (data: FetchModelRequest) => {
+            return apiClient.post<FetchModelsPerKeyResponse>('/api/v1/channel/fetch-models-per-key', data);
+        },
+        onSuccess: (data) => {
+            logger.log('按 key 模型列表获取成功:', data);
+        },
+        onError: (error) => {
+            logger.error('按 key 模型列表获取失败:', error);
         },
     });
 }

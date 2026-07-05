@@ -282,3 +282,102 @@ func fetchAnthropicModels(client *http.Client, ctx context.Context, request mode
 	}
 	return allModels, nil
 }
+
+// KeyModelResult 单个 key 拉取模型的结果
+type KeyModelResult struct {
+	KeyRemark  string   `json:"key_remark,omitempty"`
+	KeyMasked  string   `json:"key_masked,omitempty"`
+	Models     []string `json:"models"`
+	StatusCode int      `json:"status_code"`
+	Passed     bool     `json:"passed"`
+	Message    string   `json:"message,omitempty"`
+}
+
+// FetchModelsPerKeyResult 按 key 拉取模型的汇总结果
+type FetchModelsPerKeyResult struct {
+	Results   []KeyModelResult `json:"results"`
+	AllModels []string         `json:"all_models"`
+}
+
+// FetchModelsPerKey 逐个 key 拉取模型列表，返回每个 key 的模型列表和并集
+// 用于诊断同一个 channel 内不同 key 是否拥有不同的模型访问权限
+func FetchModelsPerKey(ctx context.Context, request model.Channel) (*FetchModelsPerKeyResult, error) {
+	if conf.IsDevMockSuccess() {
+		models, _ := filterDevMockModels(request)
+		return mockFetchModelsPerKey(request, models), nil
+	}
+
+	client, err := ChannelHttpClient(&request)
+	if err != nil {
+		return nil, err
+	}
+
+	// 只取启用的非空 key
+	enabledKeys := make([]model.ChannelKey, 0)
+	for _, k := range request.Keys {
+		if k.Enabled && strings.TrimSpace(k.ChannelKey) != "" {
+			enabledKeys = append(enabledKeys, k)
+		}
+	}
+
+	results := make([]KeyModelResult, 0, len(enabledKeys))
+	allModelsSet := make(map[string]struct{})
+
+	for _, key := range enabledKeys {
+		// 构造一个只包含当前 key 的临时 channel 副本
+		ch := request
+		ch.Keys = []model.ChannelKey{key}
+
+		fetchModel, err := fetchModelsWithClient(client, ctx, ch)
+		result := KeyModelResult{
+			KeyRemark: key.Remark,
+			KeyMasked: maskSecret(key.ChannelKey),
+		}
+		if err != nil {
+			result.Passed = false
+			result.Message = err.Error()
+		} else {
+			result.Passed = true
+			result.Models = fetchModel
+			for _, m := range fetchModel {
+				allModelsSet[m] = struct{}{}
+			}
+		}
+		results = append(results, result)
+	}
+
+	allModels := make([]string, 0, len(allModelsSet))
+	for m := range allModelsSet {
+		allModels = append(allModels, m)
+	}
+
+	return &FetchModelsPerKeyResult{
+		Results:   results,
+		AllModels: allModels,
+	}, nil
+}
+
+// maskSecret 对 key 做脱敏展示：保留前 4 位 + "..." + 后 4 位
+// （定义在 channel_probe.go 中，此处复用）
+
+func mockFetchModelsPerKey(request model.Channel, models []string) *FetchModelsPerKeyResult {
+	enabledKeys := make([]model.ChannelKey, 0)
+	for _, k := range request.Keys {
+		if k.Enabled && strings.TrimSpace(k.ChannelKey) != "" {
+			enabledKeys = append(enabledKeys, k)
+		}
+	}
+	results := make([]KeyModelResult, 0, len(enabledKeys))
+	for _, key := range enabledKeys {
+		results = append(results, KeyModelResult{
+			KeyRemark: key.Remark,
+			KeyMasked: maskSecret(key.ChannelKey),
+			Models:    models,
+			Passed:    true,
+		})
+	}
+	return &FetchModelsPerKeyResult{
+		Results:   results,
+		AllModels: models,
+	}
+}

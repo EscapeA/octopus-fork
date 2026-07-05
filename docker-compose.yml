@@ -6,7 +6,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./data:/app/data
+      - octopus-data:/app/data
     environment:
       # 容器时区；海外部署可改为显式 IANA 时区名，例如 America/Los_Angeles
       TZ: "Asia/Shanghai"
@@ -14,5 +14,6 @@ services:
       # 反向代理 / Docker bridge 部署：默认不信任代理，client_ip 会是网关地址（如 172.17.0.1）。
       # 配置代理网段以解析真实客户端 IP，例如默认 Docker bridge 用 172.17.0.0/16
       # OCTOPUS_SERVER_TRUSTED_PROXIES: "172.17.0.0/16"
-
+volumes:
+  octopus-data:
 

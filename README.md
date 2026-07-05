@@ -80,9 +80,12 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./data:/app/data
+      - octopus-data:/app/data
     environment:
       OCTOPUS_AUTH_JWT_SECRET: "replace-with-a-long-random-secret"
+
+volumes:
+  octopus-data:
 ```
 
 Then run:
@@ -91,7 +94,7 @@ Then run:
 docker compose up -d
 ```
 
-Note: The official image runs as the non-root user `octopus` with UID/GID `1000`. The `docker run` example above uses a named volume because it avoids most host-permission issues, especially on Windows Docker Desktop. If you bind-mount a host directory to `/app/data`, make sure that directory is writable by UID/GID `1000`, otherwise startup will fail with `permission denied` when creating `config.json` or `data.db`.
+Note: The official image runs as the non-root user `octopus` with UID/GID `1000`. The examples above use a Docker named volume for `/app/data` to avoid most host-permission issues, especially on Linux bind mounts and Windows Docker Desktop. If you intentionally bind-mount a host directory to `/app/data` (for example `./data:/app/data`), make sure that directory is writable by UID/GID `1000`, otherwise startup will fail with `permission denied` when creating `config.json` or `data.db`.
 
 The official Docker image rebuilds the frontend during image build and embeds the latest exported UI into the Go binary, so the container includes the matching management UI for that release.
 

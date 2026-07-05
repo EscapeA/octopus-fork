@@ -2743,7 +2743,10 @@
         "loading": "Fetching models...",
         "cancel": "Cancel",
         "apply": "Add {count} models",
-        "applySuccess": "Added {count} models"
+        "applySuccess": "Added {count} models",
+        "allModels": "All Models",
+        "perKey": "Per Key",
+        "noModels": "No models returned"
       },
       "template": {
         "label": "Built-in Templates",

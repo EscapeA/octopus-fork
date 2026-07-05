@@ -2743,7 +2743,10 @@
         "loading": "正在獲取模型列表...",
         "cancel": "取消",
         "apply": "新增 {count} 個模型",
-        "applySuccess": "已新增 {count} 個模型"
+        "applySuccess": "已新增 {count} 個模型",
+        "allModels": "全部模型",
+        "perKey": "按 Key 檢視",
+        "noModels": "未返回模型"
       },
       "template": {
         "label": "內建供應商模板",

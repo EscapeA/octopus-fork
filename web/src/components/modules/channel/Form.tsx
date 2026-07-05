@@ -9,6 +9,8 @@ import {
     useChannelGroupList,
     type RequestRewriteConfig,
     useFetchModel,
+    useFetchModelsPerKey,
+    type KeyModelResult,
     useTestChannel,
     type TestChannelSummary,
 } from '@/api/endpoints/channel';
@@ -168,6 +170,8 @@ interface ModelPickerDialogPanelProps {
     onDraftChange: (models: string[]) => void;
     isLoading: boolean;
     onApply: () => void;
+    perKeyResults?: KeyModelResult[] | null;
+    perKeyLoading?: boolean;
 }
 
 interface ModelProviderGroup {
@@ -198,11 +202,14 @@ function groupModelsByProvider(models: string[]): ModelProviderGroup[] {
     });
 }
 
-function ModelPickerDialogPanel({ models, draftSelected, onDraftChange, isLoading, onApply }: ModelPickerDialogPanelProps) {
+function ModelPickerDialogPanel({ models, draftSelected, onDraftChange, isLoading, onApply, perKeyResults, perKeyLoading }: ModelPickerDialogPanelProps) {
     const t = useTranslations('channel.form.modelPicker');
     const { setIsOpen } = useMorphingDialog();
     const [searchTerm, setSearchTerm] = useState('');
     const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+    const [viewMode, setViewMode] = useState<'all' | 'perKey'>('all');
+    const hasPerKeyData = perKeyResults && perKeyResults.length > 0;
+    const showPerKey = perKeyLoading || hasPerKeyData;
 
     const normalizedSearch = searchTerm.trim().toLowerCase();
     const isSearching = normalizedSearch.length > 0;
@@ -289,6 +296,26 @@ function ModelPickerDialogPanel({ models, draftSelected, onDraftChange, isLoadin
             </MorphingDialogTitle>
 
             <MorphingDialogDescription disableLayoutAnimation className="relative flex min-h-0 flex-1 flex-col gap-4 px-4 py-4 md:px-6">
+                {showPerKey && (
+                    <div className="flex shrink-0 items-center gap-1 rounded-lg border border-border/25 bg-muted/40 p-1">
+                        <button
+                            type="button"
+                            onClick={() => setViewMode('all')}
+                            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === 'all' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                        >
+                            {t('allModels')}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setViewMode('perKey')}
+                            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === 'perKey' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                        >
+                            {t('perKey')}
+                        </button>
+                    </div>
+                )}
+                {viewMode === 'all' && (
+                    <>
                 <div className="relative shrink-0">
                     <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
@@ -412,6 +439,77 @@ function ModelPickerDialogPanel({ models, draftSelected, onDraftChange, isLoadin
                         </div>
                     )}
                 </div>
+                    </>
+                )}
+                {viewMode === 'perKey' && (
+                    <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border/25 bg-card p-2 shadow-sm">
+                        {perKeyLoading ? (
+                            <div className="flex h-40 items-center justify-center gap-2 text-sm text-muted-foreground">
+                                <RefreshCw className="size-4 animate-spin" />
+                                {t('loading')}
+                            </div>
+                        ) : hasPerKeyData ? (
+                            <div className="flex flex-col gap-3">
+                                {perKeyResults!.map((result, idx) => (
+                                    <div
+                                        key={result.key_masked ?? idx}
+                                        className={`rounded-lg border p-3 ${result.passed ? 'border-border/25 bg-background/40' : 'border-red-500/20 bg-red-500/5'}`}
+                                    >
+                                        <div className="mb-2 flex items-center gap-2">
+                                            {result.passed ? (
+                                                <CheckCircle2 className="size-4 shrink-0 text-green-500" />
+                                            ) : (
+                                                <AlertTriangle className="size-4 shrink-0 text-red-400" />
+                                            )}
+                                            <span className="truncate text-xs font-mono text-foreground">
+                                                {result.key_masked}
+                                            </span>
+                                            {result.key_remark && (
+                                                <Badge variant="secondary" className="h-4 rounded-full px-1.5 text-[0.625rem]">
+                                                    {result.key_remark}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                        {result.passed && result.models.length > 0 ? (
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {result.models.map((model) => {
+                                                    const selected = selectedSet.has(model);
+                                                    return (
+                                                        <button
+                                                            key={model}
+                                                            type="button"
+                                                            onClick={() => toggleModel(model)}
+                                                            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-mono transition-colors ${
+                                                                selected
+                                                                    ? 'border-primary/30 bg-primary/10 text-foreground'
+                                                                    : 'border-border/25 bg-background/40 text-muted-foreground hover:border-border/60 hover:text-foreground'
+                                                            }`}
+                                                        >
+                                                            <span className={`flex size-3.5 shrink-0 items-center justify-center rounded-full ${
+                                                                selected ? 'bg-primary text-primary-foreground' : 'border border-border'
+                                                            }`}>
+                                                                {selected ? <Check className="size-2.5" /> : null}
+                                                            </span>
+                                                            {model}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : !result.passed && result.message ? (
+                                            <p className="text-xs text-red-400">{result.message}</p>
+                                        ) : (
+                                            <p className="text-xs text-muted-foreground">{t('noModels')}</p>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
+                                {t('empty')}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 <div className="flex shrink-0 flex-col gap-2 border-t border-border/20 pt-4 sm:flex-row">
                     <Button
@@ -519,9 +617,11 @@ export function ChannelForm({
     const inputRef = useRef<HTMLInputElement>(null);
 
     const fetchModel = useFetchModel();
+    const fetchModelsPerKey = useFetchModelsPerKey();
     const testChannel = useTestChannel();
     const [testSummary, setTestSummary] = useState<TestChannelSummary | null>(null);
     const [modelPickerDraft, setModelPickerDraft] = useState<string[]>([]);
+    const [perKeyResults, setPerKeyResults] = useState<KeyModelResult[] | null>(null);
 
     const effectiveKey =
         formData.keys.find((k) => k.enabled && k.channel_key.trim())?.channel_key.trim() || '';
@@ -637,18 +737,23 @@ export function ChannelForm({
         if (!formData.base_urls?.[0]?.url || !effectiveKey) return;
         setModelPickerDraft(autoModels);
         setFetchedModels([]);
+        setPerKeyResults(null);
+
+        const payload = {
+            type: formData.type,
+            base_urls: formData.base_urls,
+            keys: formData.keys
+                .filter((k) => k.channel_key.trim())
+                .map((k) => ({ enabled: k.enabled, channel_key: k.channel_key.trim() })),
+            proxy: formData.proxy,
+            channel_proxy: formData.channel_proxy?.trim() || '',
+            match_regex: formData.match_regex.trim() || '',
+            custom_header: normalizedHeaders,
+        };
+
+        // 主模型列表（单 key）
         fetchModel.mutate(
-            {
-                type: formData.type,
-                base_urls: formData.base_urls,
-                keys: formData.keys
-                    .filter((k) => k.channel_key.trim())
-                    .map((k) => ({ enabled: k.enabled, channel_key: k.channel_key.trim() })),
-                proxy: formData.proxy,
-                channel_proxy: formData.channel_proxy?.trim() || '',
-                match_regex: formData.match_regex.trim() || '',
-                custom_header: normalizedHeaders,
-            },
+            payload,
             {
                 onSuccess: (data) => {
                     const normalizedModels = normalizeFetchedModels(data);
@@ -667,6 +772,25 @@ export function ChannelForm({
                 },
             }
         );
+
+        // 如果有多个 key，同时拉取每个 key 的模型列表
+        const enabledKeys = formData.keys.filter((k) => k.enabled && k.channel_key.trim());
+        if (enabledKeys.length > 1) {
+            fetchModelsPerKey.mutate(
+                {
+                    ...payload,
+                    keys: enabledKeys.map((k) => ({ enabled: true, channel_key: k.channel_key.trim() })),
+                },
+                {
+                    onSuccess: (data) => {
+                        setPerKeyResults(data.results);
+                    },
+                    onError: () => {
+                        setPerKeyResults(null);
+                    },
+                }
+            );
+        }
     };
 
     const handleAddModel = (model: string) => {
@@ -1054,6 +1178,8 @@ export function ChannelForm({
                                     onDraftChange={setModelPickerDraft}
                                     isLoading={fetchModel.isPending}
                                     onApply={applyFetchedModelSelection}
+                                    perKeyResults={perKeyResults}
+                                    perKeyLoading={fetchModelsPerKey.isPending}
                                 />
                             </MorphingDialogContent>
                         </MorphingDialogContainer>

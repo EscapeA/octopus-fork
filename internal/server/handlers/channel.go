@@ -57,6 +57,11 @@ func init() {
 				Handle(fetchModel),
 		).
 		AddRoute(
+			router.NewRoute("/fetch-models-per-key", http.MethodPost).
+				Use(middleware.RequirePermission(auth.PermChannelsWrite)).
+				Handle(fetchModelsPerKey),
+		).
+		AddRoute(
 			router.NewRoute("/test", http.MethodPost).
 				Use(middleware.RequirePermission(auth.PermChannelsWrite)).
 				Handle(testChannel),
@@ -237,6 +242,23 @@ func fetchModel(c *gin.Context) {
 		return
 	}
 	resp.Success(c, models)
+}
+
+// fetchModelsPerKey 逐个 key 拉取模型列表，返回每个 key 的模型列表和并集
+// 用于诊断同一个 channel 内不同 key 是否拥有不同的模型访问权限
+func fetchModelsPerKey(c *gin.Context) {
+	var payload channelRequestPayload
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		resp.Error(c, http.StatusBadRequest, resp.ErrInvalidJSON)
+		return
+	}
+	request := payload.toChannel()
+	result, err := helper.FetchModelsPerKey(c.Request.Context(), request)
+	if err != nil {
+		resp.InternalError(c)
+		return
+	}
+	resp.Success(c, result)
 }
 
 func testChannel(c *gin.Context) {
