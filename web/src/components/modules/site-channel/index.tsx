@@ -1243,7 +1243,6 @@ function SiteChannelTableView({
     return (
         <>
             <Table
-                containerClassName="overflow-x-auto overflow-y-visible xl:overflow-x-visible"
                 className="min-w-[54rem] table-fixed xl:min-w-0 xl:w-full"
             >
                 <TableHeader>

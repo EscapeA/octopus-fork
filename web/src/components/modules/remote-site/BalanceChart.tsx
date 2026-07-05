@@ -85,11 +85,12 @@ export function BalanceChart({ siteId, days = 30 }: BalanceChartProps) {
                             border: '1px solid hsl(var(--border))',
                             background: 'hsl(var(--card))',
                         }}
-                        formatter={(value: number, name: string) => {
-                            if (value === undefined || value === null) return ['-', name];
-                            return [value.toFixed(2), name === 'predicted' ? t('chart.predicted') : t('chart.quota')];
+                        formatter={(value, name) => {
+                            const v = value as number | undefined;
+                            if (v === undefined || v === null) return ['-', name];
+                            return [v.toFixed(2), name === 'predicted' ? t('chart.predicted') : t('chart.quota')];
                         }}
-                        labelFormatter={(label: string) => label}
+                        labelFormatter={(label) => label}
                     />
                     <Line
                         type="monotone"
