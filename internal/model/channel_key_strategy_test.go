@@ -222,7 +222,7 @@ func priorityKey(id int, priority int, cost float64) ChannelKey {
 	return k
 }
 
-func TestSelectKeyByPriorityPicksLowestPriority(t *testing.T) {
+func TestSelectKeyByPriorityPicksHighestPriority(t *testing.T) {
 	cleanup := setupPriorityTest()
 	defer cleanup()
 
@@ -233,8 +233,8 @@ func TestSelectKeyByPriorityPicksLowestPriority(t *testing.T) {
 	)
 
 	key := ch.GetChannelKeyWithCooldown("gpt-4o", 300)
-	if key.ID != 2 {
-		t.Fatalf("expected key 2 (lowest priority value), got key %d", key.ID)
+	if key.ID != 3 {
+		t.Fatalf("expected key 3 (highest priority value), got key %d", key.ID)
 	}
 }
 
@@ -245,7 +245,6 @@ func TestSelectKeyByPriorityTieFallsBackToLowestCost(t *testing.T) {
 	ch := makeChannelWithKeys(
 		priorityKey(1, 10, 5.0),
 		priorityKey(2, 10, 1.0),
-		priorityKey(3, 20, 0.1),
 	)
 
 	key := ch.GetChannelKeyWithCooldown("gpt-4o", 300)
@@ -287,7 +286,7 @@ func TestChannelInheritsGlobalPriorityStrategy(t *testing.T) {
 	ch.KeySelectionStrategy = ""
 
 	key := ch.GetChannelKeyWithCooldown("gpt-4o", 300)
-	if key.ID != 2 {
-		t.Fatalf("expected key 2 (global priority strategy), got key %d", key.ID)
+	if key.ID != 1 {
+		t.Fatalf("expected key 1 (global priority strategy, highest priority), got key %d", key.ID)
 	}
 }

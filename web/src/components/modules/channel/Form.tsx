@@ -15,6 +15,7 @@ import {
     type TestChannelSummary,
 } from '@/api/endpoints/channel';
 import { useAlertNotifChannelList } from '@/api/endpoints/alert';
+import { useSettingList, SettingKey } from '@/api/endpoints/setting';
 import { channelTemplates } from './templates';
 import { CHANNEL_TYPE_OPTIONS } from './type-options';
 import { isOpenAICompatBaseUrlSuffixMode } from './base-url-suffix';
@@ -573,12 +574,17 @@ export function ChannelForm({
     onShowTemplatePicker,
 }: ChannelFormProps) {
     const t = useTranslations('channel.form');
+    const { data: settings } = useSettingList();
     const { data: channelGroups = [] } = useChannelGroupList();
     const { data: notifChannels = [] } = useAlertNotifChannelList();
     const requestRewriteSupported = isRequestRewriteSupportedChannelType(formData.type);
     const sectionClassName = 'space-y-4 rounded-lg bg-card/70 p-4 md:p-5';
     const labelClassName = 'text-sm font-medium text-card-foreground';
     const fieldGroupClassName = 'space-y-2';
+
+    const globalKeyStrategy = settings?.find((s) => s.key === SettingKey.KeySelectionStrategy)?.value ?? 'cost';
+    const effectiveKeyStrategy = formData.key_selection_strategy || globalKeyStrategy;
+    const showPriorityInput = effectiveKeyStrategy === 'priority';
 
     // Ensure the form always shows at least 1 row for base_urls / keys / custom_header.
     // This avoids "empty list" UI and also keeps URL + APIKEY layout consistent.
@@ -1072,7 +1078,10 @@ export function ChannelForm({
                 </div>
                 <div className="space-y-2">
                     {(formData.keys ?? []).map((k, idx) => (
-                        <div key={k.id ?? `new-${idx}`} className="grid gap-2 rounded-lg border border-border/25 bg-card p-2 lg:grid-cols-[minmax(0,1fr)_7rem_10rem_auto_auto] lg:items-center">
+                        <div key={k.id ?? `new-${idx}`} className={cn(
+                            "grid gap-2 rounded-lg border border-border/25 bg-card p-2 lg:items-center",
+                            showPriorityInput ? "lg:grid-cols-[minmax(0,1fr)_7rem_10rem_auto_auto]" : "lg:grid-cols-[minmax(0,1fr)_10rem_auto_auto]"
+                        )}>
                             <Input
                                 type="text"
                                 value={k.channel_key}
@@ -1081,14 +1090,16 @@ export function ChannelForm({
                                 required={idx === 0}
                                 className="rounded-lg"
                             />
-                            <Input
-                                type="number"
-                                value={k.priority ?? 0}
-                                onChange={(e) => handleUpdateKey(idx, { priority: Number(e.target.value || 0) })}
-                                placeholder={t('priority')}
-                                title={t('priorityHint')}
-                                className="rounded-lg"
-                            />
+                            {showPriorityInput && (
+                                <Input
+                                    type="number"
+                                    value={k.priority ?? 0}
+                                    onChange={(e) => handleUpdateKey(idx, { priority: Number(e.target.value || 0) })}
+                                    placeholder={t('priority')}
+                                    title={t('priorityHint')}
+                                    className="rounded-lg"
+                                />
+                            )}
                             <Input
                                 type="text"
                                 value={k.remark ?? ''}

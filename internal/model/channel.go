@@ -402,7 +402,7 @@ func (c *Channel) GetChannelKeyWithCooldown(modelName string, ratelimitCooldownS
 //   - "availability"：选可用度分数最高的 key（满分 100，出错衰减、成功/时间恢复）；
 //     同分按 Keys 数组顺序取第一个（初始全满分 → 用第一个 key）；全部分数 ≤ 0 时
 //     回退 cost 策略防卡死。可用度是软优先级，冷却/熔断/失败提示硬隔离仍生效。
-//   - "priority"：选 Priority 数字最小的 key；同优先级选 TotalCost 更低者，仍相同则
+//   - "priority"：选 Priority 数字最大的 key；同优先级选 TotalCost 更低者，仍相同则
 //     按 Keys 数组顺序取第一个。
 //
 // 渠道 KeySelectionStrategy 为空时继承全局策略（GlobalKeySelectionStrategyFunc）。
@@ -476,11 +476,11 @@ func selectKeyByCost(candidates []ChannelKey) ChannelKey {
 	return best
 }
 
-// selectKeyByPriority 选优先级数字最小的 key；同优先级选成本更低者，仍相同则保持候选顺序。
+// selectKeyByPriority 选优先级数字最大的 key；同优先级选成本更低者，仍相同则保持候选顺序。
 func selectKeyByPriority(candidates []ChannelKey) ChannelKey {
 	best := candidates[0]
 	for _, k := range candidates[1:] {
-		if k.Priority < best.Priority || (k.Priority == best.Priority && k.TotalCost < best.TotalCost) {
+		if k.Priority > best.Priority || (k.Priority == best.Priority && k.TotalCost < best.TotalCost) {
 			best = k
 		}
 	}
