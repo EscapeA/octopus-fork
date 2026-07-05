@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState, type FormEvent } from 'react';
 import { Check, ChevronDownIcon, Plus, Search, Sparkles, Trash2, Waves, Orbit, SlidersHorizontal, FlaskConical } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import * as AccordionPrimitive from '@radix-ui/react-accordion';
+import { Accordion as AccordionPrimitive } from 'radix-ui';
 import { useModelChannelList, type LLMChannel } from '@/api/endpoints/model';
 import { Button } from '@/components/ui/button';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
