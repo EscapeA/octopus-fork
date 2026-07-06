@@ -3080,7 +3080,12 @@
       "inbox": "收件箱",
       "archived": "已归档",
       "policies": "策略",
-      "preferences": "偏好"
+      "preferences": "偏好",
+      "alertRules": "告警规则",
+      "alertHistory": "告警历史",
+      "channels": "通知渠道",
+      "reportSchedules": "报表计划",
+      "reportHistory": "报表历史"
     },
     "filters": {
       "search": "搜索标题或内容",
@@ -3141,6 +3146,12 @@
         "inApp": "启用站内通知",
         "external": "启用外部投递"
       }
+    },
+    "groups": {
+      "messages": "消息",
+      "alerts": "告警",
+      "delivery": "投递",
+      "reports": "报表"
     }
   }
 }

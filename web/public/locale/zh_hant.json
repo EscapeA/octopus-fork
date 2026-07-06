@@ -3080,7 +3080,12 @@
       "inbox": "收件匣",
       "archived": "已封存",
       "policies": "策略",
-      "preferences": "偏好"
+      "preferences": "偏好",
+      "alertRules": "告警規則",
+      "alertHistory": "告警歷史",
+      "channels": "通知渠道",
+      "reportSchedules": "報表計畫",
+      "reportHistory": "報表歷史"
     },
     "filters": {
       "search": "搜尋標題或內容",
@@ -3141,6 +3146,12 @@
         "inApp": "啟用站內通知",
         "external": "啟用外部投遞"
       }
+    },
+    "groups": {
+      "messages": "訊息",
+      "alerts": "告警",
+      "delivery": "投遞",
+      "reports": "報表"
     }
   }
 }

@@ -304,9 +304,12 @@ function getChannelDescription(channel: AlertNotifChannel): string {
     }
 }
 
-export function Alert() {
+export type AlertSection = 'rules' | 'channels' | 'history' | 'reports';
+
+export function AlertSections({ section, showTabs = false }: { section?: AlertSection; showTabs?: boolean }) {
     const t = useTranslations('alert');
-    const [tab, setTab] = useState<'rules' | 'channels' | 'history' | 'reports'>('rules');
+    const [tab, setTab] = useState<AlertSection>('rules');
+    const activeTab = section ?? tab;
     const { data: rules, isLoading: rulesLoading } = useAlertRuleList();
     const { data: channels, isLoading: channelsLoading } = useAlertNotifChannelList();
     const { data: history, isLoading: historyLoading } = useAlertHistory();
@@ -522,15 +525,17 @@ export function Alert() {
     }
 
     return (
-        <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain rounded-t-xl space-y-4 pb-3 md:pb-6">
-            <div className="flex items-center gap-2 mb-2 overflow-x-auto scrollbar-none -mx-1 px-1">
-                <TabButton active={tab === 'rules'} onClick={() => setTab('rules')}>{t('tabs.rules')}</TabButton>
-                <TabButton active={tab === 'channels'} onClick={() => setTab('channels')}>{t('tabs.channels')}</TabButton>
-                <TabButton active={tab === 'history'} onClick={() => setTab('history')}>{t('tabs.history')}</TabButton>
-                <TabButton active={tab === 'reports'} onClick={() => setTab('reports')}>{t('tabs.reports')}</TabButton>
-            </div>
+        <div className="space-y-4">
+            {showTabs && (
+                <div className="flex items-center gap-2 mb-2 overflow-x-auto scrollbar-none -mx-1 px-1">
+                    <TabButton active={activeTab === 'rules'} onClick={() => setTab('rules')}>{t('tabs.rules')}</TabButton>
+                    <TabButton active={activeTab === 'channels'} onClick={() => setTab('channels')}>{t('tabs.channels')}</TabButton>
+                    <TabButton active={activeTab === 'history'} onClick={() => setTab('history')}>{t('tabs.history')}</TabButton>
+                    <TabButton active={activeTab === 'reports'} onClick={() => setTab('reports')}>{t('tabs.reports')}</TabButton>
+                </div>
+            )}
 
-            {tab === 'rules' && (
+            {activeTab === 'rules' && (
                 <div className="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-4">
                     <div className="flex items-center justify-between">
                         <h2 className="text-lg font-bold text-card-foreground flex items-center gap-2">
@@ -809,7 +814,7 @@ export function Alert() {
                 </div>
             )}
 
-            {tab === 'channels' && (
+            {activeTab === 'channels' && (
                 <div className="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-4">
                     <div className="flex items-center justify-between">
                         <h2 className="text-lg font-bold text-card-foreground flex items-center gap-2">
@@ -973,7 +978,7 @@ export function Alert() {
                 </div>
             )}
 
-            {tab === 'history' && (
+            {activeTab === 'history' && (
                 <div className="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-4">
                     <h2 className="text-lg font-bold text-card-foreground flex items-center gap-2">
                         <Clock className="h-5 w-5" />{t('history.title')}
@@ -1019,12 +1024,20 @@ export function Alert() {
                     )}
                 </div>
             )}
-            {tab === 'reports' && (
+            {activeTab === 'reports' && (
                 <div className="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-6">
                     <ReportScheduleManager />
                     <ReportHistoryList />
                 </div>
             )}
+        </div>
+    );
+}
+
+export function Alert() {
+    return (
+        <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain rounded-t-xl space-y-4 pb-3 md:pb-6">
+            <AlertSections showTabs />
         </PageWrapper>
     );
 }

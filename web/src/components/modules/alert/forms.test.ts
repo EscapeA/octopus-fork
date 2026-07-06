@@ -16,6 +16,9 @@ test('createAlertRuleDraft returns expected defaults for a new rule', () => {
         threshold: 10,
         notif_channel_id: 0,
         cooldown_sec: 300,
+        condition_json: '',
+        scope_channel_id: 0,
+        scope_api_key_id: 0,
     });
 });
 

@@ -10,7 +10,6 @@ export type NavItem =
     | 'analytics'
     | 'log'
     | 'notification'
-    | 'alert'
     | 'ops'
     | 'apikey'
     | 'setting'
@@ -25,7 +24,6 @@ export const DEFAULT_NAV_ORDER: NavItem[] = [
     'analytics',
     'log',
     'notification',
-    'alert',
     'ops',
     'apikey',
     'setting',

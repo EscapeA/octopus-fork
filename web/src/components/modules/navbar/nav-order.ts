@@ -6,7 +6,7 @@ export const DEFAULT_NAV_ORDER = [
     'model',
     'analytics',
     'log',
-    'alert',
+    'notification',
     'ops',
     'apikey',
     'setting',

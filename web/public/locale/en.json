@@ -98,7 +98,7 @@
     "setting": "Setting",
     "ariaLabel": "Main navigation",
     "apikey": "API Keys",
-    "notification": "Notifications"
+    "notification": "Notification Center"
   },
   "endpoints": {
     "title": "Available Endpoints",
@@ -3080,7 +3080,12 @@
       "inbox": "Inbox",
       "archived": "Archived",
       "policies": "Policies",
-      "preferences": "Preferences"
+      "preferences": "Preferences",
+      "alertRules": "Alert Rules",
+      "alertHistory": "Alert History",
+      "channels": "Channels",
+      "reportSchedules": "Report Schedules",
+      "reportHistory": "Report History"
     },
     "filters": {
       "search": "Search title or content",
@@ -3141,6 +3146,12 @@
         "inApp": "In-app enabled",
         "external": "External enabled"
       }
+    },
+    "groups": {
+      "messages": "Messages",
+      "alerts": "Alerts",
+      "delivery": "Delivery",
+      "reports": "Reports"
     }
   }
 }
