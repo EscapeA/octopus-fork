@@ -2,7 +2,6 @@ package planprovider
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -12,13 +11,8 @@ import (
 	"github.com/lingyuins/octopus/internal/op"
 	"github.com/lingyuins/octopus/internal/transformer/outbound"
 	"github.com/lingyuins/octopus/internal/utils/log"
-	"gorm.io/gorm"
 )
 
-const planGroupName = "Plan"
-
-// planChannelGroupName 是额度监控渠道在渠道页面的分组名（ChannelGroup）。
-// 与路由分组 planGroupName 同名，但分属不同的表（ChannelGroup vs Group）。
 const planChannelGroupName = "Plan"
 
 // ListProviders 列出所有 Plan Provider
@@ -47,7 +41,7 @@ func ListProviders(ctx context.Context, providerType model.PlanProviderType) ([]
 	return result, nil
 }
 
-// AddProvider 添加 Plan Provider：查询额度 → （可选）创建/复用 Channel → 加入 Plan 分组
+// AddProvider 添加 Plan Provider：查询额度 → （可选）创建/复用 Channel 并归入渠道 Plan 分组
 //
 // apiKey 是主凭据（balance 类厂商的 sk- key，或 stepfun_plan 的 Oasis-Token）。
 // forwardAPIKey 仅 stepfun_plan 使用：可选的 sk- API Key，用于转发。
@@ -107,11 +101,6 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 	needCreateChannel := info.Type == model.PlanProviderTypeBalance ||
 		(isConsoleTokenPlanCategory(category) && forwardAPIKey != "")
 	if needCreateChannel {
-		groupID, err := ensurePlanGroup(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("ensure plan group: %w", err)
-		}
-
 		channelGroupID, err := ensurePlanChannelGroup(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("ensure plan channel group: %w", err)
@@ -166,14 +155,6 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 			}
 			if err := op.ChannelCreate(channel, ctx); err != nil {
 				return nil, fmt.Errorf("create channel: %w", err)
-			}
-
-			// 加入 Plan 分组（失败则补偿删除刚创建的 channel）
-			if err := addChannelToGroup(ctx, channel.ID, channel.Model, groupID); err != nil {
-				if delErr := op.ChannelDel(channel.ID, ctx); delErr != nil {
-					log.Warnf("planprovider: compensate delete channel %d after addChannelToGroup failed: %v", channel.ID, delErr)
-				}
-				return nil, fmt.Errorf("add channel to plan group: %w", err)
 			}
 			channelID = channel.ID
 		}
@@ -326,30 +307,6 @@ func getCategoryInfo(category model.PlanProviderCategory) *model.PlanProviderCat
 	return nil
 }
 
-func ensurePlanGroup(ctx context.Context) (int, error) {
-	// 查找已有 Plan 分组。只有 ErrRecordNotFound 才进创建分支，
-	// 其他 DB 错误（连接断开、语法错等）必须返回，否则会产生重名 Plan 分组。
-	var group model.Group
-	err := db.GetDB().WithContext(ctx).Where("name = ?", planGroupName).First(&group).Error
-	if err == nil {
-		return group.ID, nil
-	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return 0, fmt.Errorf("find plan group: %w", err)
-	}
-
-	// 创建 Plan 分组
-	newGroup := &model.Group{
-		Name:         planGroupName,
-		EndpointType: "*",
-		Mode:         model.GroupModeRoundRobin,
-	}
-	if err := op.GroupCreate(newGroup, ctx); err != nil {
-		return 0, fmt.Errorf("create plan group: %w", err)
-	}
-	return newGroup.ID, nil
-}
-
 // ensurePlanChannelGroup 确保名为 Plan 的渠道分组（ChannelGroup）存在，返回其 ID。
 // 与 ensurePlanGroup 不同：后者操作路由分组（Group 表），本函数操作渠道分组
 // （ChannelGroup 表），用于 channel.GroupID 字段的归属。
@@ -368,37 +325,6 @@ func ensurePlanChannelGroup(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("create plan channel group: %w", err)
 	}
 	return newGroup.ID, nil
-}
-
-func addChannelToGroup(ctx context.Context, channelID int, modelList string, groupID int) error {
-	models := strings.Split(modelList, ",")
-	// If model list is "*", use a wildcard
-	if len(models) == 1 && models[0] == "*" {
-		models = []string{"*"}
-	}
-
-	for _, modelName := range models {
-		modelName = strings.TrimSpace(modelName)
-		if modelName == "" {
-			continue
-		}
-		item := model.GroupItem{
-			GroupID:   groupID,
-			ChannelID: channelID,
-			ModelName: modelName,
-			Priority:  0,
-			Weight:    1,
-		}
-		if err := db.GetDB().WithContext(ctx).Create(&item).Error; err != nil {
-			return fmt.Errorf("add group item (model=%s): %w", modelName, err)
-		}
-	}
-
-	// Refresh group cache
-	if err := op.GroupRefreshCacheByIDs([]int{groupID}, ctx); err != nil {
-		return fmt.Errorf("refresh group cache: %w", err)
-	}
-	return nil
 }
 
 // stepFunPlanAPIBaseURL 是 StepFun 套餐转发的 API 接入点。
