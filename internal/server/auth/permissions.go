@@ -6,21 +6,23 @@ import "github.com/lingyuins/octopus/internal/model"
 type Permission string
 
 const (
-	PermChannelsRead  Permission = "channels:read"
-	PermChannelsWrite Permission = "channels:write"
-	PermGroupsRead    Permission = "groups:read"
-	PermGroupsWrite   Permission = "groups:write"
-	PermAPIKeysRead   Permission = "apikeys:read"
-	PermAPIKeysWrite  Permission = "apikeys:write"
-	PermSettingsRead  Permission = "settings:read"
-	PermSettingsWrite Permission = "settings:write"
-	PermLogsRead      Permission = "logs:read"
-	PermLogsWrite     Permission = "logs:write"
-	PermStatsRead     Permission = "stats:read"
-	PermUsersRead     Permission = "users:read"
-	PermUsersWrite    Permission = "users:write"
-	PermSitesRead     Permission = "sites:read"
-	PermSitesWrite    Permission = "sites:write"
+	PermChannelsRead       Permission = "channels:read"
+	PermChannelsWrite      Permission = "channels:write"
+	PermGroupsRead         Permission = "groups:read"
+	PermGroupsWrite        Permission = "groups:write"
+	PermAPIKeysRead        Permission = "apikeys:read"
+	PermAPIKeysWrite       Permission = "apikeys:write"
+	PermSettingsRead       Permission = "settings:read"
+	PermSettingsWrite      Permission = "settings:write"
+	PermLogsRead           Permission = "logs:read"
+	PermLogsWrite          Permission = "logs:write"
+	PermStatsRead          Permission = "stats:read"
+	PermUsersRead          Permission = "users:read"
+	PermUsersWrite         Permission = "users:write"
+	PermSitesRead          Permission = "sites:read"
+	PermSitesWrite         Permission = "sites:write"
+	PermNotificationsRead  Permission = "notifications:read"
+	PermNotificationsWrite Permission = "notifications:write"
 )
 
 var adminPermissions = []Permission{
@@ -31,6 +33,7 @@ var adminPermissions = []Permission{
 	PermLogsRead, PermLogsWrite, PermStatsRead,
 	PermUsersRead, PermUsersWrite,
 	PermSitesRead, PermSitesWrite,
+	PermNotificationsRead, PermNotificationsWrite,
 }
 
 var editorPermissions = []Permission{
@@ -40,6 +43,7 @@ var editorPermissions = []Permission{
 	PermSettingsRead, PermSettingsWrite,
 	PermLogsRead, PermLogsWrite, PermStatsRead,
 	PermSitesRead, PermSitesWrite,
+	PermNotificationsRead, PermNotificationsWrite,
 }
 
 var viewerPermissions = []Permission{
@@ -49,6 +53,7 @@ var viewerPermissions = []Permission{
 	PermSettingsRead,
 	PermLogsRead, PermStatsRead,
 	PermSitesRead,
+	PermNotificationsRead,
 }
 
 var rolePermissions = map[string][]Permission{

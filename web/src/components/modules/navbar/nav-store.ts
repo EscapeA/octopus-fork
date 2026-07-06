@@ -9,6 +9,7 @@ export type NavItem =
     | 'model'
     | 'analytics'
     | 'log'
+    | 'notification'
     | 'alert'
     | 'ops'
     | 'apikey'
@@ -23,6 +24,7 @@ export const DEFAULT_NAV_ORDER: NavItem[] = [
     'model',
     'analytics',
     'log',
+    'notification',
     'alert',
     'ops',
     'apikey',

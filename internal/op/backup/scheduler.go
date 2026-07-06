@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/lingyuins/octopus/internal/model"
+	"github.com/lingyuins/octopus/internal/op/notification"
 	"github.com/lingyuins/octopus/internal/op/setting"
 	"github.com/lingyuins/octopus/internal/utils/log"
 )
@@ -66,24 +67,29 @@ func PerformWebDAVBackupManual(ctx context.Context) error {
 func performWebDAVBackup(ctx context.Context, manual bool) error {
 	cfg, err := GetWebDAVConfig()
 	if err != nil {
+		createWebDAVBackupNotification(ctx, manual, "", 0, nil, fmt.Errorf("read config: %w", err))
 		return fmt.Errorf("read config: %w", err)
 	}
 	if !manual && !cfg.Enabled {
 		return nil
 	}
 	if cfg.BaseURL == "" {
-		return fmt.Errorf("webdav base URL is empty")
+		err := fmt.Errorf("webdav base URL is empty")
+		createWebDAVBackupNotification(ctx, manual, "", 0, cfg, err)
+		return err
 	}
 
 	client := NewWebDAVClient(cfg.BaseURL, cfg.Username, cfg.Password)
 
 	dump, err := ExportAll(ctx, cfg.IncludeLogs, cfg.IncludeStats)
 	if err != nil {
+		createWebDAVBackupNotification(ctx, manual, "", 0, cfg, fmt.Errorf("export: %w", err))
 		return fmt.Errorf("export: %w", err)
 	}
 
 	data, err := json.Marshal(dump)
 	if err != nil {
+		createWebDAVBackupNotification(ctx, manual, "", 0, cfg, fmt.Errorf("marshal dump: %w", err))
 		return fmt.Errorf("marshal dump: %w", err)
 	}
 
@@ -91,18 +97,21 @@ func performWebDAVBackup(ctx context.Context, manual bool) error {
 	remotePath := strings.TrimSuffix(cfg.RemotePath, "/") + "/" + filename
 
 	if err := client.Upload(remotePath, data); err != nil {
+		createWebDAVBackupNotification(ctx, manual, remotePath, len(data), cfg, fmt.Errorf("upload %s: %w", remotePath, err))
 		return fmt.Errorf("upload %s: %w", remotePath, err)
 	}
 
 	log.Infof("webdav backup uploaded: %s (%d bytes, manual=%v)", remotePath, len(data), manual)
 
-	// Cleanup old backups
+	var cleanupErr error
 	if cfg.MaxBackups > 0 {
 		if err := cleanupOldBackups(client, cfg.RemotePath, cfg.MaxBackups); err != nil {
+			cleanupErr = err
 			log.Warnf("webdav backup cleanup failed: %v", err)
 		}
 	}
 
+	createWebDAVBackupNotification(ctx, manual, remotePath, len(data), cfg, cleanupErr)
 	return nil
 }
 
@@ -144,10 +153,80 @@ func RestoreFromWebDAV(ctx context.Context, filename string) (*model.DBImportRes
 
 	result, err := ImportWithMode(ctx, &dump, model.ImportModeIncremental)
 	if err != nil {
+		createWebDAVRestoreNotification(ctx, filename, nil, fmt.Errorf("import: %w", err))
 		return nil, fmt.Errorf("import: %w", err)
 	}
+	createWebDAVRestoreNotification(ctx, filename, result, nil)
 
 	return result, nil
+}
+
+func createWebDAVBackupNotification(ctx context.Context, manual bool, remotePath string, bytes int, cfg *WebDAVBackupConfig, err error) {
+	severity := model.NotificationSeveritySuccess
+	title := "WebDAV backup completed"
+	content := fmt.Sprintf("Backup uploaded to %s (%d bytes).", remotePath, bytes)
+	if err != nil {
+		severity = model.NotificationSeverityError
+		title = "WebDAV backup failed"
+		content = err.Error()
+	} else if remotePath == "" {
+		severity = model.NotificationSeverityWarning
+		title = "WebDAV backup skipped"
+		content = "WebDAV backup did not produce a remote file."
+	}
+	metadata := map[string]any{"manual": manual, "remote_path": remotePath, "bytes": bytes}
+	if cfg != nil {
+		metadata["include_logs"] = cfg.IncludeLogs
+		metadata["include_stats"] = cfg.IncludeStats
+		metadata["max_backups"] = cfg.MaxBackups
+	}
+	if err != nil {
+		metadata["error"] = err.Error()
+	}
+	b, _ := json.Marshal(metadata)
+	if createErr := notification.Create(ctx, &model.Notification{
+		Type:         model.NotificationTypeBackup,
+		Severity:     severity,
+		Title:        title,
+		Content:      content,
+		Source:       "webdav_backup",
+		SourceID:     remotePath,
+		DedupeKey:    fmt.Sprintf("webdav_backup:%s:%d", remotePath, time.Now().UnixMilli()),
+		MetadataJSON: string(b),
+		Link:         "setting",
+	}); createErr != nil {
+		log.Warnf("notification: failed to create webdav backup notification: %v", createErr)
+	}
+}
+
+func createWebDAVRestoreNotification(ctx context.Context, filename string, result *model.DBImportResult, err error) {
+	severity := model.NotificationSeveritySuccess
+	title := "WebDAV restore completed"
+	content := fmt.Sprintf("Backup %s has been restored.", filename)
+	metadata := map[string]any{"filename": filename}
+	if result != nil {
+		metadata["rows_affected"] = result.RowsAffected
+	}
+	if err != nil {
+		severity = model.NotificationSeverityError
+		title = "WebDAV restore failed"
+		content = err.Error()
+		metadata["error"] = err.Error()
+	}
+	b, _ := json.Marshal(metadata)
+	if createErr := notification.Create(ctx, &model.Notification{
+		Type:         model.NotificationTypeBackup,
+		Severity:     severity,
+		Title:        title,
+		Content:      content,
+		Source:       "webdav_restore",
+		SourceID:     filename,
+		DedupeKey:    fmt.Sprintf("webdav_restore:%s:%d", filename, time.Now().UnixMilli()),
+		MetadataJSON: string(b),
+		Link:         "setting",
+	}); createErr != nil {
+		log.Warnf("notification: failed to create webdav restore notification: %v", createErr)
+	}
 }
 
 // ListWebDAVBackups returns available backup files from the remote WebDAV server.

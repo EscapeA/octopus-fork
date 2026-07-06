@@ -97,7 +97,8 @@
     "user": "用戶",
     "setting": "設定",
     "ariaLabel": "主導航",
-    "apikey": "API 金鑰"
+    "apikey": "API 金鑰",
+    "notification": "通知中心"
   },
   "endpoints": {
     "title": "可用端點",
@@ -985,7 +986,10 @@
           "error_rate": "滑動視窗內錯誤率超過該百分比時觸發告警",
           "quota_exceeded": "配額使用率超過該百分比時觸發告警",
           "channel_down": "渠道連續不可用次數超過該值時觸發告警"
-        }
+        },
+        "scopeChannelId": "作用域管道 ID",
+        "scopeApiKeyId": "作用域 API Key ID",
+        "conditionJson": "條件 JSON"
       }
     },
     "channels": {
@@ -3063,6 +3067,80 @@
       "daily": "每日報表",
       "weekly": "每週報表",
       "monthly": "每月報表"
+    }
+  },
+  "notification": {
+    "title": "通知中心",
+    "subtitle": "{count} 條未讀通知",
+    "bell": "通知",
+    "unreadCount": "{count} 條未讀",
+    "empty": "暫無通知",
+    "loading": "正在載入通知...",
+    "tabs": {
+      "inbox": "收件匣",
+      "archived": "已封存",
+      "policies": "策略",
+      "preferences": "偏好"
+    },
+    "filters": {
+      "search": "搜尋標題或內容",
+      "allTypes": "全部類型",
+      "allSeverities": "全部等級"
+    },
+    "actions": {
+      "refresh": "重新整理",
+      "markAllRead": "全部已讀",
+      "markRead": "標記已讀",
+      "markUnread": "標記未讀",
+      "archive": "封存",
+      "delete": "刪除",
+      "openCenter": "開啟通知中心",
+      "create": "建立",
+      "save": "儲存",
+      "cancel": "取消",
+      "edit": "編輯"
+    },
+    "type": {
+      "alert": "告警",
+      "report": "報表",
+      "channel_expire": "管道過期",
+      "system": "系統",
+      "site": "站點",
+      "backup": "備份",
+      "usage": "用量"
+    },
+    "severity": {
+      "info": "資訊",
+      "success": "成功",
+      "warning": "警告",
+      "error": "錯誤",
+      "critical": "嚴重"
+    },
+    "detail": {
+      "placeholder": "選擇一條通知查看詳情",
+      "deliveries": "投遞記錄",
+      "noDeliveries": "沒有外部投遞記錄"
+    },
+    "policies": {
+      "title": "投遞策略",
+      "description": "策略用於把通知路由到外部通知管道。本版本可透過通知 API 建立和編輯策略。",
+      "empty": "暫無策略",
+      "form": {
+        "name": "策略名稱",
+        "channelIds": "管道 ID JSON，例如 [1,2]",
+        "source": "來源過濾（可選）",
+        "enabled": "啟用"
+      }
+    },
+    "preferences": {
+      "title": "通知偏好",
+      "description": "按通知類型設定站內和外部投遞偏好。",
+      "empty": "暫無偏好設定",
+      "form": {
+        "channelIds": "預設管道 ID JSON，例如 [1,2]",
+        "inApp": "啟用站內通知",
+        "external": "啟用外部投遞"
+      }
     }
   }
 }

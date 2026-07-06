@@ -1,0 +1,251 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { apiClient, API_BASE_URL } from '../client';
+import { REFETCH_INTERVAL_DEFAULT } from '../constants';
+import { useAuthStore } from './user';
+import { logger } from '@/lib/logger';
+
+export type NotificationType = 'alert' | 'report' | 'channel_expire' | 'system' | 'site' | 'backup' | 'usage';
+export type NotificationSeverity = 'info' | 'success' | 'warning' | 'error' | 'critical';
+export type NotificationDeliveryStatus = 'pending' | 'sent' | 'failed' | 'skipped';
+
+export interface NotificationItem {
+    id: number;
+    type: NotificationType;
+    severity: NotificationSeverity;
+    title: string;
+    content: string;
+    source?: string;
+    source_id?: string;
+    dedupe_key?: string;
+    metadata_json?: string;
+    link?: string;
+    read_at?: number;
+    archived_at?: number;
+    created_at: number;
+    updated_at: number;
+}
+
+export interface NotificationDelivery {
+    id: number;
+    notification_id: number;
+    channel_id: number;
+    channel_name: string;
+    channel_type: string;
+    status: NotificationDeliveryStatus;
+    attempts: number;
+    last_error?: string;
+    sent_at?: number;
+    created_at: number;
+    updated_at: number;
+}
+
+export interface NotificationPreference {
+    id: number;
+    user_id: number;
+    type: NotificationType;
+    in_app_enabled: boolean;
+    external_enabled: boolean;
+    min_severity: NotificationSeverity;
+    channel_ids?: string;
+    quiet_start?: string;
+    quiet_end?: string;
+    enabled: boolean;
+}
+
+export interface NotificationPolicy {
+    id: number;
+    name: string;
+    enabled: boolean;
+    type?: NotificationType | '';
+    min_severity: NotificationSeverity;
+    source?: string;
+    channel_ids: string;
+    created_at?: number;
+    updated_at?: number;
+}
+
+export interface NotificationFilter {
+    page?: number;
+    page_size?: number;
+    type?: string;
+    severity?: string;
+    source?: string;
+    read?: boolean;
+    archived?: boolean;
+    search?: string;
+}
+
+export interface NotificationDetailResponse {
+    notification: NotificationItem;
+    deliveries: NotificationDelivery[];
+}
+
+export const notificationQueryKey = (filter: NotificationFilter = {}) => ['notifications', 'list', filter] as const;
+
+export function useNotifications(filter: NotificationFilter = {}) {
+    return useQuery({
+        queryKey: notificationQueryKey(filter),
+        queryFn: async () => apiClient.get<NotificationItem[]>('/api/v1/notification/list', filter),
+        refetchInterval: REFETCH_INTERVAL_DEFAULT,
+    });
+}
+
+export function useUnreadNotificationCount() {
+    return useQuery({
+        queryKey: ['notifications', 'unread-count'],
+        queryFn: async () => apiClient.get<{ count: number }>('/api/v1/notification/unread-count'),
+        refetchInterval: REFETCH_INTERVAL_DEFAULT,
+    });
+}
+
+export function useNotificationDetail(id?: number) {
+    return useQuery({
+        queryKey: ['notifications', 'detail', id],
+        queryFn: async () => apiClient.get<NotificationDetailResponse>(`/api/v1/notification/detail/${id}`),
+        enabled: Boolean(id),
+    });
+}
+
+function useIDsMutation(path: string, logLabel: string) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (ids: number[]) => apiClient.post<null>(path, { ids }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        },
+        onError: (error) => logger.error(`${logLabel} failed:`, error),
+    });
+}
+
+export function useMarkNotificationRead() { return useIDsMutation('/api/v1/notification/mark-read', 'Mark notification read'); }
+export function useMarkNotificationUnread() { return useIDsMutation('/api/v1/notification/mark-unread', 'Mark notification unread'); }
+export function useArchiveNotification() { return useIDsMutation('/api/v1/notification/archive', 'Archive notification'); }
+export function useUnarchiveNotification() { return useIDsMutation('/api/v1/notification/unarchive', 'Unarchive notification'); }
+
+export function useMarkAllNotificationsRead() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async () => apiClient.post<null>('/api/v1/notification/mark-all-read'),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+    });
+}
+
+export function useDeleteNotification() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (id: number) => apiClient.delete<null>(`/api/v1/notification/delete/${id}`),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+    });
+}
+
+export function useNotificationPreferences() {
+    return useQuery({
+        queryKey: ['notifications', 'preferences'],
+        queryFn: async () => apiClient.get<NotificationPreference[]>('/api/v1/notification/preference/list'),
+    });
+}
+
+export function useSaveNotificationPreference() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (data: Partial<NotificationPreference>) => apiClient.post<NotificationPreference>('/api/v1/notification/preference/save', data),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications', 'preferences'] }),
+    });
+}
+
+export function useNotificationPolicies() {
+    return useQuery({
+        queryKey: ['notifications', 'policies'],
+        queryFn: async () => apiClient.get<NotificationPolicy[]>('/api/v1/notification/policy/list'),
+    });
+}
+
+export function useCreateNotificationPolicy() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (data: Partial<NotificationPolicy>) => apiClient.post<NotificationPolicy>('/api/v1/notification/policy/create', data),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications', 'policies'] }),
+    });
+}
+
+export function useUpdateNotificationPolicy() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (data: NotificationPolicy) => apiClient.post<NotificationPolicy>('/api/v1/notification/policy/update', data),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications', 'policies'] }),
+    });
+}
+
+export function useDeleteNotificationPolicy() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (id: number) => apiClient.delete<null>(`/api/v1/notification/policy/delete/${id}`),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications', 'policies'] }),
+    });
+}
+
+export function useNotificationStream() {
+    const token = useAuthStore((state) => state.token);
+    const queryClient = useQueryClient();
+    const abortRef = useRef<AbortController | null>(null);
+    const [isConnected, setIsConnected] = useState(false);
+
+    const handleNotification = useCallback((item: NotificationItem) => {
+        queryClient.setQueryData<{ count: number }>(['notifications', 'unread-count'], (old) => ({ count: (old?.count ?? 0) + (item.read_at ? 0 : 1) }));
+        queryClient.invalidateQueries({ queryKey: ['notifications', 'list'] });
+    }, [queryClient]);
+
+    useEffect(() => {
+        if (!token) return;
+        let cancelled = false;
+        let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+        async function connect() {
+            abortRef.current?.abort();
+            const controller = new AbortController();
+            abortRef.current = controller;
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v1/notification/stream`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    signal: controller.signal,
+                });
+                if (!response.ok || !response.body) throw new Error(`stream failed: ${response.status}`);
+                setIsConnected(true);
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                while (!cancelled) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const frames = buffer.split('\n\n');
+                    buffer = frames.pop() ?? '';
+                    for (const frame of frames) {
+                        const line = frame.split('\n').find((l) => l.startsWith('data: '));
+                        if (!line) continue;
+                        try {
+                            handleNotification(JSON.parse(line.slice(6)) as NotificationItem);
+                        } catch (error) {
+                            logger.error('Parse notification stream failed:', error);
+                        }
+                    }
+                }
+            } catch (error) {
+                if (!cancelled) logger.error('Notification stream error:', error);
+            } finally {
+                setIsConnected(false);
+                if (!cancelled) retryTimer = setTimeout(connect, 5000);
+            }
+        }
+
+        connect();
+        return () => {
+            cancelled = true;
+            if (retryTimer) clearTimeout(retryTimer);
+            abortRef.current?.abort();
+        };
+    }, [handleNotification, token]);
+
+    return useMemo(() => ({ isConnected }), [isConnected]);
+}

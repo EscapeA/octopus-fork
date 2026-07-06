@@ -29,6 +29,11 @@ type DBDump struct {
 	AlertStateRecords  []AlertStateRecord  `json:"alert_state_records,omitempty"`
 	AlertHistory       []AlertHistory      `json:"alert_history,omitempty"`
 
+	Notifications           []Notification           `json:"notifications,omitempty"`
+	NotificationDeliveries  []NotificationDelivery   `json:"notification_deliveries,omitempty"`
+	NotificationPreferences []NotificationPreference `json:"notification_preferences,omitempty"`
+	NotificationPolicies    []NotificationPolicy     `json:"notification_policies,omitempty"`
+
 	AuditLogs            []AuditLog            `json:"audit_logs,omitempty"`
 	RuntimeStates        []AutoStrategyState   `json:"runtime_states,omitempty"`
 	CircuitBreakerStates []CircuitBreakerState `json:"circuit_breaker_states,omitempty"`

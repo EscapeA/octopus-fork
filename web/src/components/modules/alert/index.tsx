@@ -609,6 +609,20 @@ export function Alert() {
                                     <span className="text-[11px] text-red-500">{t('rules.form.noChannelWarn')}</span>
                                 )}
                             </label>
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                                <label className="grid gap-1">
+                                    <span className="text-xs font-medium text-muted-foreground">{t('rules.form.scopeChannelId')}</span>
+                                    <Input type="number" min="0" value={newRule.scope_channel_id || ''} onChange={(e) => setNewRule({ ...newRule, scope_channel_id: Number(e.target.value) || 0 })} className="rounded-xl" />
+                                </label>
+                                <label className="grid gap-1">
+                                    <span className="text-xs font-medium text-muted-foreground">{t('rules.form.scopeApiKeyId')}</span>
+                                    <Input type="number" min="0" value={newRule.scope_api_key_id || ''} onChange={(e) => setNewRule({ ...newRule, scope_api_key_id: Number(e.target.value) || 0 })} className="rounded-xl" />
+                                </label>
+                                <label className="grid gap-1">
+                                    <span className="text-xs font-medium text-muted-foreground">{t('rules.form.conditionJson')}</span>
+                                    <Input value={newRule.condition_json || ''} onChange={(e) => setNewRule({ ...newRule, condition_json: e.target.value })} placeholder="{}" className="rounded-xl" />
+                                </label>
+                            </div>
                             <div className="flex gap-2">
                                 <button
                                     onClick={handleCreateRule}
@@ -710,6 +724,20 @@ export function Alert() {
                                                             <span className="text-[11px] text-red-500">{t('rules.form.noChannelWarn')}</span>
                                                         )}
                                                     </label>
+                                                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                                                        <label className="grid gap-1">
+                                                            <span className="text-xs font-medium text-muted-foreground">{t('rules.form.scopeChannelId')}</span>
+                                                            <Input type="number" min="0" value={editingRule.scope_channel_id || ''} onChange={(e) => setEditingRule({ ...editingRule, scope_channel_id: Number(e.target.value) || 0 })} className="rounded-xl" />
+                                                        </label>
+                                                        <label className="grid gap-1">
+                                                            <span className="text-xs font-medium text-muted-foreground">{t('rules.form.scopeApiKeyId')}</span>
+                                                            <Input type="number" min="0" value={editingRule.scope_api_key_id || ''} onChange={(e) => setEditingRule({ ...editingRule, scope_api_key_id: Number(e.target.value) || 0 })} className="rounded-xl" />
+                                                        </label>
+                                                        <label className="grid gap-1">
+                                                            <span className="text-xs font-medium text-muted-foreground">{t('rules.form.conditionJson')}</span>
+                                                            <Input value={editingRule.condition_json || ''} onChange={(e) => setEditingRule({ ...editingRule, condition_json: e.target.value })} placeholder="{}" className="rounded-xl" />
+                                                        </label>
+                                                    </div>
                                                     <div className="flex items-center gap-2 flex-wrap">
                                                         <button
                                                             onClick={() => handleSaveRule(rule)}

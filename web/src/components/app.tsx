@@ -29,6 +29,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import type { BootstrapStatusResponse } from '@/api/endpoints/bootstrap';
 import type { NavItem } from '@/components/modules/navbar';
 import { useLogModelSearchStore } from '@/components/modules/log/ui-store';
+import { NotificationBell } from '@/components/modules/notification/NotificationBell';
 
 function timeout(ms: number) {
     return new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -493,6 +494,7 @@ export function AppContainer() {
                     </div>
                     <div className="ml-auto flex shrink-0 items-center gap-3 justify-end">
                         <HeaderModelSearch activeItem={activeItem} />
+                        <NotificationBell />
                         <Toolbar />
                     </div>
                 </header>

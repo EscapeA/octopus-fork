@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"context"
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -101,7 +103,12 @@ func listNotifChannels(c *gin.Context) {
 		resp.InternalError(c)
 		return
 	}
-	resp.Success(c, channels)
+	redacted := make([]model.AlertNotifChannel, len(channels))
+	copy(redacted, channels)
+	for i := range redacted {
+		redactNotifChannel(&redacted[i])
+	}
+	resp.Success(c, redacted)
 }
 
 func createNotifChannel(c *gin.Context) {
@@ -130,6 +137,7 @@ func updateNotifChannel(c *gin.Context) {
 		return
 	}
 	ch := req.toModel()
+	mergeNotifChannelSecrets(c.Request.Context(), &ch)
 	if err := alert.NotifChannelUpdate(c.Request.Context(), &ch); err != nil {
 		if status, msg, ok := classifyAlertMutationError(err); ok {
 			resp.Error(c, status, msg)
@@ -236,6 +244,81 @@ func (p alertNotifChannelPayload) toModel() model.AlertNotifChannel {
 		Headers: p.Headers,
 		Config:  p.Config,
 	}
+}
+
+func maskNotificationSecret(s string) string {
+	if s == "" || strings.Contains(s, "***") {
+		return s
+	}
+	if len(s) <= 8 {
+		return "***"
+	}
+	return s[:4] + "***" + s[len(s)-4:]
+}
+
+func redactNotifChannel(ch *model.AlertNotifChannel) {
+	ch.Secret = maskNotificationSecret(ch.Secret)
+	if ch.Config == "" {
+		return
+	}
+	var raw map[string]any
+	if err := json.Unmarshal([]byte(ch.Config), &raw); err != nil {
+		return
+	}
+	for _, key := range []string{"token", "password", "bot_token", "webhook_key", "secret", "access_token"} {
+		if v, ok := raw[key].(string); ok && v != "" {
+			raw[key] = maskNotificationSecret(v)
+		}
+	}
+	if b, err := json.Marshal(raw); err == nil {
+		ch.Config = string(b)
+	}
+}
+
+func mergeNotifChannelSecrets(ctx context.Context, ch *model.AlertNotifChannel) {
+	if ch == nil || ch.ID == 0 {
+		return
+	}
+	channels, err := alert.NotifChannelList(ctx)
+	if err != nil {
+		return
+	}
+	var old *model.AlertNotifChannel
+	for i := range channels {
+		if channels[i].ID == ch.ID {
+			old = &channels[i]
+			break
+		}
+	}
+	if old == nil {
+		return
+	}
+	if ch.Secret == "" || strings.Contains(ch.Secret, "***") {
+		ch.Secret = old.Secret
+	}
+	ch.Config = mergeMaskedConfig(old.Config, ch.Config)
+}
+
+func mergeMaskedConfig(oldConfig, newConfig string) string {
+	if newConfig == "" {
+		return oldConfig
+	}
+	var oldRaw, newRaw map[string]any
+	if json.Unmarshal([]byte(oldConfig), &oldRaw) != nil || json.Unmarshal([]byte(newConfig), &newRaw) != nil {
+		return newConfig
+	}
+	for _, key := range []string{"token", "password", "bot_token", "webhook_key", "secret", "access_token"} {
+		if v, ok := newRaw[key].(string); ok && (v == "" || strings.Contains(v, "***")) {
+			if oldVal, ok := oldRaw[key]; ok {
+				newRaw[key] = oldVal
+			}
+		}
+	}
+	b, err := json.Marshal(newRaw)
+	if err != nil {
+		return newConfig
+	}
+	return string(b)
 }
 
 func classifyAlertMutationError(err error) (int, string, bool) {

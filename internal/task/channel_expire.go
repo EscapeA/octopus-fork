@@ -2,6 +2,7 @@ package task
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op/alert"
 	ch "github.com/lingyuins/octopus/internal/op/channel"
+	"github.com/lingyuins/octopus/internal/op/notification"
 	"github.com/lingyuins/octopus/internal/op/setting"
 	st "github.com/lingyuins/octopus/internal/op/stats"
 	"github.com/lingyuins/octopus/internal/utils/log"
@@ -63,21 +65,51 @@ func deleteExpiredChannel(ctx context.Context, channel model.Channel, notifChann
 	log.Infof("channel expire: deleted expired disposable channel %d (%s)", channel.ID, channel.Name)
 
 	// 删除成功后发送通知。
+	deliveryStatus := "skipped"
+	deliveryDetail := "notification channel not configured"
 	if channel.NotifChannelID != nil && *channel.NotifChannelID > 0 {
-		sendChannelExpireNotification(channel, *channel.NotifChannelID, notifChannels)
+		deliveryStatus, deliveryDetail = sendChannelExpireNotification(channel, *channel.NotifChannelID, notifChannels)
 	}
+	createChannelExpireNotification(ctx, channel, deliveryStatus, deliveryDetail)
 }
 
-func sendChannelExpireNotification(channel model.Channel, notifChannelID int, notifChannels map[int]*model.AlertNotifChannel) {
+func sendChannelExpireNotification(channel model.Channel, notifChannelID int, notifChannels map[int]*model.AlertNotifChannel) (string, string) {
 	notifCh, ok := notifChannels[notifChannelID]
 	if !ok || notifCh == nil {
 		log.Warnf("channel expire: channel %d references notif_channel_id=%d which was not found; notification skipped", channel.ID, notifChannelID)
-		return
+		return "skipped", "notification channel not found"
 	}
 
 	title, message := buildChannelExpireMessage(channel)
 	if err := helper.SendNotificationMessage(notifCh, title, message); err != nil {
 		log.Warnf("channel expire: failed to send notification for channel %d (%s): %v", channel.ID, channel.Name, err)
+		return "failed", err.Error()
+	}
+	return "sent", fmt.Sprintf("%s (%s)", notifCh.Name, notifCh.Type)
+}
+
+func createChannelExpireNotification(ctx context.Context, channel model.Channel, deliveryStatus, deliveryDetail string) {
+	title, message := buildChannelExpireMessage(channel)
+	metadata, _ := json.Marshal(map[string]any{
+		"channel_id":      channel.ID,
+		"channel_name":    channel.Name,
+		"expire_at":       channel.ExpireAt,
+		"delivery_status": deliveryStatus,
+		"delivery_detail": deliveryDetail,
+	})
+	n := &model.Notification{
+		Type:         model.NotificationTypeChannelExpire,
+		Severity:     model.NotificationSeverityWarning,
+		Title:        title,
+		Content:      message,
+		Source:       "channel",
+		SourceID:     fmt.Sprintf("%d", channel.ID),
+		DedupeKey:    fmt.Sprintf("channel_expire:%d:%d", channel.ID, time.Now().UnixMilli()),
+		MetadataJSON: string(metadata),
+		Link:         "channel",
+	}
+	if err := notification.Create(ctx, n); err != nil {
+		log.Warnf("notification: failed to create channel expiration notification for channel %d: %v", channel.ID, err)
 	}
 }
 

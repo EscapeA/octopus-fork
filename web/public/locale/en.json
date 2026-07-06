@@ -97,7 +97,8 @@
     "user": "User",
     "setting": "Setting",
     "ariaLabel": "Main navigation",
-    "apikey": "API Keys"
+    "apikey": "API Keys",
+    "notification": "Notifications"
   },
   "endpoints": {
     "title": "Available Endpoints",
@@ -985,7 +986,10 @@
           "error_rate": "Alert when error rate in sliding window exceeds this percentage",
           "quota_exceeded": "Alert when quota usage exceeds this percentage",
           "channel_down": "Alert when consecutive channel failures exceed this count"
-        }
+        },
+        "scopeChannelId": "Scope channel ID",
+        "scopeApiKeyId": "Scope API key ID",
+        "conditionJson": "Condition JSON"
       }
     },
     "channels": {
@@ -1582,11 +1586,26 @@
         "redis": "Redis"
       },
       "fields": {
-        "addr": { "label": "Address", "placeholder": "127.0.0.1:6379" },
-        "password": { "label": "Password", "placeholder": "••••••" },
-        "username": { "label": "Username (ACL)", "placeholder": "default" },
-        "db": { "label": "DB Index", "placeholder": "0" },
-        "poolSize": { "label": "Pool Size", "placeholder": "10" }
+        "addr": {
+          "label": "Address",
+          "placeholder": "127.0.0.1:6379"
+        },
+        "password": {
+          "label": "Password",
+          "placeholder": "••••••"
+        },
+        "username": {
+          "label": "Username (ACL)",
+          "placeholder": "default"
+        },
+        "db": {
+          "label": "DB Index",
+          "placeholder": "0"
+        },
+        "poolSize": {
+          "label": "Pool Size",
+          "placeholder": "10"
+        }
       },
       "testButton": "Test connection",
       "testSuccess": "Redis connection successful",
@@ -3049,5 +3068,79 @@
     "filterExpand": "Expand filter",
     "filterCollapse": "Collapse filter",
     "filterSummary": "{count, plural, =0 {No filters} one {# filter} other {# filters}} active"
+  },
+  "notification": {
+    "title": "Notification Center",
+    "subtitle": "{count} unread notifications",
+    "bell": "Notifications",
+    "unreadCount": "{count} unread",
+    "empty": "No notifications",
+    "loading": "Loading notifications...",
+    "tabs": {
+      "inbox": "Inbox",
+      "archived": "Archived",
+      "policies": "Policies",
+      "preferences": "Preferences"
+    },
+    "filters": {
+      "search": "Search title or content",
+      "allTypes": "All types",
+      "allSeverities": "All severities"
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "markAllRead": "Mark all read",
+      "markRead": "Mark read",
+      "markUnread": "Mark unread",
+      "archive": "Archive",
+      "delete": "Delete",
+      "openCenter": "Open notification center",
+      "create": "Create",
+      "save": "Save",
+      "cancel": "Cancel",
+      "edit": "Edit"
+    },
+    "type": {
+      "alert": "Alert",
+      "report": "Report",
+      "channel_expire": "Channel Expire",
+      "system": "System",
+      "site": "Site",
+      "backup": "Backup",
+      "usage": "Usage"
+    },
+    "severity": {
+      "info": "Info",
+      "success": "Success",
+      "warning": "Warning",
+      "error": "Error",
+      "critical": "Critical"
+    },
+    "detail": {
+      "placeholder": "Select a notification to view details",
+      "deliveries": "Deliveries",
+      "noDeliveries": "No external deliveries"
+    },
+    "policies": {
+      "title": "Delivery policies",
+      "description": "Policies route notifications to external notification channels. Create and edit policies via the notification API in this version.",
+      "empty": "No policies configured",
+      "form": {
+        "name": "Policy name",
+        "channelIds": "Channel IDs JSON, e.g. [1,2]",
+        "source": "Source filter (optional)",
+        "enabled": "Enabled"
+      }
+    },
+    "preferences": {
+      "title": "Preferences",
+      "description": "Configure in-app/external delivery preferences by notification type.",
+      "empty": "No preferences configured",
+      "form": {
+        "channelIds": "Default channel IDs JSON, e.g. [1,2]",
+        "inApp": "In-app enabled",
+        "external": "External enabled"
+      }
+    }
   }
 }

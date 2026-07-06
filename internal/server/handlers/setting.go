@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	"github.com/lingyuins/octopus/internal/op"
 	"github.com/lingyuins/octopus/internal/op/backup"
 	"github.com/lingyuins/octopus/internal/op/dbmigration"
+	notifop "github.com/lingyuins/octopus/internal/op/notification"
 	"github.com/lingyuins/octopus/internal/op/ops"
 	stg "github.com/lingyuins/octopus/internal/op/setting"
 	"github.com/lingyuins/octopus/internal/server/auth"
@@ -267,10 +269,48 @@ func migrateDatabase(c *gin.Context) {
 	}
 	result, err := dbmigration.Migrate(c.Request.Context(), req)
 	if err != nil {
+		createDatabaseMigrationNotification(c.Request.Context(), req, nil, err)
 		resp.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
+	createDatabaseMigrationNotification(c.Request.Context(), req, result, nil)
 	resp.Success(c, result)
+}
+
+func createDatabaseMigrationNotification(ctx context.Context, req model.DatabaseMigrationRequest, result *model.DatabaseMigrationResult, err error) {
+	severity := model.NotificationSeveritySuccess
+	title := "Database migration completed"
+	content := fmt.Sprintf("Database migrated to %s. Restart needed: %v", req.Type, result != nil && result.RestartNeeded)
+	metadata := map[string]any{
+		"type":          req.Type,
+		"include_logs":  req.IncludeLogs,
+		"include_stats": req.IncludeStats,
+	}
+	if result != nil {
+		metadata["restart_needed"] = result.RestartNeeded
+		metadata["cleaned_files_count"] = len(result.CleanedFiles)
+		metadata["rows_affected"] = result.ImportResult.RowsAffected
+	}
+	if err != nil {
+		severity = model.NotificationSeverityCritical
+		title = "Database migration failed"
+		content = err.Error()
+		metadata["error"] = err.Error()
+	}
+	b, _ := json.Marshal(metadata)
+	if createErr := notifop.Create(ctx, &model.Notification{
+		Type:         model.NotificationTypeSystem,
+		Severity:     severity,
+		Title:        title,
+		Content:      content,
+		Source:       "database_migration",
+		SourceID:     req.Type,
+		DedupeKey:    fmt.Sprintf("database_migration:%s:%d", req.Type, time.Now().UnixMilli()),
+		MetadataJSON: string(b),
+		Link:         "setting",
+	}); createErr != nil {
+		log.Warnf("notification: failed to create database migration notification: %v", createErr)
+	}
 }
 
 // toModelRedis 把 conf.RedisConfig 转成 model.CacheRedisConfig（避免 model 反向依赖 conf）。

@@ -2,12 +2,14 @@ package alert
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
+	"gorm.io/gorm"
 )
 
 var stateCache sync.Map // int(ruleID) -> model.AlertStateRecord
@@ -176,6 +178,15 @@ func StateGet(ruleID int) model.AlertStateRecord {
 			return record
 		}
 	}
+	var record model.AlertStateRecord
+	err := db.GetDB().Where("rule_id = ?", ruleID).First(&record).Error
+	if err == nil {
+		stateCache.Store(ruleID, record)
+		return record
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.AlertStateRecord{RuleID: ruleID, State: model.AlertStateOK}
+	}
 	return model.AlertStateRecord{RuleID: ruleID, State: model.AlertStateOK}
 }
 
@@ -194,6 +205,7 @@ func StateSet(ruleID int, state model.AlertState) {
 	}
 	record.LastCheckedAt = now
 	stateCache.Store(ruleID, record)
+	_ = db.GetDB().Save(&record).Error
 }
 
 func HistoryList(ctx context.Context, limit int) ([]model.AlertHistory, error) {

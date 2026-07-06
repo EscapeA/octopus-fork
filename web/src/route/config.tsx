@@ -1,7 +1,7 @@
 import { lazyWithPreload } from './lazy-with-preload';
 import { lazy, ComponentType } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { Home, Radio, Sparkles, FolderTree, Settings, Logs, Users, Bell, BarChart3, Wrench, KeyRound, Globe } from 'lucide-react';
+import { Home, Radio, Sparkles, FolderTree, Settings, Logs, Users, Bell, BarChart3, Wrench, KeyRound, Globe, Inbox } from 'lucide-react';
 import { DEFAULT_NAV_ORDER } from '@/components/modules/navbar';
 
 export type LazyComponent = ReturnType<typeof lazy> & {
@@ -27,6 +27,7 @@ const APIKey_Module = lazyWithPreload(() => import('@/components/modules/apikey'
 const Setting_Module = lazyWithPreload(() => import('@/components/modules/setting').then(m => ({ default: m.Setting })));
 const User_Module = lazyWithPreload(() => import('@/components/modules/user').then(m => ({ default: m.User })));
 const Alert_Module = lazyWithPreload(() => import('@/components/modules/alert').then(m => ({ default: m.Alert })));
+const Notification_Module = lazyWithPreload(() => import('@/components/modules/notification').then(m => ({ default: m.Notification })));
 const Ops_Module = lazyWithPreload(() => import('@/components/modules/ops').then(m => ({ default: m.Ops })));
 const Hub_Module = lazyWithPreload(() => import('@/components/modules/remote-site').then(m => ({ default: m.RemoteSite })));
 
@@ -38,6 +39,7 @@ export const ROUTES: RouteConfig[] = [
     { id: 'model', icon: Sparkles, component: Model_Module },
     { id: 'analytics', icon: BarChart3, component: Analytics_Module },
     { id: 'log', icon: Logs, component: Log_Module },
+    { id: 'notification', icon: Inbox, component: Notification_Module },
     { id: 'alert', icon: Bell, component: Alert_Module },
     { id: 'ops', icon: Wrench, component: Ops_Module },
     { id: 'apikey', icon: KeyRound, component: APIKey_Module },

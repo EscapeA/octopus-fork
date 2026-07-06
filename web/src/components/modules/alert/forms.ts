@@ -15,6 +15,9 @@ export interface AlertRuleDraft {
     threshold: number;
     notif_channel_id: number;
     cooldown_sec: number;
+    condition_json?: string;
+    scope_channel_id?: number;
+    scope_api_key_id?: number;
 }
 
 export interface AlertRuleEditable extends AlertRuleDraft {
@@ -56,6 +59,9 @@ export function createAlertRuleDraft(rule: Partial<AlertRuleDraft> = {}): AlertR
         threshold: rule.threshold ?? 10,
         notif_channel_id: rule.notif_channel_id ?? 0,
         cooldown_sec: rule.cooldown_sec ?? 300,
+        condition_json: rule.condition_json ?? '',
+        scope_channel_id: rule.scope_channel_id ?? 0,
+        scope_api_key_id: rule.scope_api_key_id ?? 0,
     };
 }
 

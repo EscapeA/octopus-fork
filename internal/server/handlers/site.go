@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -12,6 +14,7 @@ import (
 	"github.com/lingyuins/octopus/internal/apperror"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op"
+	notifop "github.com/lingyuins/octopus/internal/op/notification"
 	"github.com/lingyuins/octopus/internal/server/auth"
 	"github.com/lingyuins/octopus/internal/server/middleware"
 	"github.com/lingyuins/octopus/internal/server/resp"
@@ -375,9 +378,11 @@ func syncSiteAccount(c *gin.Context) {
 	}
 	result, err := sitesvc.SyncAccount(c.Request.Context(), idNum)
 	if err != nil {
+		createManualSiteAccountNotification(c.Request.Context(), "sync", idNum, nil, err)
 		resp.ErrorWithAppError(c, http.StatusInternalServerError, err)
 		return
 	}
+	createManualSiteAccountNotification(c.Request.Context(), "sync", idNum, result, nil)
 	resp.Success(c, result)
 }
 
@@ -389,24 +394,93 @@ func checkinSiteAccount(c *gin.Context) {
 	}
 	result, err := sitesvc.CheckinAccount(c.Request.Context(), idNum)
 	if err != nil {
+		createManualSiteAccountNotification(c.Request.Context(), "checkin", idNum, nil, err)
 		resp.ErrorWithAppError(c, http.StatusInternalServerError, err)
 		return
 	}
+	createManualSiteAccountNotification(c.Request.Context(), "checkin", idNum, result, nil)
 	resp.Success(c, result)
 }
 
 func syncAllSiteAccounts(c *gin.Context) {
 	safe.Go("site-sync-all", func() {
-		sitesvc.SyncAllWithOptions(context.Background(), sitesync.SiteBatchOptions{Trigger: sitesync.SiteBatchTriggerManual})
+		summary := sitesvc.SyncAllWithOptions(context.Background(), sitesync.SiteBatchOptions{Trigger: sitesync.SiteBatchTriggerManual})
+		createSiteBatchNotification(context.Background(), summary)
 	})
 	resp.Success(c, nil)
 }
 
 func checkinAllSiteAccounts(c *gin.Context) {
 	safe.Go("site-checkin-all", func() {
-		sitesvc.CheckinAllWithOptions(context.Background(), sitesync.SiteBatchOptions{Trigger: sitesync.SiteBatchTriggerManual})
+		summary := sitesvc.CheckinAllWithOptions(context.Background(), sitesync.SiteBatchOptions{Trigger: sitesync.SiteBatchTriggerManual})
+		createSiteBatchNotification(context.Background(), summary)
 	})
 	resp.Success(c, nil)
+}
+
+func createManualSiteAccountNotification(ctx context.Context, phase string, accountID int, result any, err error) {
+	severity := model.NotificationSeveritySuccess
+	title := fmt.Sprintf("Site account %s completed", phase)
+	content := fmt.Sprintf("Account %d %s completed successfully.", accountID, phase)
+	metadata := map[string]any{"phase": phase, "account_id": accountID, "result": result}
+	if err != nil {
+		severity = model.NotificationSeverityError
+		title = fmt.Sprintf("Site account %s failed", phase)
+		content = err.Error()
+		metadata["error"] = err.Error()
+	}
+	b, _ := json.Marshal(metadata)
+	if createErr := notifop.Create(ctx, &model.Notification{
+		Type:         model.NotificationTypeSite,
+		Severity:     severity,
+		Title:        title,
+		Content:      content,
+		Source:       fmt.Sprintf("site_account_%s", phase),
+		SourceID:     strconv.Itoa(accountID),
+		DedupeKey:    fmt.Sprintf("site_account:%s:%d:%d", phase, accountID, time.Now().UnixMilli()),
+		MetadataJSON: string(b),
+		Link:         "hub",
+	}); createErr != nil {
+		log.Warnf("notification: failed to create site account notification: %v", createErr)
+	}
+}
+
+func createSiteBatchNotification(ctx context.Context, summary sitesync.SiteBatchSummary) {
+	severity := model.NotificationSeveritySuccess
+	if summary.Failed > 0 || summary.Canceled {
+		severity = model.NotificationSeverityError
+	} else if summary.Warnings > 0 || summary.Partial > 0 || summary.Skipped > 0 {
+		severity = model.NotificationSeverityWarning
+	}
+	title := fmt.Sprintf("Site %s completed", summary.Phase)
+	content := fmt.Sprintf("%s: success=%d partial=%d failed=%d skipped=%d warnings=%d", summary.Trigger, summary.Success, summary.Partial, summary.Failed, summary.Skipped, summary.Warnings)
+	metadata, _ := json.Marshal(map[string]any{
+		"phase":         summary.Phase,
+		"trigger":       summary.Trigger,
+		"total":         summary.Total,
+		"attempted":     summary.Attempted,
+		"success":       summary.Success,
+		"partial":       summary.Partial,
+		"failed":        summary.Failed,
+		"skipped":       summary.Skipped,
+		"warnings":      summary.Warnings,
+		"canceled":      summary.Canceled,
+		"cancel_reason": summary.CancelReason,
+		"samples":       summary.Samples,
+	})
+	if err := notifop.Create(ctx, &model.Notification{
+		Type:         model.NotificationTypeSite,
+		Severity:     severity,
+		Title:        title,
+		Content:      content,
+		Source:       fmt.Sprintf("site_%s", summary.Phase),
+		SourceID:     string(summary.Trigger),
+		DedupeKey:    fmt.Sprintf("site:%s:%s:%d", summary.Phase, summary.Trigger, time.Now().UnixMilli()),
+		MetadataJSON: string(metadata),
+		Link:         "hub",
+	}); err != nil {
+		log.Warnf("notification: failed to create site batch notification: %v", err)
+	}
 }
 
 func detectSitePlatform(c *gin.Context) {

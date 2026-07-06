@@ -13,6 +13,7 @@ import (
 	"github.com/lingyuins/octopus/internal/op/alert"
 	"github.com/lingyuins/octopus/internal/op/analytics"
 	"github.com/lingyuins/octopus/internal/op/channel"
+	"github.com/lingyuins/octopus/internal/op/notification"
 	"github.com/lingyuins/octopus/internal/op/report"
 	"github.com/lingyuins/octopus/internal/op/setting"
 	"github.com/lingyuins/octopus/internal/utils/log"
@@ -307,6 +308,42 @@ func recordReportHistory(sched model.ReportSchedule, content, status, detail str
 
 	if err := report.HistoryAdd(ctx, entry); err != nil {
 		log.Warnf("report: failed to record history for schedule %d: %v", sched.ID, err)
+	}
+	createReportNotification(ctx, sched, content, status, detail)
+}
+
+func createReportNotification(ctx context.Context, sched model.ReportSchedule, content, status, detail string) {
+	severity := model.NotificationSeverityInfo
+	if status == "sent" {
+		severity = model.NotificationSeveritySuccess
+	} else if status == "failed" {
+		severity = model.NotificationSeverityError
+	} else if status == "skipped" {
+		severity = model.NotificationSeverityWarning
+	}
+	metadata, _ := json.Marshal(map[string]any{
+		"schedule_id":   sched.ID,
+		"schedule_name": sched.Name,
+		"report_type":   sched.Type,
+		"status":        status,
+		"detail":        detail,
+	})
+	n := &model.Notification{
+		Type:         model.NotificationTypeReport,
+		Severity:     severity,
+		Title:        fmt.Sprintf("Report %s: %s", status, sched.Name),
+		Content:      detail,
+		Source:       "report_schedule",
+		SourceID:     fmt.Sprintf("%d", sched.ID),
+		DedupeKey:    fmt.Sprintf("report:%d:%s:%d", sched.ID, status, time.Now().UnixMilli()),
+		MetadataJSON: string(metadata),
+		Link:         "alert",
+	}
+	if content != "" && status == "sent" {
+		n.Content = content
+	}
+	if err := notification.Create(ctx, n); err != nil {
+		log.Warnf("notification: failed to create report notification for schedule %d: %v", sched.ID, err)
 	}
 }
 
