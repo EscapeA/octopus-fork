@@ -23,6 +23,7 @@ import { parseNavOrder, parseNavVisible } from '@/components/modules/navbar';
 import { useSubTabStore, parseSubTabOrder, parseSubTabVisible, type ModuleId } from '@/components/modules/navbar/sub-tab-store';
 import { apiClient } from '@/api/client';
 import { logger } from '@/lib/logger';
+import { cn } from '@/lib/utils';
 import { FirstRunSetup } from '@/components/modules/first-run-setup';
 import { ProxyPoolDialog } from '@/components/modules/proxy-pool/ProxyPoolDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -95,7 +96,7 @@ function HeaderActions({ activeItem }: { activeItem: NavItem }) {
             disabled={isRefreshing}
             className="h-9 shrink-0 rounded-lg px-2.5 sm:h-10 sm:px-4"
         >
-            <RefreshCw className={`h-4 w-4 sm:mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`header-action-icon h-4 w-4 sm:mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
             <span className="sr-only sm:not-sr-only">{t('actions.refresh')}</span>
         </Button>
     );
@@ -114,7 +115,7 @@ function HeaderModelSearch({ activeItem }: { activeItem: NavItem }) {
 
     return (
         <div className="flex items-center gap-1.5 min-w-0">
-            <Search className="size-3.5 shrink-0 text-muted-foreground" />
+            <Search className="header-action-icon size-3.5 shrink-0 text-muted-foreground" />
             <input
                 value={input}
                 onChange={(e) => {
@@ -448,9 +449,9 @@ export function AppContainer() {
         >
             <NavBar />
             <main className="relative z-10 flex min-h-0 w-full min-w-0 flex-1 flex-col gap-4 md:gap-5">
-                <header className="relative z-20 flex flex-none items-center gap-3 overflow-visible rounded-xl border border-border bg-card px-4 py-2.5 md:px-5 md:py-3 lg:gap-5">
+                <header className="relative z-20 flex flex-none items-center gap-2 overflow-visible rounded-xl border border-border bg-card px-3 py-2.5 md:gap-3 md:px-5 md:py-3 lg:gap-5 [&_.header-action-icon]:max-[380px]:hidden [&_.header-action-icon]:max-[380px]:size-0">
                     <div className="flex min-w-0 flex-1 items-center gap-2.5 md:gap-3">
-                        <div className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-card md:size-10">
+                        <div className="hidden size-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-card min-[420px]:grid md:size-10">
                             <Logo size={28} />
                         </div>
                         <div className="min-w-0 flex-1 overflow-hidden">
@@ -492,10 +493,16 @@ export function AppContainer() {
                             </AnimatePresence>
                         </div>
                     </div>
-                    <div className="ml-auto flex shrink-0 items-center gap-3 justify-end">
+                    <div className="ml-auto flex min-w-0 shrink items-center gap-1.5 justify-end sm:gap-2 lg:gap-3">
                         <HeaderModelSearch activeItem={activeItem} />
-                        <NotificationBell />
-                        <Toolbar />
+                        <div className={cn(
+                            "flex min-w-0 shrink items-center gap-1.5 sm:gap-2 lg:gap-3",
+                            "[&_.header-action-icon]:max-[380px]:hidden [&_.header-action-icon]:max-[380px]:size-0",
+                            "[&_.header-action-label]:max-[520px]:sr-only"
+                        )}>
+                            <NotificationBell />
+                            <Toolbar />
+                        </div>
                     </div>
                 </header>
                 <div className="h-full min-h-0 flex-1 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">

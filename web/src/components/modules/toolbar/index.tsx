@@ -253,7 +253,7 @@ export function Toolbar() {
                                 "h-9 w-9 sm:h-11 sm:w-11"
                             )}
                         >
-                            <motion.span layout="position"><Search className="size-4 transition-colors duration-300" /></motion.span>
+                            <motion.span layout="position"><Search className="header-action-icon size-4 transition-colors duration-300" /></motion.span>
                         </motion.button>
                     ) : (
                         <motion.div
@@ -264,7 +264,7 @@ export function Toolbar() {
                             )}
                             transition={lightweightMotion ? { duration: 0.12 } : { type: 'spring', stiffness: 400, damping: 30 }}
                         >
-                            <motion.span layout="position"><Search className="size-4 text-muted-foreground shrink-0" /></motion.span>
+                            <motion.span layout="position"><Search className="header-action-icon size-4 text-muted-foreground shrink-0" /></motion.span>
                             <input
                                 type="text"
                                 aria-label={searchAriaLabel}
@@ -305,7 +305,7 @@ export function Toolbar() {
                                     "h-8 min-h-8 rounded-md border border-transparent bg-transparent px-1.5 text-muted-foreground shadow-none transition-[color,background-color,border-color] duration-150 hover:border-border hover:bg-muted hover:text-foreground hover:shadow-none sm:h-9 sm:min-h-9 sm:px-3"
                                 )}
                             >
-                                <SlidersHorizontal className="size-4 transition-colors duration-300" />
+                                <SlidersHorizontal className="header-action-icon size-4 transition-colors duration-300" />
                                 <span className="hidden text-xs font-semibold sm:inline">{t('popover.filter.title')}</span>
                             </button>
                         </PopoverTrigger>
@@ -587,7 +587,7 @@ export function Toolbar() {
                                 "h-9 min-h-9 bg-primary px-2.5 text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground sm:h-11 sm:min-h-11 sm:px-3.5"
                             )}
                         >
-                            <Plus className="size-4 transition-colors duration-300" />
+                            <Plus className="header-action-icon size-4 transition-colors duration-300" />
                         </MorphingDialogTrigger>
 
                         <MorphingDialogContainer>
