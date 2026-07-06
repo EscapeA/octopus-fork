@@ -935,7 +935,8 @@
     "tabs": {
       "rules": "Rules",
       "channels": "Channels",
-      "history": "History"
+      "history": "History",
+      "reports": "Reports"
     },
     "actions": {
       "edit": "Edit",
@@ -1039,6 +1040,50 @@
       "channelTested": "Test notification sent",
       "channelTestFailed": "Test notification failed",
       "actionFailed": "Action failed"
+    }
+  },
+  "report": {
+    "title": "Usage Reports",
+    "description": "Configure automated usage reports to be sent to your notification channels",
+    "tabSchedules": "Schedules",
+    "tabHistory": "History",
+    "scheduleTitle": "Report Schedules",
+    "createSchedule": "Create Schedule",
+    "editSchedule": "Edit Schedule",
+    "noSchedules": "No report schedules configured yet",
+    "noHistory": "No report history yet",
+    "historyTitle": "Report History",
+    "loading": "Loading...",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "lastSent": "Last sent",
+    "unknownChannel": "Unknown Channel",
+    "name": "Name",
+    "namePlaceholder": "e.g. Daily Usage Report",
+    "nameRequired": "Please enter a schedule name",
+    "channelRequired": "Please select a notification channel",
+    "metricsRequired": "Please select at least one metric",
+    "reportTypeLabel": "Report Type",
+    "sendTime": "Send Time",
+    "dayOfWeek": "Day of Week",
+    "notifChannel": "Notification Channel",
+    "selectChannel": "Select a channel",
+    "metrics": "Metrics to Include",
+    "scheduleDescription": "Configure when and what data to include in automated reports",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirmDelete": "Are you sure you want to delete this report schedule?",
+    "createSuccess": "Report schedule created successfully",
+    "updateSuccess": "Report schedule updated successfully",
+    "deleteSuccess": "Report schedule deleted successfully",
+    "deleteFailed": "Failed to delete report schedule",
+    "saveFailed": "Failed to save report schedule",
+    "testSuccess": "Test report sent successfully",
+    "testFailed": "Failed to send test report",
+    "reportType": {
+      "daily": "Daily Report",
+      "weekly": "Weekly Report",
+      "monthly": "Monthly Report"
     }
   },
   "toolbar": {

@@ -31,6 +31,8 @@ import {
     type AlertChannelDraft,
     type AlertRuleDraft,
 } from './forms';
+import { ReportScheduleManager } from '../report/ReportScheduleManager';
+import { ReportHistoryList } from '../report/ReportHistoryList';
 
 const CONDITION_TYPES = ['cost_threshold', 'error_rate', 'quota_exceeded', 'channel_down'] as const;
 type ConditionType = (typeof CONDITION_TYPES)[number];
@@ -304,7 +306,7 @@ function getChannelDescription(channel: AlertNotifChannel): string {
 
 export function Alert() {
     const t = useTranslations('alert');
-    const [tab, setTab] = useState<'rules' | 'channels' | 'history'>('rules');
+    const [tab, setTab] = useState<'rules' | 'channels' | 'history' | 'reports'>('rules');
     const { data: rules, isLoading: rulesLoading } = useAlertRuleList();
     const { data: channels, isLoading: channelsLoading } = useAlertNotifChannelList();
     const { data: history, isLoading: historyLoading } = useAlertHistory();
@@ -525,6 +527,7 @@ export function Alert() {
                 <TabButton active={tab === 'rules'} onClick={() => setTab('rules')}>{t('tabs.rules')}</TabButton>
                 <TabButton active={tab === 'channels'} onClick={() => setTab('channels')}>{t('tabs.channels')}</TabButton>
                 <TabButton active={tab === 'history'} onClick={() => setTab('history')}>{t('tabs.history')}</TabButton>
+                <TabButton active={tab === 'reports'} onClick={() => setTab('reports')}>{t('tabs.reports')}</TabButton>
             </div>
 
             {tab === 'rules' && (
@@ -986,6 +989,12 @@ export function Alert() {
                             )}
                         </div>
                     )}
+                </div>
+            )}
+            {tab === 'reports' && (
+                <div className="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-6">
+                    <ReportScheduleManager />
+                    <ReportHistoryList />
                 </div>
             )}
         </PageWrapper>

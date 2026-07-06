@@ -935,7 +935,8 @@
     "tabs": {
       "rules": "規則",
       "channels": "渠道",
-      "history": "歷史"
+      "history": "歷史",
+      "reports": "報表"
     },
     "actions": {
       "edit": "編輯",
@@ -1537,11 +1538,26 @@
         "redis": "Redis"
       },
       "fields": {
-        "addr": { "label": "位址", "placeholder": "127.0.0.1:6379" },
-        "password": { "label": "密碼", "placeholder": "••••••" },
-        "username": { "label": "使用者名稱（ACL）", "placeholder": "default" },
-        "db": { "label": "資料庫索引", "placeholder": "0" },
-        "poolSize": { "label": "連線池大小", "placeholder": "10" }
+        "addr": {
+          "label": "位址",
+          "placeholder": "127.0.0.1:6379"
+        },
+        "password": {
+          "label": "密碼",
+          "placeholder": "••••••"
+        },
+        "username": {
+          "label": "使用者名稱（ACL）",
+          "placeholder": "default"
+        },
+        "db": {
+          "label": "資料庫索引",
+          "placeholder": "0"
+        },
+        "poolSize": {
+          "label": "連線池大小",
+          "placeholder": "10"
+        }
       },
       "testButton": "測試連線",
       "testSuccess": "Redis 連線成功",
@@ -3004,5 +3020,49 @@
     "filterExpand": "展開篩選",
     "filterCollapse": "收起篩選",
     "filterSummary": "已選 {count} 項"
+  },
+  "report": {
+    "title": "使用報表",
+    "description": "配置自動發送使用報表到通知管道",
+    "tabSchedules": "排程",
+    "tabHistory": "歷史",
+    "scheduleTitle": "報表排程",
+    "createSchedule": "建立排程",
+    "editSchedule": "編輯排程",
+    "noSchedules": "尚未配置報表排程",
+    "noHistory": "尚無報表歷史",
+    "historyTitle": "報表歷史",
+    "loading": "載入中...",
+    "enabled": "已啟用",
+    "disabled": "已停用",
+    "lastSent": "上次發送",
+    "unknownChannel": "未知頻道",
+    "name": "名稱",
+    "namePlaceholder": "例如：每日使用報表",
+    "nameRequired": "請輸入排程名稱",
+    "channelRequired": "請選擇通知頻道",
+    "metricsRequired": "請至少選擇一個指標",
+    "reportTypeLabel": "報表類型",
+    "sendTime": "發送時間",
+    "dayOfWeek": "星期幾",
+    "notifChannel": "通知頻道",
+    "selectChannel": "選擇頻道",
+    "metrics": "包含的指標",
+    "scheduleDescription": "配置報表的發送時間和包含的資料",
+    "save": "儲存",
+    "cancel": "取消",
+    "confirmDelete": "確定要刪除此報表排程嗎？",
+    "createSuccess": "報表排程建立成功",
+    "updateSuccess": "報表排程更新成功",
+    "deleteSuccess": "報表排程刪除成功",
+    "deleteFailed": "刪除報表排程失敗",
+    "saveFailed": "儲存報表排程失敗",
+    "testSuccess": "測試報表發送成功",
+    "testFailed": "發送測試報表失敗",
+    "reportType": {
+      "daily": "每日報表",
+      "weekly": "每週報表",
+      "monthly": "每月報表"
+    }
   }
 }
