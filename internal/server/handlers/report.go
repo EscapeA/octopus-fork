@@ -151,13 +151,25 @@ func deleteReportSchedule(c *gin.Context) {
 }
 
 func testReportSchedule(c *gin.Context) {
-	var schedule model.ReportSchedule
-	if err := c.ShouldBindJSON(&schedule); err != nil {
+	var req struct {
+		ID int `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
 		resp.Error(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	if req.ID == 0 {
+		resp.Error(c, http.StatusBadRequest, "schedule ID is required")
+		return
+	}
 
-	if err := task.TestSendReport(c.Request.Context(), schedule); err != nil {
+	schedule, err := report.ScheduleGet(c.Request.Context(), req.ID)
+	if err != nil {
+		resp.Error(c, http.StatusNotFound, "report schedule not found")
+		return
+	}
+
+	if err := task.TestSendReport(c.Request.Context(), *schedule); err != nil {
 		resp.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}

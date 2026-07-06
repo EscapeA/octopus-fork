@@ -29,36 +29,34 @@ export function ReportHistoryList() {
                         className="border rounded-lg p-4 flex items-center justify-between"
                     >
                         <div className="flex items-center gap-3">
-                            {record.status === 'success' ? (
+                            {record.send_status === 'sent' ? (
                                 <CheckCircle2 className="w-5 h-5 text-green-500" />
-                            ) : record.status === 'failed' ? (
+                            ) : record.send_status === 'failed' ? (
                                 <XCircle className="w-5 h-5 text-red-500" />
                             ) : (
                                 <Clock className="w-5 h-5 text-yellow-500" />
                             )}
                             <div>
                                 <div className="font-medium">
-                                    {t(`reportType.${record.report_type}`)}
+                                    {record.title || t(`reportType.${record.type}`)}
                                 </div>
                                 <div className="text-sm text-muted-foreground">
                                     {new Date(record.sent_at).toLocaleString()}
                                 </div>
-                                {record.error_message && (
+                                {record.send_status !== 'sent' && record.send_detail && (
                                     <div className="text-sm text-red-500 mt-1">
-                                        {record.error_message}
+                                        {record.send_detail}
                                     </div>
                                 )}
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
                             <Badge variant="outline">
-                                {t(`reportType.${record.report_type}`)}
+                                {t(`reportType.${record.type}`)}
                             </Badge>
-                            {record.duration_ms && (
-                                <span className="text-xs text-muted-foreground">
-                                    {record.duration_ms}ms
-                                </span>
-                            )}
+                            <Badge variant={record.send_status === 'sent' ? 'default' : 'secondary'}>
+                                {record.send_status}
+                            </Badge>
                         </div>
                     </div>
                 ))}

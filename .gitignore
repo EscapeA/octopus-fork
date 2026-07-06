@@ -28,6 +28,7 @@ octopus.exe
 octopus-dev.exe
 octopus-server.exe
 octopus-test.exe
+main.exe
 frontend_dev.log
 backend.dev.restart.log
 backend_err.txt

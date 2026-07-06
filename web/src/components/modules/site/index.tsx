@@ -8,6 +8,7 @@ import {
   useState,
   type ComponentProps,
   type DragEvent,
+  type ReactNode,
 } from "react";
 import { useTranslations } from "next-intl";
 import { AnimatePresence, motion } from "motion/react";
@@ -565,6 +566,25 @@ function estimateVisibleSiteCardHeight(item: VisibleSite, expanded: boolean) {
   return 310;
 }
 
+function MeasuredSiteCard({
+  siteId,
+  onMeasure,
+  children,
+}: {
+  siteId: number;
+  onMeasure: (siteId: number, node: HTMLElement | null) => void;
+  children: ReactNode;
+}) {
+  const setRef = useCallback(
+    (node: HTMLElement | null) => {
+      onMeasure(siteId, node);
+    },
+    [onMeasure, siteId],
+  );
+
+  return <div ref={setRef}>{children}</div>;
+}
+
 export function Site() {
   const t = useTranslations();
   const tProxy = useTranslations('proxyPool');
@@ -638,9 +658,6 @@ export function Site() {
   });
   const cardObserversRef = useRef<Map<number, ResizeObserver>>(new Map());
   const cardElementsRef = useRef<Map<number, HTMLElement>>(new Map());
-  const cardMeasureRefCallbacks = useRef<
-    Map<number, (node: HTMLElement | null) => void>
-  >(new Map());
   const accountElementsRef = useRef<Map<number, HTMLElement>>(new Map());
   const [highlightedSiteId, setHighlightedSiteId] = useState<number | null>(
     null,
@@ -717,22 +734,6 @@ export function Site() {
       );
     },
     [],
-  );
-
-  const getSiteCardMeasureRef = useCallback(
-    (siteID: number) => {
-      const existing = cardMeasureRefCallbacks.current.get(siteID);
-      if (existing) {
-        return existing;
-      }
-
-      const callback = (node: HTMLElement | null) => {
-        setSiteCardMeasureRef(siteID, node);
-      };
-      cardMeasureRefCallbacks.current.set(siteID, callback);
-      return callback;
-    },
-    [setSiteCardMeasureRef],
   );
 
   const setAccountElementRef = useCallback(
@@ -1237,7 +1238,6 @@ export function Site() {
   useEffect(() => {
     const observerMap = cardObserversRef.current;
     const elementMap = cardElementsRef.current;
-    const callbackMap = cardMeasureRefCallbacks.current;
     const accountMap = accountElementsRef.current;
     return () => {
       for (const observer of observerMap.values()) {
@@ -1245,7 +1245,6 @@ export function Site() {
       }
       observerMap.clear();
       elementMap.clear();
-      callbackMap.clear();
       accountMap.clear();
     };
   }, []);
@@ -1992,33 +1991,36 @@ export function Site() {
           <>
             <div className="space-y-4 md:hidden">
               {visibleSites.map((item) => (
-                <div
+                <MeasuredSiteCard
                   key={item.site.id}
-                  ref={getSiteCardMeasureRef(item.site.id)}
+                  siteId={item.site.id}
+                  onMeasure={setSiteCardMeasureRef}
                 >
                   {renderSiteCard(item)}
-                </div>
+                </MeasuredSiteCard>
               ))}
             </div>
             <div className="hidden items-start gap-4 md:grid md:grid-cols-2">
               <div className="space-y-4">
                 {masonryColumns[0].map((item) => (
-                  <div
+                  <MeasuredSiteCard
                     key={item.site.id}
-                    ref={getSiteCardMeasureRef(item.site.id)}
+                    siteId={item.site.id}
+                    onMeasure={setSiteCardMeasureRef}
                   >
                     {renderSiteCard(item)}
-                  </div>
+                  </MeasuredSiteCard>
                 ))}
               </div>
               <div className="space-y-4">
                 {masonryColumns[1].map((item) => (
-                  <div
+                  <MeasuredSiteCard
                     key={item.site.id}
-                    ref={getSiteCardMeasureRef(item.site.id)}
+                    siteId={item.site.id}
+                    onMeasure={setSiteCardMeasureRef}
                   >
                     {renderSiteCard(item)}
-                  </div>
+                  </MeasuredSiteCard>
                 ))}
               </div>
             </div>

@@ -50,7 +50,7 @@ func EvaluateReportSchedules() {
 	localNow := now.UTC().Add(time.Duration(offset) * time.Hour)
 
 	for _, sched := range schedules {
-		if !isReportDue(sched, localNow) {
+		if !isReportDue(sched, localNow, offset) {
 			continue
 		}
 
@@ -60,10 +60,10 @@ func EvaluateReportSchedules() {
 }
 
 // isReportDue checks if a schedule should run at the given time.
-func isReportDue(sched model.ReportSchedule, now time.Time) bool {
-	// Check if we already sent today
+func isReportDue(sched model.ReportSchedule, now time.Time, timezoneOffset int) bool {
+	// Check if we already sent today in the configured stats timezone.
 	if sched.LastSentAt > 0 {
-		lastSent := time.UnixMilli(sched.LastSentAt)
+		lastSent := time.UnixMilli(sched.LastSentAt).UTC().Add(time.Duration(timezoneOffset) * time.Hour)
 		if lastSent.Year() == now.Year() && lastSent.YearDay() == now.YearDay() {
 			return false // Already sent today
 		}

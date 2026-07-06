@@ -3,26 +3,39 @@ import { apiClient } from '../client';
 import { REFETCH_INTERVAL_CONFIG } from '../constants';
 import { logger } from '@/lib/logger';
 
+export type ReportType = 'daily' | 'weekly' | 'monthly';
+export type ReportMetric =
+    | 'overview'
+    | 'top_models'
+    | 'top_channels'
+    | 'top_apikeys'
+    | 'cost_breakdown'
+    | 'error_analysis'
+    | 'daily_trend';
+
 export interface ReportSchedule {
     id: number;
     name: string;
     enabled: boolean;
-    report_type: 'daily' | 'weekly' | 'monthly';
+    type: ReportType;
     notif_channel_id: number;
-    metrics: string[]; // JSON array of metric names
-    send_time: string; // HH:MM format
-    day_of_week?: number; // 0-6 for weekly reports
-    last_sent_at?: string;
+    metrics: string; // JSON array of metric names
+    send_hour: number;
+    send_day_of_week: number; // 0-6 for weekly reports
+    send_day_of_month: number; // 1-28 for monthly reports
+    last_sent_at?: number;
 }
 
 export interface ReportHistory {
     id: number;
     schedule_id: number;
-    report_type: 'daily' | 'weekly' | 'monthly';
-    status: 'success' | 'failed' | 'pending';
-    sent_at: string;
-    error_message?: string;
-    duration_ms?: number;
+    schedule_name: string;
+    type: ReportType;
+    title: string;
+    content: string;
+    send_status: 'sent' | 'failed' | 'skipped';
+    send_detail: string;
+    sent_at: number;
 }
 
 export const REPORT_TYPES = [
@@ -32,14 +45,13 @@ export const REPORT_TYPES = [
 ] as const;
 
 export const REPORT_METRICS = [
-    { value: 'request_count', label: '请求总数' },
-    { value: 'success_rate', label: '成功率' },
-    { value: 'avg_latency', label: '平均延迟' },
-    { value: 'p95_latency', label: 'P95延迟' },
-    { value: 'token_usage', label: 'Token使用量' },
-    { value: 'cost', label: '成本' },
+    { value: 'overview', label: '总览' },
     { value: 'top_models', label: '热门模型' },
     { value: 'top_channels', label: '热门渠道' },
+    { value: 'top_apikeys', label: '热门 API Key' },
+    { value: 'cost_breakdown', label: '成本明细' },
+    { value: 'error_analysis', label: '错误分析' },
+    { value: 'daily_trend', label: '每日趋势' },
 ] as const;
 
 export const DAYS_OF_WEEK = [
@@ -51,6 +63,26 @@ export const DAYS_OF_WEEK = [
     { value: 5, label: '周五' },
     { value: 6, label: '周六' },
 ] as const;
+
+export function parseReportMetrics(metrics: string): ReportMetric[] {
+    try {
+        const parsed = JSON.parse(metrics);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
+export function formatReportSendTime(sendHour: number): string {
+    const hour = Number.isFinite(sendHour) ? Math.max(0, Math.min(23, sendHour)) : 0;
+    return `${String(hour).padStart(2, '0')}:00`;
+}
+
+export function parseReportSendHour(sendTime: string): number {
+    const hour = Number.parseInt(sendTime.split(':')[0] || '0', 10);
+    if (!Number.isFinite(hour)) return 0;
+    return Math.max(0, Math.min(23, hour));
+}
 
 export function useReportScheduleList() {
     return useQuery({

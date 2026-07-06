@@ -30,6 +30,10 @@ import {
     REPORT_TYPES,
     REPORT_METRICS,
     DAYS_OF_WEEK,
+    parseReportMetrics,
+    formatReportSendTime,
+    parseReportSendHour,
+    type ReportMetric,
     type ReportSchedule,
 } from '@/api/endpoints/report';
 import { useAlertNotifChannelList } from '@/api/endpoints/alert';
@@ -159,7 +163,8 @@ function ReportScheduleCard({
     onTest: () => void;
 }) {
     const t = useTranslations('report');
-    const reportTypeLabel = REPORT_TYPES.find((r) => r.value === schedule.report_type)?.label || schedule.report_type;
+    const reportTypeLabel = REPORT_TYPES.find((r) => r.value === schedule.type)?.label || schedule.type;
+    const metrics = parseReportMetrics(schedule.metrics);
 
     return (
         <div className="border rounded-lg p-4 space-y-3">
@@ -178,7 +183,7 @@ function ReportScheduleCard({
                         </span>
                         <span className="flex items-center gap-1">
                             <Clock className="w-4 h-4" />
-                            {schedule.send_time}
+                            {formatReportSendTime(schedule.send_hour)}
                         </span>
                         <span>{notifChannelName}</span>
                     </div>
@@ -197,7 +202,7 @@ function ReportScheduleCard({
             </div>
 
             <div className="flex flex-wrap gap-2">
-                {schedule.metrics.map((metric) => {
+                {metrics.map((metric) => {
                     const metricLabel = REPORT_METRICS.find((m) => m.value === metric)?.label || metric;
                     return (
                         <Badge key={metric} variant="outline">
@@ -234,7 +239,7 @@ function ReportScheduleDialog({
     const [enabled, setEnabled] = useState(true);
     const [reportType, setReportType] = useState<'daily' | 'weekly' | 'monthly'>('daily');
     const [notifChannelId, setNotifChannelId] = useState<number>(0);
-    const [metrics, setMetrics] = useState<string[]>([]);
+    const [metrics, setMetrics] = useState<ReportMetric[]>([]);
     const [sendTime, setSendTime] = useState('09:00');
     const [dayOfWeek, setDayOfWeek] = useState<number>(1);
 
@@ -242,11 +247,11 @@ function ReportScheduleDialog({
         if (newOpen && schedule) {
             setName(schedule.name);
             setEnabled(schedule.enabled);
-            setReportType(schedule.report_type);
+            setReportType(schedule.type);
             setNotifChannelId(schedule.notif_channel_id);
-            setMetrics(schedule.metrics);
-            setSendTime(schedule.send_time);
-            setDayOfWeek(schedule.day_of_week || 1);
+            setMetrics(parseReportMetrics(schedule.metrics));
+            setSendTime(formatReportSendTime(schedule.send_hour));
+            setDayOfWeek(schedule.send_day_of_week || 1);
         } else if (newOpen) {
             setName('');
             setEnabled(true);
@@ -276,15 +281,16 @@ function ReportScheduleDialog({
         onSave({
             name,
             enabled,
-            report_type: reportType,
+            type: reportType,
             notif_channel_id: notifChannelId,
-            metrics,
-            send_time: sendTime,
-            day_of_week: reportType === 'weekly' ? dayOfWeek : undefined,
+            metrics: JSON.stringify(metrics),
+            send_hour: parseReportSendHour(sendTime),
+            send_day_of_week: reportType === 'weekly' ? dayOfWeek : 1,
+            send_day_of_month: 1,
         });
     };
 
-    const toggleMetric = (metric: string) => {
+    const toggleMetric = (metric: ReportMetric) => {
         setMetrics((prev) =>
             prev.includes(metric) ? prev.filter((m) => m !== metric) : [...prev, metric]
         );
