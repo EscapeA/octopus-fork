@@ -84,9 +84,16 @@ export interface NotificationDetailResponse {
 export const notificationQueryKey = (filter: NotificationFilter = {}) => ['notifications', 'list', filter] as const;
 
 export function useNotifications(filter: NotificationFilter = {}) {
+    const params: Record<string, string | number | boolean> = {};
+    Object.entries(filter).forEach(([key, value]) => {
+        if (value !== undefined) {
+            params[key] = value;
+        }
+    });
+
     return useQuery({
         queryKey: notificationQueryKey(filter),
-        queryFn: async () => apiClient.get<NotificationItem[]>('/api/v1/notification/list', filter),
+        queryFn: async () => apiClient.get<NotificationItem[]>('/api/v1/notification/list', params),
         refetchInterval: REFETCH_INTERVAL_DEFAULT,
     });
 }
