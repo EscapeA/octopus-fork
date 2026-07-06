@@ -624,9 +624,11 @@ export function SettingAppearance() {
                         )}
                     </div>
                     <div className="grid items-start gap-4 xl:grid-cols-2">
-                        <NavigationPreferences />
+                        <div className="flex flex-col gap-4">
+                            <NavigationPreferences />
+                            <SettingOrder />
+                        </div>
                         <SubTabPreferences />
-                        <SettingOrder />
                     </div>
                 </div>
             </div>
