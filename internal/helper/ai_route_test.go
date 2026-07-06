@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/lingyuins/octopus/internal/model"
-	"github.com/lingyuins/octopus/internal/op"
+	"github.com/lingyuins/octopus/internal/op/airoute"
 )
 
 func snapshotAIRouteProgressEntries() map[string]aiRouteProgressEntry {
@@ -81,7 +81,7 @@ func TestFinalizeAIRouteProgressPreservesResultOnPartialFailure(t *testing.T) {
 		ItemCount:  9,
 	}
 
-	finalizeAIRouteProgress(progress, result, &op.AIRoutePartialFailureError{
+	finalizeAIRouteProgress(progress, result, &airoute.AIRoutePartialFailureError{
 		Message: "AI 路由部分失败，但已保留成功写入的 2 个分组",
 		Cause:   errors.New("第 2/3 批 AI 分析失败"),
 	}, nil)
