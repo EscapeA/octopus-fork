@@ -9,12 +9,21 @@ import (
 	"sync"
 
 	"github.com/lingyuins/octopus/internal/model"
+	"github.com/lingyuins/octopus/internal/op/modelnormalize"
+	"github.com/lingyuins/octopus/internal/op/setting"
 )
 
 type modelMarketStatsAggregate struct {
 	waitTime       int64
 	requestSuccess int64
 	requestFailed  int64
+}
+
+type modelMarketLLMAggregate struct {
+	name          string
+	price         model.LLMPrice
+	hasPrice      bool
+	hasExactPrice bool
 }
 
 // marketCache provides a short-lived TTL cache for the aggregated model market
@@ -79,7 +88,7 @@ func buildModelMarket(
 ) ([]model.ModelMarketItem, model.ModelMarketSummary) {
 	statsByModelName := make(map[string]modelMarketStatsAggregate)
 	for _, item := range stats {
-		name := strings.ToLower(strings.TrimSpace(item.Name))
+		name := normalizeMarketModelName(item.Name)
 		if name == "" {
 			continue
 		}
@@ -93,7 +102,7 @@ func buildModelMarket(
 	channelsByModelName := make(map[string][]model.ModelMarketChannel)
 	seenChannelsByModel := make(map[string]map[int]struct{})
 	for _, item := range modelChannels {
-		name := strings.ToLower(strings.TrimSpace(item.Name))
+		name := normalizeMarketModelName(item.Name)
 		if name == "" {
 			continue
 		}
@@ -121,14 +130,30 @@ func buildModelMarket(
 		})
 	}
 
-	items := make([]model.ModelMarketItem, 0, len(models))
+	llmByModelName := make(map[string]modelMarketLLMAggregate)
+	modelNames := make([]string, 0, len(models))
+	for _, llm := range models {
+		name := normalizeMarketModelName(llm.Name)
+		if name == "" {
+			continue
+		}
+		aggregate, exists := llmByModelName[name]
+		if !exists {
+			aggregate.name = name
+			modelNames = append(modelNames, name)
+		}
+		aggregate = chooseModelMarketPrice(aggregate, llm, name)
+		llmByModelName[name] = aggregate
+	}
+
+	items := make([]model.ModelMarketItem, 0, len(modelNames))
 	totalWaitTime := int64(0)
 	totalRequests := int64(0)
 	uniqueChannels := make(map[int]struct{})
 	coverageCount := 0
 
-	for _, llm := range models {
-		name := strings.ToLower(strings.TrimSpace(llm.Name))
+	for _, name := range modelNames {
+		llm := llmByModelName[name]
 		modelItemChannels := channelsByModelName[name]
 		if modelItemChannels == nil {
 			modelItemChannels = make([]model.ModelMarketChannel, 0)
@@ -157,11 +182,11 @@ func buildModelMarket(
 		coverageCount += len(modelItemChannels)
 
 		items = append(items, model.ModelMarketItem{
-			Name:             llm.Name,
-			Input:            llm.Input,
-			Output:           llm.Output,
-			CacheRead:        llm.CacheRead,
-			CacheWrite:       llm.CacheWrite,
+			Name:             llm.name,
+			Input:            llm.price.Input,
+			Output:           llm.price.Output,
+			CacheRead:        llm.price.CacheRead,
+			CacheWrite:       llm.price.CacheWrite,
 			ChannelCount:     len(modelItemChannels),
 			EnabledKeyCount:  enabledKeyCount,
 			AverageLatencyMS: averageLatency,
@@ -219,4 +244,24 @@ func buildModelMarket(
 		AverageLatencyMS:   summaryAverageLatency,
 		LastUpdateTime:     lastUpdateTime,
 	}
+}
+
+func normalizeMarketModelName(name string) string {
+	if enabled, err := setting.GetBool(model.SettingKeyModelNormalizeMarketDedupeDefault); err == nil && enabled {
+		return modelnormalize.Normalize(name)
+	}
+	return strings.ToLower(strings.TrimSpace(name))
+}
+
+func chooseModelMarketPrice(aggregate modelMarketLLMAggregate, llm model.LLMInfo, canonical string) modelMarketLLMAggregate {
+	price := llm.LLMPrice
+	hasPrice := price.Input != 0 || price.Output != 0 || price.CacheRead != 0 || price.CacheWrite != 0
+	isExactCanonical := strings.ToLower(strings.TrimSpace(llm.Name)) == canonical
+
+	if !aggregate.hasPrice || (isExactCanonical && hasPrice && !aggregate.hasExactPrice) {
+		aggregate.price = price
+		aggregate.hasPrice = hasPrice
+		aggregate.hasExactPrice = isExactCanonical && hasPrice
+	}
+	return aggregate
 }

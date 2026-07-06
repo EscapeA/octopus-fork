@@ -123,6 +123,9 @@ func setSetting(c *gin.Context) {
 			log.Warnf("semantic cache refresh failed after setting %s: %v", setting.Key, err)
 		}
 	}
+	if shouldInvalidateModelMarket(setting.Key) {
+		op.ModelMarketInvalidateCache()
+	}
 	switch setting.Key {
 	case model.SettingKeyStatsSaveInterval:
 		minutes, err := strconv.Atoi(setting.Value)
@@ -174,6 +177,18 @@ func shouldRefreshSemanticCacheRuntime(key model.SettingKey) bool {
 		model.SettingKeySemanticCacheEmbeddingAPIKey,
 		model.SettingKeySemanticCacheEmbeddingModel,
 		model.SettingKeySemanticCacheEmbeddingTimeoutSeconds:
+		return true
+	default:
+		return false
+	}
+}
+
+func shouldInvalidateModelMarket(key model.SettingKey) bool {
+	switch key {
+	case model.SettingKeyModelNormalizeRouterPrefixes,
+		model.SettingKeyModelNormalizeFunctionalSuffixes,
+		model.SettingKeyModelNormalizeExplicitMappings,
+		model.SettingKeyModelNormalizeMarketDedupeDefault:
 		return true
 	default:
 		return false

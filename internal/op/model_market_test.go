@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/lingyuins/octopus/internal/model"
+	"github.com/lingyuins/octopus/internal/op/setting"
 )
 
 func TestBuildModelMarket_AggregatesChannelsKeysAndStats(t *testing.T) {
@@ -55,6 +56,84 @@ func TestBuildModelMarket_AggregatesChannelsKeysAndStats(t *testing.T) {
 	}
 }
 
+func TestBuildModelMarket_NormalizesAndMergesModelVariants(t *testing.T) {
+	withModelMarketDedupeDefault(t, "true")
+
+	items, summary := buildModelMarket(
+		[]model.LLMInfo{
+			{Name: "@cf/moonshotai/kimi-k2.5", LLMPrice: model.LLMPrice{Input: 1, Output: 2}},
+			{Name: "kimi-k2.5", LLMPrice: model.LLMPrice{Input: 3, Output: 4}},
+			{Name: "dmxapi-kimi-k2.5"},
+			{Name: "kimi-k2.5-cc"},
+		},
+		[]model.LLMChannel{
+			{Name: "kimi-k2.5", ChannelID: 1, ChannelName: "A", Enabled: true},
+			{Name: "@cf/moonshotai/kimi-k2.5", ChannelID: 2, ChannelName: "B", Enabled: true},
+			{Name: "dmxapi-kimi-k2.5", ChannelID: 3, ChannelName: "C", Enabled: true},
+			{Name: "kimi-k2.5-cc", ChannelID: 1, ChannelName: "A", Enabled: true},
+		},
+		map[int]model.Channel{
+			1: {ID: 1, Keys: []model.ChannelKey{{Enabled: true}, {Enabled: false}}},
+			2: {ID: 2, Keys: []model.ChannelKey{{Enabled: true}, {Enabled: true}}},
+			3: {ID: 3, Keys: []model.ChannelKey{{Enabled: true}}},
+		},
+		[]model.StatsModel{
+			{Name: "kimi-k2.5", StatsMetrics: model.StatsMetrics{WaitTime: 100, RequestSuccess: 1}},
+			{Name: "@cf/moonshotai/kimi-k2.5", StatsMetrics: model.StatsMetrics{WaitTime: 200, RequestSuccess: 2, RequestFailed: 1}},
+			{Name: "dmxapi-kimi-k2.5", StatsMetrics: model.StatsMetrics{WaitTime: 300, RequestFailed: 2}},
+		},
+		time.Time{},
+	)
+
+	if len(items) != 1 {
+		t.Fatalf("len(items) = %d, want 1: %+v", len(items), items)
+	}
+	item := items[0]
+	if item.Name != "kimi-k2.5" {
+		t.Fatalf("Name = %q, want kimi-k2.5", item.Name)
+	}
+	if item.Input != 3 || item.Output != 4 {
+		t.Fatalf("price = (%v,%v), want canonical exact price (3,4)", item.Input, item.Output)
+	}
+	if item.ChannelCount != 3 {
+		t.Fatalf("ChannelCount = %d, want 3", item.ChannelCount)
+	}
+	if item.EnabledKeyCount != 4 {
+		t.Fatalf("EnabledKeyCount = %d, want 4", item.EnabledKeyCount)
+	}
+	if item.RequestSuccess != 3 || item.RequestFailed != 3 {
+		t.Fatalf("requests = (%d,%d), want (3,3)", item.RequestSuccess, item.RequestFailed)
+	}
+	if item.AverageLatencyMS != 100 {
+		t.Fatalf("AverageLatencyMS = %d, want 100", item.AverageLatencyMS)
+	}
+	if item.SuccessRate != 0.5 {
+		t.Fatalf("SuccessRate = %v, want 0.5", item.SuccessRate)
+	}
+	if summary.ModelCount != 1 || summary.CoverageCount != 3 || summary.UniqueChannelCount != 3 {
+		t.Fatalf("summary = %+v, want model=1 coverage=3 unique=3", summary)
+	}
+}
+
+func TestBuildModelMarket_KeepsRawModelsWhenMarketDedupeDisabled(t *testing.T) {
+	withModelMarketDedupeDefault(t, "false")
+
+	items, _ := buildModelMarket(
+		[]model.LLMInfo{
+			{Name: "kimi-k2.5"},
+			{Name: "dmxapi-kimi-k2.5"},
+		},
+		nil,
+		nil,
+		nil,
+		time.Time{},
+	)
+
+	if len(items) != 2 {
+		t.Fatalf("len(items) = %d, want 2", len(items))
+	}
+}
+
 func TestBuildModelMarket_SortsItemsBySuccessRateThenSuccessCount(t *testing.T) {
 	items, _ := buildModelMarket(
 		[]model.LLMInfo{
@@ -101,4 +180,18 @@ func TestBuildModelMarket_UsesEmptyChannelsSliceWhenModelHasNoChannels(t *testin
 	if len(items[0].Channels) != 0 {
 		t.Fatalf("len(Channels) = %d, want 0", len(items[0].Channels))
 	}
+}
+
+func withModelMarketDedupeDefault(t *testing.T, value string) {
+	t.Helper()
+
+	settingCache := setting.GetCache()
+	oldSettings := settingCache.GetAll()
+	settingCache.Set(model.SettingKeyModelNormalizeMarketDedupeDefault, value)
+	t.Cleanup(func() {
+		settingCache.Clear()
+		for key, oldValue := range oldSettings {
+			settingCache.Set(key, oldValue)
+		}
+	})
 }
