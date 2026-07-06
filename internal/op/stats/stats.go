@@ -26,12 +26,16 @@ import (
 // 读全量落盘 DB 并清空 Redis scope；RefreshCache 启动时从 DB + Redis 叠加恢复。
 // 未启用 Redis 时这些常量不参与逻辑，行为与旧版完全一致。
 const (
-	statsScopeTotal   = "total"
-	statsScopeDaily   = "daily"
-	statsScopeHourly  = "hourly"
-	statsScopeChannel = "channel"
-	statsScopeModel   = "model"
-	statsScopeAPIKey  = "apikey"
+	statsScopeTotal             = "total"
+	statsScopeDaily             = "daily"
+	statsScopeHourly            = "hourly"
+	statsScopeChannel           = "channel"
+	statsScopeModel             = "model"
+	statsScopeAPIKey            = "apikey"
+	statsScopeDailyChannel      = "daily_channel"
+	statsScopeDailyModel        = "daily_model"
+	statsScopeDailyAPIKey       = "daily_apikey"
+	statsScopeDailyChannelModel = "daily_channel_model"
 )
 
 // statsIDTotal 是 total scope 的固定 id（StatsTotal 单行表，主键 ID=1）。
@@ -329,6 +333,100 @@ func upsertAPIKeys(dbConn *gorm.DB, stats []model.StatsAPIKey) error {
 	}).Create(&stats).Error
 }
 
+func dailyDimensionExcludedExpr(dbConn *gorm.DB, column string) string {
+	if dbConn != nil && dbConn.Dialector != nil && dbConn.Dialector.Name() == "mysql" {
+		return "VALUES(`" + column + "`)"
+	}
+	return "excluded." + column
+}
+
+func dailyDimensionMaxExpr(dbConn *gorm.DB, column string) string {
+	excluded := dailyDimensionExcludedExpr(dbConn, column)
+	if dbConn != nil && dbConn.Dialector != nil && dbConn.Dialector.Name() == "sqlite" {
+		return "MAX(" + column + ", " + excluded + ")"
+	}
+	return "GREATEST(" + column + ", " + excluded + ")"
+}
+
+func dailyDimensionUpdateColumns(dbConn *gorm.DB, includeName bool) clause.Set {
+	add := func(column string) clause.Assignment {
+		return clause.Assignment{Column: clause.Column{Name: column}, Value: gorm.Expr(column + " + " + dailyDimensionExcludedExpr(dbConn, column))}
+	}
+	max := func(column string) clause.Assignment {
+		return clause.Assignment{Column: clause.Column{Name: column}, Value: gorm.Expr(dailyDimensionMaxExpr(dbConn, column))}
+	}
+	assignments := []clause.Assignment{
+		add("input_token"),
+		add("output_token"),
+		add("input_cost"),
+		add("output_cost"),
+		add("wait_time"),
+		add("request_success"),
+		add("request_failed"),
+		max("latency_p50"),
+		max("latency_p95"),
+		max("latency_p99"),
+		max("ftut_avg"),
+		max("ftut_p50"),
+		max("ftut_p95"),
+		max("ftut_p99"),
+		add("histogram_lt_100"),
+		add("histogram_100_500"),
+		add("histogram_500_1k"),
+		add("histogram_1k_5k"),
+		add("histogram_gt_5k"),
+	}
+	if includeName {
+		assignments = append([]clause.Assignment{{Column: clause.Column{Name: "name"}, Value: gorm.Expr(dailyDimensionExcludedExpr(dbConn, "name"))}}, assignments...)
+	}
+	return assignments
+}
+
+func dailyDimensionChannelUpdateColumns(dbConn *gorm.DB) clause.Set {
+	assignments := dailyDimensionUpdateColumns(dbConn, false)
+	return append([]clause.Assignment{{Column: clause.Column{Name: "channel_name"}, Value: gorm.Expr(dailyDimensionExcludedExpr(dbConn, "channel_name"))}}, assignments...)
+}
+
+func upsertDailyChannels(dbConn *gorm.DB, stats []model.StatsDailyChannel) error {
+	if len(stats) == 0 {
+		return nil
+	}
+	return dbConn.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "date"}, {Name: "channel_id"}},
+		DoUpdates: dailyDimensionChannelUpdateColumns(dbConn),
+	}).Create(&stats).Error
+}
+
+func upsertDailyModels(dbConn *gorm.DB, stats []model.StatsDailyModel) error {
+	if len(stats) == 0 {
+		return nil
+	}
+	return dbConn.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "date"}, {Name: "model_name"}},
+		DoUpdates: dailyDimensionUpdateColumns(dbConn, false),
+	}).Create(&stats).Error
+}
+
+func upsertDailyAPIKeys(dbConn *gorm.DB, stats []model.StatsDailyAPIKey) error {
+	if len(stats) == 0 {
+		return nil
+	}
+	return dbConn.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "date"}, {Name: "api_key_id"}},
+		DoUpdates: dailyDimensionUpdateColumns(dbConn, true),
+	}).Create(&stats).Error
+}
+
+func upsertDailyChannelModels(dbConn *gorm.DB, stats []model.StatsDailyChannelModel) error {
+	if len(stats) == 0 {
+		return nil
+	}
+	return dbConn.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "date"}, {Name: "channel_id"}, {Name: "model_name"}},
+		DoUpdates: dailyDimensionChannelUpdateColumns(dbConn),
+	}).Create(&stats).Error
+}
+
 func saveDBWithDailyOverride(ctx context.Context, dailyOverride model.StatsDaily) error {
 	totalCacheLock.RLock()
 	totalSnap := totalCache
@@ -424,6 +522,60 @@ func DailyUpdate(ctx context.Context, metrics model.StatsMetrics) error {
 		pendingDailyOverride.CompareAndSwap(&prevDaily, nil)
 	}()
 	return nil
+}
+
+func DailyDimensionChannelUpdate(ctx context.Context, channelID int, channelName string, metrics model.StatsMetrics) error {
+	if channelID == 0 {
+		return nil
+	}
+	entry := model.StatsDailyChannel{
+		Date:         today(),
+		ChannelID:    channelID,
+		ChannelName:  strings.TrimSpace(channelName),
+		StatsMetrics: metrics,
+	}
+	return upsertDailyChannels(db.GetDB().WithContext(ctx), []model.StatsDailyChannel{entry})
+}
+
+func DailyDimensionModelUpdate(ctx context.Context, modelName string, metrics model.StatsMetrics) error {
+	modelName = strings.TrimSpace(modelName)
+	if modelName == "" {
+		return nil
+	}
+	entry := model.StatsDailyModel{
+		Date:         today(),
+		ModelName:    modelName,
+		StatsMetrics: metrics,
+	}
+	return upsertDailyModels(db.GetDB().WithContext(ctx), []model.StatsDailyModel{entry})
+}
+
+func DailyDimensionAPIKeyUpdate(ctx context.Context, apiKeyID int, name string, metrics model.StatsMetrics) error {
+	if apiKeyID == 0 && strings.TrimSpace(name) == "" {
+		return nil
+	}
+	entry := model.StatsDailyAPIKey{
+		Date:         today(),
+		APIKeyID:     apiKeyID,
+		Name:         strings.TrimSpace(name),
+		StatsMetrics: metrics,
+	}
+	return upsertDailyAPIKeys(db.GetDB().WithContext(ctx), []model.StatsDailyAPIKey{entry})
+}
+
+func DailyDimensionChannelModelUpdate(ctx context.Context, channelID int, channelName, modelName string, metrics model.StatsMetrics) error {
+	modelName = strings.TrimSpace(modelName)
+	if channelID == 0 || modelName == "" {
+		return nil
+	}
+	entry := model.StatsDailyChannelModel{
+		Date:         today(),
+		ChannelID:    channelID,
+		ChannelName:  strings.TrimSpace(channelName),
+		ModelName:    modelName,
+		StatsMetrics: metrics,
+	}
+	return upsertDailyChannelModels(db.GetDB().WithContext(ctx), []model.StatsDailyChannelModel{entry})
 }
 
 // TotalUpdate adds metrics to the running total statistics.

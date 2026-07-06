@@ -134,3 +134,62 @@ func TestIssue101_ProviderBreakdownReadsSeparateLogDB(t *testing.T) {
 		t.Fatalf("providerA(5) missing from provider breakdown — issue #101: separate LogDB data not read")
 	}
 }
+
+func TestLongRangeBreakdownsReadDailyAggregatesWithoutRelayLogs(t *testing.T) {
+	setupSeparateLogDB(t)
+
+	date := time.Now().AddDate(0, 0, -20).Format("20060102")
+	if err := db.GetDB().Create(&model.StatsDailyModel{
+		Date:      date,
+		ModelName: "gpt-long",
+		StatsMetrics: model.StatsMetrics{
+			InputToken:     120,
+			OutputToken:    30,
+			InputCost:      0.1,
+			OutputCost:     0.2,
+			RequestSuccess: 2,
+		},
+	}).Error; err != nil {
+		t.Fatalf("seed daily model stats failed: %v", err)
+	}
+	if err := db.GetDB().Create(&model.StatsDailyChannelModel{
+		Date:        date,
+		ChannelID:   9,
+		ChannelName: "daily-provider",
+		ModelName:   "gpt-long",
+		StatsMetrics: model.StatsMetrics{
+			InputToken:     120,
+			OutputToken:    30,
+			InputCost:      0.1,
+			OutputCost:     0.2,
+			RequestSuccess: 2,
+			RequestFailed:  1,
+		},
+	}).Error; err != nil {
+		t.Fatalf("seed daily channel-model stats failed: %v", err)
+	}
+
+	var logCount int64
+	if err := db.GetLogDB().Model(&model.RelayLog{}).Count(&logCount).Error; err != nil {
+		t.Fatalf("count log DB failed: %v", err)
+	}
+	if logCount != 0 {
+		t.Fatalf("log DB relay_logs count = %d, want 0", logCount)
+	}
+
+	models, err := AnalyticsModelBreakdownGet(context.Background(), model.AnalyticsRange30D)
+	if err != nil {
+		t.Fatalf("AnalyticsModelBreakdownGet error: %v", err)
+	}
+	if len(models) != 1 || models[0].ModelName != "gpt-long" || models[0].RequestCount != 2 || models[0].TotalTokens != 150 {
+		t.Fatalf("unexpected model breakdown: %+v", models)
+	}
+
+	channelModels, err := AnalyticsChannelModelBreakdownGet(context.Background(), model.AnalyticsRange30D, nil)
+	if err != nil {
+		t.Fatalf("AnalyticsChannelModelBreakdownGet error: %v", err)
+	}
+	if len(channelModels) != 1 || channelModels[0].ChannelID != 9 || channelModels[0].ModelName != "gpt-long" || channelModels[0].RequestCount != 3 || channelModels[0].TotalTokens != 150 {
+		t.Fatalf("unexpected channel-model breakdown: %+v", channelModels)
+	}
+}

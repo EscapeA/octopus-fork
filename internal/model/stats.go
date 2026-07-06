@@ -44,6 +44,34 @@ type StatsDaily struct {
 	StatsMetrics
 }
 
+type StatsDailyChannel struct {
+	Date        string `json:"date" gorm:"primaryKey;type:varchar(8);index:idx_stats_daily_channel_date"`
+	ChannelID   int    `json:"channel_id" gorm:"primaryKey;autoIncrement:false;index:idx_stats_daily_channel_lookup"`
+	ChannelName string `json:"channel_name" gorm:"type:varchar(255)"`
+	StatsMetrics
+}
+
+type StatsDailyModel struct {
+	Date      string `json:"date" gorm:"primaryKey;type:varchar(8);index:idx_stats_daily_model_date"`
+	ModelName string `json:"model_name" gorm:"primaryKey;type:varchar(255);index:idx_stats_daily_model_lookup"`
+	StatsMetrics
+}
+
+type StatsDailyAPIKey struct {
+	Date     string `json:"date" gorm:"primaryKey;type:varchar(8);index:idx_stats_daily_apikey_date"`
+	APIKeyID int    `json:"api_key_id" gorm:"primaryKey;autoIncrement:false;index:idx_stats_daily_apikey_lookup"`
+	Name     string `json:"name" gorm:"type:varchar(255)"`
+	StatsMetrics
+}
+
+type StatsDailyChannelModel struct {
+	Date        string `json:"date" gorm:"primaryKey;type:varchar(8);index:idx_stats_daily_channel_model_date"`
+	ChannelID   int    `json:"channel_id" gorm:"primaryKey;autoIncrement:false;index:idx_stats_daily_channel_model_lookup"`
+	ChannelName string `json:"channel_name" gorm:"type:varchar(255)"`
+	ModelName   string `json:"model_name" gorm:"primaryKey;type:varchar(255);index:idx_stats_daily_channel_model_lookup"`
+	StatsMetrics
+}
+
 type StatsModel struct {
 	ID        int64  `json:"id" gorm:"primaryKey"`
 	Name      string `json:"name" gorm:"not null"`

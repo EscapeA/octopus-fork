@@ -918,189 +918,50 @@ func (s channelModelScope) inScope(channelID int, modelName string) bool {
 // scope 非空时只保留其中的 (channelID,modelName) 组合；zen/空 ModelName 的组项
 // 按 channel 维度通配（issue #103）。
 func loadAnalyticsChannelModelRows(ctx context.Context, r model.AnalyticsRange, scope channelModelScope) (map[string]*analyticsChannelModelAggregateRow, error) {
-	startUnix := analyticsRangeStartUnix(r, stats.Now())
+	startDate := analyticsStartDate(r, stats.Now())
 	rows := make(map[string]*analyticsChannelModelAggregateRow)
-
-	keepEnabled, err := setting.GetBool(model.SettingKeyRelayLogKeepEnabled)
-	if err != nil {
-		return nil, err
-	}
-
 	inScope := scope.inScope
 
-	if keepEnabled {
-		// 优先从 relay_log_attempts 按尝试维度聚合，使"渠道A 失败→重试到B 成功"
-		// 的请求中渠道A 的失败也被计入。依次尝试 LogDB → 主库的 attempts 表，
-		// 最后才回退到顶层列（顶层列只能看到最终渠道的成败，无法捕获中间重试失败）。
-		var attemptsConn *gorm.DB
-		conn := db.GetLogDB()
-		if conn != nil && connHasRelayLogAttempts(conn) {
-			attemptsConn = conn
-		} else if mainConn := db.GetDB(); mainConn != nil && connHasRelayLogAttempts(mainConn) {
-			attemptsConn = mainConn
-		}
-
-		if attemptsConn != nil {
-			// 成功/失败：按尝试维度聚合。
-			type attRow struct {
-				ChannelID    int     `gorm:"column:channel_id"`
-				ModelName    string  `gorm:"column:model_name"`
-				Success      int64   `gorm:"column:request_success"`
-				Failed       int64   `gorm:"column:request_failed"`
-				InputTokens  int64   `gorm:"column:input_tokens"`
-				OutputTokens int64   `gorm:"column:output_tokens"`
-				TotalCost    float64 `gorm:"column:total_cost"`
-			}
-			var aRows []attRow
-			query := attemptsConn.WithContext(ctx).
-				Table("relay_log_attempts AS a").
-				Select(`
-					a.channel_id,
-					COALESCE(NULLIF(a.model_name, ''), l.request_model_name) AS model_name,
-					COALESCE(SUM(CASE WHEN a.status = ? THEN 1 ELSE 0 END), 0) AS request_success,
-					COALESCE(SUM(CASE WHEN a.status = ? THEN 1 ELSE 0 END), 0) AS request_failed,
-					COALESCE(SUM(CASE WHEN a.status = ? THEN l.input_tokens ELSE 0 END), 0) AS input_tokens,
-					COALESCE(SUM(CASE WHEN a.status = ? THEN l.output_tokens ELSE 0 END), 0) AS output_tokens,
-					COALESCE(SUM(CASE WHEN a.status = ? THEN l.cost ELSE 0 END), 0) AS total_cost
-				`, string(model.AttemptSuccess), string(model.AttemptFailed),
-					string(model.AttemptSuccess), string(model.AttemptSuccess), string(model.AttemptSuccess)).
-				Joins("JOIN relay_logs AS l ON l.id = a.relay_log_id").
-				Group("a.channel_id, COALESCE(NULLIF(a.model_name, ''), l.request_model_name)")
-			if startUnix != nil {
-				query = query.Where("a.time >= ?", *startUnix)
-			}
-			if err := query.Scan(&aRows).Error; err != nil {
-				return nil, err
-			}
-			for _, ar := range aRows {
-				if !inScope(ar.ChannelID, ar.ModelName) {
-					continue
-				}
-				key := strconv.Itoa(ar.ChannelID) + "\x00" + ar.ModelName
-				rows[key] = &analyticsChannelModelAggregateRow{
-					ChannelID:      ar.ChannelID,
-					ModelName:      ar.ModelName,
-					InputTokens:    ar.InputTokens,
-					OutputTokens:   ar.OutputTokens,
-					TotalCost:      ar.TotalCost,
-					RequestSuccess: ar.Success,
-					RequestFailed:  ar.Failed,
-				}
-			}
-
-			// 补充无 attempts 关联行的 relay_logs：issue #67 修复部署前、
-			// keepEnabled 从 false 切回 true 之前的历史日志，以及极端竞态下
-			// attempts 尚未落库的新日志（issue #121）。改用 Go 层解析 attempts
-			// JSON，捕获中间重试失败维度（顶层列只能看到最终渠道成败）。
-			// 使用轻量结构体避免加载 request_content/response_content 大字段。
-			type relayLogLite struct {
-				ChannelId        int                    `gorm:"column:channel_id"`
-				ChannelName      string                 `gorm:"column:channel_name"`
-				RequestModelName string                 `gorm:"column:request_model_name"`
-				ActualModelName  string                 `gorm:"column:actual_model_name"`
-				InputTokens      int                    `gorm:"column:input_tokens"`
-				OutputTokens     int                    `gorm:"column:output_tokens"`
-				Cost             float64                `gorm:"column:cost"`
-				Error            string                 `gorm:"column:error"`
-				Attempts         []model.ChannelAttempt `gorm:"column:attempts;serializer:json"`
-			}
-			var liteLogs []relayLogLite
-			liteQuery := attemptsConn.WithContext(ctx).
-				Table("relay_logs").
-				Select("relay_logs.channel_id", "relay_logs.channel_name",
-					"relay_logs.request_model_name", "relay_logs.actual_model_name",
-					"relay_logs.input_tokens", "relay_logs.output_tokens",
-					"relay_logs.cost", "relay_logs.error", "relay_logs.attempts").
-				Joins("LEFT JOIN relay_log_attempts AS a ON a.relay_log_id = relay_logs.id").
-				Where("a.id IS NULL")
-			if startUnix != nil {
-				liteQuery = liteQuery.Where("relay_logs.time >= ?", *startUnix)
-			}
-			if err := liteQuery.Find(&liteLogs).Error; err != nil {
-				return nil, err
-			}
-			for i := range liteLogs {
-				lite := &liteLogs[i]
-				synthLog := model.RelayLog{
-					ChannelId:        lite.ChannelId,
-					ChannelName:      lite.ChannelName,
-					RequestModelName: lite.RequestModelName,
-					ActualModelName:  lite.ActualModelName,
-					InputTokens:      lite.InputTokens,
-					OutputTokens:     lite.OutputTokens,
-					Cost:             lite.Cost,
-					Error:            lite.Error,
-					Attempts:         lite.Attempts,
-				}
-				mergeRelayLogIntoChannelModelRows(rows, &synthLog, inScope)
-			}
-		} else {
-			// 最终回退：LogDB 和主库均无 attempts 表时，从 relay_logs 的
-			// attempts JSON 字段解析尝试维度（issue #121），捕获中间重试失败。
-			// 优先 LogDB，缺失时回退主库（与 relayLogReadConn 一致）。
-			readConn := relayLogReadConn()
-			if readConn != nil {
-				type relayLogLite struct {
-					ChannelId        int                    `gorm:"column:channel_id"`
-					ChannelName      string                 `gorm:"column:channel_name"`
-					RequestModelName string                 `gorm:"column:request_model_name"`
-					ActualModelName  string                 `gorm:"column:actual_model_name"`
-					InputTokens      int                    `gorm:"column:input_tokens"`
-					OutputTokens     int                    `gorm:"column:output_tokens"`
-					Cost             float64                `gorm:"column:cost"`
-					Error            string                 `gorm:"column:error"`
-					Attempts         []model.ChannelAttempt `gorm:"column:attempts;serializer:json"`
-				}
-				var liteLogs []relayLogLite
-				query := readConn.WithContext(ctx).
-					Table("relay_logs").
-					Select("channel_id", "channel_name", "request_model_name", "actual_model_name",
-						"input_tokens", "output_tokens", "cost", "error", "attempts")
-				if startUnix != nil {
-					query = query.Where("time >= ?", *startUnix)
-				}
-				if err := query.Find(&liteLogs).Error; err != nil {
-					return nil, err
-				}
-				for i := range liteLogs {
-					lite := &liteLogs[i]
-					synthLog := model.RelayLog{
-						ChannelId:        lite.ChannelId,
-						ChannelName:      lite.ChannelName,
-						RequestModelName: lite.RequestModelName,
-						ActualModelName:  lite.ActualModelName,
-						InputTokens:      lite.InputTokens,
-						OutputTokens:     lite.OutputTokens,
-						Cost:             lite.Cost,
-						Error:            lite.Error,
-						Attempts:         lite.Attempts,
-					}
-					mergeRelayLogIntoChannelModelRows(rows, &synthLog, inScope)
-				}
-			}
-		}
+	conn := db.GetDB()
+	if conn == nil {
+		return loadAnalyticsChannelModelRowsFromRelayLogs(ctx, r, scope)
 	}
-
-	// 合并内存缓存（含尚未落库的失败尝试维度）。
-	cache, lock := relaylog.GetCacheAndLock()
-	lock.Lock()
-	for _, logItem := range cache {
-		if startUnix != nil && logItem.Time < *startUnix {
+	var dbRows []analyticsChannelModelAggregateRow
+	query := conn.WithContext(ctx).Model(&model.StatsDailyChannelModel{}).
+		Select(`
+			channel_id,
+			MAX(channel_name) AS channel_name,
+			model_name,
+			COALESCE(SUM(input_token), 0) AS input_tokens,
+			COALESCE(SUM(output_token), 0) AS output_tokens,
+			COALESCE(SUM(input_cost + output_cost), 0) AS total_cost,
+			COALESCE(SUM(request_success), 0) AS request_success,
+			COALESCE(SUM(request_failed), 0) AS request_failed
+		`).
+		Group("channel_id, model_name")
+	if startDate != "" {
+		query = query.Where("date >= ?", startDate)
+	}
+	if err := query.Scan(&dbRows).Error; err != nil {
+		return loadAnalyticsChannelModelRowsFromRelayLogs(ctx, r, scope)
+	}
+	for _, row := range dbRows {
+		modelName := strings.TrimSpace(row.ModelName)
+		if modelName == "" || !inScope(row.ChannelID, modelName) {
 			continue
 		}
-		mergeRelayLogIntoChannelModelRows(rows, &logItem, inScope)
+		rowCopy := row
+		rowCopy.ModelName = modelName
+		key := strconv.Itoa(row.ChannelID) + "\x00" + modelName
+		rows[key] = &rowCopy
 	}
-	lock.Unlock()
+	if len(rows) == 0 {
+		return loadAnalyticsChannelModelRowsFromRelayLogs(ctx, r, scope)
+	}
 
 	return rows, nil
 }
 
-// mergeRelayLogIntoChannelModelRows 把单条 RelayLog 的尝试维度聚合进 rows。
-// 优先解析 log.Attempts（JSON 反序列化后的切片）按尝试维度统计成败，使"渠道A
-// 失败→重试到B 成功"中的渠道A 失败可见（issue #67/#103）。log.Attempts 为空时
-// 回退到顶层列（只反映最终渠道成败）。token/cost 仅在整体成功时计入该渠道，
-// 避免把整体失败的请求 token 重复计入多个渠道。inScope 控制 (channelID,modelName)
-// 过滤，为空时全部保留。
 func mergeRelayLogIntoChannelModelRows(rows map[string]*analyticsChannelModelAggregateRow, log *model.RelayLog, inScope func(int, string) bool) {
 	success := log.Error == ""
 	if len(log.Attempts) > 0 {
@@ -1171,26 +1032,132 @@ func mergeRelayLogIntoChannelModelRows(rows map[string]*analyticsChannelModelAgg
 }
 
 func loadAnalyticsProviderRows(ctx context.Context, r model.AnalyticsRange) (map[int]*analyticsProviderAggregateRow, error) {
-	startUnix := analyticsRangeStartUnix(r, stats.Now())
+	startDate := analyticsStartDate(r, stats.Now())
 	rows := make(map[int]*analyticsProviderAggregateRow)
 
+	conn := db.GetDB()
+	if conn == nil {
+		return loadAnalyticsProviderRowsFromRelayLogs(ctx, r)
+	}
+	var dbRows []analyticsProviderAggregateRow
+	query := conn.WithContext(ctx).Model(&model.StatsDailyChannel{}).
+		Select(`
+			channel_id,
+			MAX(channel_name) AS channel_name,
+			COALESCE(SUM(input_token), 0) AS input_tokens,
+			COALESCE(SUM(output_token), 0) AS output_tokens,
+			COALESCE(SUM(input_cost + output_cost), 0) AS total_cost,
+			COALESCE(SUM(request_success), 0) AS request_success,
+			COALESCE(SUM(request_failed), 0) AS request_failed
+		`).
+		Group("channel_id")
+	if startDate != "" {
+		query = query.Where("date >= ?", startDate)
+	}
+	if err := query.Scan(&dbRows).Error; err != nil {
+		return loadAnalyticsProviderRowsFromRelayLogs(ctx, r)
+	}
+	for _, row := range dbRows {
+		rowCopy := row
+		rows[row.ChannelID] = &rowCopy
+	}
+	if len(rows) == 0 {
+		return loadAnalyticsProviderRowsFromRelayLogs(ctx, r)
+	}
+
+	return rows, nil
+}
+
+func loadAnalyticsModelRows(ctx context.Context, r model.AnalyticsRange) (map[string]*analyticsModelAggregateRow, error) {
+	startDate := analyticsStartDate(r, stats.Now())
+	rows := make(map[string]*analyticsModelAggregateRow)
+
+	conn := db.GetDB()
+	if conn == nil {
+		return loadAnalyticsModelRowsFromRelayLogs(ctx, r)
+	}
+	var dbRows []analyticsModelAggregateRow
+	query := conn.WithContext(ctx).Model(&model.StatsDailyModel{}).
+		Select(`
+			model_name,
+			COALESCE(SUM(input_token), 0) AS input_tokens,
+			COALESCE(SUM(output_token), 0) AS output_tokens,
+			COALESCE(SUM(input_cost + output_cost), 0) AS total_cost,
+			COALESCE(SUM(request_success), 0) AS request_success,
+			COALESCE(SUM(request_failed), 0) AS request_failed
+		`).
+		Group("model_name")
+	if startDate != "" {
+		query = query.Where("date >= ?", startDate)
+	}
+	if err := query.Scan(&dbRows).Error; err != nil {
+		return loadAnalyticsModelRowsFromRelayLogs(ctx, r)
+	}
+	for _, row := range dbRows {
+		modelName := strings.TrimSpace(row.ModelName)
+		if modelName == "" {
+			continue
+		}
+		rowCopy := row
+		rowCopy.ModelName = modelName
+		rows[modelName] = &rowCopy
+	}
+	if len(rows) == 0 {
+		return loadAnalyticsModelRowsFromRelayLogs(ctx, r)
+	}
+
+	return rows, nil
+}
+
+func loadAnalyticsAPIKeyRows(ctx context.Context, r model.AnalyticsRange) (map[string]*analyticsAPIKeyAggregateRow, error) {
+	startDate := analyticsStartDate(r, stats.Now())
+	rows := make(map[string]*analyticsAPIKeyAggregateRow)
+
+	conn := db.GetDB()
+	if conn == nil {
+		return loadAnalyticsAPIKeyRowsFromRelayLogs(ctx, r)
+	}
+	var dbRows []analyticsAPIKeyAggregateRow
+	query := conn.WithContext(ctx).Model(&model.StatsDailyAPIKey{}).
+		Select(`
+			api_key_id,
+			MAX(name) AS name,
+			COALESCE(SUM(input_token), 0) AS input_tokens,
+			COALESCE(SUM(output_token), 0) AS output_tokens,
+			COALESCE(SUM(input_cost + output_cost), 0) AS total_cost,
+			COALESCE(SUM(request_success), 0) AS request_success,
+			COALESCE(SUM(request_failed), 0) AS request_failed
+		`).
+		Group("api_key_id")
+	if startDate != "" {
+		query = query.Where("date >= ?", startDate)
+	}
+	if err := query.Scan(&dbRows).Error; err != nil {
+		return loadAnalyticsAPIKeyRowsFromRelayLogs(ctx, r)
+	}
+	for _, row := range dbRows {
+		rowCopy := row
+		rowCopy.Name = strings.TrimSpace(row.Name)
+		rows[makeAnalyticsAPIKeyAggregateKey(row.APIKeyID, rowCopy.Name)] = &rowCopy
+	}
+	if len(rows) == 0 {
+		return loadAnalyticsAPIKeyRowsFromRelayLogs(ctx, r)
+	}
+
+	return rows, nil
+}
+
+func loadAnalyticsProviderRowsFromRelayLogs(ctx context.Context, r model.AnalyticsRange) (map[int]*analyticsProviderAggregateRow, error) {
+	startUnix := analyticsRangeStartUnix(r, stats.Now())
+	rows := make(map[int]*analyticsProviderAggregateRow)
 	keepEnabled, err := setting.GetBool(model.SettingKeyRelayLogKeepEnabled)
 	if err != nil {
 		return nil, err
 	}
-
 	if keepEnabled {
 		var dbRows []analyticsProviderAggregateRow
 		query := relayLogReadConn().WithContext(ctx).Model(&model.RelayLog{}).
-			Select(`
-				channel_id,
-				channel_name,
-				COALESCE(SUM(input_tokens), 0) AS input_tokens,
-				COALESCE(SUM(output_tokens), 0) AS output_tokens,
-				COALESCE(SUM(cost), 0) AS total_cost,
-				COALESCE(SUM(CASE WHEN error = '' THEN 1 ELSE 0 END), 0) AS request_success,
-				COALESCE(SUM(CASE WHEN error <> '' THEN 1 ELSE 0 END), 0) AS request_failed
-			`).
+			Select(`channel_id, channel_name, COALESCE(SUM(input_tokens), 0) AS input_tokens, COALESCE(SUM(output_tokens), 0) AS output_tokens, COALESCE(SUM(cost), 0) AS total_cost, COALESCE(SUM(CASE WHEN error = '' THEN 1 ELSE 0 END), 0) AS request_success, COALESCE(SUM(CASE WHEN error <> '' THEN 1 ELSE 0 END), 0) AS request_failed`).
 			Group("channel_id, channel_name")
 		if startUnix != nil {
 			query = query.Where("time >= ?", *startUnix)
@@ -1203,19 +1170,16 @@ func loadAnalyticsProviderRows(ctx context.Context, r model.AnalyticsRange) (map
 			rows[row.ChannelID] = &rowCopy
 		}
 	}
-
 	cache, lock := relaylog.GetCacheAndLock()
 	lock.Lock()
+	defer lock.Unlock()
 	for _, logItem := range cache {
 		if startUnix != nil && logItem.Time < *startUnix {
 			continue
 		}
 		row, ok := rows[logItem.ChannelId]
 		if !ok {
-			row = &analyticsProviderAggregateRow{
-				ChannelID:   logItem.ChannelId,
-				ChannelName: logItem.ChannelName,
-			}
+			row = &analyticsProviderAggregateRow{ChannelID: logItem.ChannelId, ChannelName: logItem.ChannelName}
 			rows[logItem.ChannelId] = row
 		}
 		row.InputTokens += int64(logItem.InputTokens)
@@ -1230,32 +1194,21 @@ func loadAnalyticsProviderRows(ctx context.Context, r model.AnalyticsRange) (map
 			row.ChannelName = logItem.ChannelName
 		}
 	}
-	lock.Unlock()
-
 	return rows, nil
 }
 
-func loadAnalyticsModelRows(ctx context.Context, r model.AnalyticsRange) (map[string]*analyticsModelAggregateRow, error) {
+func loadAnalyticsModelRowsFromRelayLogs(ctx context.Context, r model.AnalyticsRange) (map[string]*analyticsModelAggregateRow, error) {
 	startUnix := analyticsRangeStartUnix(r, stats.Now())
 	rows := make(map[string]*analyticsModelAggregateRow)
-
 	keepEnabled, err := setting.GetBool(model.SettingKeyRelayLogKeepEnabled)
 	if err != nil {
 		return nil, err
 	}
-
 	if keepEnabled {
 		var dbRows []analyticsModelAggregateRow
 		modelExpr := "COALESCE(NULLIF(actual_model_name, ''), request_model_name)"
 		query := relayLogReadConn().WithContext(ctx).Model(&model.RelayLog{}).
-			Select(`
-				` + modelExpr + ` AS model_name,
-				COALESCE(SUM(input_tokens), 0) AS input_tokens,
-				COALESCE(SUM(output_tokens), 0) AS output_tokens,
-				COALESCE(SUM(cost), 0) AS total_cost,
-				COALESCE(SUM(CASE WHEN error = '' THEN 1 ELSE 0 END), 0) AS request_success,
-				COALESCE(SUM(CASE WHEN error <> '' THEN 1 ELSE 0 END), 0) AS request_failed
-			`).
+			Select(modelExpr + ` AS model_name, COALESCE(SUM(input_tokens), 0) AS input_tokens, COALESCE(SUM(output_tokens), 0) AS output_tokens, COALESCE(SUM(cost), 0) AS total_cost, COALESCE(SUM(CASE WHEN error = '' THEN 1 ELSE 0 END), 0) AS request_success, COALESCE(SUM(CASE WHEN error <> '' THEN 1 ELSE 0 END), 0) AS request_failed`).
 			Group(modelExpr)
 		if startUnix != nil {
 			query = query.Where("time >= ?", *startUnix)
@@ -1273,9 +1226,9 @@ func loadAnalyticsModelRows(ctx context.Context, r model.AnalyticsRange) (map[st
 			rows[modelName] = &rowCopy
 		}
 	}
-
 	cache, lock := relaylog.GetCacheAndLock()
 	lock.Lock()
+	defer lock.Unlock()
 	for _, logItem := range cache {
 		if startUnix != nil && logItem.Time < *startUnix {
 			continue
@@ -1287,7 +1240,6 @@ func loadAnalyticsModelRows(ctx context.Context, r model.AnalyticsRange) (map[st
 		if modelName == "" {
 			continue
 		}
-
 		row, ok := rows[modelName]
 		if !ok {
 			row = &analyticsModelAggregateRow{ModelName: modelName}
@@ -1302,32 +1254,20 @@ func loadAnalyticsModelRows(ctx context.Context, r model.AnalyticsRange) (map[st
 			row.RequestFailed++
 		}
 	}
-	lock.Unlock()
-
 	return rows, nil
 }
 
-func loadAnalyticsAPIKeyRows(ctx context.Context, r model.AnalyticsRange) (map[string]*analyticsAPIKeyAggregateRow, error) {
+func loadAnalyticsAPIKeyRowsFromRelayLogs(ctx context.Context, r model.AnalyticsRange) (map[string]*analyticsAPIKeyAggregateRow, error) {
 	startUnix := analyticsRangeStartUnix(r, stats.Now())
 	rows := make(map[string]*analyticsAPIKeyAggregateRow)
-
 	keepEnabled, err := setting.GetBool(model.SettingKeyRelayLogKeepEnabled)
 	if err != nil {
 		return nil, err
 	}
-
 	if keepEnabled {
 		var dbRows []analyticsAPIKeyAggregateRow
 		query := relayLogReadConn().WithContext(ctx).Model(&model.RelayLog{}).
-			Select(`
-				request_api_key_id AS api_key_id,
-				request_api_key_name AS name,
-				COALESCE(SUM(input_tokens), 0) AS input_tokens,
-				COALESCE(SUM(output_tokens), 0) AS output_tokens,
-				COALESCE(SUM(cost), 0) AS total_cost,
-				COALESCE(SUM(CASE WHEN error = '' THEN 1 ELSE 0 END), 0) AS request_success,
-				COALESCE(SUM(CASE WHEN error <> '' THEN 1 ELSE 0 END), 0) AS request_failed
-			`).
+			Select(`request_api_key_id AS api_key_id, request_api_key_name AS name, COALESCE(SUM(input_tokens), 0) AS input_tokens, COALESCE(SUM(output_tokens), 0) AS output_tokens, COALESCE(SUM(cost), 0) AS total_cost, COALESCE(SUM(CASE WHEN error = '' THEN 1 ELSE 0 END), 0) AS request_success, COALESCE(SUM(CASE WHEN error <> '' THEN 1 ELSE 0 END), 0) AS request_failed`).
 			Group("request_api_key_id, request_api_key_name")
 		if startUnix != nil {
 			query = query.Where("time >= ?", *startUnix)
@@ -1341,22 +1281,18 @@ func loadAnalyticsAPIKeyRows(ctx context.Context, r model.AnalyticsRange) (map[s
 			rows[makeAnalyticsAPIKeyAggregateKey(row.APIKeyID, rowCopy.Name)] = &rowCopy
 		}
 	}
-
 	cache, lock := relaylog.GetCacheAndLock()
 	lock.Lock()
+	defer lock.Unlock()
 	for _, logItem := range cache {
 		if startUnix != nil && logItem.Time < *startUnix {
 			continue
 		}
-		apiKeyID := logItem.RequestAPIKeyID
 		keyName := strings.TrimSpace(logItem.RequestAPIKeyName)
-		aggregateKey := makeAnalyticsAPIKeyAggregateKey(apiKeyID, keyName)
+		aggregateKey := makeAnalyticsAPIKeyAggregateKey(logItem.RequestAPIKeyID, keyName)
 		row, ok := rows[aggregateKey]
 		if !ok {
-			row = &analyticsAPIKeyAggregateRow{
-				APIKeyID: apiKeyID,
-				Name:     keyName,
-			}
+			row = &analyticsAPIKeyAggregateRow{APIKeyID: logItem.RequestAPIKeyID, Name: keyName}
 			rows[aggregateKey] = row
 		}
 		row.InputTokens += int64(logItem.InputTokens)
@@ -1367,12 +1303,55 @@ func loadAnalyticsAPIKeyRows(ctx context.Context, r model.AnalyticsRange) (map[s
 		} else {
 			row.RequestFailed++
 		}
-		if row.Name == "" {
-			row.Name = keyName
+	}
+	return rows, nil
+}
+
+func loadAnalyticsChannelModelRowsFromRelayLogs(ctx context.Context, r model.AnalyticsRange, scope channelModelScope) (map[string]*analyticsChannelModelAggregateRow, error) {
+	startUnix := analyticsRangeStartUnix(r, stats.Now())
+	rows := make(map[string]*analyticsChannelModelAggregateRow)
+	inScope := scope.inScope
+	keepEnabled, err := setting.GetBool(model.SettingKeyRelayLogKeepEnabled)
+	if err != nil {
+		return nil, err
+	}
+	if keepEnabled {
+		readConn := relayLogReadConn()
+		if readConn != nil {
+			type relayLogLite struct {
+				ChannelId        int                    `gorm:"column:channel_id"`
+				ChannelName      string                 `gorm:"column:channel_name"`
+				RequestModelName string                 `gorm:"column:request_model_name"`
+				ActualModelName  string                 `gorm:"column:actual_model_name"`
+				InputTokens      int                    `gorm:"column:input_tokens"`
+				OutputTokens     int                    `gorm:"column:output_tokens"`
+				Cost             float64                `gorm:"column:cost"`
+				Error            string                 `gorm:"column:error"`
+				Attempts         []model.ChannelAttempt `gorm:"column:attempts;serializer:json"`
+			}
+			var liteLogs []relayLogLite
+			query := readConn.WithContext(ctx).Table("relay_logs").Select("channel_id", "channel_name", "request_model_name", "actual_model_name", "input_tokens", "output_tokens", "cost", "error", "attempts")
+			if startUnix != nil {
+				query = query.Where("time >= ?", *startUnix)
+			}
+			if err := query.Find(&liteLogs).Error; err != nil {
+				return nil, err
+			}
+			for i := range liteLogs {
+				lite := &liteLogs[i]
+				mergeRelayLogIntoChannelModelRows(rows, &model.RelayLog{ChannelId: lite.ChannelId, ChannelName: lite.ChannelName, RequestModelName: lite.RequestModelName, ActualModelName: lite.ActualModelName, InputTokens: lite.InputTokens, OutputTokens: lite.OutputTokens, Cost: lite.Cost, Error: lite.Error, Attempts: lite.Attempts}, inScope)
+			}
 		}
 	}
-	lock.Unlock()
-
+	cache, lock := relaylog.GetCacheAndLock()
+	lock.Lock()
+	defer lock.Unlock()
+	for _, logItem := range cache {
+		if startUnix != nil && logItem.Time < *startUnix {
+			continue
+		}
+		mergeRelayLogIntoChannelModelRows(rows, &logItem, inScope)
+	}
 	return rows, nil
 }
 

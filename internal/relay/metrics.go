@@ -152,16 +152,18 @@ func (m *RelayMetrics) Save(success bool, err error, attempts []model.ChannelAtt
 	}
 	stats.APIKeyUpdate(m.APIKeyID, globalStats)
 
+	actualModel := m.ActualModel
+	if actualModel == "" {
+		actualModel = m.RequestModel
+	}
+	m.recordDailyDimensions(ctx, globalStats, attempts, channelID, channelName, actualModel)
+
 	log.Infof("relay complete: model=%s, channel=%d(%s), success=%t, duration=%dms, input_token=%d, output_token=%d, input_cost=%f, output_cost=%f, total_cost=%f, attempts=%d, forwarded_attempts=%d",
 		m.RequestModel, channelID, channelName, success, duration.Milliseconds(),
 		m.Stats.InputToken, m.Stats.OutputToken,
 		m.Stats.InputCost, m.Stats.OutputCost, m.Stats.InputCost+m.Stats.OutputCost,
 		totalAttempts, forwardedAttempts)
 
-	actualModel := m.ActualModel
-	if actualModel == "" {
-		actualModel = m.RequestModel
-	}
 	m.saveLog(ctx, err, duration, attempts, channelID, channelName)
 	op.StatsSiteModelHourlyRecordAttempts(attempts, actualModel)
 	telemetry.Global().RecordRequest(duration.Milliseconds(), success)
@@ -201,6 +203,63 @@ func countForwardedAttempts(attempts []model.ChannelAttempt) int {
 		count++
 	}
 	return count
+}
+
+func (m *RelayMetrics) recordDailyDimensions(ctx context.Context, requestStats model.StatsMetrics, attempts []model.ChannelAttempt, channelID int, channelName, actualModel string) {
+	if err := stats.DailyDimensionChannelUpdate(ctx, channelID, channelName, requestStats); err != nil {
+		log.Warnf("failed to update daily channel stats: %v", err)
+	}
+	if err := stats.DailyDimensionModelUpdate(ctx, actualModel, requestStats); err != nil {
+		log.Warnf("failed to update daily model stats: %v", err)
+	}
+	apiKeyName := ""
+	if apiKey, getErr := apikey.Get(m.APIKeyID, ctx); getErr == nil {
+		apiKeyName = apiKey.Name
+	}
+	if err := stats.DailyDimensionAPIKeyUpdate(ctx, m.APIKeyID, apiKeyName, requestStats); err != nil {
+		log.Warnf("failed to update daily API key stats: %v", err)
+	}
+	m.recordDailyChannelModelDimensions(ctx, requestStats, attempts, channelID, channelName, actualModel)
+}
+
+func (m *RelayMetrics) recordDailyChannelModelDimensions(ctx context.Context, requestStats model.StatsMetrics, attempts []model.ChannelAttempt, channelID int, channelName, actualModel string) {
+	if len(attempts) == 0 {
+		if channelID == 0 {
+			return
+		}
+		if err := stats.DailyDimensionChannelModelUpdate(ctx, channelID, channelName, actualModel, requestStats); err != nil {
+			log.Warnf("failed to update daily channel-model stats: %v", err)
+		}
+		return
+	}
+	for _, attempt := range attempts {
+		if attempt.ChannelID == 0 {
+			continue
+		}
+		modelName := strings.TrimSpace(attempt.ModelName)
+		if modelName == "" {
+			modelName = actualModel
+		}
+		if modelName == "" {
+			modelName = m.RequestModel
+		}
+		attemptStats := model.StatsMetrics{}
+		switch attempt.Status {
+		case model.AttemptSuccess:
+			attemptStats.RequestSuccess = 1
+			attemptStats.InputToken = requestStats.InputToken
+			attemptStats.OutputToken = requestStats.OutputToken
+			attemptStats.InputCost = requestStats.InputCost
+			attemptStats.OutputCost = requestStats.OutputCost
+		case model.AttemptFailed:
+			attemptStats.RequestFailed = 1
+		default:
+			continue
+		}
+		if err := stats.DailyDimensionChannelModelUpdate(ctx, attempt.ChannelID, attempt.ChannelName, modelName, attemptStats); err != nil {
+			log.Warnf("failed to update daily channel-model stats: %v", err)
+		}
+	}
 }
 
 func (m *RelayMetrics) saveLog(ctx context.Context, err error, duration time.Duration, attempts []model.ChannelAttempt, channelID int, channelName string) {
