@@ -502,15 +502,19 @@ func DailyUpdate(ctx context.Context, metrics model.StatsMetrics) error {
 	dailyCacheLock.Lock()
 	if dailyCache.Date == todayDate {
 		dailyCache.StatsMetrics.Add(metrics)
+		updatedDaily := dailyCache
 		dailyCacheLock.Unlock()
+		upsertDailyAllCache(updatedDaily)
 		return nil
 	}
 
 	prevDaily := dailyCache
 	dailyCache = model.StatsDaily{Date: todayDate}
 	dailyCache.StatsMetrics.Add(metrics)
+	updatedDaily := dailyCache
 	dailyCacheLock.Unlock()
 
+	upsertDailyAllCache(prevDaily, updatedDaily)
 	pendingDailyOverride.Store(&prevDaily)
 	go func() {
 		bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -967,13 +971,54 @@ func InvalidateDailyCache() {
 	dailyAllCacheMu.Unlock()
 }
 
+func mergeDailyRowsWithCurrent(rows []model.StatsDaily, current model.StatsDaily) []model.StatsDaily {
+	result := append([]model.StatsDaily(nil), rows...)
+	if current.Date == "" {
+		return result
+	}
+	for i := range result {
+		if result[i].Date == current.Date {
+			result[i] = current
+			return result
+		}
+	}
+	if !current.StatsMetrics.IsZero() {
+		result = append(result, current)
+	}
+	return result
+}
+
+func upsertDailyAllCache(entries ...model.StatsDaily) {
+	dailyAllCacheMu.Lock()
+	defer dailyAllCacheMu.Unlock()
+	if !dailyAllCached {
+		return
+	}
+	for _, entry := range entries {
+		if entry.Date == "" {
+			continue
+		}
+		replaced := false
+		for i := range dailyAllCache {
+			if dailyAllCache[i].Date == entry.Date {
+				dailyAllCache[i] = entry
+				replaced = true
+				break
+			}
+		}
+		if !replaced && !entry.StatsMetrics.IsZero() {
+			dailyAllCache = append(dailyAllCache, entry)
+		}
+	}
+}
+
 // GetDaily retrieves all daily statistics records from the database.
 func GetDaily(ctx context.Context) ([]model.StatsDaily, error) {
 	dailyAllCacheMu.RLock()
 	if dailyAllCached {
-		result := dailyAllCache
+		result := append([]model.StatsDaily(nil), dailyAllCache...)
 		dailyAllCacheMu.RUnlock()
-		return result, nil
+		return mergeDailyRowsWithCurrent(result, TodayGet()), nil
 	}
 	dailyAllCacheMu.RUnlock()
 
@@ -983,10 +1028,10 @@ func GetDaily(ctx context.Context) ([]model.StatsDaily, error) {
 		return nil, result.Error
 	}
 	dailyAllCacheMu.Lock()
-	dailyAllCache = statsDaily
+	dailyAllCache = append([]model.StatsDaily(nil), statsDaily...)
 	dailyAllCached = true
 	dailyAllCacheMu.Unlock()
-	return statsDaily, nil
+	return mergeDailyRowsWithCurrent(statsDaily, TodayGet()), nil
 }
 
 // OnChannelDeleted is called by the op package when a channel is deleted,
@@ -1054,6 +1099,7 @@ func ClearAllCachesForTest() {
 	dailyCacheLock.Lock()
 	dailyCache = model.StatsDaily{}
 	dailyCacheLock.Unlock()
+	InvalidateDailyCache()
 
 	hourlyCacheLock.Lock()
 	hourlyCache = [24]model.StatsHourly{}
