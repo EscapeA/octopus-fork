@@ -198,6 +198,23 @@ func resolveCandidateModelName(requestModel string, item dbmodel.GroupItem) stri
 	return item.ModelName
 }
 
+func apiKeyAllowsGroupCategory(allowedCategories string, groupCategory string) bool {
+	allowedCategories = strings.TrimSpace(allowedCategories)
+	if allowedCategories == "" {
+		return true
+	}
+	category := strings.TrimSpace(groupCategory)
+	if category == "" {
+		return false
+	}
+	for _, allowed := range strings.Split(allowedCategories, ",") {
+		if strings.EqualFold(strings.TrimSpace(allowed), category) {
+			return true
+		}
+	}
+	return false
+}
+
 // Handler 处理入站请求并转发到上游服务
 func Handler(endpointType string, inboundType inbound.InboundType, c *gin.Context) {
 	InflightInc()
@@ -286,6 +303,11 @@ func Handler(endpointType string, inboundType inbound.InboundType, c *gin.Contex
 		lastErr = err
 		log.Infof("model not found: model=%s endpoint_type=%s reason=%v", requestModel, endpointType, err)
 		resp.Error(c, http.StatusNotFound, "model not found")
+		return
+	}
+	if !apiKeyAllowsGroupCategory(c.GetString("allowed_group_categories"), group.Category) {
+		lastErr = fmt.Errorf("group category not allowed for api key: category=%s", group.Category)
+		resp.Error(c, http.StatusBadRequest, "model not supported")
 		return
 	}
 

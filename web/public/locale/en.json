@@ -1750,6 +1750,9 @@
         "supportedModels": "Supported Models",
         "noModels": "No models available",
         "modelsHint": "Leave empty for unlimited",
+        "allowedGroupCategories": "Allowed Group Categories",
+        "noGroupCategories": "No group categories available",
+        "groupCategoriesHint": "Leave empty for unlimited access. If selected, this key can only use groups in these categories; uncategorized groups are rejected.",
         "excludedChannels": "Excluded channels",
         "noChannels": "No channels available",
         "excludedChannelsHint": "Selected channels will not be used by this key",
@@ -2147,7 +2150,8 @@
       "confirmTitle": "Confirm Auto Grouping",
       "confirmDescription": "This will scan all channel models and create groups for uncovered models based on normalization rules.\nExisting groups will not be modified or deleted.\nContinue?",
       "submit": "Start Auto Grouping",
-      "submitting": "Grouping..."
+      "submitting": "Grouping...",
+      "categoryHint": "Optional. New groups created by auto grouping will use this category for API key access control."
     },
     "aiRoute": {
       "table": {
@@ -2332,6 +2336,9 @@
     },
     "form": {
       "name": "Group Name",
+      "category": "Group Category",
+      "categoryPlaceholder": "e.g. premium or budget; optional",
+      "categoryHint": "Used for API key access control. Leave empty for uncategorized groups.",
       "matchRegex": "Match Regex",
       "matchRegexPlaceholder": "Leave empty to use default exact match by group name",
       "matchRegexInvalid": "Invalid regex",

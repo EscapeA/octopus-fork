@@ -191,38 +191,40 @@ func maskAPIKeyValue(raw string) string {
 }
 
 type apiKeyRequestPayload struct {
-	ID                int     `json:"id"`
-	Name              string  `json:"name"`
-	APIKey            string  `json:"api_key,omitempty"`
-	Enabled           bool    `json:"enabled"`
-	ExpireAt          int64   `json:"expire_at,omitempty"`
-	MaxCost           float64 `json:"max_cost,omitempty"`
-	MaxTokens         int64   `json:"max_tokens,omitempty"`
-	SupportedModels   string  `json:"supported_models,omitempty"`
-	RateLimitRPM      int     `json:"rate_limit_rpm,omitempty"`
-	RateLimitTPM      int     `json:"rate_limit_tpm,omitempty"`
-	PerModelQuotaJSON string  `json:"per_model_quota_json,omitempty"`
-	AllowedIPs        string  `json:"allowed_ips,omitempty"`
-	Tags              string  `json:"tags,omitempty"`
-	ExcludedChannels  string  `json:"excluded_channels,omitempty"`
+	ID                     int     `json:"id"`
+	Name                   string  `json:"name"`
+	APIKey                 string  `json:"api_key,omitempty"`
+	Enabled                bool    `json:"enabled"`
+	ExpireAt               int64   `json:"expire_at,omitempty"`
+	MaxCost                float64 `json:"max_cost,omitempty"`
+	MaxTokens              int64   `json:"max_tokens,omitempty"`
+	SupportedModels        string  `json:"supported_models,omitempty"`
+	AllowedGroupCategories string  `json:"allowed_group_categories,omitempty"`
+	RateLimitRPM           int     `json:"rate_limit_rpm,omitempty"`
+	RateLimitTPM           int     `json:"rate_limit_tpm,omitempty"`
+	PerModelQuotaJSON      string  `json:"per_model_quota_json,omitempty"`
+	AllowedIPs             string  `json:"allowed_ips,omitempty"`
+	Tags                   string  `json:"tags,omitempty"`
+	ExcludedChannels       string  `json:"excluded_channels,omitempty"`
 }
 
 func (p apiKeyRequestPayload) toModel() model.APIKey {
 	return model.APIKey{
-		ID:                p.ID,
-		Name:              p.Name,
-		APIKey:            p.APIKey,
-		Enabled:           p.Enabled,
-		ExpireAt:          p.ExpireAt,
-		MaxCost:           p.MaxCost,
-		MaxTokens:         p.MaxTokens,
-		SupportedModels:   p.SupportedModels,
-		RateLimitRPM:      p.RateLimitRPM,
-		RateLimitTPM:      p.RateLimitTPM,
-		PerModelQuotaJSON: p.PerModelQuotaJSON,
-		AllowedIPs:        p.AllowedIPs,
-		Tags:              p.Tags,
-		ExcludedChannels:  p.ExcludedChannels,
+		ID:                     p.ID,
+		Name:                   p.Name,
+		APIKey:                 p.APIKey,
+		Enabled:                p.Enabled,
+		ExpireAt:               p.ExpireAt,
+		MaxCost:                p.MaxCost,
+		MaxTokens:              p.MaxTokens,
+		SupportedModels:        p.SupportedModels,
+		AllowedGroupCategories: p.AllowedGroupCategories,
+		RateLimitRPM:           p.RateLimitRPM,
+		RateLimitTPM:           p.RateLimitTPM,
+		PerModelQuotaJSON:      p.PerModelQuotaJSON,
+		AllowedIPs:             p.AllowedIPs,
+		Tags:                   p.Tags,
+		ExcludedChannels:       p.ExcludedChannels,
 	}
 }
 

@@ -21,6 +21,7 @@ export interface APIKey {
     max_cost?: number; // 不传表示无限制
     max_tokens?: number; // Token 用量上限，0 或不传表示不限制（issue #108）
     supported_models?: string; // 不传表示支持所有模型
+    allowed_group_categories?: string; // 逗号分隔的允许分组分类，空表示支持所有分类
     rate_limit_rpm?: number; // 每分钟请求数限制，0 表示无限制
     rate_limit_tpm?: number; // 每分钟 token 数限制，0 表示无限制
     per_model_quota_json?: string; // 按模型的配额 JSON: {"gpt-4o":{"rpm":5,"tpm":50000}}

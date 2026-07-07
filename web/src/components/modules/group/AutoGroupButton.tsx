@@ -28,6 +28,7 @@ export function AutoGroupButton({ variant = 'ghost', className }: AutoGroupButto
     const t = useTranslations('group');
     const autoGroup = useAutoGroupModels();
     const [open, setOpen] = useState(false);
+    const [category, setCategory] = useState('');
 
     const summary = useMemo(() => {
         const result = autoGroup.data;
@@ -85,6 +86,19 @@ export function AutoGroupButton({ variant = 'ghost', className }: AutoGroupButto
                     <AlertDialogDescription className="whitespace-pre-line">
                         {t('autoGroup.confirmDescription')}
                     </AlertDialogDescription>
+                    <div className="grid gap-1.5 pt-2 text-left">
+                        <label className="text-xs font-medium text-muted-foreground" htmlFor="auto-group-category">
+                            {t('form.category')}
+                        </label>
+                        <input
+                            id="auto-group-category"
+                            value={category}
+                            onChange={(event) => setCategory(event.target.value)}
+                            className="h-9 rounded-lg border border-border/40 bg-card px-3 text-sm outline-none transition-colors focus:border-primary/30"
+                            placeholder={t('form.categoryPlaceholder')}
+                        />
+                        <p className="text-[11px] text-muted-foreground/80">{t('autoGroup.categoryHint')}</p>
+                    </div>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel disabled={autoGroup.isPending}>{t('detail.actions.cancel')}</AlertDialogCancel>
@@ -92,7 +106,7 @@ export function AutoGroupButton({ variant = 'ghost', className }: AutoGroupButto
                         disabled={autoGroup.isPending}
                         onClick={(event) => {
                             event.preventDefault();
-                            autoGroup.mutate(undefined, {
+                            autoGroup.mutate({ category: category.trim() || undefined }, {
                                 onSuccess: () => {
                                     setOpen(false);
                                     toast.success(summary, { description: details });

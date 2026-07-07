@@ -22,6 +22,7 @@ import { HelpCircle } from 'lucide-react';
 
 export type GroupEditorValues = {
     name: string;
+    category?: string;
     endpoint_type: string;
     endpoint_provider?: string;
     outbound_format?: string;
@@ -283,6 +284,7 @@ export function GroupEditor({
     const conditionPlaceholder = '[{"key":"model","op":"contains","value":"gpt-4"}]';
 
     const [groupName, setGroupName] = useState(initial?.name ?? '');
+    const [category, setCategory] = useState(initial?.category ?? '');
     const [endpointType, setEndpointType] = useState(normalizeEndpointType(initial?.endpoint_type));
     const [endpointProvider, setEndpointProvider] = useState(normalizeEndpointProvider(initial?.endpoint_provider));
     const [outboundFormat, setOutboundFormat] = useState(normalizeOutboundFormat(initial?.outbound_format));
@@ -373,6 +375,7 @@ export function GroupEditor({
         if (!isValid) return;
         onSubmit({
             name: groupName,
+            category: category.trim(),
             endpoint_type: endpointType,
             endpoint_provider: supportsProviderSelection ? endpointProvider : '',
             outbound_format: supportsOutboundFormat ? outboundFormat : '',
@@ -416,6 +419,19 @@ export function GroupEditor({
                                         onChange={(e) => setGroupName(e.target.value)}
                                         className="h-10 rounded-lg text-sm md:h-11"
                                     />
+                                </Field>
+                                <Field>
+                                    <FieldLabel htmlFor="group-category">{t('form.category')}</FieldLabel>
+                                    <Input
+                                        id="group-category"
+                                        value={category}
+                                        onChange={(e) => setCategory(e.target.value)}
+                                        className="h-10 rounded-lg text-sm md:h-11"
+                                        placeholder={t('form.categoryPlaceholder')}
+                                    />
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        {t('form.categoryHint')}
+                                    </p>
                                 </Field>
                                 <Field>
                                     <FieldLabel htmlFor="group-endpoint-type">{t('form.endpointType.label')}</FieldLabel>

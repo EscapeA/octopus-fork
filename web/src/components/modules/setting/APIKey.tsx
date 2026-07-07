@@ -265,6 +265,7 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
         max_cost: apiKey?.max_cost,
         max_tokens: apiKey?.max_tokens,
         supported_models: apiKey?.supported_models,
+        allowed_group_categories: apiKey?.allowed_group_categories,
         rate_limit_rpm: apiKey?.rate_limit_rpm ?? 0,
         rate_limit_tpm: apiKey?.rate_limit_tpm ?? 0,
         per_model_quota_json: apiKey?.per_model_quota_json ?? '',
@@ -292,6 +293,11 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
     const availableModels = useMemo(() => {
         const names = groups.map((g) => g.name).filter(Boolean);
         return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
+    }, [groups]);
+
+    const availableGroupCategories = useMemo(() => {
+        const categories = groups.map((g) => g.category?.trim()).filter((c): c is string => Boolean(c));
+        return Array.from(new Set(categories)).sort((a, b) => a.localeCompare(b));
     }, [groups]);
 
     const expireDate = parseExpireDate(form.expire_at);
@@ -634,6 +640,43 @@ export function APIKeyForm({ apiKey, isPending, submitLabel, tagSuggestions = []
                     )}
                 </div>
                 <div className="text-[11px] text-muted-foreground/80">{t('apiKey.form.modelsHint')}</div>
+            </div>
+
+            <div className="grid gap-1 @lg:col-span-2">
+                <div className="text-xs text-muted-foreground">{t('apiKey.form.allowedGroupCategories')}</div>
+                <div className="max-h-32 overflow-auto rounded-xl p-2">
+                    {availableGroupCategories.length === 0 ? (
+                        <div className="text-xs text-muted-foreground py-2 text-center">
+                            {t('apiKey.form.noGroupCategories')}
+                        </div>
+                    ) : (
+                        <div className="flex flex-wrap gap-2">
+                            {availableGroupCategories.map((category) => {
+                                const checked = hasModel(form.allowed_group_categories, category);
+                                return (
+                                    <button
+                                        key={category}
+                                        type="button"
+                                        disabled={isPending}
+                                        onClick={() => updateForm({ allowed_group_categories: toggleModel(form.allowed_group_categories, category) })}
+                                        className="text-left disabled:opacity-50"
+                                    >
+                                        <Badge
+                                            variant={checked ? 'default' : 'outline'}
+                                            className={cn(
+                                                'cursor-pointer select-none',
+                                                !checked && 'bg-card hover:bg-card'
+                                            )}
+                                        >
+                                            {category}
+                                        </Badge>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+                <div className="text-[11px] text-muted-foreground/80">{t('apiKey.form.groupCategoriesHint')}</div>
             </div>
 
             <div className="grid gap-1 @lg:col-span-2">

@@ -13,6 +13,7 @@ const (
 type Group struct {
 	ID                int       `json:"id" gorm:"primaryKey"`
 	Name              string    `json:"name" gorm:"unique;not null;size:191"`
+	Category          string    `json:"category,omitempty" gorm:"not null;default:'';index;size:191"`
 	EndpointType      string    `json:"endpoint_type" gorm:"not null;default:*;index;size:191"`
 	EndpointProvider  string    `json:"endpoint_provider,omitempty" gorm:"not null;default:''"`
 	OutboundFormat    string    `json:"outbound_format,omitempty" gorm:"not null;default:''"` // 出站格式: "" (auto), "chat", "responses", "messages", "chat_only", "responses_only", "messages_only", "passthrough"
@@ -52,6 +53,7 @@ type GroupItem struct {
 type GroupUpdateRequest struct {
 	ID                int                      `json:"id" binding:"required"`
 	Name              *string                  `json:"name,omitempty"`                 // 仅在名称变更时发送
+	Category          *string                  `json:"category,omitempty"`             // 仅在分类变更时发送
 	EndpointType      *string                  `json:"endpoint_type,omitempty"`        // 仅在 API 分类变更时发送
 	EndpointProvider  *string                  `json:"endpoint_provider,omitempty"`    // 仅在端点提供方变更时发送
 	OutboundFormat    *string                  `json:"outbound_format,omitempty"`      // 仅在出站格式变更时发送

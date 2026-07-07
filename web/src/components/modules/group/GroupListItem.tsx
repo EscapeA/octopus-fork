@@ -153,6 +153,7 @@ function EditDialogContent({
                         className="flex-1 min-h-0"
                         initial={{
                             name: group.name,
+                            category: group.category ?? '',
                             endpoint_type: normalizeEndpointType(group.endpoint_type),
                             endpoint_provider: group.endpoint_provider ?? '',
                             outbound_format: group.outbound_format ?? '',
@@ -666,6 +667,7 @@ export function GroupListItem({ group }: { group: Group }) {
 
             const payload: GroupUpdateRequest = { id: group.id };
             const nextName = values.name.trim();
+            const nextCategory = (values.category ?? '').trim();
             const nextEndpointType = normalizeEndpointType(
                 values.endpoint_type,
             );
@@ -690,6 +692,8 @@ export function GroupListItem({ group }: { group: Group }) {
 
             if (nextName && nextName !== group.name)
                 payload.name = nextName;
+            if (nextCategory !== (group.category ?? '').trim())
+                payload.category = nextCategory;
             if (
                 nextEndpointType !==
                 normalizeEndpointType(group.endpoint_type)
@@ -745,6 +749,7 @@ export function GroupListItem({ group }: { group: Group }) {
             });
         },
         [
+            group.category,
             group.condition,
             group.endpoint_provider,
             group.endpoint_type,
@@ -812,6 +817,7 @@ export function GroupListItem({ group }: { group: Group }) {
 
         const values: GroupEditorValues = {
             name: group.name,
+            category: group.category ?? '',
             endpoint_type: normalizeEndpointType(group.endpoint_type),
             endpoint_provider: group.endpoint_provider ?? '',
             outbound_format: group.outbound_format ?? '',
@@ -831,6 +837,7 @@ export function GroupListItem({ group }: { group: Group }) {
             toast.success(t('toast.removedFailedModels'));
         });
     }, [
+        group.category,
         group.condition,
         group.endpoint_provider,
         group.endpoint_type,
@@ -1011,6 +1018,7 @@ export function GroupListItem({ group }: { group: Group }) {
                             )}
                         </h3>
                         <p className="line-clamp-2 text-xs text-muted-foreground">
+                            {group.category ? `${group.category} · ` : ''}
                             {modeLabel}
                             {firstModelName ? ` · ${firstModelName}` : ''}
                             {' · '}

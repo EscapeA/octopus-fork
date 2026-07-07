@@ -34,6 +34,7 @@ export enum GroupMode {
 export interface Group {
     id?: number;
     name: string;
+    category?: string;
     endpoint_type: string;
     endpoint_provider?: string;
     outbound_format?: string;
@@ -90,6 +91,7 @@ export interface GroupDraftTestRequest {
 export interface AutoGroupCreatedItem {
     name: string;
     endpoint_type: string;
+    category?: string;
     matched_models: string[];
 }
 
@@ -365,6 +367,7 @@ export interface GroupUpdateRequest {
     name?: string;
     endpoint_type?: string;
     endpoint_provider?: string;
+    category?: string;
     outbound_format?: string;
     mode?: GroupMode;
     match_regex?: string;
@@ -442,8 +445,8 @@ export function useAutoGroupModels() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async () => {
-            return apiClient.post<AutoGroupResult>('/api/v1/group/auto-group', {});
+        mutationFn: async (data?: { category?: string }) => {
+            return apiClient.post<AutoGroupResult>('/api/v1/group/auto-group', data ?? {});
         },
         onSuccess: (data) => {
             logger.log('自动分组成功:', data);

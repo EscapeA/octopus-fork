@@ -93,6 +93,11 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 		resp.Error(c, http.StatusNotFound, "model not found")
 		return
 	}
+	if !apiKeyAllowsGroupCategory(c.GetString("allowed_group_categories"), group.Category) {
+		log.Infof("media relay: group category not allowed for api key: model=%s category=%s", requestModel, group.Category)
+		resp.Error(c, http.StatusBadRequest, "model not supported")
+		return
+	}
 	logEndpointType := resolveRelayLogEndpointType(groupEndpointType, group.EndpointType)
 
 	// Narrow * group items: a * group may contain items that only support

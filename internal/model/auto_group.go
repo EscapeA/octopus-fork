@@ -40,6 +40,7 @@ type AutoGroupResult struct {
 type AutoGroupCreatedItem struct {
 	Name          string   `json:"name"`
 	EndpointType  string   `json:"endpoint_type"`
+	Category      string   `json:"category,omitempty"`
 	MatchedModels []string `json:"matched_models"`
 }
 

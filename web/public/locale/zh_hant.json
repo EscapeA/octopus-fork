@@ -1706,6 +1706,9 @@
         "supportedModels": "支援的模型",
         "noModels": "暫無可選模型",
         "modelsHint": "不選擇則為無限制",
+        "allowedGroupCategories": "允許的分組分類",
+        "noGroupCategories": "暫無分組分類",
+        "groupCategoriesHint": "不選擇則不限制；選擇後該金鑰只能調用這些分類的分組，未分類分組會被拒絕",
         "excludedChannels": "排除渠道",
         "noChannels": "暫無渠道",
         "excludedChannelsHint": "選中的渠道不會被該密鑰命中",
@@ -2103,7 +2106,8 @@
       "confirmTitle": "確認自動分組",
       "confirmDescription": "將自動掃描所有供應源模型，並根據模型歸一化規則為未覆蓋模型建立分組。\n不會修改已有分組，也不會刪除已有分組。\n是否繼續？",
       "submit": "開始自動分組",
-      "submitting": "自動分組中..."
+      "submitting": "自動分組中...",
+      "categoryHint": "選填。填寫後新建分組會帶上該分類，用於 API Key 調用範圍控制。"
     },
     "aiRoute": {
       "table": {
@@ -2281,6 +2285,9 @@
     },
     "form": {
       "name": "分組名稱",
+      "category": "分組分類",
+      "categoryPlaceholder": "如 premium、budget，可留空",
+      "categoryHint": "用於 API Key 調用範圍控制；留空表示未分類。",
       "matchRegex": "匹配正規",
       "matchRegexPlaceholder": "留空則預設按分組名稱精準比對",
       "matchRegexInvalid": "正規無效",

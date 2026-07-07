@@ -263,8 +263,17 @@ func getGroupTestProgress(c *gin.Context) {
 	resp.Success(c, progress)
 }
 
+type autoGroupRequest struct {
+	Category string `json:"category,omitempty"`
+}
+
 func autoGroupModels(c *gin.Context) {
-	result, err := grp.AutoGroupModels(c.Request.Context())
+	var req autoGroupRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.Error(c, http.StatusBadRequest, resp.ErrInvalidJSON)
+		return
+	}
+	result, err := grp.AutoGroupModelsWithCategory(c.Request.Context(), req.Category)
 	if err != nil {
 		resp.InternalError(c)
 		return

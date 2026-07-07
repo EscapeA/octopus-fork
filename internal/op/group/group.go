@@ -286,6 +286,7 @@ func conversationEndpointLookupOrder(endpointType string, requestModel string) [
 
 func normalizeGroup(group model.Group) model.Group {
 	group.Name = strings.TrimSpace(group.Name)
+	group.Category = strings.TrimSpace(group.Category)
 	group.EndpointType = model.NormalizeEndpointType(group.EndpointType)
 	group.EndpointProvider = strings.ToLower(strings.TrimSpace(group.EndpointProvider))
 	group.OutboundFormat = strings.ToLower(strings.TrimSpace(group.OutboundFormat))
@@ -617,6 +618,7 @@ func GroupCreate(group *model.Group, ctx context.Context) error {
 	if group.Name == "" {
 		return fmt.Errorf("group name is required")
 	}
+	group.Category = strings.TrimSpace(group.Category)
 	group.EndpointType = model.NormalizeEndpointType(group.EndpointType)
 	group.EndpointProvider = strings.ToLower(strings.TrimSpace(group.EndpointProvider))
 	group.OutboundFormat = strings.ToLower(strings.TrimSpace(group.OutboundFormat))
@@ -657,6 +659,10 @@ func GroupUpdate(req *model.GroupUpdateRequest, ctx context.Context) (*model.Gro
 		}
 		selectFields = append(selectFields, "name")
 		updates.Name = name
+	}
+	if req.Category != nil {
+		selectFields = append(selectFields, "category")
+		updates.Category = strings.TrimSpace(*req.Category)
 	}
 	if req.EndpointType != nil {
 		selectFields = append(selectFields, "endpoint_type")

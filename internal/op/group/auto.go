@@ -103,6 +103,11 @@ var autoGroupFamilyRules = []autoGroupFamilyRule{
 }
 
 func AutoGroupModels(ctx context.Context) (*model.AutoGroupResult, error) {
+	return AutoGroupModelsWithCategory(ctx, "")
+}
+
+func AutoGroupModelsWithCategory(ctx context.Context, category string) (*model.AutoGroupResult, error) {
+	category = strings.TrimSpace(category)
 	channelRefs, totalChannels, err := collectChannelModelRefs(ctx)
 	if err != nil {
 		return nil, err
@@ -183,7 +188,7 @@ func AutoGroupModels(ctx context.Context) (*model.AutoGroupResult, error) {
 			continue
 		}
 
-		if err := createAutoGroupCandidate(candidate, ctx); err != nil {
+		if err := createAutoGroupCandidate(candidate, category, ctx); err != nil {
 			result.FailedGroups++
 			result.Skipped = append(result.Skipped, model.AutoGroupSkippedItem{
 				Name:         candidate.Canonical,
@@ -193,12 +198,13 @@ func AutoGroupModels(ctx context.Context) (*model.AutoGroupResult, error) {
 			continue
 		}
 
-		groupNameSet[strings.ToLower(candidate.Canonical)] = model.Group{Name: candidate.Canonical, EndpointType: candidate.EndpointType}
-		existingGroups = append(existingGroups, model.Group{Name: candidate.Canonical, EndpointType: candidate.EndpointType, MatchRegex: candidate.MatchRegex})
+		groupNameSet[strings.ToLower(candidate.Canonical)] = model.Group{Name: candidate.Canonical, Category: category, EndpointType: candidate.EndpointType}
+		existingGroups = append(existingGroups, model.Group{Name: candidate.Canonical, Category: category, EndpointType: candidate.EndpointType, MatchRegex: candidate.MatchRegex})
 		result.CreatedGroups++
 		result.Created = append(result.Created, model.AutoGroupCreatedItem{
 			Name:          candidate.Canonical,
 			EndpointType:  candidate.EndpointType,
+			Category:      category,
 			MatchedModels: candidate.RawModels,
 		})
 	}
@@ -372,7 +378,7 @@ func IsCandidateCoveredByExistingGroups(candidate model.CandidateGroup, existing
 	return false, ""
 }
 
-func createAutoGroupCandidate(candidate model.CandidateGroup, ctx context.Context) error {
+func createAutoGroupCandidate(candidate model.CandidateGroup, category string, ctx context.Context) error {
 	tx := db.GetDB().WithContext(ctx).Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -383,6 +389,7 @@ func createAutoGroupCandidate(candidate model.CandidateGroup, ctx context.Contex
 
 	group := model.Group{
 		Name:              candidate.Canonical,
+		Category:          strings.TrimSpace(category),
 		EndpointType:      model.NormalizeEndpointType(candidate.EndpointType),
 		Mode:              model.GroupModeRoundRobin,
 		MatchRegex:        candidate.MatchRegex,
