@@ -972,7 +972,7 @@ func InvalidateDailyCache() {
 }
 
 func mergeDailyRowsWithCurrent(rows []model.StatsDaily, current model.StatsDaily) []model.StatsDaily {
-	result := append([]model.StatsDaily(nil), rows...)
+	result := append([]model.StatsDaily{}, rows...)
 	if current.Date == "" {
 		return result
 	}
@@ -1031,7 +1031,7 @@ func GetDaily(ctx context.Context) ([]model.StatsDaily, error) {
 	dailyAllCache = append([]model.StatsDaily(nil), statsDaily...)
 	dailyAllCached = true
 	dailyAllCacheMu.Unlock()
-	return mergeDailyRowsWithCurrent(statsDaily, TodayGet()), nil
+	return mergeDailyRowsWithCurrent(append([]model.StatsDaily{}, statsDaily...), TodayGet()), nil
 }
 
 // OnChannelDeleted is called by the op package when a channel is deleted,
