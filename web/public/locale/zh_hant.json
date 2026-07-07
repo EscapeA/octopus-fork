@@ -156,7 +156,10 @@
       "forwardApiKeyHint": "填寫後將自動建立或復用轉發渠道，模型相同的合併為同一渠道。留空則僅監控套餐額度。",
       "consoleTokenLabel": "控制台 Token",
       "sensenovaTokenPlaceholder": "貼上控制台 Bearer Token 值",
-      "sensenovaTokenHint": "需登入 platform.sensenova.cn 控制台，從請求頭複製 Bearer Token 值。有效期約 3 小時，過期後需重新取得。"
+      "sensenovaTokenHint": "需登入 platform.sensenova.cn 控制台，從請求頭複製 Bearer Token 值。有效期約 3 小時，過期後需重新取得。",
+      "cookieLabel": "Cookie",
+      "mimoCookiePlaceholder": "貼上瀏覽器 Cookie（需包含 api-platform_serviceToken）",
+      "mimoCookieHint": "需登入 platform.xiaomimimo.com，按 F12 開發者工具 → Network → 重新整理頁面 → 任意請求的 Cookie 欄位，複製完整內容。有效期未知，疑似長期有效。"
     },
     "title": "遠端站點",
     "addSite": "新增站點",
