@@ -986,13 +986,15 @@
         "cooldownHint": "Cooldown period after alert fires; no duplicate alerts during this time",
         "thresholdHint": {
           "cost_threshold": "Alert when daily accumulated cost exceeds this amount (USD)",
-          "error_rate": "Alert when error rate in sliding window exceeds this percentage",
+          "error_rate": "Alert when error rate in the sliding window exceeds this percentage for the scoped target",
           "quota_exceeded": "Alert when quota usage exceeds this percentage",
           "channel_down": "Alert when consecutive channel failures exceed this count"
         },
-        "scopeChannelId": "Scope channel ID",
-        "scopeApiKeyId": "Scope API key ID",
-        "conditionJson": "Condition JSON"
+        "window": "Window (sec)",
+        "windowPlaceholder": "Sliding window seconds",
+        "windowHint": "Sliding window duration for calculating the condition; only applies to error-rate alerts",
+        "scopeGroupId": "Scope group ID",
+        "scopeModelName": "Scope model name"
       }
     },
     "channels": {

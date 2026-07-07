@@ -205,8 +205,11 @@ type alertRulePayload struct {
 	ConditionJSON  string                       `json:"condition_json,omitempty"`
 	NotifChannelID int                          `json:"notif_channel_id"`
 	CooldownSec    int                          `json:"cooldown_sec"`
+	WindowSec      int                          `json:"window_sec,omitempty"`
 	ScopeChannelID int                          `json:"scope_channel_id,omitempty"`
 	ScopeAPIKeyID  int                          `json:"scope_api_key_id,omitempty"`
+	ScopeGroupID   int                          `json:"scope_group_id,omitempty"`
+	ScopeModelName string                       `json:"scope_model_name,omitempty"`
 }
 
 func (p alertRulePayload) toModel() model.AlertRule {
@@ -219,8 +222,11 @@ func (p alertRulePayload) toModel() model.AlertRule {
 		ConditionJSON:  p.ConditionJSON,
 		NotifChannelID: p.NotifChannelID,
 		CooldownSec:    p.CooldownSec,
+		WindowSec:      p.WindowSec,
 		ScopeChannelID: p.ScopeChannelID,
 		ScopeAPIKeyID:  p.ScopeAPIKeyID,
+		ScopeGroupID:   p.ScopeGroupID,
+		ScopeModelName: p.ScopeModelName,
 	}
 }
 

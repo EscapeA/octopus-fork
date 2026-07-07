@@ -20,8 +20,11 @@ type AlertRule struct {
 	ConditionJSON  string                 `json:"condition_json,omitempty"`
 	NotifChannelID int                    `json:"notif_channel_id"`
 	CooldownSec    int                    `json:"cooldown_sec" gorm:"default:300"`
+	WindowSec      int                    `json:"window_sec,omitempty" gorm:"default:300"`
 	ScopeChannelID int                    `json:"scope_channel_id,omitempty"`
 	ScopeAPIKeyID  int                    `json:"scope_api_key_id,omitempty"`
+	ScopeGroupID   int                    `json:"scope_group_id,omitempty"`
+	ScopeModelName string                 `json:"scope_model_name,omitempty" gorm:"size:191"`
 }
 
 // AlertNotifChannelType defines the type of a notification channel.

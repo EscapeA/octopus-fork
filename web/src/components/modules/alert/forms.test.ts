@@ -16,9 +16,12 @@ test('createAlertRuleDraft returns expected defaults for a new rule', () => {
         threshold: 10,
         notif_channel_id: 0,
         cooldown_sec: 300,
+        window_sec: 300,
         condition_json: '',
         scope_channel_id: 0,
         scope_api_key_id: 0,
+        scope_group_id: 0,
+        scope_model_name: '',
     });
 });
 
@@ -32,16 +35,25 @@ test('applyAlertRuleDraft updates editable fields and preserves hidden metadata'
             threshold: 15,
             notif_channel_id: 2,
             cooldown_sec: 60,
+            window_sec: 120,
             condition_json: '{"sample":true}',
             scope_channel_id: 8,
             scope_api_key_id: 9,
+            scope_group_id: 3,
+            scope_model_name: 'gpt-4o',
         },
         {
             name: 'new',
             condition_type: 'channel_down',
             threshold: 3,
             notif_channel_id: 4,
-            cooldown_sec: 120,
+            cooldown_sec: 180,
+            window_sec: 600,
+            condition_json: '{}',
+            scope_channel_id: 1,
+            scope_api_key_id: 2,
+            scope_group_id: 5,
+            scope_model_name: 'claude-3',
         }
     );
 
@@ -52,10 +64,13 @@ test('applyAlertRuleDraft updates editable fields and preserves hidden metadata'
         condition_type: 'channel_down',
         threshold: 3,
         notif_channel_id: 4,
-        cooldown_sec: 120,
-        condition_json: '{"sample":true}',
-        scope_channel_id: 8,
-        scope_api_key_id: 9,
+        cooldown_sec: 180,
+        window_sec: 600,
+        condition_json: '{}',
+        scope_channel_id: 1,
+        scope_api_key_id: 2,
+        scope_group_id: 5,
+        scope_model_name: 'claude-3',
     });
 });
 

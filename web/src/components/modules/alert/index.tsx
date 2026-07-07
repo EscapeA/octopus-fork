@@ -585,49 +585,69 @@ export function AlertSections({ section, showTabs = false }: { section?: AlertSe
                                     />
                                     <span className="text-[11px] text-muted-foreground/70">{t(`rules.form.thresholdHint.${newRule.condition_type}`)}</span>
                                 </label>
-                                <label className="grid gap-1">
-                                    <span className="text-xs font-medium text-muted-foreground">{t('rules.form.cooldown')}</span>
-                                    <Input
-                                        type="number"
-                                        min="0"
-                                        placeholder={t('rules.form.cooldownPlaceholder')}
-                                        value={newRule.cooldown_sec}
-                                        onChange={(e) => setNewRule({ ...newRule, cooldown_sec: Number(e.target.value) })}
-                                        className="rounded-xl"
-                                    />
-                                    <span className="text-[11px] text-muted-foreground/70">{t('rules.form.cooldownHint')}</span>
-                                </label>
-                            </div>
-                            <label className="grid gap-1">
-                                <span className="text-xs font-medium text-muted-foreground">{t('rules.form.channel')}</span>
-                                <select
-                                    value={newRule.notif_channel_id}
-                                    onChange={(e) => setNewRule({ ...newRule, notif_channel_id: Number(e.target.value) })}
-                                    className="h-10 rounded-xl bg-background border border-border text-sm px-3"
-                                >
-                                    <option value={0}>{t('rules.form.noChannel')}</option>
-                                    {(channels || []).map((ch) => (
-                                        <option key={ch.id} value={ch.id}>{ch.name} ({getChannelTypeLabel(ch.type)})</option>
-                                    ))}
-                                </select>
-                                {newRule.notif_channel_id === 0 && (
-                                    <span className="text-[11px] text-red-500">{t('rules.form.noChannelWarn')}</span>
-                                )}
-                            </label>
-                            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                                <label className="grid gap-1">
-                                    <span className="text-xs font-medium text-muted-foreground">{t('rules.form.scopeChannelId')}</span>
-                                    <Input type="number" min="0" value={newRule.scope_channel_id || ''} onChange={(e) => setNewRule({ ...newRule, scope_channel_id: Number(e.target.value) || 0 })} className="rounded-xl" />
-                                </label>
-                                <label className="grid gap-1">
-                                    <span className="text-xs font-medium text-muted-foreground">{t('rules.form.scopeApiKeyId')}</span>
-                                    <Input type="number" min="0" value={newRule.scope_api_key_id || ''} onChange={(e) => setNewRule({ ...newRule, scope_api_key_id: Number(e.target.value) || 0 })} className="rounded-xl" />
-                                </label>
-                                <label className="grid gap-1">
-                                    <span className="text-xs font-medium text-muted-foreground">{t('rules.form.conditionJson')}</span>
-                                    <Input value={newRule.condition_json || ''} onChange={(e) => setNewRule({ ...newRule, condition_json: e.target.value })} placeholder="{}" className="rounded-xl" />
-                                </label>
-                            </div>
+                                                        <label className="grid gap-1">
+                                                            <span className="text-xs font-medium text-muted-foreground">{t('rules.form.cooldown')}</span>
+                                                            <Input
+                                                                type="number"
+                                                                min="0"
+                                                                placeholder={t('rules.form.cooldownPlaceholder')}
+                                                                value={newRule.cooldown_sec}
+                                                                onChange={(e) => setNewRule({ ...newRule, cooldown_sec: Number(e.target.value) })}
+                                                                className="rounded-xl"
+                                                            />
+                                                            <span className="text-[11px] text-muted-foreground/70">{t('rules.form.cooldownHint')}</span>
+                                                        </label>
+                                                        <label className="grid gap-1">
+                                                            <span className="text-xs font-medium text-muted-foreground">{t('rules.form.window')}</span>
+                                                            <Input
+                                                                type="number"
+                                                                min="0"
+                                                                placeholder={t('rules.form.windowPlaceholder')}
+                                                                value={newRule.window_sec}
+                                                                onChange={(e) => setNewRule({ ...newRule, window_sec: Number(e.target.value) })}
+                                                                className="rounded-xl"
+                                                            />
+                                                            <span className="text-[11px] text-muted-foreground/70">{t('rules.form.windowHint')}</span>
+                                                        </label>
+                                                    </div>
+                                                    <label className="grid gap-1">
+                                                        <span className="text-xs font-medium text-muted-foreground">{t('rules.form.channel')}</span>
+                                                        <select
+                                                            value={newRule.notif_channel_id}
+                                                            onChange={(e) => setNewRule({ ...newRule, notif_channel_id: Number(e.target.value) })}
+                                                            className="h-10 rounded-xl bg-background border border-border text-sm px-3"
+                                                        >
+                                                            <option value={0}>{t('rules.form.noChannel')}</option>
+                                                            {(channels || []).map((ch) => (
+                                                                <option key={ch.id} value={ch.id}>{ch.name} ({getChannelTypeLabel(ch.type)})</option>
+                                                            ))}
+                                                        </select>
+                                                        {newRule.notif_channel_id === 0 && (
+                                                            <span className="text-[11px] text-red-500">{t('rules.form.noChannelWarn')}</span>
+                                                        )}
+                                                    </label>
+                                                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                                                        <label className="grid gap-1">
+                                                            <span className="text-xs font-medium text-muted-foreground">{t('rules.form.scopeChannelId')}</span>
+                                                            <Input type="number" min="0" value={newRule.scope_channel_id || ''} onChange={(e) => setNewRule({ ...newRule, scope_channel_id: Number(e.target.value) || 0 })} className="rounded-xl" />
+                                                        </label>
+                                                        <label className="grid gap-1">
+                                                            <span className="text-xs font-medium text-muted-foreground">{t('rules.form.scopeApiKeyId')}</span>
+                                                            <Input type="number" min="0" value={newRule.scope_api_key_id || ''} onChange={(e) => setNewRule({ ...newRule, scope_api_key_id: Number(e.target.value) || 0 })} className="rounded-xl" />
+                                                        </label>
+                                                        <label className="grid gap-1">
+                                                            <span className="text-xs font-medium text-muted-foreground">{t('rules.form.scopeGroupId')}</span>
+                                                            <Input type="number" min="0" value={newRule.scope_group_id || ''} onChange={(e) => setNewRule({ ...newRule, scope_group_id: Number(e.target.value) || 0 })} className="rounded-xl" />
+                                                        </label>
+                                                        <label className="grid gap-1">
+                                                            <span className="text-xs font-medium text-muted-foreground">{t('rules.form.scopeModelName')}</span>
+                                                            <Input value={newRule.scope_model_name || ''} onChange={(e) => setNewRule({ ...newRule, scope_model_name: e.target.value })} placeholder="gpt-4o" className="rounded-xl" />
+                                                        </label>
+                                                        <label className="grid gap-1">
+                                                            <span className="text-xs font-medium text-muted-foreground">{t('rules.form.conditionJson')}</span>
+                                                            <Input value={newRule.condition_json || ''} onChange={(e) => setNewRule({ ...newRule, condition_json: e.target.value })} placeholder="{}" className="rounded-xl" />
+                                                        </label>
+                                                    </div>
                             <div className="flex gap-2">
                                 <button
                                     onClick={handleCreateRule}
@@ -712,6 +732,18 @@ export function AlertSections({ section, showTabs = false }: { section?: AlertSe
                                                             />
                                                             <span className="text-[11px] text-muted-foreground/70">{t('rules.form.cooldownHint')}</span>
                                                         </label>
+                                                        <label className="grid gap-1">
+                                                            <span className="text-xs font-medium text-muted-foreground">{t('rules.form.window')}</span>
+                                                            <Input
+                                                                type="number"
+                                                                min="0"
+                                                                value={editingRule.window_sec}
+                                                                onChange={(e) => setEditingRule({ ...editingRule, window_sec: Number(e.target.value) })}
+                                                                placeholder={t('rules.form.windowPlaceholder')}
+                                                                className="rounded-xl"
+                                                            />
+                                                            <span className="text-[11px] text-muted-foreground/70">{t('rules.form.windowHint')}</span>
+                                                        </label>
                                                     </div>
                                                     <label className="grid gap-1">
                                                         <span className="text-xs font-medium text-muted-foreground">{t('rules.form.channel')}</span>
@@ -737,6 +769,14 @@ export function AlertSections({ section, showTabs = false }: { section?: AlertSe
                                                         <label className="grid gap-1">
                                                             <span className="text-xs font-medium text-muted-foreground">{t('rules.form.scopeApiKeyId')}</span>
                                                             <Input type="number" min="0" value={editingRule.scope_api_key_id || ''} onChange={(e) => setEditingRule({ ...editingRule, scope_api_key_id: Number(e.target.value) || 0 })} className="rounded-xl" />
+                                                        </label>
+                                                        <label className="grid gap-1">
+                                                            <span className="text-xs font-medium text-muted-foreground">{t('rules.form.scopeGroupId')}</span>
+                                                            <Input type="number" min="0" value={editingRule.scope_group_id || ''} onChange={(e) => setEditingRule({ ...editingRule, scope_group_id: Number(e.target.value) || 0 })} className="rounded-xl" />
+                                                        </label>
+                                                        <label className="grid gap-1">
+                                                            <span className="text-xs font-medium text-muted-foreground">{t('rules.form.scopeModelName')}</span>
+                                                            <Input value={editingRule.scope_model_name || ''} onChange={(e) => setEditingRule({ ...editingRule, scope_model_name: e.target.value })} placeholder="gpt-4o" className="rounded-xl" />
                                                         </label>
                                                         <label className="grid gap-1">
                                                             <span className="text-xs font-medium text-muted-foreground">{t('rules.form.conditionJson')}</span>

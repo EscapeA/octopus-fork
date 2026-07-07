@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/helper"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op/alert"
@@ -15,6 +17,7 @@ import (
 	"github.com/lingyuins/octopus/internal/op/stats"
 	"github.com/lingyuins/octopus/internal/utils/log"
 	"github.com/lingyuins/octopus/internal/utils/telemetry"
+	"gorm.io/gorm"
 )
 
 const TaskAlertEvaluate = "alert_evaluate"
@@ -98,10 +101,9 @@ func EvaluateAlertRules() {
 }
 
 func evaluateRule(ctx context.Context, rule *model.AlertRule) alertEvaluation {
-	// For now, check error rate using recent stats
 	switch rule.ConditionType {
 	case model.AlertConditionErrorRate:
-		return evaluateErrorRate(rule)
+		return evaluateErrorRate(ctx, rule)
 	case model.AlertConditionCostThreshold:
 		return evaluateCostThreshold(rule)
 	case model.AlertConditionChannelDown:
@@ -113,14 +115,126 @@ func evaluateRule(ctx context.Context, rule *model.AlertRule) alertEvaluation {
 	}
 }
 
-func evaluateErrorRate(rule *model.AlertRule) alertEvaluation {
-	stats := stats.TotalGet()
-	total := stats.RequestSuccess + stats.RequestFailed
-	if total == 0 {
-		return alertEvaluation{CurrentValue: 0, Detail: "no requests"}
+func evaluateErrorRate(ctx context.Context, rule *model.AlertRule) alertEvaluation {
+	windowSec := rule.WindowSec
+	if windowSec <= 0 {
+		windowSec = 300
 	}
-	rate := float64(stats.RequestFailed) / float64(total) * 100
-	return alertEvaluation{Firing: rate >= rule.Threshold, CurrentValue: rate, Detail: fmt.Sprintf("failed=%d total=%d", stats.RequestFailed, total)}
+	since := time.Now().Add(-time.Duration(windowSec) * time.Second).Unix()
+	failed, total, err := alertErrorRateCounts(ctx, rule, since)
+	if err != nil {
+		return alertEvaluation{Detail: err.Error()}
+	}
+	if total == 0 {
+		return alertEvaluation{CurrentValue: 0, Detail: fmt.Sprintf("no requests in %ds window", windowSec)}
+	}
+	rate := float64(failed) / float64(total) * 100
+	return alertEvaluation{Firing: rate >= rule.Threshold, CurrentValue: rate, Detail: fmt.Sprintf("failed=%d total=%d window=%ds", failed, total, windowSec)}
+}
+
+func alertErrorRateCounts(ctx context.Context, rule *model.AlertRule, since int64) (int64, int64, error) {
+	conn := db.GetLogDB()
+	if conn == nil {
+		conn = db.GetDB()
+	}
+	if conn == nil {
+		return 0, 0, fmt.Errorf("database unavailable")
+	}
+
+	scope, err := alertRuleScope(ctx, rule)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	if conn.Migrator().HasTable(&model.RelayLogAttempt{}) {
+		return alertErrorRateCountsFromAttempts(ctx, conn, rule, scope, since)
+	}
+	return alertErrorRateCountsFromLogs(ctx, conn, rule, scope, since)
+}
+
+type alertScopePair struct {
+	channelID int
+	modelName string
+}
+
+func alertRuleScope(ctx context.Context, rule *model.AlertRule) ([]alertScopePair, error) {
+	if rule.ScopeGroupID <= 0 {
+		return nil, nil
+	}
+	var group model.Group
+	if err := db.GetDB().WithContext(ctx).Preload("Items").First(&group, rule.ScopeGroupID).Error; err != nil {
+		return nil, fmt.Errorf("load alert group scope: %w", err)
+	}
+	pairs := make([]alertScopePair, 0, len(group.Items))
+	seen := make(map[string]struct{}, len(group.Items))
+	for _, item := range group.Items {
+		modelName := strings.TrimSpace(item.ModelName)
+		if item.ChannelID <= 0 || modelName == "" {
+			continue
+		}
+		key := fmt.Sprintf("%d\x00%s", item.ChannelID, modelName)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		pairs = append(pairs, alertScopePair{channelID: item.ChannelID, modelName: modelName})
+	}
+	return pairs, nil
+}
+
+func alertErrorRateCountsFromAttempts(ctx context.Context, conn *gorm.DB, rule *model.AlertRule, scope []alertScopePair, since int64) (int64, int64, error) {
+	query := conn.WithContext(ctx).
+		Table("relay_log_attempts AS a").
+		Joins("JOIN relay_logs AS l ON l.id = a.relay_log_id").
+		Where("a.time >= ?", since).
+		Where("a.status IN ?", []string{string(model.AttemptSuccess), string(model.AttemptFailed)})
+	query = applyAlertErrorRateScope(query, rule, scope, "a", "l", "a.model_name")
+
+	var row struct {
+		Failed int64 `gorm:"column:failed"`
+		Total  int64 `gorm:"column:total"`
+	}
+	if err := query.Select("COALESCE(SUM(CASE WHEN a.status = ? THEN 1 ELSE 0 END), 0) AS failed, COUNT(*) AS total", string(model.AttemptFailed)).Scan(&row).Error; err != nil {
+		return 0, 0, err
+	}
+	return row.Failed, row.Total, nil
+}
+
+func alertErrorRateCountsFromLogs(ctx context.Context, conn *gorm.DB, rule *model.AlertRule, scope []alertScopePair, since int64) (int64, int64, error) {
+	query := conn.WithContext(ctx).Table("relay_logs AS l").Where("l.time >= ?", since)
+	query = applyAlertErrorRateScope(query, rule, scope, "l", "l", "COALESCE(NULLIF(l.actual_model_name, ''), l.request_model_name)")
+
+	var row struct {
+		Failed int64 `gorm:"column:failed"`
+		Total  int64 `gorm:"column:total"`
+	}
+	if err := query.Select("COALESCE(SUM(CASE WHEN l.error <> '' THEN 1 ELSE 0 END), 0) AS failed, COUNT(*) AS total").Scan(&row).Error; err != nil {
+		return 0, 0, err
+	}
+	return row.Failed, row.Total, nil
+}
+
+func applyAlertErrorRateScope(query *gorm.DB, rule *model.AlertRule, groupScope []alertScopePair, attemptAlias, logAlias, modelExpr string) *gorm.DB {
+	if rule.ScopeAPIKeyID > 0 {
+		query = query.Where(logAlias+".request_api_key_id = ?", rule.ScopeAPIKeyID)
+	}
+	if rule.ScopeChannelID > 0 {
+		query = query.Where(attemptAlias+".channel_id = ?", rule.ScopeChannelID)
+	}
+	modelName := strings.TrimSpace(rule.ScopeModelName)
+	if modelName != "" {
+		query = query.Where(modelExpr+" = ?", modelName)
+	}
+	if len(groupScope) == 0 {
+		return query
+	}
+	parts := make([]string, 0, len(groupScope))
+	args := make([]any, 0, len(groupScope)*2)
+	for _, pair := range groupScope {
+		parts = append(parts, "("+attemptAlias+".channel_id = ? AND "+modelExpr+" = ?)")
+		args = append(args, pair.channelID, pair.modelName)
+	}
+	return query.Where("("+strings.Join(parts, " OR ")+")", args...)
 }
 
 func evaluateCostThreshold(rule *model.AlertRule) alertEvaluation {
@@ -250,6 +364,9 @@ func createAlertNotification(ctx context.Context, rule *model.AlertRule, state m
 		"detail":           eval.Detail,
 		"scope_channel_id": rule.ScopeChannelID,
 		"scope_api_key_id": rule.ScopeAPIKeyID,
+		"scope_group_id":   rule.ScopeGroupID,
+		"scope_model_name": rule.ScopeModelName,
+		"window_sec":       rule.WindowSec,
 		"state":            state,
 		"notification":     notify,
 	})

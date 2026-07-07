@@ -1,4 +1,5 @@
 import type {
+    AlertNotifChannel,
     NotifChannelType,
     GotifyConfig,
     EmailConfig,
@@ -15,9 +16,12 @@ export interface AlertRuleDraft {
     threshold: number;
     notif_channel_id: number;
     cooldown_sec: number;
+    window_sec?: number;
     condition_json?: string;
     scope_channel_id?: number;
     scope_api_key_id?: number;
+    scope_group_id?: number;
+    scope_model_name?: string;
 }
 
 export interface AlertRuleEditable extends AlertRuleDraft {
@@ -26,13 +30,17 @@ export interface AlertRuleEditable extends AlertRuleDraft {
     condition_json?: string;
     scope_channel_id?: number;
     scope_api_key_id?: number;
+    scope_group_id?: number;
+    scope_model_name?: string;
 }
+
+export type AlertChannelEditable = AlertNotifChannel;
 
 export interface AlertChannelDraft {
     name: string;
     type: NotifChannelType;
     url: string;
-    secret: string;
+    secret?: string;
     gotify: GotifyConfig;
     email: EmailConfig;
     telegram: TelegramConfig;
@@ -42,16 +50,6 @@ export interface AlertChannelDraft {
     ntfy: NtfyConfig;
 }
 
-export interface AlertChannelEditable {
-    id: number;
-    type: string;
-    name: string;
-    url: string;
-    secret?: string;
-    headers?: string;
-    config?: string;
-}
-
 export function createAlertRuleDraft(rule: Partial<AlertRuleDraft> = {}): AlertRuleDraft {
     return {
         name: rule.name ?? '',
@@ -59,9 +57,12 @@ export function createAlertRuleDraft(rule: Partial<AlertRuleDraft> = {}): AlertR
         threshold: rule.threshold ?? 10,
         notif_channel_id: rule.notif_channel_id ?? 0,
         cooldown_sec: rule.cooldown_sec ?? 300,
+        window_sec: rule.window_sec ?? 300,
         condition_json: rule.condition_json ?? '',
         scope_channel_id: rule.scope_channel_id ?? 0,
         scope_api_key_id: rule.scope_api_key_id ?? 0,
+        scope_group_id: rule.scope_group_id ?? 0,
+        scope_model_name: rule.scope_model_name ?? '',
     };
 }
 

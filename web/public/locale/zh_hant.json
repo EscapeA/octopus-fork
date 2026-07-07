@@ -986,13 +986,15 @@
         "cooldownHint": "觸發告警後進入冷卻期，期間不會重複告警",
         "thresholdHint": {
           "cost_threshold": "當日累計費用超過該金額時觸發告警（元）",
-          "error_rate": "滑動視窗內錯誤率超過該百分比時觸發告警",
+          "error_rate": "滑動視窗內錯誤率超過該百分比時，對作用域目標觸發告警",
           "quota_exceeded": "配額使用率超過該百分比時觸發告警",
           "channel_down": "渠道連續不可用次數超過該值時觸發告警"
         },
-        "scopeChannelId": "作用域管道 ID",
-        "scopeApiKeyId": "作用域 API Key ID",
-        "conditionJson": "條件 JSON"
+        "window": "視窗（秒）",
+        "windowPlaceholder": "滑動視窗秒數",
+        "windowHint": "用於計算條件的滑動視窗時長；僅對錯誤率告警生效",
+        "scopeGroupId": "作用域分組 ID",
+        "scopeModelName": "作用域模型名稱"
       }
     },
     "channels": {

@@ -12,8 +12,11 @@ export interface AlertRule {
     condition_json?: string;
     notif_channel_id: number;
     cooldown_sec: number;
+    window_sec?: number;
     scope_channel_id?: number;
     scope_api_key_id?: number;
+    scope_group_id?: number;
+    scope_model_name?: string;
 }
 
 export interface AlertNotifChannel {
