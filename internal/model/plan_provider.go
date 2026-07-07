@@ -159,7 +159,7 @@ var PlanProviderCategories = []PlanProviderCategoryInfo{
 		Type:        PlanProviderTypeTokenPlan,
 		BaseURL:     "https://platform.xiaomimimo.com",
 		Models:      "MiMo-V2-Pro,MiMo-V2-Flash,MiMo-V2-Edge",
-		Description: "小米 MiMo Token Plan 套餐用量查询（Cookie 鉴权，有效期约数天至数周）。在浏览器登录 platform.xiaomimimo.com 后，按 F12 打开开发者工具 → Network → 刷新页面 → 任意请求的 Cookie 字段，复制完整内容（需包含 api-platform_serviceToken、userId、api-platform_slh、api-platform_ph 四个字段）",
+		Description: "小米 MiMo Token Plan 套餐用量查询（Cookie 鉴权，有效期未知，疑似长期有效）。在浏览器登录 platform.xiaomimimo.com 后，按 F12 打开开发者工具 → Network → 刷新页面 → 任意请求的 Cookie 字段，复制完整内容（需包含 api-platform_serviceToken、userId、api-platform_slh、api-platform_ph 四个字段）",
 		HelpURL:     "https://platform.xiaomimimo.com/console/plan-manage",
 	},
 }

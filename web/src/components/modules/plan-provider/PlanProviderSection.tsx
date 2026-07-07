@@ -221,7 +221,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                 {isConsoleTokenPlan && (
                                     <p className="text-xs text-amber-500">
                                         {isMiMoPlan
-                                            ? (t('plan.mimoCookieHint') || '需登录 platform.xiaomimimo.com，按 F12 打开开发者工具 → Network → 刷新页面 → 任意请求的 Cookie 字段，复制完整内容。Cookie 有效期约数天至数周。')
+                                            ? (t('plan.mimoCookieHint') || '需登录 platform.xiaomimimo.com，按 F12 打开开发者工具 → Network → 刷新页面 → 任意请求的 Cookie 字段，复制完整内容。有效期未知，疑似长期有效。')
                                             : selectedInfo?.category === 'sensenova_plan'
                                                 ? (t('plan.sensenovaTokenHint') || '需登录 platform.sensenova.cn 控制台，从请求头复制 Bearer Token 值。有效期约 3 小时，过期后需重新获取。')
                                                 : (t('plan.oasisTokenHint') || '需登录 platform.stepfun.com 控制台，从浏览器 Cookie 复制 Oasis-Token 值（格式：access...refresh）。该 Token 有效期约 30 分钟，过期后需重新获取。')}
