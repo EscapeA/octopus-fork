@@ -102,6 +102,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
 
     const isConsoleTokenPlan = selectedCategory === 'stepfun_plan' || selectedCategory === 'sensenova_plan' || selectedCategory === 'mimo_plan';
     const isMiMoPlan = selectedCategory === 'mimo_plan';
+    const supportsForwardApiKey = isConsoleTokenPlan && !isMiMoPlan;
 
     const handleAdd = useCallback(async () => {
         if (!selectedCategory || !apiKey.trim()) return;
@@ -109,7 +110,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
             await addMutation.mutateAsync({
                 category: selectedCategory,
                 api_key: apiKey.trim(),
-                forward_api_key: isConsoleTokenPlan && forwardApiKey.trim() ? forwardApiKey.trim() : undefined,
+                forward_api_key: supportsForwardApiKey && forwardApiKey.trim() ? forwardApiKey.trim() : undefined,
                 name: customName.trim() || undefined,
             });
             toast.success('已添加');
@@ -122,7 +123,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
             const msg = e instanceof Error ? e.message : '添加失败';
             toast.error(msg);
         }
-    }, [selectedCategory, apiKey, forwardApiKey, isConsoleTokenPlan, customName, addMutation]);
+    }, [selectedCategory, apiKey, forwardApiKey, supportsForwardApiKey, customName, addMutation]);
 
     const handleRefresh = useCallback(async (id: number) => {
         try {
@@ -228,7 +229,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                     </p>
                                 )}
                             </div>
-                            {isConsoleTokenPlan && !isMiMoPlan && (
+                            {supportsForwardApiKey && (
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">
                                         {t('plan.forwardApiKeyLabel') || 'API Key（可选）'}

@@ -28,6 +28,8 @@ func ListProviders(ctx context.Context, providerType model.PlanProviderType) ([]
 	result := make([]model.PlanProviderListItem, 0, len(providers))
 	for _, p := range providers {
 		item := model.PlanProviderListItem{PlanProvider: p}
+		item.APIKey = ""
+		item.ForwardAPIKey = ""
 		if p.ChannelID > 0 {
 			channel, err := op.ChannelGet(p.ChannelID, ctx)
 			if err == nil {
@@ -58,7 +60,7 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 		return nil, fmt.Errorf("API key is required")
 	}
 
-	forwardAPIKey = strings.TrimSpace(forwardAPIKey)
+	forwardAPIKey = normalizePlanForwardAPIKey(category, strings.TrimSpace(forwardAPIKey))
 
 	name := customName
 	if name == "" {
@@ -332,6 +334,13 @@ const stepFunPlanAPIBaseURL = "https://api.stepfun.com/step_plan/v1"
 
 // senseNovaPlanAPIBaseURL 是 SenseNova 套餐转发的 API 接入点。
 const senseNovaPlanAPIBaseURL = "https://token.sensenova.cn/v1"
+
+func normalizePlanForwardAPIKey(category model.PlanProviderCategory, forwardAPIKey string) string {
+	if !isConsoleTokenPlanCategory(category) {
+		return ""
+	}
+	return forwardAPIKey
+}
 
 // isConsoleTokenPlanCategory 判断是否为"控制台 token plan"类厂商
 // （使用控制台会话 token 查套餐、可选 sk- key 创建转发渠道的厂商）。

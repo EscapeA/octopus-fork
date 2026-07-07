@@ -692,11 +692,11 @@ func queryMiMoPlanTokenPlan(ctx context.Context, cookie string) (*TokenPlanResul
 		Code    int    `json:"code"`
 		Message string `json:"message"`
 		Data    struct {
-			PlanCode          string `json:"planCode"`
-			PlanName          string `json:"planName"`
-			CurrentPeriodEnd  string `json:"currentPeriodEnd"`
-			Expired           bool   `json:"expired"`
-			EnableAutoRenew   bool   `json:"enableAutoRenew"`
+			PlanCode         string `json:"planCode"`
+			PlanName         string `json:"planName"`
+			CurrentPeriodEnd string `json:"currentPeriodEnd"`
+			Expired          bool   `json:"expired"`
+			EnableAutoRenew  bool   `json:"enableAutoRenew"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(detailBody, &detailResp); err != nil {
@@ -706,30 +706,21 @@ func queryMiMoPlanTokenPlan(ctx context.Context, cookie string) (*TokenPlanResul
 		return nil, fmt.Errorf("mimo_plan: detail API error code=%d msg=%s", detailResp.Code, detailResp.Message)
 	}
 
-	// 3. 组装结果
-	// usage.items[0] = plan_total_token（套餐总额度）
-	// usage.items[1] = compensation_total_token（补偿额度，通常为 0）
-	// monthUsage.items[0] = month_total_token（本月已用）
+	// 3. 组装结果。MiMo 会把订阅额度、补偿额度等拆成多个 item，展示层需要总量。
 	result := &TokenPlanResult{}
-
-	// 套餐总额度（从 usage.items[0]）
-	if len(usageResp.Data.Usage.Items) > 0 {
-		planItem := usageResp.Data.Usage.Items[0]
-		result.QuotaTotal = planItem.Limit
-		result.QuotaUsed = planItem.Used
+	for _, item := range usageResp.Data.Usage.Items {
+		result.QuotaTotal += item.Limit
+		result.QuotaUsed += item.Used
 	}
-
-	// 月度额度（从 monthUsage.items[0]）
-	if len(usageResp.Data.MonthUsage.Items) > 0 {
-		monthItem := usageResp.Data.MonthUsage.Items[0]
-		result.WeeklyTotal = monthItem.Limit
-		result.WeeklyUsed = monthItem.Used
+	for _, item := range usageResp.Data.MonthUsage.Items {
+		result.WeeklyTotal += item.Limit
+		result.WeeklyUsed += item.Used
 	}
 
 	// 到期时间
 	if detailResp.Data.CurrentPeriodEnd != "" {
 		// 格式: "2006-01-02 15:04:05"
-		if t, err := time.Parse("2006-01-02 15:04:05", detailResp.Data.CurrentPeriodEnd); err == nil {
+		if t, err := time.ParseInLocation("2006-01-02 15:04:05", detailResp.Data.CurrentPeriodEnd, time.Local); err == nil {
 			result.QuotaResetAt = &t
 		}
 	}
