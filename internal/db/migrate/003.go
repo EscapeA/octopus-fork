@@ -54,8 +54,8 @@ func ensureGroupsEndpointTypeColumn(db *gorm.DB) error {
 		return fmt.Errorf("failed to backfill groups.endpoint_type: %w", err)
 	}
 
-	if !db.Migrator().HasIndex(&model.Group{}, "EndpointType") {
-		if err := db.Migrator().CreateIndex(&model.Group{}, "EndpointType"); err != nil {
+	if !db.Migrator().HasIndex(&model.Group{}, "idx_groups_endpoint_type") {
+		if err := db.Migrator().CreateIndex(&model.Group{}, "idx_groups_endpoint_type"); err != nil {
 			return fmt.Errorf("failed to create groups.endpoint_type index: %w", err)
 		}
 	}

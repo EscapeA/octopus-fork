@@ -141,7 +141,7 @@ func AutoGroupModels(ctx context.Context) (*model.AutoGroupResult, error) {
 
 	groupNameSet := make(map[string]model.Group, len(existingGroups))
 	for _, group := range existingGroups {
-		groupNameSet[strings.ToLower(strings.TrimSpace(group.Name))] = group
+		groupNameSet[autoGroupEndpointNameKey(group.EndpointType, group.Name)] = group
 	}
 
 	candidates := make([]model.CandidateGroup, 0, len(candidateMap))
@@ -172,7 +172,7 @@ func AutoGroupModels(ctx context.Context) (*model.AutoGroupResult, error) {
 			continue
 		}
 
-		if conflict, ok := groupNameSet[strings.ToLower(candidate.Canonical)]; ok {
+		if conflict, ok := groupNameSet[autoGroupEndpointNameKey(candidate.EndpointType, candidate.Canonical)]; ok {
 			result.SkippedExistingGroups++
 			result.Skipped = append(result.Skipped, model.AutoGroupSkippedItem{
 				Name:         candidate.Canonical,
@@ -192,7 +192,7 @@ func AutoGroupModels(ctx context.Context) (*model.AutoGroupResult, error) {
 			continue
 		}
 
-		groupNameSet[strings.ToLower(candidate.Canonical)] = model.Group{Name: candidate.Canonical, EndpointType: candidate.EndpointType}
+		groupNameSet[autoGroupEndpointNameKey(candidate.EndpointType, candidate.Canonical)] = model.Group{Name: candidate.Canonical, EndpointType: candidate.EndpointType}
 		existingGroups = append(existingGroups, model.Group{Name: candidate.Canonical, EndpointType: candidate.EndpointType, MatchRegex: candidate.MatchRegex})
 		result.CreatedGroups++
 		result.Created = append(result.Created, model.AutoGroupCreatedItem{
@@ -333,6 +333,10 @@ func NormalizeModelIdentity(raw string) model.ModelIdentity {
 		Confidence:   "fallback",
 		MatchedRule:  "cleaned",
 	}
+}
+
+func autoGroupEndpointNameKey(endpointType string, name string) string {
+	return model.NormalizeEndpointType(endpointType) + "\x00" + strings.ToLower(strings.TrimSpace(name))
 }
 
 func IsCandidateCoveredByExistingGroups(candidate model.CandidateGroup, existingGroups []model.Group) (bool, string) {

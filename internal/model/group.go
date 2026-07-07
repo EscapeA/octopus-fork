@@ -12,9 +12,9 @@ const (
 
 type Group struct {
 	ID                int       `json:"id" gorm:"primaryKey"`
-	Name              string    `json:"name" gorm:"unique;not null;size:191"`
+	Name              string    `json:"name" gorm:"not null;size:191;uniqueIndex:idx_groups_endpoint_name,priority:2"`
 	Category          string    `json:"category,omitempty" gorm:"not null;default:'';index;size:191"`
-	EndpointType      string    `json:"endpoint_type" gorm:"not null;default:*;index;size:191"`
+	EndpointType      string    `json:"endpoint_type" gorm:"not null;default:*;index:idx_groups_endpoint_type;size:191;uniqueIndex:idx_groups_endpoint_name,priority:1"`
 	EndpointProvider  string    `json:"endpoint_provider,omitempty" gorm:"not null;default:''"`
 	OutboundFormat    string    `json:"outbound_format,omitempty" gorm:"not null;default:''"` // 出站格式: "" (auto), "chat", "responses", "messages", "chat_only", "responses_only", "messages_only", "passthrough"
 	Mode              GroupMode `json:"mode" gorm:"not null"`
