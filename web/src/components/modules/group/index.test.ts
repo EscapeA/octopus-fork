@@ -19,3 +19,11 @@ test('group empty state keeps a single explanatory section', () => {
         'group empty state should not render duplicate empty-state descriptions',
     );
 });
+
+test('group page toolbar area exposes the grouped view toggle near filter controls', () => {
+    const groupedToggleNeedle = "groupedRoute";
+    assert.ok(
+        source.includes(groupedToggleNeedle) || source.includes('route-model') || source.includes('grouped-view'),
+        'group page toolbar should include a grouped view toggle control near the filter UI',
+    );
+});

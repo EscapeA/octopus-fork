@@ -1087,7 +1087,12 @@
           "audioTranscription": "音频转写",
           "videoGeneration": "视频生成",
           "musicGeneration": "音乐生成",
-          "search": "搜索"
+          "search": "搜索",
+          "view": {
+            "title": "分组页显示",
+            "cards": "分组卡片",
+            "grouped": "按分组显示"
+          }
         },
         "model": {
           "all": "全部模型",
@@ -2412,6 +2417,14 @@
       "missingPublicApiBaseUrl": "请先在系统设置中填写公开 API 基础地址。",
       "missingGroup": "请先创建至少一个路由分组。",
       "missingAPIKey": "请先创建并启用至少一个 Octopus API Key。"
+    },
+    "groupedView": {
+      "ungrouped": "未分组",
+      "ungroupedDescription": "未加入任何分组的路由模型",
+      "modelCount": "{count} 个模型",
+      "emptyTitle": "没有匹配的路由模型",
+      "emptyDescription": "请调整搜索词或筛选条件。",
+      "emptyGroup": "该分组暂无路由模型"
     }
   },
   "model": {

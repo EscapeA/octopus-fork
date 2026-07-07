@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowUpAZ, Boxes, Clock3, LayoutGrid, List, Plus, RadioTower, RefreshCw, Rows3, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowUpAZ, Boxes, Clock3, Layers3, LayoutGrid, List, Plus, RadioTower, RefreshCw, Rows3, Search, SlidersHorizontal, X } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import {
     MorphingDialog,
@@ -33,6 +33,7 @@ import {
     type ToolbarPage,
     type ChannelFilter,
     type GroupFilter,
+    type GroupViewMode,
     type ModelFilter,
     type ModelSortMode,
     type ModelLatencyUnit,
@@ -117,10 +118,12 @@ export function Toolbar() {
     const channelFilter = useToolbarViewOptionsStore((s) => s.channelFilter);
     const groupFilter = useToolbarViewOptionsStore((s) => normalizeGroupFilterValue(s.groupFilter));
     const modelFilter = useToolbarViewOptionsStore((s) => s.modelFilter);
+    const groupViewMode = useToolbarViewOptionsStore((s) => s.groupViewMode);
     const modelSortMode = useToolbarViewOptionsStore((s) => s.modelSortMode);
     const modelLatencyUnit = useToolbarViewOptionsStore((s) => s.modelLatencyUnit);
     const setChannelFilter = useToolbarViewOptionsStore((s) => s.setChannelFilter);
     const setGroupFilter = useToolbarViewOptionsStore((s) => s.setGroupFilter);
+    const setGroupViewMode = useToolbarViewOptionsStore((s) => s.setGroupViewMode);
     const setModelFilter = useToolbarViewOptionsStore((s) => s.setModelFilter);
     const setModelSortMode = useToolbarViewOptionsStore((s) => s.setModelSortMode);
     const setModelLatencyUnit = useToolbarViewOptionsStore((s) => s.setModelLatencyUnit);
@@ -169,6 +172,10 @@ export function Toolbar() {
         all: 'popover.filter.model.all',
         priced: 'popover.filter.model.priced',
         free: 'popover.filter.model.free',
+    };
+    const groupViewLabelKeys: Record<GroupViewMode, string> = {
+        cards: 'popover.filter.group.view.cards',
+        grouped: 'popover.filter.group.view.grouped',
     };
     const modelSortLabelKeys: Record<ModelSortMode, string> = {
         'success-rate': 'popover.filter.model.sort.successRate',
@@ -515,6 +522,29 @@ export function Toolbar() {
                                                     </div>
                                                 </div>
                                             </>
+                                        )}
+                                        {toolbarItem === 'group' && (
+                                            <div className="grid gap-2 rounded-lg border border-border bg-muted/14 p-2">
+                                                <p className="text-[11px] font-semibold text-muted-foreground">{t('popover.filter.group.view.title')}</p>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {(['cards', 'grouped'] as const).map((option) => (
+                                                        <button
+                                                            key={option}
+                                                            type="button"
+                                                            onClick={() => setGroupViewMode(option)}
+                                                            aria-pressed={groupViewMode === option}
+                                                            className={cn(
+                                                                OPTION_BUTTON_CLASS,
+                                                                'inline-flex items-center justify-center gap-1.5 text-center',
+                                                                groupViewMode === option ? ACTIVE_OPTION_CLASS : INACTIVE_OPTION_CLASS,
+                                                            )}
+                                                        >
+                                                            {option === 'grouped' ? <Layers3 className="size-3.5" /> : <List className="size-3.5" />}
+                                                            {t(groupViewLabelKeys[option])}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         )}
                                         {filterOptions.map((option) => (
                                             <button

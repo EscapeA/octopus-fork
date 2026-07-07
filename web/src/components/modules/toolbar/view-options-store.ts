@@ -12,6 +12,7 @@ export type ToolbarPage = (typeof TOOLBAR_PAGES)[number];
 export type ToolbarSearchablePage = ToolbarPage | 'site';
 export type ChannelFilter = 'all' | 'enabled' | 'disabled';
 export type GroupFilter = 'all' | 'with-members' | 'empty' | 'chat' | 'deepseek' | 'mimo' | 'responses' | 'messages' | 'embeddings' | 'rerank' | 'moderations' | 'image_generation' | 'audio_speech' | 'audio_transcription' | 'video_generation' | 'music_generation' | 'search';
+export type GroupViewMode = 'cards' | 'grouped';
 export type ModelFilter = 'all' | 'priced' | 'free';
 export type ModelSortMode = 'success-rate' | 'request-count';
 export type ModelLatencyUnit = 'auto' | 'ms' | 's' | 'h';
@@ -64,6 +65,7 @@ interface ToolbarViewOptionsState {
     channelFilter: ChannelFilter;
     selectedChannelGroupId: number | null;
     groupFilter: GroupFilter;
+    groupViewMode: GroupViewMode;
     modelFilter: ModelFilter;
     modelSortMode: ModelSortMode;
     modelLatencyUnit: ModelLatencyUnit;
@@ -85,6 +87,7 @@ interface ToolbarViewOptionsState {
     setSelectedChannelGroupId: (value: number | null) => void;
     setGroupFilter: (value: GroupFilter) => void;
     setModelFilter: (value: ModelFilter) => void;
+    setGroupViewMode: (value: GroupViewMode) => void;
     setModelSortMode: (value: ModelSortMode) => void;
     setModelLatencyUnit: (value: ModelLatencyUnit) => void;
 }
@@ -98,6 +101,7 @@ export const useToolbarViewOptionsStore = create<ToolbarViewOptionsState>()(
             channelFilter: 'all',
             selectedChannelGroupId: null,
             groupFilter: 'all',
+            groupViewMode: 'cards',
             modelFilter: 'all',
             modelSortMode: 'success-rate',
             modelLatencyUnit: 'auto',
@@ -123,6 +127,7 @@ export const useToolbarViewOptionsStore = create<ToolbarViewOptionsState>()(
             setChannelFilter: (value) => set({ channelFilter: value }),
             setSelectedChannelGroupId: (value) => set({ selectedChannelGroupId: value }),
             setGroupFilter: (value) => set({ groupFilter: normalizeGroupFilterValue(value) }),
+            setGroupViewMode: (value) => set({ groupViewMode: value }),
             setModelFilter: (value) => set({ modelFilter: value }),
             setModelSortMode: (value) => set({ modelSortMode: value }),
             setModelLatencyUnit: (value) => set({ modelLatencyUnit: value }),
@@ -137,6 +142,7 @@ export const useToolbarViewOptionsStore = create<ToolbarViewOptionsState>()(
                 selectedChannelGroupId: state.selectedChannelGroupId,
                 groupFilter: state.groupFilter,
                 modelFilter: state.modelFilter,
+                groupViewMode: state.groupViewMode,
                 modelSortMode: state.modelSortMode,
                 modelLatencyUnit: state.modelLatencyUnit,
             }),

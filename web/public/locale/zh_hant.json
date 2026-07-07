@@ -1087,7 +1087,12 @@
           "audioTranscription": "語音轉寫",
           "videoGeneration": "影片生成",
           "musicGeneration": "音樂生成",
-          "search": "搜尋"
+          "search": "搜尋",
+          "view": {
+            "title": "分組頁顯示",
+            "cards": "分組卡片",
+            "grouped": "按分組顯示"
+          }
         },
         "model": {
           "all": "全部模型",
@@ -2412,6 +2417,14 @@
       "degraded": "降級",
       "down": "不可用",
       "empty": "空分組"
+    },
+    "groupedView": {
+      "ungrouped": "未分組",
+      "ungroupedDescription": "未加入任何分組的路由模型",
+      "modelCount": "{count} 個模型",
+      "emptyTitle": "沒有匹配的路由模型",
+      "emptyDescription": "請調整搜尋詞或篩選條件。",
+      "emptyGroup": "該分組暫無路由模型"
     }
   },
   "model": {

@@ -1131,7 +1131,12 @@
           "audioTranscription": "Speech-to-text",
           "videoGeneration": "Video generation",
           "musicGeneration": "Music generation",
-          "search": "Search"
+          "search": "Search",
+          "view": {
+            "title": "Group page view",
+            "cards": "Group cards",
+            "grouped": "By group"
+          }
         },
         "model": {
           "all": "All models",
@@ -2456,6 +2461,14 @@
       "missingPublicApiBaseUrl": "Set the public API base URL in system settings first.",
       "missingGroup": "Create at least one route group first.",
       "missingAPIKey": "Create and enable at least one Octopus API key first."
+    },
+    "groupedView": {
+      "ungrouped": "Ungrouped",
+      "ungroupedDescription": "Route models not assigned to any group",
+      "modelCount": "{count, plural, one {# model} other {# models}}",
+      "emptyTitle": "No route models match",
+      "emptyDescription": "Try changing the search term or filter.",
+      "emptyGroup": "No route models in this group"
     }
   },
   "model": {

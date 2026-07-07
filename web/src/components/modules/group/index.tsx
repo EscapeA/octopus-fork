@@ -1,11 +1,14 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { GroupListItem } from './GroupListItem';
 import { AutoGroupButton } from './AutoGroupButton';
 import { AIRouteButton } from './AIRouteButton';
 import { MaintenanceButton } from './MaintenanceButton';
-import { useGroupList } from '@/api/endpoints/group';
+import { useGroupList, type Group as RouteGroup } from '@/api/endpoints/group';
+import { useModelChannelList } from '@/api/endpoints/model';
+import { useSearchStore, useToolbarViewOptionsStore } from '@/components/modules/toolbar';
 import { VirtualizedGrid } from '@/components/common/VirtualizedGrid';
 import {
     MorphingDialog,
@@ -16,34 +19,51 @@ import {
 import { matchesGroupEndpointFilter } from './utils';
 import type { GroupEndpointFilter } from './utils';
 import { CreateDialogContent } from './Create';
+import { GroupedRouteModelView } from './GroupedRouteModelView';
+import { buildGroupedRouteModelBuckets } from './grouped-view';
 import { buttonVariants } from '@/components/ui/button';
 import { useSearchableList, useGroupFilter } from '@/hooks/use-searchable-list';
 import { LoadingState } from '@/components/common/LoadingState';
 import { ErrorState } from '@/components/common/ErrorState';
+
+function matchesGroupFilter(item: RouteGroup, filter: string) {
+    if (filter === 'with-members') return (item.items?.length || 0) > 0;
+    if (filter === 'empty') return (item.items?.length || 0) === 0;
+    if (filter !== 'all') {
+        return matchesGroupEndpointFilter(
+            filter as GroupEndpointFilter,
+            item.endpoint_type,
+            (item.items || []).map((groupItem) => groupItem.model_name),
+        );
+    }
+    return true;
+}
 
 export function Group() {
     const t = useTranslations('group');
     const { data: groups, isLoading, isError, refetch } = useGroupList();
     const pageKey = 'group' as const;
     const filter = useGroupFilter();
+    const groupViewMode = useToolbarViewOptionsStore((s) => s.groupViewMode);
+    const searchTerm = useSearchStore((s) => s.getSearchTerm(pageKey));
+    const { data: modelChannels = [] } = useModelChannelList();
 
-    const { visibleItems: visibleGroups } = useSearchableList({
+    const { visibleItems: visibleGroups, sortedItems: sortedGroups } = useSearchableList({
         data: groups,
         pageKey,
         filter,
-        filterPredicate: (item, f) => {
-            if (f === 'with-members') return (item.items?.length || 0) > 0;
-            if (f === 'empty') return (item.items?.length || 0) === 0;
-            if (f !== 'all') {
-                return matchesGroupEndpointFilter(
-                    f as GroupEndpointFilter,
-                    item.endpoint_type,
-                    (item.items || []).map((i) => (i as { model_name: string }).model_name),
-                );
-            }
-            return true;
-        },
+        filterPredicate: matchesGroupFilter,
     });
+
+    const groupedSourceGroups = useMemo(
+        () => sortedGroups.filter((group) => matchesGroupFilter(group, filter)),
+        [sortedGroups, filter],
+    );
+
+    const groupedBuckets = useMemo(
+        () => buildGroupedRouteModelBuckets(groupedSourceGroups, modelChannels, searchTerm, { assignedGroups: groups ?? [] }),
+        [groupedSourceGroups, modelChannels, searchTerm, groups],
+    );
 
     if (isLoading) {
         return (
@@ -108,14 +128,18 @@ export function Group() {
     return (
         <div className="flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain rounded-t-xl pb-3 md:pb-4">
             <section className="relative min-h-0 flex-1">
-                <VirtualizedGrid
-                    items={visibleGroups}
-                    columns={{ default: 1, sm: 2, md: 2, lg: 3 }}
-                    estimateItemHeight={72}
-                    getItemKey={(group, index) => group.id ?? `group-${index}`}
-                    renderItem={(group) => <GroupListItem group={group} />}
-                    bottomPaddingClassName="pb-3 md:pb-4"
-                />
+                {groupViewMode === 'grouped' ? (
+                    <GroupedRouteModelView buckets={groupedBuckets} />
+                ) : (
+                    <VirtualizedGrid
+                        items={visibleGroups}
+                        columns={{ default: 1, sm: 2, md: 2, lg: 3 }}
+                        estimateItemHeight={72}
+                        getItemKey={(group, index) => group.id ?? `group-${index}`}
+                        renderItem={(group) => <GroupListItem group={group} />}
+                        bottomPaddingClassName="pb-3 md:pb-4"
+                    />
+                )}
             </section>
         </div>
     );
