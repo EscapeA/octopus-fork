@@ -5,6 +5,7 @@ static/out/*
 .vscode
 docs/superpowers
 .workbuddy/
+.review/
 AGENTS.md
 CLAUDE.md
 .learnings/
