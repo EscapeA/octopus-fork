@@ -637,12 +637,12 @@ var mimoPlanDetailURL = "https://platform.xiaomimimo.com/api/v1/tokenPlan/detail
 
 func queryMiMoPlanTokenPlan(ctx context.Context, cookie string) (*TokenPlanResult, error) {
 	if cookie == "" {
-		return nil, fmt.Errorf("mimo_plan: cookie is required (从浏览器开发者工具获取)")
+		return nil, fmt.Errorf("mimo_plan: cookie 不能为空，请在浏览器登录 platform.xiaomimimo.com 后从开发者工具复制 Cookie")
 	}
 
 	// 验证 cookie 中包含必要的字段
 	if !strings.Contains(cookie, "api-platform_serviceToken") {
-		return nil, fmt.Errorf("mimo_plan: cookie 缺少 api-platform_serviceToken，请从浏览器完整复制")
+		return nil, fmt.Errorf("mimo_plan: Cookie 缺少 api-platform_serviceToken 字段，请确保复制了完整的 Cookie（需包含 api-platform_serviceToken、userId、api-platform_slh、api-platform_ph）")
 	}
 
 	// 1. 查询用量
