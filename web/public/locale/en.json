@@ -156,7 +156,10 @@
       "forwardApiKeyHint": "When provided, a forwarding channel will be created or reused. Channels with the same models are merged. Leave empty to monitor quota only.",
       "consoleTokenLabel": "Console Token",
       "sensenovaTokenPlaceholder": "Paste console Bearer Token value",
-      "sensenovaTokenHint": "Log in to platform.sensenova.cn console, copy the Bearer Token from request headers. Valid for ~3 hours; re-obtain after expiry."
+      "sensenovaTokenHint": "Log in to platform.sensenova.cn console, copy the Bearer Token from request headers. Valid for ~3 hours; re-obtain after expiry.",
+      "cookieLabel": "Cookie",
+      "mimoCookiePlaceholder": "Paste browser Cookie (must include api-platform_serviceToken)",
+      "mimoCookieHint": "Login to platform.xiaomimimo.com, press F12 → Network → refresh page → copy full Cookie from any request. Validity unknown, appears long-lived."
     },
     "title": "Remote Sites",
     "addSite": "Add Site",
