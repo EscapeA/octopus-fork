@@ -182,6 +182,16 @@ func PreferenceSave(ctx context.Context, pref *model.NotificationPreference) err
 	pref.MinSeverity = normalizeSeverity(pref.MinSeverity)
 	return db.GetDB().WithContext(ctx).Save(pref).Error
 }
+func PreferenceDelete(ctx context.Context, id int64) error {
+	res := db.GetDB().WithContext(ctx).Delete(&model.NotificationPreference{}, id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return fmt.Errorf("notification preference not found")
+	}
+	return nil
+}
 
 func PolicyList(ctx context.Context) ([]model.NotificationPolicy, error) {
 	var items []model.NotificationPolicy

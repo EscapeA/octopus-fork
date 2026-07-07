@@ -109,6 +109,7 @@ var auditedManagementWriteRoutes = map[string]struct{}{
 	"DELETE /api/v1/notification/delete/:id":                                         {},
 	"DELETE /api/v1/notification/archived":                                           {},
 	"POST /api/v1/notification/preference/save":                                      {},
+	"DELETE /api/v1/notification/preference/delete/:id":                              {},
 	"POST /api/v1/notification/policy/create":                                        {},
 	"POST /api/v1/notification/policy/update":                                        {},
 	"DELETE /api/v1/notification/policy/delete/:id":                                  {},

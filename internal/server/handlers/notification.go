@@ -36,6 +36,7 @@ func init() {
 		AddRoute(router.NewRoute("/archived", http.MethodDelete).Use(middleware.RequirePermission(auth.PermNotificationsWrite)).Handle(deleteArchivedNotifications)).
 		AddRoute(router.NewRoute("/preference/list", http.MethodGet).Handle(listNotificationPreferences)).
 		AddRoute(router.NewRoute("/preference/save", http.MethodPost).Use(middleware.RequirePermission(auth.PermNotificationsWrite)).Handle(saveNotificationPreference)).
+		AddRoute(router.NewRoute("/preference/delete/:id", http.MethodDelete).Use(middleware.RequirePermission(auth.PermNotificationsWrite)).Handle(deleteNotificationPreference)).
 		AddRoute(router.NewRoute("/policy/list", http.MethodGet).Handle(listNotificationPolicies)).
 		AddRoute(router.NewRoute("/policy/create", http.MethodPost).Use(middleware.RequirePermission(auth.PermNotificationsWrite)).Handle(createNotificationPolicy)).
 		AddRoute(router.NewRoute("/policy/update", http.MethodPost).Use(middleware.RequirePermission(auth.PermNotificationsWrite)).Handle(updateNotificationPolicy)).
@@ -209,6 +210,22 @@ func saveNotificationPreference(c *gin.Context) {
 		return
 	}
 	resp.Success(c, payload)
+}
+func deleteNotificationPreference(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		resp.Error(c, http.StatusBadRequest, "invalid id")
+		return
+	}
+	if err := notifop.PreferenceDelete(c.Request.Context(), id); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			resp.Error(c, http.StatusNotFound, err.Error())
+			return
+		}
+		resp.InternalError(c)
+		return
+	}
+	resp.Success(c, nil)
 }
 
 func listNotificationPolicies(c *gin.Context) {

@@ -160,6 +160,14 @@ export function useSaveNotificationPreference() {
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications', 'preferences'] }),
     });
 }
+export function useDeleteNotificationPreference() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (id: number) => apiClient.delete<null>(`/api/v1/notification/preference/delete/${id}`),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications', 'preferences'] }),
+    });
+}
+
 
 export function useNotificationPolicies() {
     return useQuery({

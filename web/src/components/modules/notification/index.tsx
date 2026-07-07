@@ -20,6 +20,7 @@ import {
     useNotificationPolicies,
     useNotificationPreferences,
     useSaveNotificationPreference,
+    useDeleteNotificationPreference,
     useCreateNotificationPolicy,
     useUpdateNotificationPolicy,
     useDeleteNotificationPolicy,
@@ -123,6 +124,7 @@ export function Notification() {
     const updatePolicy = useUpdateNotificationPolicy();
     const deletePolicy = useDeleteNotificationPolicy();
     const savePreference = useSaveNotificationPreference();
+    const deletePreference = useDeleteNotificationPreference();
 
     const selected = detail.data?.notification;
 
@@ -169,6 +171,16 @@ export function Notification() {
             quiet_end: preferenceDraft.quiet_end || '',
         });
     };
+    const deletePreferenceDraft = (pref: NotificationPreference) => {
+        deletePreference.mutate(pref.id, {
+            onSuccess: () => {
+                if (preferenceDraft.id === pref.id) {
+                    setPreferenceDraft({ user_id: 0, type: 'alert', enabled: true, in_app_enabled: true, external_enabled: true, min_severity: 'info', channel_ids: '[]' });
+                }
+            },
+        });
+    };
+
 
     const renderMessages = () => (
         <>
@@ -272,7 +284,7 @@ export function Notification() {
             </div>
             <div className="space-y-3">
                 {preferences.length === 0 ? <div className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">{t('preferences.empty')}</div> : null}
-                {preferences.map((p) => <button key={p.id} onClick={() => setPreferenceDraft(p)} className="w-full rounded-xl border p-3 text-left hover:bg-muted"><div className="font-medium">{t(`type.${p.type}`)} · {t(`severity.${p.min_severity}`)}</div><div className="text-xs text-muted-foreground">{p.in_app_enabled ? t('preferences.form.inApp') : ''} {p.external_enabled ? t('preferences.form.external') : ''} · {p.channel_ids}</div></button>)}
+                {preferences.map((p) => <div key={p.id} className="flex items-center justify-between gap-3 rounded-xl border p-3"><button onClick={() => setPreferenceDraft(p)} className="min-w-0 flex-1 text-left"><div className="font-medium">{t(`type.${p.type}`)} · {t(`severity.${p.min_severity}`)}</div><div className="text-xs text-muted-foreground">{p.in_app_enabled ? t('preferences.form.inApp') : ''} {p.external_enabled ? t('preferences.form.external') : ''} · {p.channel_ids}</div></button><Button size="sm" variant="destructive" onClick={() => deletePreferenceDraft(p)}><Trash2 className="h-4 w-4" /></Button></div>)}
             </div>
         </div>
     );
