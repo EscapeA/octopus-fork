@@ -100,7 +100,8 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
     const [forwardApiKey, setForwardApiKey] = useState('');
     const [customName, setCustomName] = useState('');
 
-    const isConsoleTokenPlan = selectedCategory === 'stepfun_plan' || selectedCategory === 'sensenova_plan';
+    const isConsoleTokenPlan = selectedCategory === 'stepfun_plan' || selectedCategory === 'sensenova_plan' || selectedCategory === 'mimo_plan';
+    const isMiMoPlan = selectedCategory === 'mimo_plan';
 
     const handleAdd = useCallback(async () => {
         if (!selectedCategory || !apiKey.trim()) return;
@@ -199,29 +200,35 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
 
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">
-                                    {isConsoleTokenPlan
-                                        ? (t('plan.consoleTokenLabel') || '控制台 Token')
-                                        : (t('plan.apiKeyLabel') || 'API Key')}
+                                    {isMiMoPlan
+                                        ? (t('plan.cookieLabel') || 'Cookie')
+                                        : isConsoleTokenPlan
+                                            ? (t('plan.consoleTokenLabel') || '控制台 Token')
+                                            : (t('plan.apiKeyLabel') || 'API Key')}
                                 </label>
                                 <Input
                                     type="password"
-                                    placeholder={isConsoleTokenPlan
-                                        ? (selectedInfo?.category === 'sensenova_plan'
-                                            ? (t('plan.sensenovaTokenPlaceholder') || '粘贴控制台 Bearer Token 值')
-                                            : (t('plan.oasisTokenPlaceholder') || '粘贴控制台 Cookie 中的 Oasis-Token 值'))
-                                        : (t('plan.apiKeyPlaceholder') || '请输入 API Key')}
+                                    placeholder={isMiMoPlan
+                                        ? (t('plan.mimoCookiePlaceholder') || '粘贴浏览器 Cookie（需包含 api-platform_serviceToken）')
+                                        : isConsoleTokenPlan
+                                            ? (selectedInfo?.category === 'sensenova_plan'
+                                                ? (t('plan.sensenovaTokenPlaceholder') || '粘贴控制台 Bearer Token 值')
+                                                : (t('plan.oasisTokenPlaceholder') || '粘贴控制台 Cookie 中的 Oasis-Token 值'))
+                                            : (t('plan.apiKeyPlaceholder') || '请输入 API Key')}
                                     value={apiKey}
                                     onChange={(e) => setApiKey(e.target.value)}
                                 />
                                 {isConsoleTokenPlan && (
                                     <p className="text-xs text-amber-500">
-                                        {selectedInfo?.category === 'sensenova_plan'
-                                            ? (t('plan.sensenovaTokenHint') || '需登录 platform.sensenova.cn 控制台，从请求头复制 Bearer Token 值。有效期约 3 小时，过期后需重新获取。')
-                                            : (t('plan.oasisTokenHint') || '需登录 platform.stepfun.com 控制台，从浏览器 Cookie 复制 Oasis-Token 值（格式：access...refresh）。该 Token 有效期约 30 分钟，过期后需重新获取。')}
+                                        {isMiMoPlan
+                                            ? (t('plan.mimoCookieHint') || '需登录 platform.xiaomimimo.com，按 F12 打开开发者工具 → Network → 刷新页面 → 任意请求的 Cookie 字段，复制完整内容。有效期未知，疑似长期有效。')
+                                            : selectedInfo?.category === 'sensenova_plan'
+                                                ? (t('plan.sensenovaTokenHint') || '需登录 platform.sensenova.cn 控制台，从请求头复制 Bearer Token 值。有效期约 3 小时，过期后需重新获取。')
+                                                : (t('plan.oasisTokenHint') || '需登录 platform.stepfun.com 控制台，从浏览器 Cookie 复制 Oasis-Token 值（格式：access...refresh）。该 Token 有效期约 30 分钟，过期后需重新获取。')}
                                     </p>
                                 )}
                             </div>
-                            {isConsoleTokenPlan && (
+                            {isConsoleTokenPlan && !isMiMoPlan && (
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">
                                         {t('plan.forwardApiKeyLabel') || 'API Key（可选）'}

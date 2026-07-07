@@ -75,6 +75,8 @@ func QueryTokenPlan(ctx context.Context, category model.PlanProviderCategory, ap
 		return querySenseNovaPlanTokenPlan(ctx, apiKey)
 	case model.PlanProviderStepFunPlan:
 		return queryStepFunPlanTokenPlan(ctx, apiKey)
+	case model.PlanProviderMiMoPlan:
+		return queryMiMoPlanTokenPlan(ctx, apiKey)
 	case model.PlanProviderZhipu:
 		return queryZhipuTokenPlan(ctx, apiKey)
 	default:
@@ -617,6 +619,159 @@ func decodeSenseNovaAccountID(token string) string {
 		return ""
 	}
 	return claims.Ext.TenantID
+}
+
+// --- MiMo Token Plan (小米 MiMo Coding Plan) ---
+//
+// 使用浏览器 Cookie 鉴权查询小米 MiMo 套餐用量。
+// 鉴权信息：Cookie 中的 api-platform_serviceToken + userId + api-platform_slh + api-platform_ph。
+// Cookie 有效期较长（实测数天到数周），过期后需用户重新从浏览器获取。
+//
+// API 端点：
+//   - 用量：GET https://platform.xiaomimimo.com/api/v1/tokenPlan/usage
+//   - 详情：GET https://platform.xiaomimimo.com/api/v1/tokenPlan/detail
+//
+// apiKey 参数传入完整的 Cookie 字符串。
+var mimoPlanUsageURL = "https://platform.xiaomimimo.com/api/v1/tokenPlan/usage"
+var mimoPlanDetailURL = "https://platform.xiaomimimo.com/api/v1/tokenPlan/detail"
+
+func queryMiMoPlanTokenPlan(ctx context.Context, cookie string) (*TokenPlanResult, error) {
+	if cookie == "" {
+		return nil, fmt.Errorf("mimo_plan: cookie 不能为空，请在浏览器登录 platform.xiaomimimo.com 后从开发者工具复制 Cookie")
+	}
+
+	// 验证 cookie 中包含必要的字段
+	if !strings.Contains(cookie, "api-platform_serviceToken") {
+		return nil, fmt.Errorf("mimo_plan: Cookie 缺少 api-platform_serviceToken 字段，请确保复制了完整的 Cookie（需包含 api-platform_serviceToken、userId、api-platform_slh、api-platform_ph）")
+	}
+
+	// 1. 查询用量
+	usageBody, err := doMiMoGet(ctx, mimoPlanUsageURL, cookie)
+	if err != nil {
+		return nil, fmt.Errorf("mimo_plan: query usage: %w", err)
+	}
+
+	var usageResp struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+		Data    struct {
+			MonthUsage struct {
+				Percent float64 `json:"percent"`
+				Items   []struct {
+					Name    string  `json:"name"`
+					Used    float64 `json:"used"`
+					Limit   float64 `json:"limit"`
+					Percent float64 `json:"percent"`
+				} `json:"items"`
+			} `json:"monthUsage"`
+			Usage struct {
+				Percent float64 `json:"percent"`
+				Items   []struct {
+					Name    string  `json:"name"`
+					Used    float64 `json:"used"`
+					Limit   float64 `json:"limit"`
+					Percent float64 `json:"percent"`
+				} `json:"items"`
+			} `json:"usage"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(usageBody, &usageResp); err != nil {
+		return nil, fmt.Errorf("mimo_plan: parse usage response: %w", err)
+	}
+	if usageResp.Code != 0 {
+		return nil, fmt.Errorf("mimo_plan: API error code=%d msg=%s", usageResp.Code, usageResp.Message)
+	}
+
+	// 2. 查询套餐详情（获取到期时间）
+	detailBody, err := doMiMoGet(ctx, mimoPlanDetailURL, cookie)
+	if err != nil {
+		return nil, fmt.Errorf("mimo_plan: query detail: %w", err)
+	}
+
+	var detailResp struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+		Data    struct {
+			PlanCode          string `json:"planCode"`
+			PlanName          string `json:"planName"`
+			CurrentPeriodEnd  string `json:"currentPeriodEnd"`
+			Expired           bool   `json:"expired"`
+			EnableAutoRenew   bool   `json:"enableAutoRenew"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(detailBody, &detailResp); err != nil {
+		return nil, fmt.Errorf("mimo_plan: parse detail response: %w", err)
+	}
+	if detailResp.Code != 0 {
+		return nil, fmt.Errorf("mimo_plan: detail API error code=%d msg=%s", detailResp.Code, detailResp.Message)
+	}
+
+	// 3. 组装结果
+	// usage.items[0] = plan_total_token（套餐总额度）
+	// usage.items[1] = compensation_total_token（补偿额度，通常为 0）
+	// monthUsage.items[0] = month_total_token（本月已用）
+	result := &TokenPlanResult{}
+
+	// 套餐总额度（从 usage.items[0]）
+	if len(usageResp.Data.Usage.Items) > 0 {
+		planItem := usageResp.Data.Usage.Items[0]
+		result.QuotaTotal = planItem.Limit
+		result.QuotaUsed = planItem.Used
+	}
+
+	// 月度额度（从 monthUsage.items[0]）
+	if len(usageResp.Data.MonthUsage.Items) > 0 {
+		monthItem := usageResp.Data.MonthUsage.Items[0]
+		result.WeeklyTotal = monthItem.Limit
+		result.WeeklyUsed = monthItem.Used
+	}
+
+	// 到期时间
+	if detailResp.Data.CurrentPeriodEnd != "" {
+		// 格式: "2006-01-02 15:04:05"
+		if t, err := time.Parse("2006-01-02 15:04:05", detailResp.Data.CurrentPeriodEnd); err == nil {
+			result.QuotaResetAt = &t
+		}
+	}
+
+	// 各模型明细（MiMo 不分模型，只有一个汇总）
+	result.Models = []TokenPlanModelUsage{
+		{
+			ModelName:  "MiMo (Total)",
+			QuotaTotal: result.QuotaTotal,
+			QuotaUsed:  result.QuotaUsed,
+		},
+	}
+
+	return result, nil
+}
+
+// doMiMoGet 执行 MiMo 平台的 GET 请求，使用 Cookie 鉴权。
+func doMiMoGet(ctx context.Context, url, cookie string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Cookie", cookie)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36")
+
+	client := &http.Client{Timeout: requestTimeout}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("http request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read body: %w", err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("http status %d: %s", resp.StatusCode, string(body))
+	}
+	return body, nil
 }
 
 // --- 302.ai ---

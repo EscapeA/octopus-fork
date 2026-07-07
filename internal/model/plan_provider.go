@@ -29,6 +29,7 @@ const (
 	PlanProviderZhipu         PlanProviderCategory = "zhipu"
 	PlanProviderStepFunPlan   PlanProviderCategory = "stepfun_plan"
 	PlanProviderSenseNovaPlan PlanProviderCategory = "sensenova_plan"
+	PlanProviderMiMoPlan      PlanProviderCategory = "mimo_plan"
 )
 
 // PlanProviderCategoryInfo 厂商元信息（非 DB 字段）
@@ -151,6 +152,15 @@ var PlanProviderCategories = []PlanProviderCategoryInfo{
 		Models:      "sensenova-6.7-flash-lite,sensenova-u1-fast,deepseek-v4-flash",
 		Description: "SenseNova Coding Plan 套餐用量查询（控制台 Bearer Token 必填，约 3 小时有效期）。可选填 API Key 自动创建/复用转发渠道（接入点 token.sensenova.cn/v1）",
 		HelpURL:     "https://platform.sensenova.cn/console",
+	},
+	{
+		Category:    PlanProviderMiMoPlan,
+		Name:        "MiMo 套餐 (小米)",
+		Type:        PlanProviderTypeTokenPlan,
+		BaseURL:     "https://platform.xiaomimimo.com",
+		Models:      "MiMo-V2-Pro,MiMo-V2-Flash,MiMo-V2-Edge",
+		Description: "小米 MiMo Token Plan 套餐用量查询（Cookie 鉴权，有效期未知，疑似长期有效）。在浏览器登录 platform.xiaomimimo.com 后，按 F12 打开开发者工具 → Network → 刷新页面 → 任意请求的 Cookie 字段，复制完整内容（需包含 api-platform_serviceToken、userId、api-platform_slh、api-platform_ph 四个字段）",
+		HelpURL:     "https://platform.xiaomimimo.com/console/plan-manage",
 	},
 }
 
