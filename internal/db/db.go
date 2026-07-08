@@ -267,11 +267,29 @@ func OpenStandaloneWithOptions(dbType, dsn string, debug bool, opts SQLiteOption
 	return conn, nil
 }
 
+// Migrate 运行数据库迁移：先执行注册的 BeforeAutoMigration，再执行 GORM AutoMigrate，
+// 最后执行注册的 AfterAutoMigration。
+//
+// SQLite 特殊处理（issue #131）：AutoMigrate 在检测到 struct tag 变更（例如删除
+// 字段级 UNIQUE 约束）时会调用 glebarez migrator 的 DropConstraint -> recreateTable，
+// 该路径执行 CREATE temp + INSERT + DROP TABLE + RENAME。当目标表被子表以真实外键
+// 引用（如 group_items -> groups）且 foreign_keys=ON 时，DROP TABLE 会被 FK 约束
+// 阻止，报 "FOREIGN KEY constraint failed (787)"，导致启动崩溃。
+//
+// glebarez 的 DropConstraint/DropColumn/recreateTable 不像 DropTable/AlterColumn 那样
+// 调用 RunWithoutForeignKey 自动关闭外键，因此这里在 AutoMigrate 期间临时关闭
+// foreign_keys，完成后恢复。SQLite 连接池 MaxOpenConns=1，PRAGMA 为会话级，切换安全。
+// MySQL/Postgres 使用 ALTER TABLE 语法，不触发此问题，无需处理。
 func Migrate(conn *gorm.DB) error {
 	if err := migrate.BeforeAutoMigrate(conn); err != nil {
 		return err
 	}
-	if err := conn.AutoMigrate(
+
+	restoreFK, err := disableSQLiteForeignKeysForMigration(conn)
+	if err != nil {
+		return err
+	}
+	autoMigrateErr := conn.AutoMigrate(
 		&model.User{},
 		&model.ChannelGroup{},
 		&model.Channel{},
@@ -326,8 +344,12 @@ func Migrate(conn *gorm.DB) error {
 		&model.WSResponseAffinity{},
 		&model.WebAuthnCredential{},
 		&migrate.MigrationRecord{},
-	); err != nil {
-		return err
+	)
+	if restoreFK != nil {
+		_ = restoreFK()
+	}
+	if autoMigrateErr != nil {
+		return autoMigrateErr
 	}
 	if err := migrate.AfterAutoMigrate(conn); err != nil {
 		return err
@@ -339,6 +361,36 @@ func Migrate(conn *gorm.DB) error {
 		conn.Exec("DISCARD ALL")
 	}
 	return nil
+}
+
+// disableSQLiteForeignKeysForMigration 在 SQLite 下临时关闭 foreign_keys 并返回
+// 恢复函数；非 SQLite 返回 nil 恢复函数。用于 Migrate 期间让 glebarez 的
+// DropConstraint/recreateTable 能安全 DROP 被子表 FK 引用的表（issue #131）。
+//
+// SQLite foreign_keys 是 per-connection PRAGMA，连接池 MaxOpenConns=1 保证整段
+// 迁移在同一连接上执行，关闭/恢复对该连接生效即足够。恢复函数在 AutoMigrate 完成
+// 后（无论成功失败）被调用，确保运行时外键校验始终恢复到 ON。
+func disableSQLiteForeignKeysForMigration(conn *gorm.DB) (func() error, error) {
+	if conn == nil || conn.Dialector == nil || conn.Dialector.Name() != "sqlite" {
+		return nil, nil
+	}
+	var enabled int
+	if err := conn.Raw(`PRAGMA foreign_keys`).Scan(&enabled).Error; err != nil {
+		return nil, fmt.Errorf("read sqlite foreign_keys pragma before migrate: %w", err)
+	}
+	if enabled != 1 {
+		// Already off (or driver default); nothing to toggle. Restore to current state.
+		return nil, nil
+	}
+	if err := conn.Exec(`PRAGMA foreign_keys=OFF`).Error; err != nil {
+		return nil, fmt.Errorf("disable sqlite foreign_keys for migrate: %w", err)
+	}
+	return func() error {
+		if err := conn.Exec(`PRAGMA foreign_keys=ON`).Error; err != nil {
+			return fmt.Errorf("restore sqlite foreign_keys after migrate: %w", err)
+		}
+		return nil
+	}, nil
 }
 
 func configureConnectionPool(sqlDB *sql.DB, dbType string) {
