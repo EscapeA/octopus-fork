@@ -944,7 +944,7 @@ internal/
 ├── conf/               # 配置加载与构建元信息
 ├── client/             # HTTP 客户端工具
 ├── db/                 # 数据库连接与迁移（SQLite/MySQL/PostgreSQL）
-│   └── migrate/        # 版本化 Schema 迁移（001-016）
+│   └── migrate/        # 版本化 Schema 迁移（001-031）
 ├── model/              # 领域类型（Channel、Group、APIKey、User、Site、ProxyConfiguration、ModelMapping……）
 ├── op/                 # 按领域拆分的业务逻辑操作
 │   ├── airoute/        # AI 路由生成、进度追踪、服务池和兼容辅助逻辑
