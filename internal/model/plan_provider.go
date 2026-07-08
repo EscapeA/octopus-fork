@@ -159,7 +159,7 @@ var PlanProviderCategories = []PlanProviderCategoryInfo{
 		Type:        PlanProviderTypeTokenPlan,
 		BaseURL:     "https://platform.xiaomimimo.com",
 		Models:      "MiMo-V2-Pro,MiMo-V2-Flash,MiMo-V2-Edge",
-		Description: "小米 MiMo Token Plan 套餐用量查询。支持两种鉴权方式：① passToken（小米账号 SSO Token，可自动刷新 serviceToken，但安全风险极高——passToken 可能可以换取小米云、小米社区、MiMo 等任何接入小米账号体系的服务的 Token（未验证），请自行判断是否需要使用）；② serviceToken（仅 MiMo 平台 Token，有效期约 1 天，过期需手动更新）。在浏览器登录 platform.xiaomimimo.com 后，按 F12 → Application → Cookies 复制。",
+		Description: "小米 MiMo Token Plan 套餐用量查询。支持两种鉴权方式：① passToken（小米账号 SSO Token，有效期 30 天滚动刷新，可自动刷新 serviceToken，但安全风险——passToken 可能存在横向移动风险，未进行全方面测试，请自行判断是否需要使用）；② serviceToken（仅 MiMo 平台 Token，有效期约 1 天，过期需手动更新）。在浏览器登录 platform.xiaomimimo.com 后，按 F12 → Application → Cookies 复制。",
 		HelpURL:     "https://platform.xiaomimimo.com/console/plan-manage",
 	},
 }
