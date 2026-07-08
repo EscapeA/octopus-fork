@@ -20,7 +20,7 @@ import { matchesGroupEndpointFilter } from './utils';
 import type { GroupEndpointFilter } from './utils';
 import { CreateDialogContent } from './Create';
 import { GroupedRouteModelView } from './GroupedRouteModelView';
-import { buildGroupedRouteModelBuckets } from './grouped-view';
+import { buildGroupedRouteModelCategories } from './grouped-view';
 import { buttonVariants } from '@/components/ui/button';
 import { useSearchableList, useGroupFilter } from '@/hooks/use-searchable-list';
 import { LoadingState } from '@/components/common/LoadingState';
@@ -60,8 +60,8 @@ export function Group() {
         [sortedGroups, filter],
     );
 
-    const groupedBuckets = useMemo(
-        () => buildGroupedRouteModelBuckets(groupedSourceGroups, modelChannels, searchTerm, { assignedGroups: groups ?? [] }),
+    const groupedCategories = useMemo(
+        () => buildGroupedRouteModelCategories(groupedSourceGroups, modelChannels, searchTerm, { assignedGroups: groups ?? [] }),
         [groupedSourceGroups, modelChannels, searchTerm, groups],
     );
 
@@ -129,7 +129,7 @@ export function Group() {
         <div className="flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain rounded-t-xl pb-3 md:pb-4">
             <section className="relative min-h-0 flex-1">
                 {groupViewMode === 'grouped' ? (
-                    <GroupedRouteModelView buckets={groupedBuckets} />
+                    <GroupedRouteModelView categories={groupedCategories} />
                 ) : (
                     <VirtualizedGrid
                         items={visibleGroups}

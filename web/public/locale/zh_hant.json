@@ -1093,7 +1093,7 @@
           "view": {
             "title": "分組頁顯示",
             "cards": "分組卡片",
-            "grouped": "按分組顯示"
+            "grouped": "按分組分類顯示"
           }
         },
         "model": {
@@ -2296,7 +2296,7 @@
       "name": "分組名稱",
       "category": "分組分類",
       "categoryPlaceholder": "如 premium、budget，可留空",
-      "categoryHint": "用於 API Key 調用範圍控制；留空表示未分類。",
+      "categoryHint": "用於 API Key 調用範圍控制，並在「按分組分類顯示」檢視中按此歸類聚合；留空表示未分類。",
       "matchRegex": "匹配正規",
       "matchRegexPlaceholder": "留空則預設按分組名稱精準比對",
       "matchRegexInvalid": "正規無效",
@@ -2423,6 +2423,9 @@
     "groupedView": {
       "ungrouped": "未分組",
       "ungroupedDescription": "未加入任何分組的路由模型",
+      "uncategorized": "未分類",
+      "uncategorizedDescription": "未設置分類的分組",
+      "categoryDescription": "{count, plural, =1 {{count} 個分組} other {{count} 個分組}}",
       "modelCount": "{count} 個模型",
       "emptyTitle": "沒有匹配的路由模型",
       "emptyDescription": "請調整搜尋詞或篩選條件。",

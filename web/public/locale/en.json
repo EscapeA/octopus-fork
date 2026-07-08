@@ -1137,7 +1137,7 @@
           "view": {
             "title": "Group page view",
             "cards": "Group cards",
-            "grouped": "By group"
+            "grouped": "Grouped by category"
           }
         },
         "model": {
@@ -2347,7 +2347,7 @@
       "name": "Group Name",
       "category": "Group Category",
       "categoryPlaceholder": "e.g. premium or budget; optional",
-      "categoryHint": "Used for API key access control. Leave empty for uncategorized groups.",
+      "categoryHint": "Used for API key access control and grouping in the 'Grouped by category' view. Leave empty for uncategorized.",
       "matchRegex": "Match Regex",
       "matchRegexPlaceholder": "Leave empty to use default exact match by group name",
       "matchRegexInvalid": "Invalid regex",
@@ -2467,6 +2467,9 @@
     "groupedView": {
       "ungrouped": "Ungrouped",
       "ungroupedDescription": "Route models not assigned to any group",
+      "uncategorized": "Uncategorized",
+      "uncategorizedDescription": "Groups without a category set",
+      "categoryDescription": "{count, plural, one {{count} group} other {{count} groups}}",
       "modelCount": "{count, plural, one {# model} other {# models}}",
       "emptyTitle": "No route models match",
       "emptyDescription": "Try changing the search term or filter.",
