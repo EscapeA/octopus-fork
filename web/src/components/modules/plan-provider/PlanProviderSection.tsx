@@ -226,8 +226,8 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                     type="password"
                                     placeholder={isMiMoPlan
                                         ? (mimoAuthMode === 'passToken'
-                                            ? (t('plan.mimoPassTokenPlaceholder') || '粘贴小米账号 Cookie（需包含 passToken= 字段）')
-                                            : (t('plan.mimoServiceTokenPlaceholder') || '粘贴 MiMo 平台 Cookie（需包含 api-platform_serviceToken 字段）'))
+                                            ? (t('plan.mimoPassTokenPlaceholder') || '粘贴 account.xiaomi.com 的完整 Cookie（需包含 passToken=、userId=、cUserId= 字段）')
+                                            : (t('plan.mimoServiceTokenPlaceholder') || '粘贴 platform.xiaomimimo.com 的完整 Cookie（需包含 api-platform_serviceToken=、userId=、api-platform_slh=、api-platform_ph= 字段）'))
                                         : isConsoleTokenPlan
                                             ? (selectedInfo?.category === 'sensenova_plan'
                                                 ? (t('plan.sensenovaTokenPlaceholder') || '粘贴控制台 Bearer Token 值')
@@ -237,17 +237,17 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                     onChange={(e) => setApiKey(e.target.value)}
                                 />
                                 {isMiMoPlan && mimoAuthMode === 'passToken' && (
-                                    <p className="text-xs text-red-500">
-                                        ⚠️ 安全警告：passToken 是小米账号的长期会话凭证，<strong>安全风险极高</strong>。passToken 可能可以换取小米云、小米社区、MiMo 等任何接入小米账号体系的服务的 Token（未验证）。请自行判断是否需要使用。填入后系统将自动通过 SSO 刷新 serviceToken。
+                                    <p className="text-[11px] leading-tight text-red-500">
+                                        {t('plan.mimoPassTokenHint') || '⚠️ 安全风险极高：passToken 是小米账号长期会话凭证，可能可以换取小米云、小米社区、MiMo 等任何接入小米账号体系的服务的 Token（未验证）。填入后系统自动通过 SSO 刷新 serviceToken，无需手动更新。'}
                                     </p>
                                 )}
                                 {isMiMoPlan && mimoAuthMode === 'serviceToken' && (
-                                    <p className="text-xs text-amber-500">
-                                        需登录 platform.xiaomimimo.com，按 F12 → Application → Cookies 复制。有效期约 1 天，过期后需手动更新。
+                                    <p className="text-[11px] leading-tight text-amber-500">
+                                        {t('plan.mimoServiceTokenHint') || '登录 platform.xiaomimimo.com → F12 → Application → Cookies，复制 api-platform 域下所有 Cookie。有效期约 1 天，过期后需手动更新。'}
                                     </p>
                                 )}
                                 {isConsoleTokenPlan && !isMiMoPlan && (
-                                    <p className="text-xs text-amber-500">
+                                    <p className="text-[11px] leading-tight text-amber-500">
                                         {selectedInfo?.category === 'sensenova_plan'
                                             ? (t('plan.sensenovaTokenHint') || '需登录 platform.sensenova.cn 控制台，从请求头复制 Bearer Token 值。有效期约 3 小时，过期后需重新获取。')
                                             : (t('plan.oasisTokenHint') || '需登录 platform.stepfun.com 控制台，从浏览器 Cookie 复制 Oasis-Token 值（格式：access...refresh）。该 Token 有效期约 30 分钟，过期后需重新获取。')}
