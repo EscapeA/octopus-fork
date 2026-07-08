@@ -216,8 +216,8 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="serviceToken">serviceToken — 有效期 1 天，手动更新</SelectItem>
-                                                <SelectItem value="passToken">passToken — 自动刷新，⚠️ 安全风险高</SelectItem>
+                                                <SelectItem value="serviceToken">serviceToken — 1 天有效</SelectItem>
+                                                <SelectItem value="passToken">passToken — 30 天，自动刷新</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
