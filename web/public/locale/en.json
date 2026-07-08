@@ -158,8 +158,10 @@
       "sensenovaTokenPlaceholder": "Paste console Bearer Token value",
       "sensenovaTokenHint": "Log in to platform.sensenova.cn console, copy the Bearer Token from request headers. Valid for ~3 hours; re-obtain after expiry.",
       "cookieLabel": "Cookie",
-      "mimoCookiePlaceholder": "Paste browser Cookie (must include api-platform_serviceToken)",
-      "mimoCookieHint": "Login to platform.xiaomimimo.com, press F12 → Network → refresh page → copy full Cookie from any request. Validity unknown, appears long-lived."
+      "mimoPassTokenPlaceholder": "Paste full Cookie from account.xiaomi.com",
+      "mimoServiceTokenPlaceholder": "Paste full Cookie from platform.xiaomimimo.com",
+      "mimoPassTokenHint": "Required fields: passToken=, userId=, cUserId=. Valid 30 days (auto-renewed on each use). ⚠️ Security risk: passToken is a long-lived Xiaomi account session token, may have lateral movement risk, not fully tested. System auto-refreshes serviceToken via SSO.",
+      "mimoServiceTokenHint": "Required fields: api-platform_serviceToken=, userId=, api-platform_slh=, api-platform_ph=. Valid ~1 day (server-controlled), manual update required. Login platform.xiaomimimo.com → F12 → Application → Cookies, copy all cookies under api-platform domain."
     },
     "title": "Remote Sites",
     "addSite": "Add Site",
