@@ -210,31 +210,16 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                             : (t('plan.apiKeyLabel') || 'API Key')}
                                 </label>
                                 {isMiMoPlan && (
-                                    <div className="flex gap-4 text-sm">
-                                        <label className="flex items-center gap-1.5 cursor-pointer">
-                                            <input
-                                                type="radio"
-                                                name="mimoAuthMode"
-                                                value="passToken"
-                                                checked={mimoAuthMode === 'passToken'}
-                                                onChange={() => { setMimoAuthMode('passToken'); setApiKey(''); }}
-                                                className="accent-primary"
-                                            />
-                                            <span className="text-foreground">passToken</span>
-                                            <span className="text-xs text-muted-foreground">（自动刷新，安全风险高）</span>
-                                        </label>
-                                        <label className="flex items-center gap-1.5 cursor-pointer">
-                                            <input
-                                                type="radio"
-                                                name="mimoAuthMode"
-                                                value="serviceToken"
-                                                checked={mimoAuthMode === 'serviceToken'}
-                                                onChange={() => { setMimoAuthMode('serviceToken'); setApiKey(''); }}
-                                                className="accent-primary"
-                                            />
-                                            <span className="text-foreground">serviceToken</span>
-                                            <span className="text-xs text-muted-foreground">（有效期 1 天）</span>
-                                        </label>
+                                    <div className="space-y-1">
+                                        <Select value={mimoAuthMode} onValueChange={(v: string) => { setMimoAuthMode(v as 'passToken' | 'serviceToken'); setApiKey(''); }}>
+                                            <SelectTrigger className="h-9 text-sm">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="serviceToken">serviceToken — 有效期 1 天，手动更新</SelectItem>
+                                                <SelectItem value="passToken">passToken — 自动刷新，⚠️ 安全风险高</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 )}
                                 <Input
