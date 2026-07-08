@@ -646,6 +646,9 @@ func queryMiMoPlanTokenPlan(ctx context.Context, cookie string) (*TokenPlanResul
 		return nil, fmt.Errorf("mimo_plan: Cookie 缺少有效的鉴权字段，需包含 passToken= 或 api-platform_serviceToken")
 	}
 
+	// 清理 cookie 末尾多余分号/空格
+	cookie = strings.TrimRight(strings.TrimSpace(cookie), "; ")
+
 	// passToken 模式：先通过 SSO 刷新获取 serviceToken
 	var serviceCookie string
 	if isPassToken {
