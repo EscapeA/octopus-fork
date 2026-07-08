@@ -99,6 +99,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
     const [apiKey, setApiKey] = useState('');
     const [forwardApiKey, setForwardApiKey] = useState('');
     const [customName, setCustomName] = useState('');
+    const [mimoAuthMode, setMimoAuthMode] = useState<'passToken' | 'serviceToken'>('serviceToken');
 
     const isConsoleTokenPlan = selectedCategory === 'stepfun_plan' || selectedCategory === 'sensenova_plan' || selectedCategory === 'mimo_plan';
     const isMiMoPlan = selectedCategory === 'mimo_plan';
@@ -119,6 +120,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
             setApiKey('');
             setForwardApiKey('');
             setCustomName('');
+            setMimoAuthMode('serviceToken');
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : '添加失败';
             toast.error(msg);
@@ -152,7 +154,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
             {/* Header */}
             <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold">{title}</h2>
-                <Dialog open={addOpen} onOpenChange={setAddOpen}>
+                <Dialog open={addOpen} onOpenChange={(open) => { setAddOpen(open); if (!open) { setMimoAuthMode('serviceToken'); setApiKey(''); } }}>
                     <DialogTrigger asChild>
                         <Button size="sm" className="rounded-xl gap-1.5">
                             <Plus className="size-4" />
@@ -207,10 +209,40 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                             ? (t('plan.consoleTokenLabel') || '控制台 Token')
                                             : (t('plan.apiKeyLabel') || 'API Key')}
                                 </label>
+                                {isMiMoPlan && (
+                                    <div className="flex gap-4 text-sm">
+                                        <label className="flex items-center gap-1.5 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="mimoAuthMode"
+                                                value="passToken"
+                                                checked={mimoAuthMode === 'passToken'}
+                                                onChange={() => { setMimoAuthMode('passToken'); setApiKey(''); }}
+                                                className="accent-primary"
+                                            />
+                                            <span className="text-foreground">passToken</span>
+                                            <span className="text-xs text-muted-foreground">（自动刷新，安全风险高）</span>
+                                        </label>
+                                        <label className="flex items-center gap-1.5 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="mimoAuthMode"
+                                                value="serviceToken"
+                                                checked={mimoAuthMode === 'serviceToken'}
+                                                onChange={() => { setMimoAuthMode('serviceToken'); setApiKey(''); }}
+                                                className="accent-primary"
+                                            />
+                                            <span className="text-foreground">serviceToken</span>
+                                            <span className="text-xs text-muted-foreground">（有效期 1 天）</span>
+                                        </label>
+                                    </div>
+                                )}
                                 <Input
                                     type="password"
                                     placeholder={isMiMoPlan
-                                        ? (t('plan.mimoCookiePlaceholder') || '粘贴浏览器 Cookie（需包含 api-platform_serviceToken）')
+                                        ? (mimoAuthMode === 'passToken'
+                                            ? (t('plan.mimoPassTokenPlaceholder') || '粘贴小米账号 Cookie（需包含 passToken= 字段）')
+                                            : (t('plan.mimoServiceTokenPlaceholder') || '粘贴 MiMo 平台 Cookie（需包含 api-platform_serviceToken 字段）'))
                                         : isConsoleTokenPlan
                                             ? (selectedInfo?.category === 'sensenova_plan'
                                                 ? (t('plan.sensenovaTokenPlaceholder') || '粘贴控制台 Bearer Token 值')
@@ -219,13 +251,21 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                     value={apiKey}
                                     onChange={(e) => setApiKey(e.target.value)}
                                 />
-                                {isConsoleTokenPlan && (
+                                {isMiMoPlan && mimoAuthMode === 'passToken' && (
+                                    <p className="text-xs text-red-500">
+                                        ⚠️ 安全警告：passToken 是小米账号的长期会话凭证，<strong>安全风险极高</strong>。passToken 可能可以换取小米云、小米社区、MiMo 等任何接入小米账号体系的服务的 Token（未验证）。请自行判断是否需要使用。填入后系统将自动通过 SSO 刷新 serviceToken。
+                                    </p>
+                                )}
+                                {isMiMoPlan && mimoAuthMode === 'serviceToken' && (
                                     <p className="text-xs text-amber-500">
-                                        {isMiMoPlan
-                                            ? (t('plan.mimoCookieHint') || '需登录 platform.xiaomimimo.com，按 F12 打开开发者工具 → Network → 刷新页面 → 任意请求的 Cookie 字段，复制完整内容。有效期未知，疑似长期有效。')
-                                            : selectedInfo?.category === 'sensenova_plan'
-                                                ? (t('plan.sensenovaTokenHint') || '需登录 platform.sensenova.cn 控制台，从请求头复制 Bearer Token 值。有效期约 3 小时，过期后需重新获取。')
-                                                : (t('plan.oasisTokenHint') || '需登录 platform.stepfun.com 控制台，从浏览器 Cookie 复制 Oasis-Token 值（格式：access...refresh）。该 Token 有效期约 30 分钟，过期后需重新获取。')}
+                                        需登录 platform.xiaomimimo.com，按 F12 → Application → Cookies 复制。有效期约 1 天，过期后需手动更新。
+                                    </p>
+                                )}
+                                {isConsoleTokenPlan && !isMiMoPlan && (
+                                    <p className="text-xs text-amber-500">
+                                        {selectedInfo?.category === 'sensenova_plan'
+                                            ? (t('plan.sensenovaTokenHint') || '需登录 platform.sensenova.cn 控制台，从请求头复制 Bearer Token 值。有效期约 3 小时，过期后需重新获取。')
+                                            : (t('plan.oasisTokenHint') || '需登录 platform.stepfun.com 控制台，从浏览器 Cookie 复制 Oasis-Token 值（格式：access...refresh）。该 Token 有效期约 30 分钟，过期后需重新获取。')}
                                     </p>
                                 )}
                             </div>

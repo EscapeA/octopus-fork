@@ -623,30 +623,43 @@ func decodeSenseNovaAccountID(token string) string {
 
 // --- MiMo Token Plan (小米 MiMo Coding Plan) ---
 //
-// 使用浏览器 Cookie 鉴权查询小米 MiMo 套餐用量。
-// 鉴权信息：Cookie 中的 api-platform_serviceToken + userId + api-platform_slh + api-platform_ph。
-// Cookie 有效期较长（实测数天到数周），过期后需用户重新从浏览器获取。
+// 支持两种鉴权模式：
+//   - serviceToken 模式：用户提供完整浏览器 Cookie（含 api-platform_serviceToken），有效期约 1 天
+//   - passToken 模式：用户提供小米账号 SSO Cookie（含 passToken=），系统通过 SSO 自动刷新 serviceToken，可长期有效
 //
 // API 端点：
 //   - 用量：GET https://platform.xiaomimimo.com/api/v1/tokenPlan/usage
 //   - 详情：GET https://platform.xiaomimimo.com/api/v1/tokenPlan/detail
-//
-// apiKey 参数传入完整的 Cookie 字符串。
 var mimoPlanUsageURL = "https://platform.xiaomimimo.com/api/v1/tokenPlan/usage"
 var mimoPlanDetailURL = "https://platform.xiaomimimo.com/api/v1/tokenPlan/detail"
+var mimoGenLoginURL = "https://platform.xiaomimimo.com/api/v1/genLoginUrl?currentPath=%2Fconsole%2Fplan-manage"
 
 func queryMiMoPlanTokenPlan(ctx context.Context, cookie string) (*TokenPlanResult, error) {
 	if cookie == "" {
-		return nil, fmt.Errorf("mimo_plan: cookie 不能为空，请在浏览器登录 platform.xiaomimimo.com 后从开发者工具复制 Cookie")
+		return nil, fmt.Errorf("mimo_plan: cookie 不能为空")
 	}
 
-	// 验证 cookie 中包含必要的字段
-	if !strings.Contains(cookie, "api-platform_serviceToken") {
-		return nil, fmt.Errorf("mimo_plan: Cookie 缺少 api-platform_serviceToken 字段，请确保复制了完整的 Cookie（需包含 api-platform_serviceToken、userId、api-platform_slh、api-platform_ph）")
+	isPassToken := strings.Contains(cookie, "passToken=")
+	isServiceToken := strings.Contains(cookie, "api-platform_serviceToken")
+
+	if !isPassToken && !isServiceToken {
+		return nil, fmt.Errorf("mimo_plan: Cookie 缺少有效的鉴权字段，需包含 passToken= 或 api-platform_serviceToken")
 	}
 
-	// 1. 查询用量
-	usageBody, err := doMiMoGet(ctx, mimoPlanUsageURL, cookie)
+	// passToken 模式：先通过 SSO 刷新获取 serviceToken
+	var serviceCookie string
+	if isPassToken {
+		var err error
+		serviceCookie, err = refreshMiMoServiceToken(ctx, cookie)
+		if err != nil {
+			return nil, fmt.Errorf("mimo_plan: passToken 刷新 serviceToken 失败: %w", err)
+		}
+	} else {
+		serviceCookie = cookie
+	}
+
+	// 查询用量
+	usageBody, err := doMiMoGet(ctx, mimoPlanUsageURL, serviceCookie)
 	if err != nil {
 		return nil, fmt.Errorf("mimo_plan: query usage: %w", err)
 	}
@@ -682,8 +695,8 @@ func queryMiMoPlanTokenPlan(ctx context.Context, cookie string) (*TokenPlanResul
 		return nil, fmt.Errorf("mimo_plan: API error code=%d msg=%s", usageResp.Code, usageResp.Message)
 	}
 
-	// 2. 查询套餐详情（获取到期时间）
-	detailBody, err := doMiMoGet(ctx, mimoPlanDetailURL, cookie)
+	// 查询套餐详情（获取到期时间）
+	detailBody, err := doMiMoGet(ctx, mimoPlanDetailURL, serviceCookie)
 	if err != nil {
 		return nil, fmt.Errorf("mimo_plan: query detail: %w", err)
 	}
@@ -706,7 +719,7 @@ func queryMiMoPlanTokenPlan(ctx context.Context, cookie string) (*TokenPlanResul
 		return nil, fmt.Errorf("mimo_plan: detail API error code=%d msg=%s", detailResp.Code, detailResp.Message)
 	}
 
-	// 3. 组装结果。MiMo 会把订阅额度、补偿额度等拆成多个 item，展示层需要总量。
+	// 组装结果。MiMo 会把订阅额度、补偿额度等拆成多个 item，展示层需要总量。
 	result := &TokenPlanResult{}
 	for _, item := range usageResp.Data.Usage.Items {
 		result.QuotaTotal += item.Limit
@@ -719,7 +732,6 @@ func queryMiMoPlanTokenPlan(ctx context.Context, cookie string) (*TokenPlanResul
 
 	// 到期时间
 	if detailResp.Data.CurrentPeriodEnd != "" {
-		// 格式: "2006-01-02 15:04:05"
 		if t, err := time.ParseInLocation("2006-01-02 15:04:05", detailResp.Data.CurrentPeriodEnd, time.Local); err == nil {
 			result.QuotaResetAt = &t
 		}
@@ -735,6 +747,138 @@ func queryMiMoPlanTokenPlan(ctx context.Context, cookie string) (*TokenPlanResul
 	}
 
 	return result, nil
+}
+
+// refreshMiMoServiceToken 通过小米 SSO 流程用 passToken 获取新的 serviceToken Cookie。
+//
+// 流程：
+//  1. GET genLoginUrl → 302 重定向到 account.xiaomi.com/pass/serviceLogin
+//  2. 带 passToken Cookie 访问 SSO → 302 重定向到 /sts?auth=...
+//  3. 访问 /sts → Set-Cookie 返回 api-platform_serviceToken 等
+func refreshMiMoServiceToken(ctx context.Context, passTokenCookie string) (string, error) {
+	// Step 1: 获取 SSO 登录 URL
+	ssoURL, err := mimoFollowRedirect(ctx, mimoGenLoginURL, "")
+	if err != nil {
+		return "", fmt.Errorf("genLoginUrl: %w", err)
+	}
+
+	// Step 2: 带 passToken 访问 SSO，获取 /sts 回调 URL
+	stsURL, err := mimoFollowRedirect(ctx, ssoURL, passTokenCookie)
+	if err != nil {
+		return "", fmt.Errorf("SSO authentication: %w", err)
+	}
+
+	// Step 3: 访问 /sts，从 Set-Cookie 提取 serviceToken
+	serviceCookie, err := mimoGetServiceCookie(ctx, stsURL, passTokenCookie)
+	if err != nil {
+		return "", fmt.Errorf("/sts callback: %w", err)
+	}
+
+	return serviceCookie, nil
+}
+
+// mimoFollowRedirect 发送 GET 请求并返回 Location 头（不自动跟随重定向）。
+func mimoFollowRedirect(ctx context.Context, reqURL, cookie string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return "", err
+	}
+	if cookie != "" {
+		req.Header.Set("Cookie", cookie)
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36")
+	req.Header.Set("Referer", "https://platform.xiaomimimo.com/")
+
+	client := &http.Client{
+		Timeout: requestTimeout,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if loc := resp.Header.Get("Location"); loc != "" {
+		return loc, nil
+	}
+	// 有些情况下 302 可能没有 Location 但有 JSON body
+	if resp.StatusCode >= 300 && resp.StatusCode < 400 {
+		return "", fmt.Errorf("redirect without Location header (status %d)", resp.StatusCode)
+	}
+	return "", fmt.Errorf("expected redirect but got status %d", resp.StatusCode)
+}
+
+// mimoGetServiceCookie 访问 /sts 回调并从 Set-Cookie 提取 serviceToken 构造完整 Cookie 字符串。
+func mimoGetServiceCookie(ctx context.Context, stsURL, passTokenCookie string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, stsURL, nil)
+	if err != nil {
+		return "", err
+	}
+	if passTokenCookie != "" {
+		req.Header.Set("Cookie", passTokenCookie)
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36")
+
+	client := &http.Client{
+		Timeout: requestTimeout,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var serviceToken, userId, slh, ph string
+	for _, sc := range resp.Header.Values("Set-Cookie") {
+		if v := extractMiMoCookieValue(sc, "api-platform_serviceToken"); v != "" {
+			serviceToken = v
+		}
+		if v := extractMiMoCookieValue(sc, "userId"); v != "" {
+			userId = v
+		}
+		if v := extractMiMoCookieValue(sc, "api-platform_slh"); v != "" {
+			slh = v
+		}
+		if v := extractMiMoCookieValue(sc, "api-platform_ph"); v != "" {
+			ph = v
+		}
+	}
+
+	if serviceToken == "" {
+		return "", fmt.Errorf("Set-Cookie 中未找到 api-platform_serviceToken (status %d)", resp.StatusCode)
+	}
+
+	var parts []string
+	parts = append(parts, fmt.Sprintf(`api-platform_serviceToken="%s"`, serviceToken))
+	if userId != "" {
+		parts = append(parts, "userId="+userId)
+	}
+	if slh != "" {
+		parts = append(parts, fmt.Sprintf(`api-platform_slh="%s"`, slh))
+	}
+	if ph != "" {
+		parts = append(parts, fmt.Sprintf(`api-platform_ph="%s"`, ph))
+	}
+	return strings.Join(parts, "; "), nil
+}
+
+// extractMiMoCookieValue 从 Set-Cookie 头中提取指定 Cookie 的值。
+func extractMiMoCookieValue(setCookie, name string) string {
+	prefix := name + "="
+	for _, part := range strings.Split(setCookie, ";") {
+		part = strings.TrimSpace(part)
+		if strings.HasPrefix(part, prefix) {
+			val := strings.TrimPrefix(part, prefix)
+			return strings.Trim(val, `"`)
+		}
+	}
+	return ""
 }
 
 // doMiMoGet 执行 MiMo 平台的 GET 请求，使用 Cookie 鉴权。
