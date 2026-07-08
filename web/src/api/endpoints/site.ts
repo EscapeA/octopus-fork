@@ -83,6 +83,7 @@ export type SiteAccount = {
   enabled: boolean;
   auto_sync: boolean;
   auto_checkin: boolean;
+  skip_model_sync: boolean;
   random_checkin: boolean;
   checkin_interval_hours: number;
   checkin_random_window_minutes: number;

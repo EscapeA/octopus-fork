@@ -10,7 +10,7 @@ import {
     type ReactNode,
 } from 'react';
 import { useTranslations } from 'next-intl';
-import { CalendarCheck2, RefreshCw, UserRound, XIcon } from 'lucide-react';
+import { CalendarCheck2, ListFilter, RefreshCw, UserRound, XIcon } from 'lucide-react';
 import { AnimatePresence, motion, type Transition } from 'motion/react';
 import {
     Dialog,
@@ -57,6 +57,7 @@ type SiteAccountFormState = {
     enabled: boolean;
     auto_sync: boolean;
     auto_checkin: boolean;
+    skip_model_sync: boolean;
     random_checkin: boolean;
     checkin_interval_hours: number;
     checkin_random_window_minutes: number;
@@ -148,6 +149,7 @@ function createEmptyAccountForm(site: SiteRecord): SiteAccountFormState {
         enabled: true,
         auto_sync: true,
         auto_checkin: true,
+        skip_model_sync: false,
         random_checkin: false,
         checkin_interval_hours: 24,
         checkin_random_window_minutes: 120,
@@ -175,6 +177,7 @@ function createAccountForm(account: SiteAccount): SiteAccountFormState {
         auto_sync: account.auto_sync,
         auto_checkin: account.auto_checkin,
         random_checkin: account.random_checkin,
+        skip_model_sync: account.skip_model_sync,
         checkin_interval_hours: account.checkin_interval_hours,
         checkin_random_window_minutes: account.checkin_random_window_minutes,
     };
@@ -356,6 +359,7 @@ export function AccountEditDialog({ open, onOpenChange, site, account }: Account
                 auto_sync: accountForm.auto_sync,
                 auto_checkin: accountForm.auto_checkin,
                 random_checkin: accountForm.random_checkin,
+                skip_model_sync: accountForm.skip_model_sync,
                 checkin_interval_hours: Math.max(
                     1,
                     Math.trunc(accountForm.checkin_interval_hours || 24),
@@ -690,6 +694,22 @@ export function AccountEditDialog({ open, onOpenChange, site, account }: Account
                                         onCheckedChange={(checked) =>
                                             setAccountForm((current) =>
                                                 current ? { ...current, auto_sync: checked } : current,
+                                            )
+                                        }
+                                    />
+                                </label>
+                                <label className="flex cursor-pointer items-center justify-between gap-3">
+                                    <span className="flex items-center gap-2 text-sm text-card-foreground">
+                                        <ListFilter className="size-4 text-muted-foreground" />
+                                        跳过模型同步
+                                    </span>
+                                    <Switch
+                                        checked={accountForm.skip_model_sync}
+                                        onCheckedChange={(checked) =>
+                                            setAccountForm((current) =>
+                                                current
+                                                    ? { ...current, skip_model_sync: checked }
+                                                    : current,
                                             )
                                         }
                                     />

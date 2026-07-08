@@ -17,6 +17,10 @@ const (
 	siteGroupSyncStatusUnresolved siteGroupSyncStatus = "unresolved"
 	siteGroupSyncStatusFailed     siteGroupSyncStatus = "failed"
 	siteGroupSyncStatusRemoved    siteGroupSyncStatus = "removed"
+	// siteGroupSyncStatusSkipped 表示该分组跳过了模型列表同步（SkipModelSync=true）。
+	// 不计入失败（hasGroupSyncFailure 返回 false），Authoritative=true 使整体状态为 Success，
+	// 且不进入 replaceGroups，persistSyncSnapshot 保留历史模型（issue #130）。
+	siteGroupSyncStatusSkipped siteGroupSyncStatus = "skipped"
 )
 
 type siteGroupSyncResult struct {
@@ -73,6 +77,9 @@ func buildSyncSnapshotMessage(results []siteGroupSyncResult) string {
 	}
 	if counts[siteGroupSyncStatusRemoved] > 0 {
 		parts = append(parts, fmt.Sprintf("移除 %d 个分组", counts[siteGroupSyncStatusRemoved]))
+	}
+	if counts[siteGroupSyncStatusSkipped] > 0 {
+		parts = append(parts, fmt.Sprintf("跳过 %d 个分组的模型同步", counts[siteGroupSyncStatusSkipped]))
 	}
 	if counts[siteGroupSyncStatusUnresolved] > 0 || counts[siteGroupSyncStatusFailed] > 0 {
 		parts = append(parts, fmt.Sprintf("保留 %d 个分组的历史模型", counts[siteGroupSyncStatusUnresolved]+counts[siteGroupSyncStatusFailed]))

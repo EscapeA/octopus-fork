@@ -119,24 +119,29 @@ func (s *Site) UnmarshalJSON(data []byte) error {
 }
 
 type SiteAccount struct {
-	ID                         int                  `json:"id" gorm:"primaryKey"`
-	SiteID                     int                  `json:"site_id" gorm:"index;not null"`
-	Name                       string               `json:"name" gorm:"not null"`
-	CredentialType             SiteCredentialType   `json:"credential_type" gorm:"type:varchar(32);not null"`
-	Username                   string               `json:"username"`
-	Password                   string               `json:"password"`
-	AccessToken                string               `json:"access_token"`
-	APIKey                     string               `json:"api_key"`
-	RefreshToken               string               `json:"refresh_token"`
-	TokenExpiresAt             int64                `json:"token_expires_at" gorm:"default:0"`
-	PlatformUserID             *int                 `json:"platform_user_id"`
-	ProxyMode                  ProxyUsageMode       `json:"proxy_mode" gorm:"type:varchar(16);not null;default:'inherit'"`
-	ProxyConfigID              *int                 `json:"proxy_config_id"`
-	AccountProxy               *string              `json:"account_proxy,omitempty" gorm:"column:account_proxy"`
-	Enabled                    bool                 `json:"enabled" gorm:"default:true"`
-	EnabledSet                 bool                 `json:"-" gorm:"-"`
-	AutoSync                   bool                 `json:"auto_sync" gorm:"default:true"`
-	AutoSyncSet                bool                 `json:"-" gorm:"-"`
+	ID             int                `json:"id" gorm:"primaryKey"`
+	SiteID         int                `json:"site_id" gorm:"index;not null"`
+	Name           string             `json:"name" gorm:"not null"`
+	CredentialType SiteCredentialType `json:"credential_type" gorm:"type:varchar(32);not null"`
+	Username       string             `json:"username"`
+	Password       string             `json:"password"`
+	AccessToken    string             `json:"access_token"`
+	APIKey         string             `json:"api_key"`
+	RefreshToken   string             `json:"refresh_token"`
+	TokenExpiresAt int64              `json:"token_expires_at" gorm:"default:0"`
+	PlatformUserID *int               `json:"platform_user_id"`
+	ProxyMode      ProxyUsageMode     `json:"proxy_mode" gorm:"type:varchar(16);not null;default:'inherit'"`
+	ProxyConfigID  *int               `json:"proxy_config_id"`
+	AccountProxy   *string            `json:"account_proxy,omitempty" gorm:"column:account_proxy"`
+	Enabled        bool               `json:"enabled" gorm:"default:true"`
+	EnabledSet     bool               `json:"-" gorm:"-"`
+	AutoSync       bool               `json:"auto_sync" gorm:"default:true"`
+	AutoSyncSet    bool               `json:"-" gorm:"-"`
+	// SkipModelSync 为 true 时，站点账号同步只拉取令牌/分组/余额，跳过模型列表
+	// 拉取（fetchModelsForSiteToken / syncSiteModelsByGroup），保留历史模型不变。
+	// 适用于上游模型列表接口不稳定或用户不想被同步覆盖模型配置的场景（issue #130）。
+	SkipModelSync              bool                 `json:"skip_model_sync" gorm:"default:false"`
+	SkipModelSyncSet           bool                 `json:"-" gorm:"-"`
 	AutoCheckin                bool                 `json:"auto_checkin" gorm:"default:true"`
 	AutoCheckinSet             bool                 `json:"-" gorm:"-"`
 	RandomCheckin              bool                 `json:"random_checkin" gorm:"default:false"`
@@ -174,6 +179,7 @@ func (a *SiteAccount) UnmarshalJSON(data []byte) error {
 	_, a.EnabledSet = raw["enabled"]
 	_, a.AutoSyncSet = raw["auto_sync"]
 	_, a.AutoCheckinSet = raw["auto_checkin"]
+	_, a.SkipModelSyncSet = raw["skip_model_sync"]
 	if aux.AccountProxy != nil {
 		a.AccountProxy = aux.AccountProxy
 	}
@@ -289,6 +295,7 @@ type SiteAccountUpdateRequest struct {
 	Enabled                    *bool               `json:"enabled,omitempty"`
 	AutoSync                   *bool               `json:"auto_sync,omitempty"`
 	AutoCheckin                *bool               `json:"auto_checkin,omitempty"`
+	SkipModelSync              *bool               `json:"skip_model_sync,omitempty"`
 	RandomCheckin              *bool               `json:"random_checkin,omitempty"`
 	CheckinIntervalHours       *int                `json:"checkin_interval_hours,omitempty"`
 	CheckinRandomWindowMinutes *int                `json:"checkin_random_window_minutes,omitempty"`

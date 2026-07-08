@@ -1637,6 +1637,9 @@ export function Site() {
                                             : "自动签到"
                                           : "手动签到"}
                                       </span>
+                                      {account.skip_model_sync && (
+                                        <span>跳过模型同步</span>
+                                      )}
                                       <span>
                                         {account.proxy_mode === "inherit"
                                           ? tProxy('site.inherit')

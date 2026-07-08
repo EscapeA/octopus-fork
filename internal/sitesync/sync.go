@@ -139,26 +139,32 @@ func syncManagementPlatform(ctx context.Context, siteRecord *model.Site, account
 		}
 		return filterSessionFallbackModelsByGroup(sessionModels, token.GroupKey, loadSessionDetections()), nil
 	}
-	siteModels, tokenGroupResults := syncSiteModelsByGroup(
-		ctx,
-		siteRecord,
-		account,
-		accessToken,
-		groupTokens,
-		firstManagedPlatformUserID(account),
-		siteModelSourceSync,
-		func(token model.SiteToken, allowGlobalFallback bool) (siteModelFetchResult, error) {
-			if siteRecord.Platform == model.SitePlatformNewAPI {
-				return fetchManagementModels(ctx, siteRecord, account, accessToken, token, sessionFallbackFetcher)
-			}
-			models, err := fetchModelsForSiteToken(ctx, siteRecord, account, token)
-			message := "上游当前没有可用模型"
-			if len(models) > 0 {
-				message = fmt.Sprintf("同步到 %d 个模型", len(models))
-			}
-			return siteModelFetchResult{names: models, source: siteModelSourceSync, authoritative: err == nil, message: message}, err
-		},
-	)
+	var siteModels []model.SiteModel
+	var tokenGroupResults []siteGroupSyncResult
+	if account.SkipModelSync {
+		siteModels, tokenGroupResults = skipModelSyncGroupResults(groupTokens)
+	} else {
+		siteModels, tokenGroupResults = syncSiteModelsByGroup(
+			ctx,
+			siteRecord,
+			account,
+			accessToken,
+			groupTokens,
+			firstManagedPlatformUserID(account),
+			siteModelSourceSync,
+			func(token model.SiteToken, allowGlobalFallback bool) (siteModelFetchResult, error) {
+				if siteRecord.Platform == model.SitePlatformNewAPI {
+					return fetchManagementModels(ctx, siteRecord, account, accessToken, token, sessionFallbackFetcher)
+				}
+				models, err := fetchModelsForSiteToken(ctx, siteRecord, account, token)
+				message := "上游当前没有可用模型"
+				if len(models) > 0 {
+					message = fmt.Sprintf("同步到 %d 个模型", len(models))
+				}
+				return siteModelFetchResult{names: models, source: siteModelSourceSync, authoritative: err == nil, message: message}, err
+			},
+		)
+	}
 	siteModels = expandExplicitGroupModelsToGroups(siteModels, groups, tokens)
 	groupResults := finalizeSiteGroupSyncResults(account, groups, tokens, siteModels, tokenGroupResults)
 	status := buildSyncSnapshotStatus(groupResults)
@@ -213,23 +219,29 @@ func syncSub2APIWithAccessToken(ctx context.Context, siteRecord *model.Site, acc
 		groups = nil
 	}
 	groups = mergeSiteGroups(groups, tokens)
-	siteModels, tokenGroupResults := syncSiteModelsByGroup(
-		ctx,
-		siteRecord,
-		account,
-		accessToken,
-		pickModelTokensByGroup(tokens),
-		0,
-		siteModelSourceSync,
-		func(token model.SiteToken, allowGlobalFallback bool) (siteModelFetchResult, error) {
-			models, err := fetchModelsForSiteToken(ctx, siteRecord, account, token)
-			message := "上游当前没有可用模型"
-			if len(models) > 0 {
-				message = fmt.Sprintf("同步到 %d 个模型", len(models))
-			}
-			return siteModelFetchResult{names: models, source: siteModelSourceSync, authoritative: err == nil, message: message}, err
-		},
-	)
+	var siteModels []model.SiteModel
+	var tokenGroupResults []siteGroupSyncResult
+	if account.SkipModelSync {
+		siteModels, tokenGroupResults = skipModelSyncGroupResults(pickModelTokensByGroup(tokens))
+	} else {
+		siteModels, tokenGroupResults = syncSiteModelsByGroup(
+			ctx,
+			siteRecord,
+			account,
+			accessToken,
+			pickModelTokensByGroup(tokens),
+			0,
+			siteModelSourceSync,
+			func(token model.SiteToken, allowGlobalFallback bool) (siteModelFetchResult, error) {
+				models, err := fetchModelsForSiteToken(ctx, siteRecord, account, token)
+				message := "上游当前没有可用模型"
+				if len(models) > 0 {
+					message = fmt.Sprintf("同步到 %d 个模型", len(models))
+				}
+				return siteModelFetchResult{names: models, source: siteModelSourceSync, authoritative: err == nil, message: message}, err
+			},
+		)
+	}
 	siteModels = expandExplicitGroupModelsToGroups(siteModels, groups, tokens)
 	groupResults := finalizeSiteGroupSyncResults(account, groups, tokens, siteModels, tokenGroupResults)
 	status := buildSyncSnapshotStatus(groupResults)
@@ -249,34 +261,51 @@ func syncWithDirectToken(ctx context.Context, siteRecord *model.Site, account *m
 	if token == "" {
 		return nil, newDirectTokenRequiredError()
 	}
-	models, err := fetchModelsForSiteToken(ctx, siteRecord, account, model.SiteToken{Token: token, GroupKey: model.SiteDefaultGroupKey, GroupName: model.SiteDefaultGroupName, Enabled: true})
-	if err != nil {
-		return nil, err
-	}
 	groupToken := model.SiteToken{Name: "default", Token: token, GroupKey: model.SiteDefaultGroupKey, GroupName: model.SiteDefaultGroupName, Enabled: true, Source: source, IsDefault: true}
-	siteModels := buildSiteModels(models, model.SiteDefaultGroupKey, source)
-	siteModels = applyDetectedRoutesToSiteModels(
-		ctx,
-		siteRecord,
-		account,
-		strings.TrimSpace(account.AccessToken),
-		groupToken,
-		firstManagedPlatformUserID(account),
-		siteModels,
-	)
-	baseGroupResult := siteGroupSyncResult{
-		GroupKey:      model.SiteDefaultGroupKey,
-		GroupName:     model.SiteDefaultGroupName,
-		HasKey:        true,
-		Authoritative: true,
-		ModelCount:    len(siteModels),
-	}
-	if len(siteModels) > 0 {
-		baseGroupResult.Status = siteGroupSyncStatusSynced
-		baseGroupResult.Message = fmt.Sprintf("同步到 %d 个模型", len(siteModels))
+	var siteModels []model.SiteModel
+	var baseGroupResult siteGroupSyncResult
+	if account.SkipModelSync {
+		_, skipResults := skipModelSyncGroupResults([]model.SiteToken{groupToken})
+		if len(skipResults) > 0 {
+			baseGroupResult = skipResults[0]
+		} else {
+			baseGroupResult = siteGroupSyncResult{
+				GroupKey:  model.SiteDefaultGroupKey,
+				GroupName: model.SiteDefaultGroupName,
+				HasKey:    true,
+				Status:    siteGroupSyncStatusUnresolved,
+				Message:   "已跳过模型列表同步，保留历史模型",
+			}
+		}
 	} else {
-		baseGroupResult.Status = siteGroupSyncStatusEmpty
-		baseGroupResult.Message = "上游当前没有可用模型"
+		models, err := fetchModelsForSiteToken(ctx, siteRecord, account, model.SiteToken{Token: token, GroupKey: model.SiteDefaultGroupKey, GroupName: model.SiteDefaultGroupName, Enabled: true})
+		if err != nil {
+			return nil, err
+		}
+		siteModels = buildSiteModels(models, model.SiteDefaultGroupKey, source)
+		siteModels = applyDetectedRoutesToSiteModels(
+			ctx,
+			siteRecord,
+			account,
+			strings.TrimSpace(account.AccessToken),
+			groupToken,
+			firstManagedPlatformUserID(account),
+			siteModels,
+		)
+		baseGroupResult = siteGroupSyncResult{
+			GroupKey:      model.SiteDefaultGroupKey,
+			GroupName:     model.SiteDefaultGroupName,
+			HasKey:        true,
+			Authoritative: true,
+			ModelCount:    len(siteModels),
+		}
+		if len(siteModels) > 0 {
+			baseGroupResult.Status = siteGroupSyncStatusSynced
+			baseGroupResult.Message = fmt.Sprintf("同步到 %d 个模型", len(siteModels))
+		} else {
+			baseGroupResult.Status = siteGroupSyncStatusEmpty
+			baseGroupResult.Message = "上游当前没有可用模型"
+		}
 	}
 	groupResults := finalizeSiteGroupSyncResults(account, []model.SiteUserGroup{{GroupKey: model.SiteDefaultGroupKey, Name: model.SiteDefaultGroupName}}, []model.SiteToken{groupToken}, siteModels, []siteGroupSyncResult{{
 		GroupKey:      baseGroupResult.GroupKey,

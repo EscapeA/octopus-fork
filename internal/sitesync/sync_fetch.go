@@ -721,6 +721,25 @@ func syncSiteModelsByGroup(
 	return models, results
 }
 
+// skipModelSyncGroupResults 为每个分组生成「未确认模型」结果（siteGroupSyncStatusUnresolved），
+// 用于 SkipModelSync=true 时跳过模型拉取但仍同步令牌/分组/余额的场景（issue #130）。
+// Unresolved 状态不进入 replaceGroups，persistSyncSnapshot 会保留该分组的历史模型。
+// 返回空的 models 切片（不新增模型）+ 每个分组的 Unresolved 结果。
+func skipModelSyncGroupResults(groupTokens []model.SiteToken) ([]model.SiteModel, []siteGroupSyncResult) {
+	results := make([]siteGroupSyncResult, 0, len(groupTokens))
+	for _, token := range groupTokens {
+		results = append(results, siteGroupSyncResult{
+			GroupKey:      model.NormalizeSiteGroupKey(token.GroupKey),
+			GroupName:     model.NormalizeSiteGroupName(token.GroupKey, token.GroupName),
+			HasKey:        strings.TrimSpace(token.Token) != "",
+			Status:        siteGroupSyncStatusSkipped,
+			Authoritative: true,
+			Message:       "已跳过模型列表同步，保留历史模型",
+		})
+	}
+	return nil, results
+}
+
 func expandExplicitGroupModelsToGroups(
 	items []model.SiteModel,
 	groups []model.SiteUserGroup,

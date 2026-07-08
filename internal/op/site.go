@@ -497,6 +497,10 @@ func SiteAccountUpdate(req *model.SiteAccountUpdateRequest, ctx context.Context)
 		merged.AutoCheckin = *req.AutoCheckin
 		selectFields = append(selectFields, "auto_checkin")
 	}
+	if req.SkipModelSync != nil {
+		merged.SkipModelSync = *req.SkipModelSync
+		selectFields = append(selectFields, "skip_model_sync")
+	}
 	if req.RandomCheckin != nil {
 		merged.RandomCheckin = *req.RandomCheckin
 		selectFields = append(selectFields, "random_checkin")
@@ -561,6 +565,9 @@ func SiteAccountUpdate(req *model.SiteAccountUpdateRequest, ctx context.Context)
 	}
 	if req.AutoCheckin != nil {
 		updates.AutoCheckin = merged.AutoCheckin
+	}
+	if req.SkipModelSync != nil {
+		updates.SkipModelSync = merged.SkipModelSync
 	}
 	if req.RandomCheckin != nil {
 		updates.RandomCheckin = merged.RandomCheckin
