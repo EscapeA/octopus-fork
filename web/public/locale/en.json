@@ -158,10 +158,10 @@
       "sensenovaTokenPlaceholder": "Paste console Bearer Token value",
       "sensenovaTokenHint": "Log in to platform.sensenova.cn console, copy the Bearer Token from request headers. Valid for ~3 hours; re-obtain after expiry.",
       "cookieLabel": "Cookie",
-      "mimoPassTokenPlaceholder": "Paste full Cookie from account.xiaomi.com (must include passToken=, userId=, cUserId= fields)",
-      "mimoServiceTokenPlaceholder": "Paste full Cookie from platform.xiaomimimo.com (must include api-platform_serviceToken=, userId=, api-platform_slh=, api-platform_ph= fields)",
-      "mimoPassTokenHint": "⚠️ High security risk: passToken is a long-lived Xiaomi account session token that may grant access to Xiaomi Cloud, MiMo Community, MiMo and any service using Xiaomi account SSO (unverified). System auto-refreshes serviceToken via SSO.",
-      "mimoServiceTokenHint": "Login platform.xiaomimimo.com → F12 → Application → Cookies, copy all cookies under api-platform domain. Valid ~1 day, manual update required on expiry."
+      "mimoPassTokenPlaceholder": "Paste full Cookie from account.xiaomi.com",
+      "mimoServiceTokenPlaceholder": "Paste full Cookie from platform.xiaomimimo.com",
+      "mimoPassTokenHint": "Required fields: passToken=, userId=, cUserId=. ⚠️ High risk: passToken is a long-lived Xiaomi account token that may grant access to Xiaomi Cloud, MiMo Community, MiMo etc. (unverified). System auto-refreshes serviceToken via SSO.",
+      "mimoServiceTokenHint": "Required fields: api-platform_serviceToken=, userId=, api-platform_slh=, api-platform_ph=. Login platform.xiaomimimo.com → F12 → Application → Cookies, copy all cookies under api-platform. Valid ~1 day."
     },
     "title": "Remote Sites",
     "addSite": "Add Site",
