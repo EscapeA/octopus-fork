@@ -1,4 +1,4 @@
-import type { TranslationValues } from 'use-intl';
+import type { TranslationValues } from 'next-intl';
 import type { NotificationItem } from '@/api/endpoints/notification';
 
 /**
