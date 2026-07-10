@@ -420,27 +420,35 @@ func checkinAllSiteAccounts(c *gin.Context) {
 
 func createManualSiteAccountNotification(ctx context.Context, phase string, accountID int, result any, err error) {
 	severity := model.NotificationSeveritySuccess
-	title := fmt.Sprintf("Site account %s completed", phase)
-	content := fmt.Sprintf("Account %d %s completed successfully.", accountID, phase)
 	metadata := map[string]any{"phase": phase, "account_id": accountID, "result": result}
+	var key notifop.NotifKey
+	var contentArgs map[string]any
+	var contentFmtArgs []any
 	if err != nil {
 		severity = model.NotificationSeverityError
-		title = fmt.Sprintf("Site account %s failed", phase)
-		content = err.Error()
+		key = notifop.KeySiteAccountFail
+		contentArgs = map[string]any{"account_id": accountID, "phase": phase, "detail": err.Error()}
+		contentFmtArgs = []any{accountID, phase, err.Error()}
 		metadata["error"] = err.Error()
+	} else {
+		key = notifop.KeySiteAccountOK
+		contentArgs = map[string]any{"account_id": accountID, "phase": phase}
+		contentFmtArgs = []any{accountID, phase}
 	}
 	b, _ := json.Marshal(metadata)
-	if createErr := notifop.Create(ctx, &model.Notification{
+	n := &model.Notification{
 		Type:         model.NotificationTypeSite,
 		Severity:     severity,
-		Title:        title,
-		Content:      content,
 		Source:       fmt.Sprintf("site_account_%s", phase),
 		SourceID:     strconv.Itoa(accountID),
 		DedupeKey:    fmt.Sprintf("site_account:%s:%d:%d", phase, accountID, time.Now().UnixMilli()),
 		MetadataJSON: string(b),
 		Link:         "hub",
-	}); createErr != nil {
+	}
+	notifop.SetMessage(n, key, key,
+		map[string]any{"phase": phase}, contentArgs,
+		[]any{phase}, contentFmtArgs)
+	if createErr := notifop.Create(ctx, n); createErr != nil {
 		log.Warnf("notification: failed to create site account notification: %v", createErr)
 	}
 }
@@ -452,8 +460,8 @@ func createSiteBatchNotification(ctx context.Context, summary sitesync.SiteBatch
 	} else if summary.Warnings > 0 || summary.Partial > 0 || summary.Skipped > 0 {
 		severity = model.NotificationSeverityWarning
 	}
-	title := fmt.Sprintf("Site %s completed", summary.Phase)
-	content := fmt.Sprintf("%s: success=%d partial=%d failed=%d skipped=%d warnings=%d", summary.Trigger, summary.Success, summary.Partial, summary.Failed, summary.Skipped, summary.Warnings)
+	phase := string(summary.Phase)
+	trigger := string(summary.Trigger)
 	metadata, _ := json.Marshal(map[string]any{
 		"phase":         summary.Phase,
 		"trigger":       summary.Trigger,
@@ -468,17 +476,28 @@ func createSiteBatchNotification(ctx context.Context, summary sitesync.SiteBatch
 		"cancel_reason": summary.CancelReason,
 		"samples":       summary.Samples,
 	})
-	if err := notifop.Create(ctx, &model.Notification{
+	n := &model.Notification{
 		Type:         model.NotificationTypeSite,
 		Severity:     severity,
-		Title:        title,
-		Content:      content,
 		Source:       fmt.Sprintf("site_%s", summary.Phase),
 		SourceID:     string(summary.Trigger),
 		DedupeKey:    fmt.Sprintf("site:%s:%s:%d", summary.Phase, summary.Trigger, time.Now().UnixMilli()),
 		MetadataJSON: string(metadata),
 		Link:         "hub",
-	}); err != nil {
+	}
+	notifop.SetMessage(n, notifop.KeySiteBatch, notifop.KeySiteBatch,
+		map[string]any{"phase": phase},
+		map[string]any{
+			"trigger":  trigger,
+			"success":  summary.Success,
+			"partial":  summary.Partial,
+			"failed":   summary.Failed,
+			"skipped":  summary.Skipped,
+			"warnings": summary.Warnings,
+		},
+		[]any{phase},
+		[]any{trigger, summary.Success, summary.Partial, summary.Failed, summary.Skipped, summary.Warnings})
+	if err := notifop.Create(ctx, n); err != nil {
 		log.Warnf("notification: failed to create site batch notification: %v", err)
 	}
 }

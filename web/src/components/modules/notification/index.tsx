@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { AlertSections, type AlertSection } from '@/components/modules/alert';
 import { ReportHistoryList } from '@/components/modules/report/ReportHistoryList';
 import { ReportScheduleManager } from '@/components/modules/report/ReportScheduleManager';
+import { resolveNotifContent, resolveNotifTitle } from './notif-text';
 import {
     useArchiveNotification,
     useDeleteNotification,
@@ -71,6 +72,7 @@ function SectionButton({ active, onClick, children }: { active: boolean; onClick
 
 function NotificationCard({ item, selected, onSelect }: { item: NotificationItem; selected: boolean; onSelect: () => void }) {
     const t = useTranslations('notification');
+    const tn = useTranslations('notif');
     return (
         <button onClick={onSelect} className={`w-full rounded-2xl border p-4 text-left transition hover:bg-muted/60 ${selected ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}>
             <div className="flex items-start justify-between gap-3">
@@ -80,8 +82,8 @@ function NotificationCard({ item, selected, onSelect }: { item: NotificationItem
                         <Badge variant="outline">{t(`type.${item.type}`)}</Badge>
                         <Badge variant="outline" className={severityClass(item.severity)}>{t(`severity.${item.severity}`)}</Badge>
                     </div>
-                    <h3 className="mt-2 truncate text-base font-semibold">{item.title}</h3>
-                    <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.content}</p>
+                    <h3 className="mt-2 truncate text-base font-semibold">{resolveNotifTitle(item, tn)}</h3>
+                    <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{resolveNotifContent(item, tn)}</p>
                 </div>
                 <div className="shrink-0 text-xs text-muted-foreground">{formatTime(item.created_at)}</div>
             </div>
@@ -91,6 +93,7 @@ function NotificationCard({ item, selected, onSelect }: { item: NotificationItem
 
 export function Notification() {
     const t = useTranslations('notification');
+    const tn = useTranslations('notif');
     const [group, setGroup] = useState<NotificationGroup>('messages');
     const [subTab, setSubTab] = useState<NotificationSubTab>('inbox');
     const [type, setType] = useState('');
@@ -211,10 +214,10 @@ export function Notification() {
                         <div className="space-y-4">
                             <div>
                                 <div className="flex gap-2"><Badge>{t(`type.${selected.type}`)}</Badge><Badge variant="outline" className={severityClass(selected.severity)}>{t(`severity.${selected.severity}`)}</Badge></div>
-                                <h2 className="mt-3 text-lg font-semibold">{selected.title}</h2>
+                                <h2 className="mt-3 text-lg font-semibold">{selected ? resolveNotifTitle(selected, tn) : ''}</h2>
                                 <p className="mt-1 text-xs text-muted-foreground">{formatTime(selected.created_at)}</p>
                             </div>
-                            <p className="whitespace-pre-wrap text-sm text-muted-foreground">{selected.content}</p>
+                            <p className="whitespace-pre-wrap text-sm text-muted-foreground">{selected ? resolveNotifContent(selected, tn) : ''}</p>
                             <div className="flex flex-wrap gap-2">
                                 {selected.read_at ? <Button size="sm" variant="outline" onClick={() => markUnread.mutate([selected.id])}>{t('actions.markUnread')}</Button> : <Button size="sm" onClick={() => markRead.mutate([selected.id])}>{t('actions.markRead')}</Button>}
                                 {!selected.archived_at && <Button size="sm" variant="outline" onClick={() => archive.mutate([selected.id])}>{t('actions.archive')}</Button>}

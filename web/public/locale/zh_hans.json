@@ -3183,5 +3183,93 @@
       "delivery": "投递",
       "reports": "报表"
     }
+  },
+  "notif": {
+    "alert": {
+      "firing": {
+        "title": "告警规则 \"{name}\" 已触发",
+        "content": "告警规则 \"{name}\" 已触发。{detail}"
+      },
+      "resolved": {
+        "title": "告警规则 \"{name}\" 已恢复",
+        "content": "告警规则 \"{name}\" 已恢复。"
+      }
+    },
+    "channel_expire": {
+      "title": "一次性渠道已到期删除",
+      "content": "一次性渠道 \"{name}\" (ID: {id}) 已于 {expire_at} 到期并被自动删除。"
+    },
+    "report": {
+      "sent": {
+        "title": "报表已发送: {name}",
+        "content": "报表 \"{name}\" 已通过 {channel} 发送。"
+      },
+      "failed": {
+        "title": "报表发送失败: {name}",
+        "content": "报表 \"{name}\" 发送失败: {detail}"
+      },
+      "skipped": {
+        "title": "报表已跳过: {name}",
+        "content": "报表 \"{name}\" 已跳过: {detail}"
+      }
+    },
+    "site": {
+      "batch": {
+        "title": "站点 {phase} 已完成",
+        "content": "{trigger}: 成功={success} 部分成功={partial} 失败={failed} 跳过={skipped} 警告={warnings}"
+      },
+      "account_ok": {
+        "title": "站点账号 {phase} 已完成",
+        "content": "账号 {account_id} {phase} 已成功完成。"
+      },
+      "account_fail": {
+        "title": "站点账号 {phase} 失败",
+        "content": "账号 {account_id} {phase} 失败: {detail}"
+      }
+    },
+    "backup": {
+      "ok": {
+        "title": "WebDAV 备份已完成",
+        "content": "备份已上传至 {file} ({size} 字节)。"
+      },
+      "fail": {
+        "title": "WebDAV 备份失败",
+        "content": "{detail}"
+      },
+      "skip": {
+        "title": "WebDAV 备份已跳过",
+        "content": "WebDAV 备份未生成远程文件。"
+      }
+    },
+    "restore": {
+      "ok": {
+        "title": "WebDAV 恢复已完成",
+        "content": "备份 {file} 已恢复。"
+      },
+      "fail": {
+        "title": "WebDAV 恢复失败",
+        "content": "{detail}"
+      }
+    },
+    "migration": {
+      "ok": {
+        "title": "数据库迁移已完成",
+        "content": "数据库已迁移至 {type}。需要重启: {restart}"
+      },
+      "fail": {
+        "title": "数据库迁移失败",
+        "content": "{detail}"
+      }
+    },
+    "update": {
+      "ok": {
+        "title": "自更新已完成",
+        "content": "Octopus 自更新已成功完成。"
+      },
+      "fail": {
+        "title": "自更新失败",
+        "content": "{detail}"
+      }
+    }
   }
 }

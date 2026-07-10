@@ -397,13 +397,19 @@ func recordReportHistory(sched model.ReportSchedule, content, status, detail str
 
 func createReportNotification(ctx context.Context, sched model.ReportSchedule, content, status, detail string) {
 	severity := model.NotificationSeverityInfo
+	var titleKey, contentKey notification.NotifKey
 	switch status {
 	case "sent":
 		severity = model.NotificationSeveritySuccess
+		titleKey, contentKey = notification.KeyReportSent, notification.KeyReportSent
 	case "failed":
 		severity = model.NotificationSeverityError
+		titleKey, contentKey = notification.KeyReportFailed, notification.KeyReportFailed
 	case "skipped":
 		severity = model.NotificationSeverityWarning
+		titleKey, contentKey = notification.KeyReportSkipped, notification.KeyReportSkipped
+	default:
+		titleKey, contentKey = notification.KeyReportFailed, notification.KeyReportFailed
 	}
 	metadata, _ := json.Marshal(map[string]any{
 		"schedule_id":   sched.ID,
@@ -415,16 +421,23 @@ func createReportNotification(ctx context.Context, sched model.ReportSchedule, c
 	n := &model.Notification{
 		Type:         model.NotificationTypeReport,
 		Severity:     severity,
-		Title:        fmt.Sprintf("Report %s: %s", status, sched.Name),
-		Content:      detail,
 		Source:       "report_schedule",
 		SourceID:     fmt.Sprintf("%d", sched.ID),
 		DedupeKey:    fmt.Sprintf("report:%d:%s:%d", sched.ID, status, time.Now().UnixMilli()),
 		MetadataJSON: string(metadata),
 		Link:         "alert",
 	}
-	if content != "" && status == "sent" {
-		n.Content = content
+	// 短消息方案：通知正文不再放完整报表正文（报表历史已单独存储）。
+	// sent -> channel（detail 形如 "gotify (gotify)"）；failed/skipped -> detail（原因）。
+	titleArgs := map[string]any{"name": sched.Name}
+	if status == "sent" {
+		notification.SetMessage(n, titleKey, contentKey,
+			titleArgs, map[string]any{"name": sched.Name, "channel": detail},
+			[]any{sched.Name}, []any{sched.Name, detail})
+	} else {
+		notification.SetMessage(n, titleKey, contentKey,
+			titleArgs, map[string]any{"name": sched.Name, "detail": detail},
+			[]any{sched.Name}, []any{sched.Name, detail})
 	}
 	if err := notification.Create(ctx, n); err != nil {
 		log.Warnf("notification: failed to create report notification for schedule %d: %v", sched.ID, err)

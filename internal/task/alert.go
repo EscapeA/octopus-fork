@@ -370,28 +370,30 @@ func createAlertNotification(ctx context.Context, rule *model.AlertRule, state m
 		"state":            state,
 		"notification":     notify,
 	})
-	title := buildAlertNotificationMessage(rule.Name, alertStateToString(state), resolveAlertNotifyLanguage())
 	n := &model.Notification{
 		Type:         model.NotificationTypeAlert,
 		Severity:     severity,
-		Title:        title,
-		Content:      message,
 		Source:       "alert_rule",
 		SourceID:     fmt.Sprintf("%d", rule.ID),
 		DedupeKey:    fmt.Sprintf("alert:%d:%d:%d", rule.ID, state, time.Now().UnixMilli()),
 		MetadataJSON: string(metadata),
 		Link:         "alert",
 	}
+	// 应用内通知走 i18n 键（前端按 UI 语言渲染）。外部通知仍由 notifyAlert 用
+	// buildAlertNotificationMessage 渲染后发送，与此处独立。
+	var key notification.NotifKey
+	if state == model.AlertStateResolved {
+		key = notification.KeyAlertResolved
+	} else {
+		key = notification.KeyAlertFiring
+	}
+	notification.SetMessage(n, key, key,
+		map[string]any{"name": rule.Name},
+		map[string]any{"name": rule.Name, "detail": eval.Detail},
+		[]any{rule.Name}, []any{rule.Name, eval.Detail})
 	if err := notification.Create(ctx, n); err != nil {
 		log.Warnf("notification: failed to create alert notification for rule %d: %v", rule.ID, err)
 	}
-}
-
-func alertStateToString(state model.AlertState) string {
-	if state == model.AlertStateResolved {
-		return alertStateResolved
-	}
-	return alertStateFiring
 }
 
 func resolveAlertNotifyLanguage() string {

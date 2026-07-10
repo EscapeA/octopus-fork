@@ -294,8 +294,20 @@ func migrateDatabase(c *gin.Context) {
 
 func createDatabaseMigrationNotification(ctx context.Context, req model.DatabaseMigrationRequest, result *model.DatabaseMigrationResult, err error) {
 	severity := model.NotificationSeveritySuccess
-	title := "Database migration completed"
-	content := fmt.Sprintf("Database migrated to %s. Restart needed: %v", req.Type, result != nil && result.RestartNeeded)
+	restartNeeded := result != nil && result.RestartNeeded
+	var key notifop.NotifKey
+	var contentArgs map[string]any
+	var contentFmtArgs []any
+	if err != nil {
+		severity = model.NotificationSeverityCritical
+		key = notifop.KeyMigrationFail
+		contentArgs = map[string]any{"detail": err.Error()}
+		contentFmtArgs = []any{err.Error()}
+	} else {
+		key = notifop.KeyMigrationOK
+		contentArgs = map[string]any{"type": req.Type, "restart": restartNeeded}
+		contentFmtArgs = []any{req.Type, restartNeeded}
+	}
 	metadata := map[string]any{
 		"type":          req.Type,
 		"include_logs":  req.IncludeLogs,
@@ -307,23 +319,20 @@ func createDatabaseMigrationNotification(ctx context.Context, req model.Database
 		metadata["rows_affected"] = result.ImportResult.RowsAffected
 	}
 	if err != nil {
-		severity = model.NotificationSeverityCritical
-		title = "Database migration failed"
-		content = err.Error()
 		metadata["error"] = err.Error()
 	}
 	b, _ := json.Marshal(metadata)
-	if createErr := notifop.Create(ctx, &model.Notification{
+	n := &model.Notification{
 		Type:         model.NotificationTypeSystem,
 		Severity:     severity,
-		Title:        title,
-		Content:      content,
 		Source:       "database_migration",
 		SourceID:     req.Type,
 		DedupeKey:    fmt.Sprintf("database_migration:%s:%d", req.Type, time.Now().UnixMilli()),
 		MetadataJSON: string(b),
 		Link:         "setting",
-	}); createErr != nil {
+	}
+	notifop.SetMessage(n, key, key, nil, contentArgs, nil, contentFmtArgs)
+	if createErr := notifop.Create(ctx, n); createErr != nil {
 		log.Warnf("notification: failed to create database migration notification: %v", createErr)
 	}
 }

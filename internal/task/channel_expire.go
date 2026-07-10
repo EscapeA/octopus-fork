@@ -89,7 +89,6 @@ func sendChannelExpireNotification(channel model.Channel, notifChannelID int, no
 }
 
 func createChannelExpireNotification(ctx context.Context, channel model.Channel, deliveryStatus, deliveryDetail string) {
-	title, message := buildChannelExpireMessage(channel)
 	metadata, _ := json.Marshal(map[string]any{
 		"channel_id":      channel.ID,
 		"channel_name":    channel.Name,
@@ -100,14 +99,23 @@ func createChannelExpireNotification(ctx context.Context, channel model.Channel,
 	n := &model.Notification{
 		Type:         model.NotificationTypeChannelExpire,
 		Severity:     model.NotificationSeverityWarning,
-		Title:        title,
-		Content:      message,
 		Source:       "channel",
 		SourceID:     fmt.Sprintf("%d", channel.ID),
 		DedupeKey:    fmt.Sprintf("channel_expire:%d:%d", channel.ID, time.Now().UnixMilli()),
 		MetadataJSON: string(metadata),
 		Link:         "channel",
 	}
+	// 应用内通知走 i18n 键。外部通知仍由 sendChannelExpireMessage 用
+	// buildChannelExpireMessage 渲染后发送，与此处独立。
+	expireStr := ""
+	if channel.ExpireAt != nil {
+		expireStr = channel.ExpireAt.Format(time.RFC3339)
+	}
+	notification.SetMessage(n, notification.KeyChannelExpire, notification.KeyChannelExpire,
+		nil,
+		map[string]any{"name": channel.Name, "id": channel.ID, "expire_at": expireStr},
+		nil,
+		[]any{channel.Name, channel.ID, expireStr})
 	if err := notification.Create(ctx, n); err != nil {
 		log.Warnf("notification: failed to create channel expiration notification for channel %d: %v", channel.ID, err)
 	}

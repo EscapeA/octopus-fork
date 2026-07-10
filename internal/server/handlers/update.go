@@ -51,18 +51,18 @@ func getNowVersion(c *gin.Context) {
 }
 
 func updateFunc(c *gin.Context) {
-	createUpdateNotification(c, "info", "Self update started", "Octopus self-update has started.", nil)
+	createUpdateNotification(c, "info", notifop.KeySelfUpdateOK, nil, nil, nil)
 	err := update.UpdateCore()
 	if err != nil {
-		createUpdateNotification(c, "error", "Self update failed", err.Error(), err)
+		createUpdateNotification(c, "error", notifop.KeySelfUpdateFail, map[string]any{"detail": err.Error()}, []any{err.Error()}, err)
 		resp.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
-	createUpdateNotification(c, "success", "Self update completed", "Octopus self-update completed successfully.", nil)
+	createUpdateNotification(c, "success", notifop.KeySelfUpdateOK, nil, nil, nil)
 	resp.Success(c, "update success")
 }
 
-func createUpdateNotification(c *gin.Context, severity string, title string, content string, err error) {
+func createUpdateNotification(c *gin.Context, severity string, key notifop.NotifKey, contentArgs map[string]any, contentFmtArgs []any, err error) {
 	sev := model.NotificationSeverityInfo
 	switch severity {
 	case "success":
@@ -75,17 +75,17 @@ func createUpdateNotification(c *gin.Context, severity string, title string, con
 		metadata["error"] = err.Error()
 	}
 	b, _ := json.Marshal(metadata)
-	if createErr := notifop.Create(c.Request.Context(), &model.Notification{
+	n := &model.Notification{
 		Type:         model.NotificationTypeSystem,
 		Severity:     sev,
-		Title:        title,
-		Content:      content,
 		Source:       "self_update",
 		SourceID:     conf.Version,
 		DedupeKey:    fmt.Sprintf("self_update:%s:%d", severity, time.Now().UnixMilli()),
 		MetadataJSON: string(b),
 		Link:         "setting",
-	}); createErr != nil {
+	}
+	notifop.SetMessage(n, key, key, nil, contentArgs, nil, contentFmtArgs)
+	if createErr := notifop.Create(c.Request.Context(), n); createErr != nil {
 		log.Warnf("notification: failed to create update notification: %v", createErr)
 	}
 }

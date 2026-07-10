@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useMarkAllNotificationsRead, useNotifications, useNotificationStream, useUnreadNotificationCount } from '@/api/endpoints/notification';
 import { useNavStore } from '@/components/modules/navbar';
+import { resolveNotifContent, resolveNotifTitle } from './notif-text';
 
 function formatTime(ts?: number) {
     if (!ts) return '';
@@ -15,6 +16,7 @@ function formatTime(ts?: number) {
 
 export function NotificationBell() {
     const t = useTranslations('notification');
+    const tn = useTranslations('notif');
     const setActiveItem = useNavStore((state) => state.setActiveItem);
     const { data: countData } = useUnreadNotificationCount();
     const { data: latest = [] } = useNotifications({ page: 1, page_size: 5 });
@@ -53,9 +55,9 @@ export function NotificationBell() {
                         <div key={item.id} className="rounded-xl px-3 py-2 hover:bg-muted/70">
                             <div className="flex items-center gap-2">
                                 <Badge variant={item.read_at ? 'outline' : 'default'} className="text-[10px]">{t(`severity.${item.severity}`)}</Badge>
-                                <span className="truncate text-sm font-medium">{item.title}</span>
+                                <span className="truncate text-sm font-medium">{resolveNotifTitle(item, tn)}</span>
                             </div>
-                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.content}</p>
+                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{resolveNotifContent(item, tn)}</p>
                             <div className="mt-1 text-[11px] text-muted-foreground">{formatTime(item.created_at)}</div>
                         </div>
                     ))}

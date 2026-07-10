@@ -3183,5 +3183,93 @@
       "delivery": "Delivery",
       "reports": "Reports"
     }
+  },
+  "notif": {
+    "alert": {
+      "firing": {
+        "title": "Alert \"{name}\" triggered",
+        "content": "Alert rule \"{name}\" triggered. {detail}"
+      },
+      "resolved": {
+        "title": "Alert \"{name}\" resolved",
+        "content": "Alert rule \"{name}\" has resolved."
+      }
+    },
+    "channel_expire": {
+      "title": "Disposable channel expired",
+      "content": "Disposable channel \"{name}\" (ID: {id}) expired at {expire_at} and has been automatically deleted."
+    },
+    "report": {
+      "sent": {
+        "title": "Report sent: {name}",
+        "content": "Report \"{name}\" was sent via {channel}."
+      },
+      "failed": {
+        "title": "Report failed: {name}",
+        "content": "Report \"{name}\" failed: {detail}"
+      },
+      "skipped": {
+        "title": "Report skipped: {name}",
+        "content": "Report \"{name}\" skipped: {detail}"
+      }
+    },
+    "site": {
+      "batch": {
+        "title": "Site {phase} completed",
+        "content": "{trigger}: success={success} partial={partial} failed={failed} skipped={skipped} warnings={warnings}"
+      },
+      "account_ok": {
+        "title": "Site account {phase} completed",
+        "content": "Account {account_id} {phase} completed successfully."
+      },
+      "account_fail": {
+        "title": "Site account {phase} failed",
+        "content": "Account {account_id} {phase} failed: {detail}"
+      }
+    },
+    "backup": {
+      "ok": {
+        "title": "WebDAV backup completed",
+        "content": "Backup uploaded to {file} ({size} bytes)."
+      },
+      "fail": {
+        "title": "WebDAV backup failed",
+        "content": "{detail}"
+      },
+      "skip": {
+        "title": "WebDAV backup skipped",
+        "content": "WebDAV backup did not produce a remote file."
+      }
+    },
+    "restore": {
+      "ok": {
+        "title": "WebDAV restore completed",
+        "content": "Backup {file} has been restored."
+      },
+      "fail": {
+        "title": "WebDAV restore failed",
+        "content": "{detail}"
+      }
+    },
+    "migration": {
+      "ok": {
+        "title": "Database migration completed",
+        "content": "Database migrated to {type}. Restart needed: {restart}"
+      },
+      "fail": {
+        "title": "Database migration failed",
+        "content": "{detail}"
+      }
+    },
+    "update": {
+      "ok": {
+        "title": "Self update completed",
+        "content": "Octopus self-update completed successfully."
+      },
+      "fail": {
+        "title": "Self update failed",
+        "content": "{detail}"
+      }
+    }
   }
 }

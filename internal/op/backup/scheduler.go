@@ -163,16 +163,23 @@ func RestoreFromWebDAV(ctx context.Context, filename string) (*model.DBImportRes
 
 func createWebDAVBackupNotification(ctx context.Context, manual bool, remotePath string, bytes int, cfg *WebDAVBackupConfig, err error) {
 	severity := model.NotificationSeveritySuccess
-	title := "WebDAV backup completed"
-	content := fmt.Sprintf("Backup uploaded to %s (%d bytes).", remotePath, bytes)
+	var key notification.NotifKey
+	var contentArgs map[string]any
+	var contentFmtArgs []any
 	if err != nil {
 		severity = model.NotificationSeverityError
-		title = "WebDAV backup failed"
-		content = err.Error()
+		key = notification.KeyBackupFail
+		contentArgs = map[string]any{"detail": err.Error()}
+		contentFmtArgs = []any{err.Error()}
 	} else if remotePath == "" {
 		severity = model.NotificationSeverityWarning
-		title = "WebDAV backup skipped"
-		content = "WebDAV backup did not produce a remote file."
+		key = notification.KeyBackupSkip
+		contentArgs = nil
+		contentFmtArgs = nil
+	} else {
+		key = notification.KeyBackupOK
+		contentArgs = map[string]any{"file": remotePath, "size": bytes}
+		contentFmtArgs = []any{remotePath, bytes}
 	}
 	metadata := map[string]any{"manual": manual, "remote_path": remotePath, "bytes": bytes}
 	if cfg != nil {
@@ -184,47 +191,55 @@ func createWebDAVBackupNotification(ctx context.Context, manual bool, remotePath
 		metadata["error"] = err.Error()
 	}
 	b, _ := json.Marshal(metadata)
-	if createErr := notification.Create(ctx, &model.Notification{
+	n := &model.Notification{
 		Type:         model.NotificationTypeBackup,
 		Severity:     severity,
-		Title:        title,
-		Content:      content,
 		Source:       "webdav_backup",
 		SourceID:     remotePath,
 		DedupeKey:    fmt.Sprintf("webdav_backup:%s:%d", remotePath, time.Now().UnixMilli()),
 		MetadataJSON: string(b),
 		Link:         "setting",
-	}); createErr != nil {
+	}
+	notification.SetMessage(n, key, key, nil, contentArgs, nil, contentFmtArgs)
+	if createErr := notification.Create(ctx, n); createErr != nil {
 		log.Warnf("notification: failed to create webdav backup notification: %v", createErr)
 	}
 }
 
 func createWebDAVRestoreNotification(ctx context.Context, filename string, result *model.DBImportResult, err error) {
 	severity := model.NotificationSeveritySuccess
-	title := "WebDAV restore completed"
-	content := fmt.Sprintf("Backup %s has been restored.", filename)
+	var key notification.NotifKey
+	var contentArgs map[string]any
+	var contentFmtArgs []any
+	if err != nil {
+		severity = model.NotificationSeverityError
+		key = notification.KeyRestoreFail
+		contentArgs = map[string]any{"detail": err.Error()}
+		contentFmtArgs = []any{err.Error()}
+	} else {
+		key = notification.KeyRestoreOK
+		contentArgs = map[string]any{"file": filename}
+		contentFmtArgs = []any{filename}
+	}
 	metadata := map[string]any{"filename": filename}
 	if result != nil {
 		metadata["rows_affected"] = result.RowsAffected
 	}
 	if err != nil {
-		severity = model.NotificationSeverityError
-		title = "WebDAV restore failed"
-		content = err.Error()
 		metadata["error"] = err.Error()
 	}
 	b, _ := json.Marshal(metadata)
-	if createErr := notification.Create(ctx, &model.Notification{
+	n := &model.Notification{
 		Type:         model.NotificationTypeBackup,
 		Severity:     severity,
-		Title:        title,
-		Content:      content,
 		Source:       "webdav_restore",
 		SourceID:     filename,
 		DedupeKey:    fmt.Sprintf("webdav_restore:%s:%d", filename, time.Now().UnixMilli()),
 		MetadataJSON: string(b),
 		Link:         "setting",
-	}); createErr != nil {
+	}
+	notification.SetMessage(n, key, key, nil, contentArgs, nil, contentFmtArgs)
+	if createErr := notification.Create(ctx, n); createErr != nil {
 		log.Warnf("notification: failed to create webdav restore notification: %v", createErr)
 	}
 }

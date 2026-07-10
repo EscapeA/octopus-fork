@@ -15,6 +15,11 @@ export interface NotificationItem {
     severity: NotificationSeverity;
     title: string;
     content: string;
+    // i18n 键化字段：非空时前端按 UI 语言用 t(key, args) 渲染，否则回退 title/content。
+    title_key?: string;
+    title_args?: string;
+    content_key?: string;
+    content_args?: string;
     source?: string;
     source_id?: string;
     dedupe_key?: string;

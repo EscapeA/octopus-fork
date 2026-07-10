@@ -47,8 +47,8 @@ func createSiteBatchNotification(ctx context.Context, summary sitesync.SiteBatch
 	} else if summary.Warnings > 0 || summary.Partial > 0 || summary.Skipped > 0 {
 		severity = model.NotificationSeverityWarning
 	}
-	title := fmt.Sprintf("Site %s completed", summary.Phase)
-	content := fmt.Sprintf("%s: success=%d partial=%d failed=%d skipped=%d warnings=%d", summary.Trigger, summary.Success, summary.Partial, summary.Failed, summary.Skipped, summary.Warnings)
+	phase := string(summary.Phase)
+	trigger := string(summary.Trigger)
 	metadata, _ := json.Marshal(map[string]any{
 		"phase":         summary.Phase,
 		"trigger":       summary.Trigger,
@@ -63,17 +63,28 @@ func createSiteBatchNotification(ctx context.Context, summary sitesync.SiteBatch
 		"cancel_reason": summary.CancelReason,
 		"samples":       summary.Samples,
 	})
-	if err := notification.Create(ctx, &model.Notification{
+	n := &model.Notification{
 		Type:         model.NotificationTypeSite,
 		Severity:     severity,
-		Title:        title,
-		Content:      content,
 		Source:       fmt.Sprintf("site_%s", summary.Phase),
 		SourceID:     string(summary.Trigger),
 		DedupeKey:    fmt.Sprintf("site:%s:%s:%d", summary.Phase, summary.Trigger, time.Now().UnixMilli()),
 		MetadataJSON: string(metadata),
 		Link:         "hub",
-	}); err != nil {
+	}
+	notification.SetMessage(n, notification.KeySiteBatch, notification.KeySiteBatch,
+		map[string]any{"phase": phase},
+		map[string]any{
+			"trigger":  trigger,
+			"success":  summary.Success,
+			"partial":  summary.Partial,
+			"failed":   summary.Failed,
+			"skipped":  summary.Skipped,
+			"warnings": summary.Warnings,
+		},
+		[]any{phase},
+		[]any{trigger, summary.Success, summary.Partial, summary.Failed, summary.Skipped, summary.Warnings})
+	if err := notification.Create(ctx, n); err != nil {
 		log.Warnf("notification: failed to create site batch notification: %v", err)
 	}
 }
