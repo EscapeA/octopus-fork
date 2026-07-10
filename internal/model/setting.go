@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type SettingKey string
@@ -59,7 +60,8 @@ const (
 	SettingKeyAIRouteTimeoutSeconds                SettingKey = "ai_route_timeout_seconds"                 // AI路由分析单次请求超时（秒）
 	SettingKeyAIRouteParallelism                   SettingKey = "ai_route_parallelism"                     // AI路由分析批次最大并发数
 	SettingKeyAIRouteServices                      SettingKey = "ai_route_services"                        // AI路由分析服务池(JSON)
-	SettingKeyStatsTimezoneOffset                  SettingKey = "stats_timezone_offset"                    // 统计时区偏移（小时），当前为整型偏移；未来计划新增 stats_timezone (IANA) 配置项，此处为定义与校验入口
+	SettingKeyStatsTimezone                        SettingKey = "stats_timezone"                           // 统计时区（IANA 名，如 Asia/Shanghai）；空串回退到 stats_timezone_offset
+	SettingKeyStatsTimezoneOffset                  SettingKey = "stats_timezone_offset"                    // [已弃用] 统计时区偏移（小时），整型；stats_timezone 为空时回退使用
 	SettingKeyJWTDefaultExpiryMinutes              SettingKey = "jwt_default_expiry_minutes"               // 默认JWT过期时间（分钟）
 	SettingKeyJWTRememberMeExpiryDays              SettingKey = "jwt_remember_me_expiry_days"              // 记住我JWT过期时间（天）
 	SettingKeyLoginRateLimitWindow                 SettingKey = "login_rate_limit_window"                  // 登录限流时间窗口（分钟）
@@ -146,6 +148,7 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyAIRouteTimeoutSeconds, Value: "180"},
 		{Key: SettingKeyAIRouteParallelism, Value: "3"},
 		{Key: SettingKeyAIRouteServices, Value: "[]"},
+		{Key: SettingKeyStatsTimezone, Value: ""}, // 空=未配置，回退到 stats_timezone_offset 再回退 UTC
 		{Key: SettingKeyStatsTimezoneOffset, Value: "0"},
 		{Key: SettingKeyJWTDefaultExpiryMinutes, Value: "15"},    // 默认15分钟
 		{Key: SettingKeyJWTRememberMeExpiryDays, Value: "30"},    // 默认30天
@@ -182,6 +185,15 @@ func DefaultSettings() []Setting {
 
 func (s *Setting) Validate() error {
 	switch s.Key {
+	case SettingKeyStatsTimezone:
+		// 空串合法（=未配置，回退到 stats_timezone_offset）。非空必须是合法 IANA 时区名。
+		if s.Value == "" {
+			return nil
+		}
+		if _, err := time.LoadLocation(s.Value); err != nil {
+			return fmt.Errorf("invalid IANA timezone: %s", s.Value)
+		}
+		return nil
 	case SettingKeyModelInfoUpdateInterval, SettingKeySyncLLMInterval, SettingKeyRelayLogKeepPeriod, SettingKeyRelayLogKeepCount,
 		SettingKeySiteSyncInterval, SettingKeySiteCheckinInterval,
 		SettingKeyRelayRetryCount, SettingKeyRelayRouteRetries, SettingKeyCircuitBreakerThreshold, SettingKeyCircuitBreakerCooldown,

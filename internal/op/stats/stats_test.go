@@ -38,3 +38,67 @@ func TestNowUsesConfiguredTimezoneOffsetWhenProvided(t *testing.T) {
 		t.Fatalf("expected configured UTC+8 hour 15, got %d (%s)", now.Hour(), now.Format(time.RFC3339))
 	}
 }
+
+func TestStatsLocation(t *testing.T) {
+	// 保存并恢复 cache 原始状态，避免影响其它测试。
+	cache := setting.GetCache()
+	cache.Clear()
+	t.Cleanup(func() { cache.Clear() })
+
+	t.Run("IANA preferred over offset", func(t *testing.T) {
+		cache.Clear()
+		cache.Set(model.SettingKeyStatsTimezone, "Asia/Shanghai")
+		cache.Set(model.SettingKeyStatsTimezoneOffset, "5") // 应被忽略
+
+		loc := stats.StatsLocation()
+		want, _ := time.LoadLocation("Asia/Shanghai")
+		if loc.String() != want.String() {
+			t.Fatalf("expected Asia/Shanghai, got %s", loc.String())
+		}
+	})
+
+	t.Run("falls back to offset when IANA empty", func(t *testing.T) {
+		cache.Clear()
+		cache.Set(model.SettingKeyStatsTimezone, "")
+		cache.Set(model.SettingKeyStatsTimezoneOffset, "8")
+
+		loc := stats.StatsLocation()
+		// UTC+8 fixed zone: offset 8*3600 = 28800 秒
+		_, offset := time.Now().In(loc).Zone()
+		if offset != 8*3600 {
+			t.Fatalf("expected UTC+8 offset (28800s), got %d (%s)", offset, loc.String())
+		}
+	})
+
+	t.Run("falls back to Local when both unset", func(t *testing.T) {
+		cache.Clear()
+		// 未设置任何时区 -> time.Local（容器运行时区），保持历史行为
+		loc := stats.StatsLocation()
+		if loc != time.Local {
+			t.Fatalf("expected time.Local when nothing configured, got %s", loc.String())
+		}
+	})
+
+	t.Run("invalid IANA falls back to offset", func(t *testing.T) {
+		cache.Clear()
+		cache.Set(model.SettingKeyStatsTimezone, "Not/A/Real/Zone")
+		cache.Set(model.SettingKeyStatsTimezoneOffset, "8")
+
+		loc := stats.StatsLocation()
+		_, offset := time.Now().In(loc).Zone()
+		if offset != 8*3600 {
+			t.Fatalf("expected UTC+8 fallback after invalid IANA, got %d (%s)", offset, loc.String())
+		}
+	})
+
+	t.Run("invalid IANA with no offset falls back to Local", func(t *testing.T) {
+		cache.Clear()
+		cache.Set(model.SettingKeyStatsTimezone, "Not/A/Real/Zone")
+		cache.Set(model.SettingKeyStatsTimezoneOffset, "0")
+
+		loc := stats.StatsLocation()
+		if loc != time.Local {
+			t.Fatalf("expected time.Local after invalid IANA + zero offset, got %s", loc.String())
+		}
+	})
+}

@@ -17,7 +17,7 @@ import (
 	"github.com/lingyuins/octopus/internal/op/channel"
 	"github.com/lingyuins/octopus/internal/op/notification"
 	"github.com/lingyuins/octopus/internal/op/report"
-	"github.com/lingyuins/octopus/internal/op/setting"
+	"github.com/lingyuins/octopus/internal/op/stats"
 	"github.com/lingyuins/octopus/internal/utils/log"
 )
 
@@ -48,25 +48,24 @@ func EvaluateReportSchedules() {
 		channelMap[ch.ID] = &ch
 	}
 
-	now := time.Now()
-	offset, _ := setting.GetInt(model.SettingKeyStatsTimezoneOffset)
-	localNow := now.UTC().Add(time.Duration(offset) * time.Hour)
+	loc := stats.StatsLocation()
+	localNow := time.Now().In(loc)
 
 	for _, sched := range schedules {
-		if !isReportDue(sched, localNow, offset) {
+		if !isReportDue(sched, localNow, loc) {
 			continue
 		}
 
 		log.Debugf("report: schedule %d (%s) is due, generating %s report", sched.ID, sched.Name, sched.Type)
-		generateAndSendReport(ctx, sched, channelMap)
+		generateAndSendReport(ctx, sched, channelMap, loc)
 	}
 }
 
 // isReportDue checks if a schedule should run at the given time.
-func isReportDue(sched model.ReportSchedule, now time.Time, timezoneOffset int) bool {
+func isReportDue(sched model.ReportSchedule, now time.Time, loc *time.Location) bool {
 	// Check if we already sent today in the configured stats timezone.
 	if sched.LastSentAt > 0 {
-		lastSent := time.UnixMilli(sched.LastSentAt).UTC().Add(time.Duration(timezoneOffset) * time.Hour)
+		lastSent := time.UnixMilli(sched.LastSentAt).In(loc)
 		if lastSent.Year() == now.Year() && lastSent.YearDay() == now.YearDay() {
 			return false // Already sent today
 		}
@@ -90,11 +89,11 @@ func isReportDue(sched model.ReportSchedule, now time.Time, timezoneOffset int) 
 }
 
 // generateAndSendReport generates a report for the given schedule and sends it.
-func generateAndSendReport(ctx context.Context, sched model.ReportSchedule, channelMap map[int]*model.AlertNotifChannel) {
+func generateAndSendReport(ctx context.Context, sched model.ReportSchedule, channelMap map[int]*model.AlertNotifChannel, loc *time.Location) {
 	// Determine report range based on type
 	var rangeStr string
 	var rangeTitle string
-	now := time.Now()
+	now := time.Now().In(loc)
 
 	switch sched.Type {
 	case model.ReportTypeDaily:

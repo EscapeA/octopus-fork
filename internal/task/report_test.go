@@ -3,6 +3,7 @@ package task
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/lingyuins/octopus/internal/model"
 )
@@ -205,6 +206,58 @@ func TestFormatCostBreakdownSection(t *testing.T) {
 		}
 		if !strings.Contains(lines[0], "总成本: $0.00") {
 			t.Errorf("expected 总成本: $0.00, got %q", lines[0])
+		}
+	})
+}
+
+// ── isReportDue 时区判定 ──
+
+func TestIsReportDue_TimezoneAlignment(t *testing.T) {
+	loc, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		t.Fatalf("failed to load Asia/Shanghai: %v", err)
+	}
+
+	sched := model.ReportSchedule{
+		Type:     model.ReportTypeDaily,
+		SendHour: 9, // 用户希望上海时间 09:00 发送
+	}
+
+	t.Run("fires at UTC 01:xx (Shanghai 09:xx)", func(t *testing.T) {
+		// 上海 UTC+8，09:00 上海 = 01:00 UTC
+		now := time.Date(2026, 7, 10, 1, 5, 0, 0, time.UTC).In(loc)
+		if !isReportDue(sched, now, loc) {
+			t.Fatalf("expected report due at Shanghai 09:05 (UTC 01:05), got not due")
+		}
+	})
+
+	t.Run("does not fire at UTC 09:xx (Shanghai 17:xx)", func(t *testing.T) {
+		// UTC 09:00 = 上海 17:00，不应触发 SendHour=9
+		now := time.Date(2026, 7, 10, 9, 0, 0, 0, time.UTC).In(loc)
+		if isReportDue(sched, now, loc) {
+			t.Fatalf("expected NOT due at Shanghai 17:00 (UTC 09:00), got due")
+		}
+	})
+
+	t.Run("already sent today skips", func(t *testing.T) {
+		// 同一天（上海时区）已发过 -> 不再发
+		now := time.Date(2026, 7, 10, 9, 5, 0, 0, time.UTC).In(loc)
+		lastSent := time.Date(2026, 7, 10, 1, 0, 0, 0, time.UTC).UnixMilli() // 上海 09:00 已发
+		schedSent := sched
+		schedSent.LastSentAt = lastSent
+		if isReportDue(schedSent, now, loc) {
+			t.Fatalf("expected not due (already sent today), got due")
+		}
+	})
+
+	t.Run("sent yesterday does not skip today", func(t *testing.T) {
+		// 昨天发过 -> 今天可发
+		now := time.Date(2026, 7, 10, 1, 5, 0, 0, time.UTC).In(loc)         // 上海 7/10 09:05
+		lastSent := time.Date(2026, 7, 9, 1, 0, 0, 0, time.UTC).UnixMilli() // 上海 7/9 09:00
+		schedSent := sched
+		schedSent.LastSentAt = lastSent
+		if !isReportDue(schedSent, now, loc) {
+			t.Fatalf("expected due (last sent yesterday), got not due")
 		}
 	})
 }

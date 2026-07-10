@@ -1302,7 +1302,7 @@
     },
     "timeZone": {
       "label": "User time zone",
-      "description": "Used for date and time display across the UI. Defaults to Asia/Shanghai.",
+      "description": "Used for date/time display, statistics time zone, and report send time. Defaults to Asia/Shanghai.",
       "options": {
         "Asia/Shanghai": "Asia/Shanghai (UTC+08:00)",
         "Asia/Tokyo": "Asia/Tokyo (UTC+09:00)",

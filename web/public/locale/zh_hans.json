@@ -1258,7 +1258,7 @@
     },
     "timeZone": {
       "label": "用户时区",
-      "description": "用于页面中的日期时间显示，默认使用上海时区。",
+      "description": "用于页面日期时间显示、统计时区与报表发送时间，默认使用上海时区。",
       "options": {
         "Asia/Shanghai": "亚洲/上海 (UTC+08:00)",
         "Asia/Tokyo": "亚洲/东京 (UTC+09:00)",

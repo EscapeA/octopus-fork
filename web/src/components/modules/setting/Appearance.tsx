@@ -40,7 +40,7 @@ import {
     type OpsTab,
 } from '@/components/modules/navbar/sub-tab-store';
 import { serializeNavOrder, serializeNavVisible } from '@/components/modules/navbar';
-import { useSettingStore, type Locale } from '@/stores/setting';
+import { useSettingStore, normalizeTimeZone, type Locale } from '@/stores/setting';
 import { SettingKey, useSetSetting, useSettingList } from '@/api/endpoints/setting';
 import { toast } from '@/components/common/Toast';
 
@@ -431,6 +431,7 @@ export function SettingAppearance() {
     const setSetting = useSetSetting();
     const [alertNotifyLanguage, setAlertNotifyLanguage] = useState<AlertNotifyLanguage>('en');
     const initialAlertNotifyLanguage = useRef<AlertNotifyLanguage>('en');
+    const initialTimeZone = useRef(timeZone);
     const [localExchangeRate, setLocalExchangeRate] = useState(exchangeRate.toString());
     const initialExchangeRate = useRef(exchangeRate);
 
@@ -443,6 +444,38 @@ export function SettingAppearance() {
         queueMicrotask(() => setAlertNotifyLanguage(nextValue));
         initialAlertNotifyLanguage.current = nextValue;
     }, [settings]);
+
+    // 从服务端同步 stats_timezone：后端配置为准，覆盖 localStorage 默认值，保证多端一致。
+    useEffect(() => {
+        if (!settings) return;
+        const tzSetting = settings.find((item) => item.key === SettingKey.StatsTimezone);
+        if (!tzSetting || !tzSetting.value) return;
+        const next = normalizeTimeZone(tzSetting.value);
+        if (next === initialTimeZone.current) return;
+        queueMicrotask(() => {
+            setTimeZone(next);
+            initialTimeZone.current = next;
+        });
+    }, [settings, setTimeZone]);
+
+    const handleTimeZoneChange = (value: string) => {
+        const next = normalizeTimeZone(value);
+        setTimeZone(next);
+
+        setSetting.mutate(
+            { key: SettingKey.StatsTimezone, value: next },
+            {
+                onSuccess: () => {
+                    toast.success(t('saved'));
+                    initialTimeZone.current = next;
+                },
+                onError: () => {
+                    setTimeZone(initialTimeZone.current);
+                    toast.error(t('saveFailed'));
+                },
+            }
+        );
+    };
 
     const handleAlertNotifyLanguageChange = (value: string) => {
         const nextValue = normalizeAlertNotifyLanguage(value);
@@ -540,7 +573,7 @@ export function SettingAppearance() {
                                 <Clock3 className="h-5 w-5 text-muted-foreground" />
                                 <span className="text-sm font-medium">{t('timeZone.label')}</span>
                             </div>
-                            <Select value={timeZone} onValueChange={setTimeZone}>
+                            <Select value={timeZone} onValueChange={handleTimeZoneChange}>
                                 <SelectTrigger className="w-full rounded-lg">
                                     <SelectValue />
                                 </SelectTrigger>

@@ -60,23 +60,33 @@ var totalCacheLock sync.RWMutex
 // timeNow allows tests to override time.Now.
 var timeNow = time.Now
 
-// now returns the current time adjusted by the configured timezone offset.
-// When the container runs in UTC but users are in a different timezone, this ensures
-// hourly/daily statistics align with the user's local date/hour boundaries.
-func now() time.Time {
-	offset, err := setting.GetInt(model.SettingKeyStatsTimezoneOffset)
-	now := timeNow()
-	if err != nil || offset == 0 {
-		return now
+// StatsLocation 返回配置的统计时区。优先 stats_timezone（IANA 名，如 Asia/Shanghai），
+// 回退到已弃用的 stats_timezone_offset（整型小时偏移），再回退 time.Local（容器运行时区）。
+// IANA 名加载失败（系统无 tzdata / 非法名）也回退，绝不返回 nil。
+// 供 stats/ops/report 共用，消除各处重复的偏移计算逻辑。未配置任何时区时使用
+// time.Local，保持与历史行为一致（容器 TZ 生效，如 Docker ENV TZ=Asia/Shanghai）。
+func StatsLocation() *time.Location {
+	if tzName, err := setting.GetString(model.SettingKeyStatsTimezone); err == nil && tzName != "" {
+		if loc, err := time.LoadLocation(tzName); err == nil {
+			return loc
+		}
+		// 加载失败：回退到 offset，再回退 time.Local，避免静默返回错误时区。
 	}
-	return now.UTC().Add(time.Duration(offset) * time.Hour)
+	if offset, err := setting.GetInt(model.SettingKeyStatsTimezoneOffset); err == nil && offset != 0 {
+		return time.FixedZone(fmt.Sprintf("UTC%+d", offset), offset*3600)
+	}
+	return time.Local
 }
 
-// TODO(stats_timezone): Future improvement — replace integer offset with IANA
-// timezone string. An offset-based approach cannot handle DST transitions.
-// Plan: add "stats_timezone" (IANA) setting, fall back to current offset.
+// now returns the current time in the configured stats timezone.
+// When the container runs in UTC but users are in a different timezone, this ensures
+// hourly/daily statistics align with the user's local date/hour boundaries.
+// .Location() 反映真实时区（而非 UTC），day-boundary 计算用 time.Date(...,loc) 仍正确。
+func now() time.Time {
+	return timeNow().In(StatsLocation())
+}
 
-// Now returns the current time adjusted by the configured timezone offset.
+// Now returns the current time in the configured stats timezone.
 func Now() time.Time { return now() }
 
 // today returns the current date string (YYYYMMDD) in the configured timezone.

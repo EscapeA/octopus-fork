@@ -288,7 +288,7 @@ func buildOpsProviderPromptCacheSummary(ctx context.Context) model.OpsProviderPr
 	}
 	providerPromptCacheMu.RUnlock()
 
-	start := opsHourlyWindowStart(time.Now(), configuredStatsTimezoneOffsetHours())
+	start := opsHourlyWindowStart(time.Now(), stats.StatsLocation())
 	logs := loadOpsProviderPromptCacheLogs(ctx, start)
 	result := buildOpsProviderPromptCacheSummaryFromLogs(logs, start)
 
@@ -300,19 +300,12 @@ func buildOpsProviderPromptCacheSummary(ctx context.Context) model.OpsProviderPr
 	return result
 }
 
-func configuredStatsTimezoneOffsetHours() int {
-	offset, err := setting.GetInt(model.SettingKeyStatsTimezoneOffset)
-	if err != nil || offset < -12 || offset > 14 {
-		return 0
-	}
-	return offset
-}
-
-func opsHourlyWindowStart(now time.Time, offsetHours int) time.Time {
-	offset := time.Duration(offsetHours) * time.Hour
-	localNow := now.UTC().Add(offset)
+// opsHourlyWindowStart 计算过去 24 小时（按整点对齐）的窗口起点，返回 UTC 时间。
+// loc 为统计时区，窗口按 loc 的整点对齐后转回 UTC 用于 DB 时间过滤。
+func opsHourlyWindowStart(now time.Time, loc *time.Location) time.Time {
+	localNow := now.In(loc)
 	localStart := localNow.Add(-23 * time.Hour).Truncate(time.Hour)
-	return localStart.Add(-offset)
+	return localStart.In(time.UTC)
 }
 
 func buildOpsProviderPromptCacheSummaryFromLogs(

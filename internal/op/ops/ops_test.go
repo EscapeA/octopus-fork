@@ -314,7 +314,8 @@ func TestBuildOpsProviderPromptCacheSummaryFromLogs_AggregatesByChannelAndTrend(
 
 func TestBuildOpsProviderPromptCacheSummaryFromLogs_UsesTimezoneAlignedBuckets(t *testing.T) {
 	now := time.Date(2026, 5, 24, 10, 15, 0, 0, time.UTC)
-	start := opsHourlyWindowStart(now, 8)
+	loc := time.FixedZone("UTC+8", 8*3600)
+	start := opsHourlyWindowStart(now, loc)
 	wantStart := time.Date(2026, 5, 23, 11, 0, 0, 0, time.UTC)
 	if !start.Equal(wantStart) {
 		t.Fatalf("start = %s, want %s", start.Format(time.RFC3339), wantStart.Format(time.RFC3339))
