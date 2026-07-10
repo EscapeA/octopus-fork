@@ -11,7 +11,9 @@ import (
 
 func TestNowUsesRuntimeLocationWhenTimezoneOffsetIsZero(t *testing.T) {
 	cleanup := stats.SetTimeNowForTest(func() time.Time {
-		return time.Date(2026, 5, 4, 15, 0, 0, 0, time.FixedZone("UTC+8", 8*3600))
+		// 用 time.Local 构造，使测试与运行时 TZ 无关：offset=0 时 Now() 走 time.Local，
+		// timeNow().In(time.Local) 应保持原始 wall-clock 小时。
+		return time.Date(2026, 5, 4, 15, 0, 0, 0, time.Local)
 	})
 	defer cleanup()
 
