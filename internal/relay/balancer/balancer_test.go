@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lingyuins/octopus/internal/model"
+	ch "github.com/lingyuins/octopus/internal/op/channel"
 )
 
 func clearAutoStatsForTest() {
@@ -181,5 +182,94 @@ func TestDisposableChannelsRespectsSticky(t *testing.T) {
 	}
 	if it.Item().ChannelID != 1 {
 		t.Fatalf("first candidate ChannelID = %d, want 1 (sticky, non-disposable)", it.Item().ChannelID)
+	}
+}
+
+// seedChannelWithKeys 向 channel cache 注入一个带指定 key 的渠道，供熔断聚合查询使用。
+func seedChannelWithKeys(channelID int, keyIDs []int) {
+	keys := make([]model.ChannelKey, len(keyIDs))
+	for i, id := range keyIDs {
+		keys[i] = model.ChannelKey{ID: id, ChannelID: channelID, Enabled: true, ChannelKey: fmt.Sprintf("key-%d", id)}
+	}
+	ch.GetCache().Set(channelID, model.Channel{ID: channelID, Keys: keys})
+}
+
+// tripKey 对单个 key 连续记录失败直到触发熔断（默认阈值 5）。
+func tripKey(channelID, keyID int, modelName string) {
+	for i := 0; i < 5; i++ {
+		RecordFailure(channelID, keyID, modelName)
+	}
+}
+
+// TestAutoCandidatesDeprioritizeAllKeysTrippedChannel 验证 #133：两个渠道样本与成功率相同，
+// 其中一个全熔断，应被降权排到末尾（不剔除）。
+func TestAutoCandidatesDeprioritizeAllKeysTrippedChannel(t *testing.T) {
+	clearAutoStatsForTest()
+	clearCircuitBreakerForTest()
+
+	modelName := fmt.Sprintf("auto-tripped-%d", time.Now().UnixNano())
+	// 渠道 1（全熔断）和渠道 2（健康）各有一个 key
+	seedChannelWithKeys(1, []int{11})
+	seedChannelWithKeys(2, []int{22})
+	defer func() {
+		ch.GetCache().Del(1, 2)
+	}()
+
+	items := []model.GroupItem{
+		{ChannelID: 1, ModelName: modelName, Weight: 100, Priority: 1},
+		{ChannelID: 2, ModelName: modelName, Weight: 1, Priority: 2},
+	}
+
+	// 两渠道成功率相同（均达到 minSamples），渠道 1 权重更高--无熔断时应排第一
+	recordOutcome(1, modelName, true, 10)
+	recordOutcome(2, modelName, true, 10)
+
+	// 熔断渠道 1 的唯一 key
+	tripKey(1, 11, modelName)
+
+	got := (&Auto{}).Candidates(items)
+	if len(got) != 2 {
+		t.Fatalf("Candidates() len = %d, want 2", len(got))
+	}
+	if got[0].ChannelID != 2 {
+		t.Fatalf("Candidates()[0].ChannelID = %d, want 2 (channel 1 is fully tripped, should be deprioritized)", got[0].ChannelID)
+	}
+	if got[1].ChannelID != 1 {
+		t.Fatalf("Candidates()[1].ChannelID = %d, want 1 (tripped channel should be kept but sorted last)", got[1].ChannelID)
+	}
+}
+
+// TestAutoCandidatesKeepPartialTrippedChannelNormal 验证 #133：渠道只有部分 key 熔断时
+// 不应被降权（"全熔断才降权"语义），正常参与排序。
+func TestAutoCandidatesKeepPartialTrippedChannelNormal(t *testing.T) {
+	clearAutoStatsForTest()
+	clearCircuitBreakerForTest()
+
+	modelName := fmt.Sprintf("auto-partial-%d", time.Now().UnixNano())
+	// 渠道 1 有两个 key，只熔断其中一个；渠道 2 健康
+	seedChannelWithKeys(1, []int{11, 12})
+	seedChannelWithKeys(2, []int{22})
+	defer func() {
+		ch.GetCache().Del(1, 2)
+	}()
+
+	items := []model.GroupItem{
+		{ChannelID: 1, ModelName: modelName, Weight: 100, Priority: 1},
+		{ChannelID: 2, ModelName: modelName, Weight: 1, Priority: 2},
+	}
+
+	// 两渠道成功率相同，渠道 1 权重更高--应排第一（部分熔断不降权）
+	recordOutcome(1, modelName, true, 10)
+	recordOutcome(2, modelName, true, 10)
+
+	// 只熔断渠道 1 的 key 11，key 12 仍健康 -> 未全熔断
+	tripKey(1, 11, modelName)
+
+	got := (&Auto{}).Candidates(items)
+	if len(got) != 2 {
+		t.Fatalf("Candidates() len = %d, want 2", len(got))
+	}
+	if got[0].ChannelID != 1 {
+		t.Fatalf("Candidates()[0].ChannelID = %d, want 1 (partial tripped should NOT be deprioritized)", got[0].ChannelID)
 	}
 }

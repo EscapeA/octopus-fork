@@ -133,6 +133,12 @@ func (b *Auto) Candidates(items []model.GroupItem) []model.GroupItem {
 				scored[i].score = successRate*(1-latencyWeight) + latencyScore*latencyWeight
 			}
 		}
+
+		// #133: 全熔断的渠道降权排末尾，不剔除（保留 HalfOpen 探测能力）。
+		// 只读查询不触发 Open->HalfOpen 转换；SkipCircuitBreak 仍是最终硬过滤。
+		if IsChannelAllKeysTripped(item.ChannelID, item.ModelName) {
+			scored[i].score = math.Inf(-1)
+		}
 	}
 
 	// Sort: unexplored first, then by score descending

@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🛠 Optimizations
+- **Balancer (issue #133)**: the Auto strategy now deprioritizes fully circuit-broken channels during candidate scoring instead of only skipping them at iteration time. Auto scoring previously ignored breaker state, so a tripped channel could still sort first (only to be skipped later by `SkipCircuitBreak`), making the "smart selection" appear to conflict with circuit breaking. A new read-only `IsChannelAllKeysTripped` aggregate query checks whether all of a channel's enabled keys are tripped for the requested model - without triggering the `Open -> HalfOpen` state transition that `IsTripped` performs - and assigns the channel `score = -Inf` so it sorts last (kept in the list to preserve HalfOpen probe opportunities). Channels with at least one healthy key are unaffected.
+
 ## [v2.2.6] - 2026-07-02
 
 ### 🚀 Features

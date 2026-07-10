@@ -1,6 +1,7 @@
 package balancer
 
 import (
+	"context"
 	"fmt"
 	"math/bits"
 	"strings"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/lingyuins/octopus/internal/model"
+	ch "github.com/lingyuins/octopus/internal/op/channel"
 	"github.com/lingyuins/octopus/internal/op/setting"
 	"github.com/lingyuins/octopus/internal/utils/log"
 )
@@ -133,6 +135,54 @@ func IsTripped(channelID, keyID int, modelName string) (tripped bool, remaining 
 	default:
 		return false, 0
 	}
+}
+
+// isKeyTrippedReadOnly 只读检查单个 key 是否处于熔断状态，不触发 Open->HalfOpen 状态转换。
+// 与 IsTripped 的区别：IsTripped 在 Open 冷却到期时会转为 HalfOpen（有副作用），本函数仅做判定。
+func isKeyTrippedReadOnly(channelID, keyID int, modelName string) bool {
+	key := circuitKey(channelID, keyID, modelName)
+	v, ok := globalBreaker.Load(key)
+	if !ok {
+		return false
+	}
+	entry, ok := v.(*circuitEntry)
+	if !ok {
+		return false
+	}
+	entry.mu.Lock()
+	defer entry.mu.Unlock()
+	switch entry.State {
+	case StateOpen:
+		// 只读：冷却到期也不转 HalfOpen，仅判定当前是否仍应跳过。
+		// 冷却已到期的 Open 视为"即将可探测"，不计为 tripped，避免误降权。
+		cooldown := GetCooldown(entry.TripCount)
+		return time.Since(entry.LastFailureTime) < cooldown
+	case StateHalfOpen:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsChannelAllKeysTripped 只读检查：channel+model 下所有启用的 key 是否都处于熔断状态。
+// 不会触发 Open->HalfOpen 状态转换（与 IsTripped 不同），仅供 Auto 策略评分降权使用。
+// channel 不存在、无 key、无启用 key 时返回 false（视为健康，不降权）。
+func IsChannelAllKeysTripped(channelID int, modelName string) bool {
+	channel, err := ch.Get(channelID, context.Background())
+	if err != nil || channel == nil {
+		return false
+	}
+	hasEnabledKey := false
+	for _, key := range channel.Keys {
+		if !key.Enabled {
+			continue
+		}
+		hasEnabledKey = true
+		if !isKeyTrippedReadOnly(channelID, key.ID, modelName) {
+			return false // 有任一健康 key，未全熔断
+		}
+	}
+	return hasEnabledKey
 }
 
 // RecordSuccess 记录成功，重置熔断器状态
