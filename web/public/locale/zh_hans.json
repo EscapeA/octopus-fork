@@ -443,9 +443,9 @@
       "successRate": "成功率",
       "totalTokens": "总 Token",
       "totalCost": "总成本",
-      "providerCount": "供给源数",
-      "apiKeyCount": "API 密钥数",
-      "modelCount": "模型数",
+      "providerCount": "活跃供给源",
+      "apiKeyCount": "活跃 API 密钥",
+      "modelCount": "活跃模型",
       "fallbackRate": "回退率"
     },
     "sort": {
@@ -1205,9 +1205,9 @@
         "successRate": "成功率",
         "totalTokens": "总 Token",
         "totalCost": "总成本",
-        "providerCount": "供给源数",
-        "apiKeyCount": "API 密钥数",
-        "modelCount": "模型数",
+        "providerCount": "活跃供给源",
+        "apiKeyCount": "活跃 API 密钥",
+        "modelCount": "活跃模型",
         "fallbackRate": "回退率"
       }
     },

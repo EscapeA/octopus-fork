@@ -9,7 +9,6 @@ import (
 
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
-	"github.com/lingyuins/octopus/internal/op/apikey"
 	"github.com/lingyuins/octopus/internal/op/channel"
 	"github.com/lingyuins/octopus/internal/op/group"
 	"github.com/lingyuins/octopus/internal/op/navorder"
@@ -89,32 +88,11 @@ func AnalyticsOverviewGet(ctx context.Context, r model.AnalyticsRange) (*model.A
 	mergedDaily := mergeAnalyticsDailyWithToday(daily, stats.TodayGet())
 	metrics := aggregateAnalyticsDailyMetrics(mergedDaily, r, stats.Now())
 
-	channels, err := channel.List(ctx)
+	// 活跃渠道/模型/API Key 取该时间段内 relay_logs 中实际出现过请求的去重数，
+	// 而非启用渠道上配置的模型总数（后者会给出 57 渠道 / 2817 模型这类不真实数字）。
+	activeChannels, activeModels, activeAPIKeys, err := loadAnalyticsActiveCounts(ctx, r)
 	if err != nil {
 		return nil, err
-	}
-	apiKeys, err := apikey.List(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	providerCount := 0
-	modelNames := make(map[string]struct{})
-	for _, ch := range channels {
-		if !ch.Enabled {
-			continue
-		}
-		providerCount++
-		for _, modelName := range splitAnalyticsChannelModels(ch) {
-			modelNames[modelName] = struct{}{}
-		}
-	}
-
-	apiKeyCount := 0
-	for _, apiKey := range apiKeys {
-		if apiKey.Enabled {
-			apiKeyCount++
-		}
 	}
 
 	logSummary, err := loadAnalyticsSummary(ctx, r)
@@ -126,7 +104,7 @@ func AnalyticsOverviewGet(ctx context.Context, r model.AnalyticsRange) (*model.A
 		fallbackRate = (float64(logSummary.FallbackCount) / float64(logSummary.RequestCount)) * 100
 	}
 
-	overview := buildAnalyticsOverview(metrics, providerCount, apiKeyCount, len(modelNames), fallbackRate)
+	overview := buildAnalyticsOverview(metrics, activeChannels, activeAPIKeys, activeModels, fallbackRate)
 	return &overview, nil
 }
 
@@ -886,6 +864,94 @@ func loadAnalyticsSummary(ctx context.Context, r model.AnalyticsRange) (*analyti
 	lock.Unlock()
 
 	return row, nil
+}
+
+// loadAnalyticsActiveCounts 统计某时间范围内实际出现过请求的去重渠道/模型/API Key 数。
+// 与 loadAnalyticsSummary 同样的双源模式：keepEnabled 时查 DB（LogDB 优先）拿到
+// distinct 集合，再无条件合并内存缓存（最近 200 条尚未落库的日志）。模型名沿用
+// actual->request 回退约定（与 loadAnalyticsModelRowsFromRelayLogs 一致）。
+// API Key 跳过 0（匿名请求不计入活跃 API Key）。
+func loadAnalyticsActiveCounts(ctx context.Context, r model.AnalyticsRange) (int, int, int, error) {
+	startUnix := analyticsRangeStartUnix(r, stats.Now())
+
+	channelSet := make(map[int]struct{})
+	modelSet := make(map[string]struct{})
+	apiKeySet := make(map[int]struct{})
+
+	keepEnabled, err := setting.GetBool(model.SettingKeyRelayLogKeepEnabled)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	if keepEnabled {
+		// 渠道
+		var chIDs []int
+		chQ := relayLogReadConn().WithContext(ctx).Model(&model.RelayLog{}).
+			Distinct("channel_id")
+		if startUnix != nil {
+			chQ = chQ.Where("time >= ?", *startUnix)
+		}
+		if err := chQ.Pluck("channel_id", &chIDs).Error; err != nil {
+			return 0, 0, 0, err
+		}
+		for _, id := range chIDs {
+			channelSet[id] = struct{}{}
+		}
+
+		// 模型（actual_model_name 为空时回退到 request_model_name）
+		var modelNames []string
+		mQ := relayLogReadConn().WithContext(ctx).Model(&model.RelayLog{}).
+			Distinct("COALESCE(NULLIF(actual_model_name, ''), request_model_name)")
+		if startUnix != nil {
+			mQ = mQ.Where("time >= ?", *startUnix)
+		}
+		if err := mQ.Pluck("COALESCE(NULLIF(actual_model_name, ''), request_model_name)", &modelNames).Error; err != nil {
+			return 0, 0, 0, err
+		}
+		for _, mn := range modelNames {
+			mn = strings.TrimSpace(mn)
+			if mn != "" {
+				modelSet[mn] = struct{}{}
+			}
+		}
+
+		// API Key（跳过 0=匿名）
+		var keyIDs []int
+		kQ := relayLogReadConn().WithContext(ctx).Model(&model.RelayLog{}).
+			Distinct("request_api_key_id").
+			Where("request_api_key_id > 0")
+		if startUnix != nil {
+			kQ = kQ.Where("time >= ?", *startUnix)
+		}
+		if err := kQ.Pluck("request_api_key_id", &keyIDs).Error; err != nil {
+			return 0, 0, 0, err
+		}
+		for _, id := range keyIDs {
+			apiKeySet[id] = struct{}{}
+		}
+	}
+
+	// 内存缓存（最近未落库的日志）无条件合并
+	cache, lock := relaylog.GetCacheAndLock()
+	lock.Lock()
+	for _, logItem := range cache {
+		if startUnix != nil && logItem.Time < *startUnix {
+			continue
+		}
+		channelSet[logItem.ChannelId] = struct{}{}
+		if logItem.RequestAPIKeyID > 0 {
+			apiKeySet[logItem.RequestAPIKeyID] = struct{}{}
+		}
+		modelName := strings.TrimSpace(logItem.ActualModelName)
+		if modelName == "" {
+			modelName = strings.TrimSpace(logItem.RequestModelName)
+		}
+		if modelName != "" {
+			modelSet[modelName] = struct{}{}
+		}
+	}
+	lock.Unlock()
+
+	return len(channelSet), len(modelSet), len(apiKeySet), nil
 }
 
 // channelModelScope 描述分组维度下的 (渠道,模型) 过滤集合。

@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -149,6 +151,10 @@ func generateAndSendReport(ctx context.Context, sched model.ReportSchedule, chan
 }
 
 // buildReportContent generates the formatted report text.
+//
+// 报告使用纯文本排版（【】分节标题 + 每指标一行），不使用 Markdown。多数通知渠道
+// （飞书/钉钉/企微/Telegram/Gotify/邮件/Ntfy）以纯文本发送，Markdown 的 ##/- /---
+// 符号会被原样显示，可读性差。大数字加千分位，token 数用 k 缩写以保持紧凑。
 func buildReportContent(ctx context.Context, rangeStr, rangeTitle string, metrics []model.ReportMetric) (string, error) {
 	var sections []string
 
@@ -162,20 +168,14 @@ func buildReportContent(ctx context.Context, rangeStr, rangeTitle string, metric
 		return "", fmt.Errorf("invalid range: %w", err)
 	}
 
+	// 概览/成本明细/错误分析都依赖 overview，只取一次复用，避免重复查询。
+	overview, overviewErr := analytics.AnalyticsOverviewGet(ctx, rangeEnum)
+
 	// Overview section
 	if containsMetric(metrics, model.ReportMetricOverview) {
-		overview, err := analytics.AnalyticsOverviewGet(ctx, rangeEnum)
-		if err == nil && overview != nil {
-			sections = append(sections, "## 总览")
-			sections = append(sections, fmt.Sprintf("- 请求总数: %d", overview.RequestCount))
-			sections = append(sections, fmt.Sprintf("- Token 总数: %d", overview.TotalTokens))
-			sections = append(sections, fmt.Sprintf("  - 输入: %d", overview.InputTokens))
-			sections = append(sections, fmt.Sprintf("  - 输出: %d", overview.OutputTokens))
-			sections = append(sections, fmt.Sprintf("- 总成本: $%.2f", overview.TotalCost))
-			sections = append(sections, fmt.Sprintf("- 成功率: %.2f%%", overview.SuccessRate*100))
-			sections = append(sections, fmt.Sprintf("- 活跃渠道: %d", overview.ProviderCount))
-			sections = append(sections, fmt.Sprintf("- 活跃模型: %d", overview.ModelCount))
-			sections = append(sections, fmt.Sprintf("- API Key: %d", overview.APIKeyCount))
+		if overviewErr == nil && overview != nil {
+			sections = append(sections, "【总览】")
+			sections = append(sections, formatOverviewSection(overview)...)
 			sections = append(sections, "")
 		}
 	}
@@ -184,7 +184,7 @@ func buildReportContent(ctx context.Context, rangeStr, rangeTitle string, metric
 	if containsMetric(metrics, model.ReportMetricTopModels) {
 		modelBreakdown, err := analytics.AnalyticsModelBreakdownGet(ctx, rangeEnum)
 		if err == nil && len(modelBreakdown) > 0 {
-			sections = append(sections, "## Top 5 模型")
+			sections = append(sections, "【Top 5 模型】")
 			sort.Slice(modelBreakdown, func(i, j int) bool {
 				return modelBreakdown[i].RequestCount > modelBreakdown[j].RequestCount
 			})
@@ -194,8 +194,8 @@ func buildReportContent(ctx context.Context, rangeStr, rangeTitle string, metric
 			}
 			for i := 0; i < limit; i++ {
 				m := modelBreakdown[i]
-				sections = append(sections, fmt.Sprintf("%d. %s: %d 请求, %d tokens, $%.2f",
-					i+1, m.ModelName, m.RequestCount, m.TotalTokens, m.TotalCost))
+				sections = append(sections, fmt.Sprintf("%d. %s | %s 请求 | %s tokens | $%.2f",
+					i+1, m.ModelName, formatCount(m.RequestCount), formatTokens(m.TotalTokens), m.TotalCost))
 			}
 			sections = append(sections, "")
 		}
@@ -205,7 +205,7 @@ func buildReportContent(ctx context.Context, rangeStr, rangeTitle string, metric
 	if containsMetric(metrics, model.ReportMetricTopChannels) {
 		providerBreakdown, err := analytics.AnalyticsProviderBreakdownGet(ctx, rangeEnum)
 		if err == nil && len(providerBreakdown) > 0 {
-			sections = append(sections, "## Top 5 渠道")
+			sections = append(sections, "【Top 5 渠道】")
 			sort.Slice(providerBreakdown, func(i, j int) bool {
 				return providerBreakdown[i].RequestCount > providerBreakdown[j].RequestCount
 			})
@@ -215,8 +215,8 @@ func buildReportContent(ctx context.Context, rangeStr, rangeTitle string, metric
 			}
 			for i := 0; i < limit; i++ {
 				p := providerBreakdown[i]
-				sections = append(sections, fmt.Sprintf("%d. %s: %d 请求, %d tokens, $%.2f",
-					i+1, p.ChannelName, p.RequestCount, p.TotalTokens, p.TotalCost))
+				sections = append(sections, fmt.Sprintf("%d. %s | %s 请求 | %s tokens | $%.2f",
+					i+1, p.ChannelName, formatCount(p.RequestCount), formatTokens(p.TotalTokens), p.TotalCost))
 			}
 			sections = append(sections, "")
 		}
@@ -226,7 +226,7 @@ func buildReportContent(ctx context.Context, rangeStr, rangeTitle string, metric
 	if containsMetric(metrics, model.ReportMetricTopAPIKeys) {
 		apiKeyBreakdown, err := analytics.AnalyticsAPIKeyBreakdownGet(ctx, rangeEnum)
 		if err == nil && len(apiKeyBreakdown) > 0 {
-			sections = append(sections, "## Top 5 API Key")
+			sections = append(sections, "【Top 5 API Key】")
 			sort.Slice(apiKeyBreakdown, func(i, j int) bool {
 				return apiKeyBreakdown[i].RequestCount > apiKeyBreakdown[j].RequestCount
 			})
@@ -236,8 +236,8 @@ func buildReportContent(ctx context.Context, rangeStr, rangeTitle string, metric
 			}
 			for i := 0; i < limit; i++ {
 				k := apiKeyBreakdown[i]
-				sections = append(sections, fmt.Sprintf("%d. %s: %d 请求, %d tokens, $%.2f",
-					i+1, k.Name, k.RequestCount, k.TotalTokens, k.TotalCost))
+				sections = append(sections, fmt.Sprintf("%d. %s | %s 请求 | %s tokens | $%.2f",
+					i+1, k.Name, formatCount(k.RequestCount), formatTokens(k.TotalTokens), k.TotalCost))
 			}
 			sections = append(sections, "")
 		}
@@ -245,40 +245,124 @@ func buildReportContent(ctx context.Context, rangeStr, rangeTitle string, metric
 
 	// Cost breakdown
 	if containsMetric(metrics, model.ReportMetricCostBreakdown) {
-		overview, err := analytics.AnalyticsOverviewGet(ctx, rangeEnum)
-		if err == nil && overview != nil {
-			sections = append(sections, "## 成本明细")
-			sections = append(sections, fmt.Sprintf("- 总成本: $%.2f", overview.TotalCost))
-			if overview.RequestCount > 0 {
-				costPerRequest := overview.TotalCost / float64(overview.RequestCount)
-				sections = append(sections, fmt.Sprintf("- 平均每请求: $%.4f", costPerRequest))
-			}
-			if overview.TotalTokens > 0 {
-				costPer1kTokens := (overview.TotalCost / float64(overview.TotalTokens)) * 1000
-				sections = append(sections, fmt.Sprintf("- 每千 token: $%.4f", costPer1kTokens))
-			}
+		if overviewErr == nil && overview != nil {
+			sections = append(sections, "【成本明细】")
+			sections = append(sections, formatCostBreakdownSection(overview)...)
 			sections = append(sections, "")
 		}
 	}
 
 	// Error analysis
 	if containsMetric(metrics, model.ReportMetricErrorAnalysis) {
-		overview, err := analytics.AnalyticsOverviewGet(ctx, rangeEnum)
-		if err == nil && overview != nil {
-			sections = append(sections, "## 错误分析")
-			sections = append(sections, fmt.Sprintf("- 成功率: %.2f%%", overview.SuccessRate*100))
-			failedRequests := overview.RequestCount - int64(float64(overview.RequestCount)*overview.SuccessRate)
-			sections = append(sections, fmt.Sprintf("- 失败请求: %d", failedRequests))
-			sections = append(sections, fmt.Sprintf("- 回退率: %.2f%%", overview.FallbackRate*100))
+		if overviewErr == nil && overview != nil {
+			sections = append(sections, "【错误分析】")
+			sections = append(sections, formatErrorAnalysisSection(overview)...)
 			sections = append(sections, "")
 		}
 	}
 
 	// Footer
-	sections = append(sections, "---")
+	sections = append(sections, "━━━━━━━━━━━━━━━━")
 	sections = append(sections, fmt.Sprintf("生成时间: %s", time.Now().Format("2006-01-02 15:04:05")))
 
 	return strings.Join(sections, "\n"), nil
+}
+
+// formatOverviewSection 格式化总览分节。SuccessRate/FallbackRate 已是 0-100 区间，
+// 不再二次乘 100（修复历史 bug：曾显示 9318.18% 这种不可能值）。
+func formatOverviewSection(o *model.AnalyticsOverview) []string {
+	return []string{
+		fmt.Sprintf("请求总数: %s", formatCount(o.RequestCount)),
+		fmt.Sprintf("Token 总数: %s (输入 %s / 输出 %s)",
+			formatCount(o.TotalTokens), formatCount(o.InputTokens), formatCount(o.OutputTokens)),
+		fmt.Sprintf("总成本: $%.2f", o.TotalCost),
+		fmt.Sprintf("成功率: %.2f%%", o.SuccessRate),
+		fmt.Sprintf("活跃渠道: %d", o.ProviderCount),
+		fmt.Sprintf("活跃模型: %d", o.ModelCount),
+		fmt.Sprintf("API Key: %d", o.APIKeyCount),
+	}
+}
+
+// formatCostBreakdownSection 格式化成本明细分节。
+func formatCostBreakdownSection(o *model.AnalyticsOverview) []string {
+	lines := []string{fmt.Sprintf("总成本: $%.2f", o.TotalCost)}
+	if o.RequestCount > 0 {
+		costPerRequest := o.TotalCost / float64(o.RequestCount)
+		lines = append(lines, fmt.Sprintf("平均每请求: $%.4f", costPerRequest))
+	}
+	if o.TotalTokens > 0 {
+		costPer1kTokens := (o.TotalCost / float64(o.TotalTokens)) * 1000
+		lines = append(lines, fmt.Sprintf("每千 token: $%.4f", costPer1kTokens))
+	}
+	return lines
+}
+
+// formatErrorAnalysisSection 格式化错误分析分节。SuccessRate/FallbackRate 已是 0-100
+// 区间，不再二次乘 100（修复历史 bug：曾显示 9318.18% 这种不可能值）。失败请求由
+// RequestCount 与 SuccessRate（0-100）反推并四舍五入，而非把 SuccessRate 当 0-1
+// 分数（修复历史 bug：曾得到负数）。
+func formatErrorAnalysisSection(o *model.AnalyticsOverview) []string {
+	failedRequests := int64(0)
+	if o.RequestCount > 0 {
+		success := int64(math.Round(float64(o.RequestCount) * o.SuccessRate / 100))
+		failedRequests = o.RequestCount - success
+		if failedRequests < 0 {
+			failedRequests = 0
+		}
+	}
+	return []string{
+		fmt.Sprintf("成功率: %.2f%%", o.SuccessRate),
+		fmt.Sprintf("失败请求: %s", formatCount(failedRequests)),
+		fmt.Sprintf("回退率: %.2f%%", o.FallbackRate),
+	}
+}
+
+// formatCount 为整数加千分位分隔符（如 673138 -> "673,138"）。
+func formatCount(n int64) string {
+	s := strconv.FormatInt(n, 10)
+	if n < 0 {
+		return "-" + insertCommas(s[1:])
+	}
+	return insertCommas(s)
+}
+
+// insertCommas 在纯数字字符串中每三位插入一个逗号。
+func insertCommas(s string) string {
+	n := len(s)
+	if n <= 3 {
+		return s
+	}
+	var b strings.Builder
+	first := n % 3
+	if first > 0 {
+		b.WriteString(s[:first])
+		if n > first {
+			b.WriteByte(',')
+		}
+	}
+	for i := first; i < n; i += 3 {
+		b.WriteString(s[i : i+3])
+		if i+3 < n {
+			b.WriteByte(',')
+		}
+	}
+	return b.String()
+}
+
+// formatTokens 将 token 数格式化为紧凑的 k 缩写（如 312000 -> "312k"，1500 -> "1.5k"）。
+// 不足 1000 时直接显示原数。
+func formatTokens(n int64) string {
+	if n < 1000 {
+		return strconv.FormatInt(n, 10)
+	}
+	kb := float64(n) / 1000
+	if kb >= 100 {
+		return strconv.FormatInt(int64(kb), 10) + "k"
+	}
+	// 保留一位小数，去掉多余的 ".0"（如 "12.0" -> "12"），再拼接 "k"。
+	s := strconv.FormatFloat(kb, 'f', 1, 64)
+	s = strings.TrimSuffix(s, ".0")
+	return s + "k"
 }
 
 // containsMetric checks if a metric is in the list.
@@ -314,11 +398,12 @@ func recordReportHistory(sched model.ReportSchedule, content, status, detail str
 
 func createReportNotification(ctx context.Context, sched model.ReportSchedule, content, status, detail string) {
 	severity := model.NotificationSeverityInfo
-	if status == "sent" {
+	switch status {
+	case "sent":
 		severity = model.NotificationSeveritySuccess
-	} else if status == "failed" {
+	case "failed":
 		severity = model.NotificationSeverityError
-	} else if status == "skipped" {
+	case "skipped":
 		severity = model.NotificationSeverityWarning
 	}
 	metadata, _ := json.Marshal(map[string]any{

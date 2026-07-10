@@ -443,9 +443,9 @@
       "successRate": "Success Rate",
       "totalTokens": "Total Tokens",
       "totalCost": "Total Cost",
-      "providerCount": "Providers",
-      "apiKeyCount": "API Keys",
-      "modelCount": "Models",
+      "providerCount": "Active Providers",
+      "apiKeyCount": "Active API Keys",
+      "modelCount": "Active Models",
       "fallbackRate": "Fallback Rate"
     },
     "sort": {
@@ -1249,9 +1249,9 @@
         "successRate": "Success Rate",
         "totalTokens": "Total Tokens",
         "totalCost": "Total Cost",
-        "providerCount": "Providers",
-        "apiKeyCount": "API Keys",
-        "modelCount": "Models",
+        "providerCount": "Active Providers",
+        "apiKeyCount": "Active API Keys",
+        "modelCount": "Active Models",
         "fallbackRate": "Fallback Rate"
       }
     },
