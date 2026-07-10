@@ -1,3 +1,4 @@
+import type { TranslationValues } from 'use-intl';
 import type { NotificationItem } from '@/api/endpoints/notification';
 
 /**
@@ -9,7 +10,7 @@ import type { NotificationItem } from '@/api/endpoints/notification';
  * `t` 为 next-intl 的翻译函数，命名空间为 'notif'，按 `${key}.title` / `${key}.content`
  * 取模板。参数对象由 *_args JSON 反序列化得到，直接作为 t() 的第二参数（ICU 插值）。
  */
-export function resolveNotifTitle(item: NotificationItem, t: (key: string, params?: Record<string, unknown>) => string): string {
+export function resolveNotifTitle(item: NotificationItem, t: (key: string, params?: TranslationValues) => string): string {
     if (item.title_key) {
         try {
             const args = item.title_args ? JSON.parse(item.title_args) : undefined;
@@ -21,7 +22,7 @@ export function resolveNotifTitle(item: NotificationItem, t: (key: string, param
     return item.title;
 }
 
-export function resolveNotifContent(item: NotificationItem, t: (key: string, params?: Record<string, unknown>) => string): string {
+export function resolveNotifContent(item: NotificationItem, t: (key: string, params?: TranslationValues) => string): string {
     if (item.content_key) {
         try {
             const args = item.content_args ? JSON.parse(item.content_args) : undefined;
