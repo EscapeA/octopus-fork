@@ -29,7 +29,7 @@ export function Home() {
             <Suspense fallback={<ChartSkeleton />}>
                 <StatsChart />
             </Suspense>
-            <div className="grid items-start gap-4 md:gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.4fr)]">
+            <div className="grid items-start gap-4 md:gap-5 xl:grid-cols-[auto_minmax(320px,1fr)]">
                 <div className="min-w-0">
                     <Activity />
                 </div>
