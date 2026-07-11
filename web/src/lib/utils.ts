@@ -50,15 +50,15 @@ export function formatCount(num: number | undefined): { raw: number, formatted: 
 
 /**
  * Format a monetary amount (USD internally).
- * China mode: convert to RMB (× exchangeRate) and display as ¥, using 万/亿.
+ * China mode: convert to RMB (× exchangeRate) and display as 元/万元/亿元.
  */
 export function formatMoney(num: number | undefined): { raw: number, formatted: { value: string, unit: string } } {
   const { chinaMode, exchangeRate } = getChinaMode();
   if (chinaMode) {
     const raw = (num ?? 0) * exchangeRate;
-    if (raw >= 100_000_000) return { raw, formatted: { value: (raw / 100_000_000).toFixed(2), unit: '¥亿' } };
-    if (raw >= 10_000)      return { raw, formatted: { value: (raw / 10_000).toFixed(2), unit: '¥万' } };
-    return { raw, formatted: { value: raw.toFixed(2), unit: '¥' } };
+    if (raw >= 100_000_000) return { raw, formatted: { value: (raw / 100_000_000).toFixed(2), unit: '亿元' } };
+    if (raw >= 10_000)      return { raw, formatted: { value: (raw / 10_000).toFixed(2), unit: '万元' } };
+    return { raw, formatted: { value: raw.toFixed(2), unit: '元' } };
   }
   return {
     raw: num ?? 0,
