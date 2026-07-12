@@ -2,13 +2,14 @@
 
 import { useStatsDaily, useStatsHourly, type StatsDailyFormatted, type StatsHourlyFormatted } from '@/api/endpoints/stats';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { Area, ComposedChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { useTranslations } from 'next-intl';
 import { formatCount, formatMoney } from '@/lib/utils';
 import { formatDateOnly } from '@/lib/time';
 import { AnimatedNumber } from '@/components/common/AnimatedNumber';
 import { useHomeStatsRefreshMs, useHomeViewStore, type ChartMetricType, type ChartPeriod } from '@/components/modules/home/store';
+import { useSettingStore } from '@/stores/setting';
 import { BarChart3, CalendarClock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +26,7 @@ export function StatsChart() {
     const { data: statsDaily } = useStatsDaily({ refetchIntervalMs: statsRefreshMs });
     const { data: statsHourly } = useStatsHourly({ refetchIntervalMs: statsRefreshMs });
     const t = useTranslations('home.chart');
+    const { chinaMode, exchangeRate } = useSettingStore();
 
     const chartMetrics = useHomeViewStore((state) => state.chartMetrics);
     const toggleChartMetric = useHomeViewStore((state) => state.toggleChartMetric);
@@ -36,16 +38,16 @@ export function StatsChart() {
         return [...statsDaily].sort((a, b) => a.date.localeCompare(b.date));
     }, [statsDaily]);
 
-    const buildPointValue = (type: ChartMetricType, stat?: StatsDailyFormatted | StatsHourlyFormatted): number => {
+    const buildPointValue = useCallback((type: ChartMetricType, stat?: StatsDailyFormatted | StatsHourlyFormatted): number => {
         if (!stat) return 0;
-        if (type === 'cost') return stat.total_cost.raw;
+        if (type === 'cost') return chinaMode ? stat.total_cost.raw * exchangeRate : stat.total_cost.raw;
         if (type === 'success-rate') {
             const total = stat.request_success.raw + stat.request_failed.raw;
             return total > 0 ? (stat.request_success.raw / total) * 100 : 0;
         }
         if (type === 'count') return stat.request_count.raw;
         return stat.input_token.raw + stat.output_token.raw;
-    };
+    }, [chinaMode, exchangeRate]);
 
     const chartData = useMemo(() => {
         if (period === '1') {
@@ -71,7 +73,7 @@ export function StatsChart() {
                 return point;
             });
         }
-    }, [sortedDaily, statsHourly, period, chartMetrics]);
+    }, [sortedDaily, statsHourly, period, chartMetrics, buildPointValue]);
 
     const totals = useMemo(() => {
         if (period === '1') {
@@ -102,7 +104,7 @@ export function StatsChart() {
                 successRate: success+failed > 0 ? (success / (success + failed)) * 100 : 0,
             };
         }
-    }, [sortedDaily, statsHourly, period]);
+    }, [sortedDaily, statsHourly, period, buildPointValue]);
 
     const chartConfig = useMemo(() => {
         const labels = {
@@ -145,6 +147,21 @@ export function StatsChart() {
         if (type === 'count') return 'url(#fillMetric2)';
         if (type === 'success-rate') return 'url(#fillMetric4)';
         return 'url(#fillMetric3)';
+    };
+
+    // Format the cost metric exactly as the Y axis does, so the tooltip and
+    // the axis stay consistent. In china mode the plotted value is already
+    // CNY (converted once in buildPointValue) — never multiply by exchangeRate
+    // again here, otherwise the tooltip would desync from the line.
+    const costAxisFormatter = (value: number): string => {
+        if (chinaMode) {
+            const v = Number(value);
+            if (v >= 100_000_000) return `${(v / 100_000_000).toFixed(2)}¥亿`;
+            if (v >= 10_000) return `${(v / 10_000).toFixed(2)}¥万`;
+            return `${v.toFixed(2)}¥`;
+        }
+        const formatted = formatMoney(value);
+        return `${formatted.formatted.value}${formatted.formatted.unit}`;
     };
 
     const summaryMetrics = [
@@ -264,8 +281,7 @@ export function StatsChart() {
                         tickFormatter={(value) => {
                             const primary = chartMetrics[0] ?? 'cost';
                             if (primary === 'cost') {
-                                const formatted = formatMoney(value);
-                                return `${formatted.formatted.value}${formatted.formatted.unit}`;
+                                return costAxisFormatter(Number(value));
                             } else if (primary === 'success-rate') {
                                 return `${value.toFixed(0)}%`;
                             } else if (primary === 'count' || primary === 'tokens') {
@@ -275,7 +291,21 @@ export function StatsChart() {
                             return value.toString();
                         }}
                     />
-                    <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
+                    <ChartTooltip
+                        cursor={false}
+                        content={
+                            <ChartTooltipContent
+                                indicator="line"
+                                formatter={(value) => {
+                                    const primary = chartMetrics[0] ?? 'cost';
+                                    if (primary === 'cost') return costAxisFormatter(Number(value));
+                                    if (primary === 'success-rate') return `${Number(value).toFixed(2)}%`;
+                                    const f = formatCount(Number(value));
+                                    return `${f.formatted.value}${f.formatted.unit}`;
+                                }}
+                            />
+                        }
+                    />
                     <Area
                         type="monotone"
                         dataKey={METRIC_DATA_KEYS[chartMetrics[0]]}
