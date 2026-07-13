@@ -345,6 +345,8 @@ export interface CacheRedisConfig {
     username: string;
     db: number;
     pool_size: number;
+    dial_timeout: string;
+    read_timeout: string;
 }
 
 export interface CacheConfig {

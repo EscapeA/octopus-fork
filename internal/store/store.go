@@ -102,24 +102,62 @@ var (
 )
 
 // GetKV 返回当前 KVStore 后端。
-func GetKV() KVStore { return defaultKV }
+func GetKV() KVStore {
+	mu.RLock()
+	defer mu.RUnlock()
+	return defaultKV
+}
 
 // GetRateLimit 返回当前 RateLimitStore 后端。
-func GetRateLimit() RateLimitStore { return defaultRateLimit }
+func GetRateLimit() RateLimitStore {
+	mu.RLock()
+	defer mu.RUnlock()
+	return defaultRateLimit
+}
 
 // GetStats 返回当前 StatsStore 后端。
-func GetStats() StatsStore { return defaultStats }
+func GetStats() StatsStore {
+	mu.RLock()
+	defer mu.RUnlock()
+	return defaultStats
+}
 
 // GetRuntimeState 返回当前 RuntimeStateStore 后端。
-func GetRuntimeState() RuntimeStateStore { return defaultRuntimeState }
+func GetRuntimeState() RuntimeStateStore {
+	mu.RLock()
+	defer mu.RUnlock()
+	return defaultRuntimeState
+}
 
 // GetChannelDelay 返回当前 ChannelDelayStore 后端。
-func GetChannelDelay() ChannelDelayStore { return defaultChannelDelay }
+func GetChannelDelay() ChannelDelayStore {
+	mu.RLock()
+	defer mu.RUnlock()
+	return defaultChannelDelay
+}
 
 // ErrBackendDisabled 表示 Redis 后端未启用时调用 Redis 实现。
 // 正常注入流程下不会触发（Init 成功后才切换到 redis 实现），
 // 仅作为防御性返回值。
 var ErrBackendDisabled = fmt.Errorf("store: redis backend disabled")
+
+// switchToRedis 在锁保护下原子地切换 client + enabled + 所有 defaultXxx 到
+// Redis 实现。供 Init 成功和后台重连成功两条路径共用。
+//
+// 注意：调用方负责保证传入的 client 已通过 Ping 验证。切换是「单向」的--
+// 从内存切到 Redis；运行中不反向回退（Redis 运行中宕机时各实现返回 err，
+// 调用方自行降级，见 store.go 顶部降级策略注释）。
+func switchToRedis(c *redis.Client) {
+	mu.Lock()
+	client = c
+	enabled = true
+	defaultKV = newRedisKV(c)
+	defaultRateLimit = newRedisRateLimit(c)
+	defaultStats = newRedisStats(c)
+	defaultRuntimeState = newRedisRuntimeState(c)
+	defaultChannelDelay = newRedisChannelDelay(c)
+	mu.Unlock()
+}
 
 // InjectForTest 为测试注入一个已连接的 Redis client 并切换所有后端到 Redis
 // 实现，返回恢复函数（切回内存实现）。仅供跨包子测调用：子系统测试启动

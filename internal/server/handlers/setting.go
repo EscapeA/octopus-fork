@@ -338,25 +338,52 @@ func createDatabaseMigrationNotification(ctx context.Context, req model.Database
 }
 
 // toModelRedis 把 conf.RedisConfig 转成 model.CacheRedisConfig（避免 model 反向依赖 conf）。
+// DialTimeout/ReadTimeout：Duration -> 可读字符串（"3s"），0 值转空串。
 func toModelRedis(r conf.RedisConfig) model.CacheRedisConfig {
 	return model.CacheRedisConfig{
-		Addr:     r.Addr,
-		Password: r.Password,
-		Username: r.Username,
-		DB:       r.DB,
-		PoolSize: r.PoolSize,
+		Addr:        r.Addr,
+		Password:    r.Password,
+		Username:    r.Username,
+		DB:          r.DB,
+		PoolSize:    r.PoolSize,
+		DialTimeout: durationToString(r.DialTimeout),
+		ReadTimeout: durationToString(r.ReadTimeout),
 	}
 }
 
 // toConfRedis 把 model.CacheRedisConfig 转成 conf.RedisConfig。
+// DialTimeout/ReadTimeout：字符串 -> Duration，空串或解析失败视为 0（用默认值）。
 func toConfRedis(r model.CacheRedisConfig) conf.RedisConfig {
 	return conf.RedisConfig{
-		Addr:     r.Addr,
-		Password: r.Password,
-		Username: r.Username,
-		DB:       r.DB,
-		PoolSize: r.PoolSize,
+		Addr:        r.Addr,
+		Password:    r.Password,
+		Username:    r.Username,
+		DB:          r.DB,
+		PoolSize:    r.PoolSize,
+		DialTimeout: parseDurationOrZero(r.DialTimeout),
+		ReadTimeout: parseDurationOrZero(r.ReadTimeout),
 	}
+}
+
+// durationToString 将 time.Duration 转为可读字符串；d<=0 返回空串（表示用默认值）。
+func durationToString(d time.Duration) string {
+	if d <= 0 {
+		return ""
+	}
+	return d.String()
+}
+
+// parseDurationOrZero 解析时长字符串（如 "3s"）；空串或解析失败返回 0（用默认值）。
+func parseDurationOrZero(s string) time.Duration {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return 0
+	}
+	return d
 }
 
 // getCacheConfig 返回当前 cache 配置（config.json 中的 cache.type / cache.redis.*）。

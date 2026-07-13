@@ -1617,6 +1617,14 @@
         "poolSize": {
           "label": "Pool Size",
           "placeholder": "10"
+        },
+        "dialTimeout": {
+          "label": "Dial Timeout",
+          "placeholder": "3s"
+        },
+        "readTimeout": {
+          "label": "Read Timeout",
+          "placeholder": "3s"
         }
       },
       "testButton": "Test connection",

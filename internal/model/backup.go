@@ -106,12 +106,15 @@ type CacheConfig struct {
 
 // CacheRedisConfig 是 CacheConfig 内的 Redis 连接参数（与 conf.RedisConfig 同构，
 // 独立定义避免 model 包反向依赖 conf 包）。
+// DialTimeout/ReadTimeout 用字符串（如 "3s"）便于前端输入；空串表示用默认值。
 type CacheRedisConfig struct {
-	Addr     string `json:"addr"`
-	Password string `json:"password"`
-	Username string `json:"username"`
-	DB       int    `json:"db"`
-	PoolSize int    `json:"pool_size"`
+	Addr        string `json:"addr"`
+	Password    string `json:"password"`
+	Username    string `json:"username"`
+	DB          int    `json:"db"`
+	PoolSize    int    `json:"pool_size"`
+	DialTimeout string `json:"dial_timeout"`
+	ReadTimeout string `json:"read_timeout"`
 }
 
 // CacheConfigRequest 用于测试连接 / 保存配置（POST body）。

@@ -1573,6 +1573,14 @@
         "poolSize": {
           "label": "連線池大小",
           "placeholder": "10"
+        },
+        "dialTimeout": {
+          "label": "連線逾時",
+          "placeholder": "3s"
+        },
+        "readTimeout": {
+          "label": "讀取逾時",
+          "placeholder": "3s"
         }
       },
       "testButton": "測試連線",

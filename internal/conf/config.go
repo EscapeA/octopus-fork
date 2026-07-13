@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/lingyuins/octopus/internal/utils/log"
 	"github.com/spf13/viper"
@@ -82,11 +83,13 @@ type Cache struct {
 
 // RedisConfig 描述 Redis 单机连接参数。哨兵/集群模式留待后续迭代。
 type RedisConfig struct {
-	Addr     string `mapstructure:"addr"`      // "127.0.0.1:6379"
-	Password string `mapstructure:"password"`  // 可选
-	Username string `mapstructure:"username"`  // ACL 用户名（可选）
-	DB       int    `mapstructure:"db"`        // 0-15
-	PoolSize int    `mapstructure:"pool_size"` // 0=go-redis 默认（GOMAXPROCS*10）
+	Addr        string        `mapstructure:"addr"`         // "127.0.0.1:6379"
+	Password    string        `mapstructure:"password"`     // 可选
+	Username    string        `mapstructure:"username"`     // ACL 用户名（可选）
+	DB          int           `mapstructure:"db"`           // 0-15
+	PoolSize    int           `mapstructure:"pool_size"`    // 0=go-redis 默认（GOMAXPROCS*10）
+	DialTimeout time.Duration `mapstructure:"dial_timeout"` // 0=go-redis 默认 5s
+	ReadTimeout time.Duration `mapstructure:"read_timeout"` // 0=go-redis 默认 3s
 }
 
 type Config struct {
@@ -198,6 +201,17 @@ func SaveCacheConfig(cacheType string, redis RedisConfig) error {
 	viper.Set("cache.redis.username", redis.Username)
 	viper.Set("cache.redis.db", redis.DB)
 	viper.Set("cache.redis.pool_size", redis.PoolSize)
+	// Duration 写为可读字符串（"3s"），与 setDefaults 默认值格式一致。
+	if redis.DialTimeout > 0 {
+		viper.Set("cache.redis.dial_timeout", redis.DialTimeout.String())
+	} else {
+		viper.Set("cache.redis.dial_timeout", "")
+	}
+	if redis.ReadTimeout > 0 {
+		viper.Set("cache.redis.read_timeout", redis.ReadTimeout.String())
+	} else {
+		viper.Set("cache.redis.read_timeout", "")
+	}
 	if err := viper.WriteConfig(); err != nil {
 		return fmt.Errorf("write config: %w", err)
 	}
@@ -230,6 +244,10 @@ func setDefaults() {
 	// 缓存/状态后端默认留空：留空表示沿用内存 + 数据库策略（向后兼容）。
 	// 配置 "redis" 时启用 Redis 后端（见 issue #123）。
 	viper.SetDefault("cache.type", "")
+	// Redis 连接超时默认 3s（issue #135）：比 go-redis 默认 DialTimeout 5s 更激进，
+	// 避免远程 Redis 重启期间 TCP hang 导致启动期长时间无日志阻塞。
+	viper.SetDefault("cache.redis.dial_timeout", "3s")
+	viper.SetDefault("cache.redis.read_timeout", "3s")
 }
 
 func defaultDataDir() string {

@@ -24,6 +24,8 @@ export function SettingCache() {
     const [username, setUsername] = useState('');
     const [db, setDb] = useState('0');
     const [poolSize, setPoolSize] = useState('');
+    const [dialTimeout, setDialTimeout] = useState('');
+    const [readTimeout, setReadTimeout] = useState('');
 
     // 挂载/配置到达时回填表单（从 config.json 的 cache 字段读取当前值）。
     useEffect(() => {
@@ -35,6 +37,8 @@ export function SettingCache() {
         setUsername(r?.username || '');
         setDb(r?.db != null ? String(r.db) : '0');
         setPoolSize(r?.pool_size ? String(r.pool_size) : '');
+        setDialTimeout(r?.dial_timeout || '');
+        setReadTimeout(r?.read_timeout || '');
     }, [cacheConfig]);
 
     const buildRequest = () => ({
@@ -45,6 +49,8 @@ export function SettingCache() {
             username,
             db: db.trim() === '' ? 0 : Number(db),
             pool_size: poolSize.trim() === '' ? 0 : Number(poolSize),
+            dial_timeout: dialTimeout.trim(),
+            read_timeout: readTimeout.trim(),
         },
     });
 
@@ -145,6 +151,24 @@ export function SettingCache() {
                                 value={poolSize}
                                 onChange={(e) => setPoolSize(e.target.value)}
                                 placeholder="10"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs text-muted-foreground">{t('redis.fields.dialTimeout.label')}</label>
+                            <Input
+                                className="rounded-xl"
+                                value={dialTimeout}
+                                onChange={(e) => setDialTimeout(e.target.value)}
+                                placeholder={t('redis.fields.dialTimeout.placeholder')}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs text-muted-foreground">{t('redis.fields.readTimeout.label')}</label>
+                            <Input
+                                className="rounded-xl"
+                                value={readTimeout}
+                                onChange={(e) => setReadTimeout(e.target.value)}
+                                placeholder={t('redis.fields.readTimeout.placeholder')}
                             />
                         </div>
                     </div>
