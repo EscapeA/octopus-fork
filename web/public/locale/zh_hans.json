@@ -2737,7 +2737,7 @@
       "createSuccess": "渠道分组已创建",
       "renameSuccess": "渠道分组已更新",
       "deleteSuccess": "渠道分组已删除",
-      "deleteConfirm": "确认删除渠道分组“{name}”吗？"
+      "deleteConfirm": "确认删除渠道分组“{name}”吗？分组内的渠道会自动移到默认分组。"
     },
     "form": {
       "add": "添加",

@@ -99,21 +99,50 @@ func ChannelGroupDelete(id int, ctx context.Context) error {
 		return fmt.Errorf("default channel group cannot be deleted")
 	}
 
-	var count int64
-	if err := db.GetDB().WithContext(ctx).Model(&model.Channel{}).Where("group_id = ?", id).Count(&count).Error; err != nil {
+	defaultGroupID, err := ChannelGroupDefaultID(ctx)
+	if err != nil {
 		return err
 	}
-	if count > 0 {
-		return fmt.Errorf("channel group is not empty")
+	if defaultGroupID == id {
+		return fmt.Errorf("default channel group cannot be deleted")
 	}
 
-	if err := db.GetDB().WithContext(ctx).Delete(&model.ChannelGroup{}, id).Error; err != nil {
+	tx := db.GetDB().WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Move remaining channels to the default management group so users can
+	// delete a non-empty group without first reassigning each channel.
+	if err := tx.Model(&model.Channel{}).
+		Where("group_id = ?", id).
+		Update("group_id", defaultGroupID).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Delete(&model.ChannelGroup{}, id).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Commit().Error; err != nil {
 		return err
 	}
 
 	channelGroupMutationLock.Lock()
 	channelGroupCache.Del(id)
 	channelGroupMutationLock.Unlock()
+
+	// Channel cache still holds the old group_id; refresh so list/UI counts match DB.
+	if err := channelRefreshCache(ctx); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -191,4 +220,3 @@ func sortChannelGroups(groups []model.ChannelGroup) {
 		return groups[i].ID < groups[j].ID
 	})
 }
-

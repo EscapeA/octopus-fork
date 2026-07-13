@@ -503,8 +503,6 @@ func classifyChannelMutationError(err error) (int, string, bool) {
 		return http.StatusServiceUnavailable, "default channel group not found", true
 	case strings.Contains(msg, "default channel group cannot be deleted"):
 		return http.StatusBadRequest, "default channel group cannot be deleted", true
-	case strings.Contains(msg, "channel group is not empty"):
-		return http.StatusConflict, "channel group is not empty", true
 	case strings.Contains(msg, "request rewrite profile is required when enabled"),
 		strings.Contains(msg, "unsupported request rewrite profile"),
 		strings.Contains(msg, "unsupported tool role strategy"),

@@ -67,13 +67,6 @@ func TestClassifyChannelMutationError(t *testing.T) {
 			wantOK:     true,
 		},
 		{
-			name:       "channel group is not empty",
-			err:        errors.New("channel group is not empty"),
-			wantStatus: http.StatusConflict,
-			wantMsg:    "channel group is not empty",
-			wantOK:     true,
-		},
-		{
 			name:       "duplicate channel group name",
 			err:        errors.New("UNIQUE constraint failed: channel_groups.name"),
 			wantStatus: http.StatusConflict,

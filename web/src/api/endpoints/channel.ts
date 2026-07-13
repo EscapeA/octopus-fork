@@ -353,6 +353,7 @@ export function useDeleteChannelGroup() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['channel-groups', 'list'] });
+            queryClient.invalidateQueries({ queryKey: ['channels', 'list'] });
         },
     });
 }

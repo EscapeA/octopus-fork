@@ -2737,7 +2737,7 @@
       "createSuccess": "渠道分組已建立",
       "renameSuccess": "渠道分組已更新",
       "deleteSuccess": "渠道分組已刪除",
-      "deleteConfirm": "確認刪除渠道分組「{name}」嗎？"
+      "deleteConfirm": "確認刪除渠道分組「{name}」嗎？分組內的供應源會自動移到預設分組。"
     },
     "form": {
       "add": "新增",

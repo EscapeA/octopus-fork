@@ -2781,7 +2781,7 @@
       "createSuccess": "Channel group created",
       "renameSuccess": "Channel group updated",
       "deleteSuccess": "Channel group deleted",
-      "deleteConfirm": "Delete channel group \"{name}\"?"
+      "deleteConfirm": "Delete channel group \"{name}\"? Channels in this group will be moved to the default group."
     },
     "form": {
       "add": "Add",
