@@ -289,6 +289,7 @@ func deleteGroup(c *gin.Context) {
 		return
 	}
 	if err := grp.GroupDel(idNum, c.Request.Context()); err != nil {
+		log.Errorf("delete group %d failed: %v", idNum, err)
 		resp.InternalError(c)
 		return
 	}
@@ -298,6 +299,7 @@ func deleteGroup(c *gin.Context) {
 func deleteAllGroups(c *gin.Context) {
 	deletedCount, err := grp.GroupDelAll(c.Request.Context())
 	if err != nil {
+		log.Errorf("delete all groups failed: %v", err)
 		resp.InternalError(c)
 		return
 	}

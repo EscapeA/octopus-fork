@@ -862,6 +862,18 @@ func GroupDelAll(ctx context.Context) (int64, error) {
 		tx.Rollback()
 		return 0, fmt.Errorf("failed to reset ai route group setting: %w", err)
 	}
+	// 确保 ai_route_group_id 设置行存在（可能被外部删除），缺失时补建。
+	var settingCount int64
+	if err := tx.Model(&model.Setting{}).Where("key = ?", model.SettingKeyAIRouteGroupID).Count(&settingCount).Error; err != nil {
+		tx.Rollback()
+		return 0, fmt.Errorf("failed to check ai route group setting: %w", err)
+	}
+	if settingCount == 0 {
+		if err := tx.Create(&model.Setting{Key: model.SettingKeyAIRouteGroupID, Value: "0"}).Error; err != nil {
+			tx.Rollback()
+			return 0, fmt.Errorf("failed to recreate ai route group setting: %w", err)
+		}
+	}
 
 	if err := tx.Commit().Error; err != nil {
 		return 0, fmt.Errorf("failed to commit transaction: %w", err)
@@ -869,7 +881,10 @@ func GroupDelAll(ctx context.Context) (int64, error) {
 
 	groupCache.Clear()
 	RebuildIndexes()
-	setting.SetString(model.SettingKeyAIRouteGroupID, "0")
+	if err := setting.SetString(model.SettingKeyAIRouteGroupID, "0"); err != nil {
+		// 缓存同步失败不应阻塞删除结果（DB 已提交），记录日志便于排查。
+		log.Errorf("refresh ai route group setting cache after GroupDelAll: %v", err)
+	}
 
 	return deletedCount, nil
 }
