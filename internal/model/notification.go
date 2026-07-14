@@ -11,6 +11,7 @@ const (
 	NotificationTypeSite          NotificationType = "site"
 	NotificationTypeBackup        NotificationType = "backup"
 	NotificationTypeUsage         NotificationType = "usage"
+	NotificationTypeKeyHealth     NotificationType = "key_health"
 )
 
 // NotificationSeverity controls sorting, filtering, and external routing priority.

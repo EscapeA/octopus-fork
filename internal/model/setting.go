@@ -92,6 +92,12 @@ const (
 	SettingKeyWebAuthnRPName                       SettingKey = "webauthn_rp_name"                         // WebAuthn RP 展示名
 	SettingKeyWebAuthnOrigins                      SettingKey = "webauthn_origins"                         // WebAuthn 允许的 Origin 列表（逗号分隔，完整 scheme://host[:port]）
 	SettingKeyTrustedProxies                       SettingKey = "trusted_proxies"                          // 可信反向代理 CIDR/IP 列表（逗号分隔，解析 X-Forwarded-For 取真实客户端 IP）；空=不信任任何代理，*=信任所有（有风险）；需重启生效
+	SettingKeyKeyHealthCheckEnabled                SettingKey = "key_health_check_enabled"                 // 定时 Key 可用性验证开关（issue #142）
+	SettingKeyKeyHealthCheckInterval               SettingKey = "key_health_check_interval"                // 定时 Key 验证间隔（分钟）
+	SettingKeyKeyHealthCheckFailThreshold          SettingKey = "key_health_check_fail_threshold"          // 连续失败多少次后标记异常
+	SettingKeyKeyHealthCheckNotifyEnabled          SettingKey = "key_health_check_notify_enabled"          // 是否发送 Key 验证失败通知
+	SettingKeyKeyHealthCheckRecoveryNotify         SettingKey = "key_health_check_recovery_notify"         // 是否发送 Key 验证恢复通知
+	SettingKeyKeyHealthCheckNotifyCooldown         SettingKey = "key_health_check_notify_cooldown"         // Key 验证通知冷却时间（秒）
 )
 
 type Setting struct {
@@ -179,7 +185,13 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyWebAuthnRPID, Value: ""},
 		{Key: SettingKeyWebAuthnRPName, Value: "Octopus"},
 		{Key: SettingKeyWebAuthnOrigins, Value: ""},
-		{Key: SettingKeyTrustedProxies, Value: ""}, // 默认不信任任何代理（安全默认，防 XFF 伪造）；反代/Docker 部署需配置实际代理网段
+		{Key: SettingKeyTrustedProxies, Value: ""},                   // 默认不信任任何代理（安全默认，防 XFF 伪造）；反代/Docker 部署需配置实际代理网段
+		{Key: SettingKeyKeyHealthCheckEnabled, Value: "false"},       // 默认关闭定时 Key 巡检（issue #142）
+		{Key: SettingKeyKeyHealthCheckInterval, Value: "30"},         // 默认 30 分钟
+		{Key: SettingKeyKeyHealthCheckFailThreshold, Value: "3"},     // 默认连续失败 3 次标记异常
+		{Key: SettingKeyKeyHealthCheckNotifyEnabled, Value: "true"},  // 默认发送失败通知
+		{Key: SettingKeyKeyHealthCheckRecoveryNotify, Value: "true"}, // 默认发送恢复通知
+		{Key: SettingKeyKeyHealthCheckNotifyCooldown, Value: "300"},  // 默认通知冷却 5 分钟
 	}
 }
 
@@ -258,12 +270,13 @@ func (s *Setting) Validate() error {
 			SettingKeyLoginRateLimitWindow, SettingKeyLoginRateLimitMaxFailed,
 			SettingKeyStreamSessionTTLMinutes, SettingKeyStreamSessionMaxEvents, SettingKeyStreamSessionMaxBytesMB,
 			SettingKeyNotifyHTTPTimeoutSeconds,
-			SettingKeyFailureHintTTLUnauthorized, SettingKeyFailureHintTTLRateLimit, SettingKeyFailureHintTTLNetwork:
+			SettingKeyFailureHintTTLUnauthorized, SettingKeyFailureHintTTLRateLimit, SettingKeyFailureHintTTLNetwork,
+			SettingKeyKeyHealthCheckInterval, SettingKeyKeyHealthCheckFailThreshold, SettingKeyKeyHealthCheckNotifyCooldown:
 			if v < 1 {
 				return fmt.Errorf("setting value must be greater than 0")
 			}
 		}
-	case SettingKeyRelayLogKeepEnabled, SettingKeyRelayLogContentEnabled, SettingKeySemanticCacheEnabled, SettingKeyModelNormalizeMarketDedupeDefault, SettingKeyRetryEmptyOutput:
+	case SettingKeyRelayLogKeepEnabled, SettingKeyRelayLogContentEnabled, SettingKeySemanticCacheEnabled, SettingKeyModelNormalizeMarketDedupeDefault, SettingKeyRetryEmptyOutput, SettingKeyKeyHealthCheckEnabled, SettingKeyKeyHealthCheckNotifyEnabled, SettingKeyKeyHealthCheckRecoveryNotify:
 		if s.Value != "true" && s.Value != "false" {
 			return fmt.Errorf("setting value must be true or false")
 		}

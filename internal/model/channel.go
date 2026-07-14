@@ -98,8 +98,17 @@ type Channel struct {
 	RequestRewrite       *RequestRewriteConfig `json:"request_rewrite" gorm:"serializer:json"`
 	Stats                *StatsChannel         `json:"stats,omitempty" gorm:"foreignKey:ChannelID"`
 	MatchRegex           *string               `json:"match_regex"`
-	Managed              bool                  `json:"managed" gorm:"-"`
-	ManagedSource        *ManagedChannelSource `json:"managed_source,omitempty" gorm:"-"`
+	// KeyHealthPassed 记录最近一次定时 Key 巡检是否全部通过（issue #142）。
+	// nil = 从未巡检；true = 全部通过；false = 存在失败。前端据此对失败渠道标灰。
+	KeyHealthPassed *bool `json:"key_health_passed,omitempty" gorm:"column:key_health_passed"`
+	// KeyHealthAllFailed 区分"全部 Key 失败"与"部分失败"。
+	// nil = 从未巡检；true = 所有 Key 均不可用；false = 至少一个 Key 可用。
+	// 仅当 KeyHealthPassed=false 时有意义：前端据此决定整张卡片灰色化还是仅标记部分失败。
+	KeyHealthAllFailed *bool `json:"key_health_all_failed,omitempty" gorm:"column:key_health_all_failed"`
+	// KeyHealthAt 最近一次定时 Key 巡检完成时间（unix 秒），0 = 从未巡检。
+	KeyHealthAt   int64                 `json:"key_health_at,omitempty" gorm:"column:key_health_at;default:0"`
+	Managed       bool                  `json:"managed" gorm:"-"`
+	ManagedSource *ManagedChannelSource `json:"managed_source,omitempty" gorm:"-"`
 }
 
 type BaseUrl struct {

@@ -39,6 +39,8 @@ func Init() {
 		db.StartSerialWriter(context.Background())
 	}
 	relaylog.StartFlushWorker(context.Background())
+	// 注入 Key 巡检状态清理函数到 relay 包（打破 relay -> task 循环依赖）。
+	relay.OnChannelDeletedKeyHealthHook = RemoveChannelKeyHealthState
 	priceUpdateIntervalHours, err := setting.GetInt(model.SettingKeyModelInfoUpdateInterval)
 	if err != nil {
 		log.Errorf("failed to get model info update interval: %v", err)
@@ -189,4 +191,12 @@ func Init() {
 
 	// Disposable channel expiry: scan every 1 minute for expired one-time channels.
 	Register(TaskChannelExpire, 1*time.Minute, false, ExpireDisposableChannels)
+
+	// 定时 Key 可用性巡检（issue #142）：按设置间隔验证渠道 Key 连通性，
+	// 失败通知并标灰渠道。间隔由 SettingKeyKeyHealthCheckInterval 控制（分钟）。
+	keyHealthIntervalMin, err := setting.GetInt(model.SettingKeyKeyHealthCheckInterval)
+	if err != nil || keyHealthIntervalMin < 1 {
+		keyHealthIntervalMin = 30
+	}
+	Register(TaskKeyHealthCheck, time.Duration(keyHealthIntervalMin)*time.Minute, false, CheckKeyHealth)
 }

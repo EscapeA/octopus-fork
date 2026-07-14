@@ -13,24 +13,26 @@ import (
 type NotifKey string
 
 const (
-	KeyAlertFiring     NotifKey = "alert.firing"
-	KeyAlertResolved   NotifKey = "alert.resolved"
-	KeyChannelExpire   NotifKey = "channel_expire"
-	KeyReportSent      NotifKey = "report.sent"
-	KeyReportFailed    NotifKey = "report.failed"
-	KeyReportSkipped   NotifKey = "report.skipped"
-	KeySiteBatch       NotifKey = "site.batch"
-	KeySiteAccountOK   NotifKey = "site.account_ok"
-	KeySiteAccountFail NotifKey = "site.account_fail"
-	KeyBackupOK        NotifKey = "backup.ok"
-	KeyBackupFail      NotifKey = "backup.fail"
-	KeyBackupSkip      NotifKey = "backup.skip"
-	KeyRestoreOK       NotifKey = "restore.ok"
-	KeyRestoreFail     NotifKey = "restore.fail"
-	KeyMigrationOK     NotifKey = "migration.ok"
-	KeyMigrationFail   NotifKey = "migration.fail"
-	KeySelfUpdateOK    NotifKey = "update.ok"
-	KeySelfUpdateFail  NotifKey = "update.fail"
+	KeyAlertFiring      NotifKey = "alert.firing"
+	KeyAlertResolved    NotifKey = "alert.resolved"
+	KeyChannelExpire    NotifKey = "channel_expire"
+	KeyReportSent       NotifKey = "report.sent"
+	KeyReportFailed     NotifKey = "report.failed"
+	KeyReportSkipped    NotifKey = "report.skipped"
+	KeySiteBatch        NotifKey = "site.batch"
+	KeySiteAccountOK    NotifKey = "site.account_ok"
+	KeySiteAccountFail  NotifKey = "site.account_fail"
+	KeyBackupOK         NotifKey = "backup.ok"
+	KeyBackupFail       NotifKey = "backup.fail"
+	KeyBackupSkip       NotifKey = "backup.skip"
+	KeyRestoreOK        NotifKey = "restore.ok"
+	KeyRestoreFail      NotifKey = "restore.fail"
+	KeyMigrationOK      NotifKey = "migration.ok"
+	KeyMigrationFail    NotifKey = "migration.fail"
+	KeySelfUpdateOK     NotifKey = "update.ok"
+	KeySelfUpdateFail   NotifKey = "update.fail"
+	KeyKeyHealthFail    NotifKey = "key_health.fail"
+	KeyKeyHealthRecover NotifKey = "key_health.recover"
 )
 
 // fallbackTitle / fallbackContent 提供每个键的英文回退模板（Go fmt 占位符 %s/%d/%v）。
@@ -39,44 +41,48 @@ const (
 // 模板里的占位符名仅作文档；实际渲染用按位置的 Sprintf，参数顺序需与调用处一致。
 var (
 	fallbackTitle = map[NotifKey]string{
-		KeyAlertFiring:     `Alert "%s" triggered`,
-		KeyAlertResolved:   `Alert "%s" resolved`,
-		KeyChannelExpire:   `Disposable channel expired`,
-		KeyReportSent:      `Report sent: %s`,
-		KeyReportFailed:    `Report failed: %s`,
-		KeyReportSkipped:   `Report skipped: %s`,
-		KeySiteBatch:       `Site %s completed`,
-		KeySiteAccountOK:   `Site account %s completed`,
-		KeySiteAccountFail: `Site account %s failed`,
-		KeyBackupOK:        `WebDAV backup completed`,
-		KeyBackupFail:      `WebDAV backup failed`,
-		KeyBackupSkip:      `WebDAV backup skipped`,
-		KeyRestoreOK:       `WebDAV restore completed`,
-		KeyRestoreFail:     `WebDAV restore failed`,
-		KeyMigrationOK:     `Database migration completed`,
-		KeyMigrationFail:   `Database migration failed`,
-		KeySelfUpdateOK:    `Self update completed`,
-		KeySelfUpdateFail:  `Self update failed`,
+		KeyAlertFiring:      `Alert "%s" triggered`,
+		KeyAlertResolved:    `Alert "%s" resolved`,
+		KeyChannelExpire:    `Disposable channel expired`,
+		KeyReportSent:       `Report sent: %s`,
+		KeyReportFailed:     `Report failed: %s`,
+		KeyReportSkipped:    `Report skipped: %s`,
+		KeySiteBatch:        `Site %s completed`,
+		KeySiteAccountOK:    `Site account %s completed`,
+		KeySiteAccountFail:  `Site account %s failed`,
+		KeyBackupOK:         `WebDAV backup completed`,
+		KeyBackupFail:       `WebDAV backup failed`,
+		KeyBackupSkip:       `WebDAV backup skipped`,
+		KeyRestoreOK:        `WebDAV restore completed`,
+		KeyRestoreFail:      `WebDAV restore failed`,
+		KeyMigrationOK:      `Database migration completed`,
+		KeyMigrationFail:    `Database migration failed`,
+		KeySelfUpdateOK:     `Self update completed`,
+		KeySelfUpdateFail:   `Self update failed`,
+		KeyKeyHealthFail:    `Channel "%s" key verification failed`,
+		KeyKeyHealthRecover: `Channel "%s" key verification recovered`,
 	}
 	fallbackContent = map[NotifKey]string{
-		KeyAlertFiring:     `Alert rule "%s" triggered. %s`,
-		KeyAlertResolved:   `Alert rule "%s" has resolved.`,
-		KeyChannelExpire:   `Disposable channel "%s" (ID: %d) expired at %s and has been automatically deleted.`,
-		KeyReportSent:      `Report "%s" was sent via %s.`,
-		KeyReportFailed:    `Report "%s" failed: %s`,
-		KeyReportSkipped:   `Report "%s" skipped: %s`,
-		KeySiteBatch:       `%s: success=%d partial=%d failed=%d skipped=%d warnings=%d`,
-		KeySiteAccountOK:   `Account %d %s completed successfully.`,
-		KeySiteAccountFail: `Account %d %s failed: %s`,
-		KeyBackupOK:        `Backup uploaded to %s (%d bytes).`,
-		KeyBackupFail:      `%s`,
-		KeyBackupSkip:      `WebDAV backup did not produce a remote file.`,
-		KeyRestoreOK:       `Backup %s has been restored.`,
-		KeyRestoreFail:     `%s`,
-		KeyMigrationOK:     `Database migrated to %s. Restart needed: %v`,
-		KeyMigrationFail:   `%s`,
-		KeySelfUpdateOK:    `Octopus self-update completed successfully.`,
-		KeySelfUpdateFail:  `%s`,
+		KeyAlertFiring:      `Alert rule "%s" triggered. %s`,
+		KeyAlertResolved:    `Alert rule "%s" has resolved.`,
+		KeyChannelExpire:    `Disposable channel "%s" (ID: %d) expired at %s and has been automatically deleted.`,
+		KeyReportSent:       `Report "%s" was sent via %s.`,
+		KeyReportFailed:     `Report "%s" failed: %s`,
+		KeyReportSkipped:    `Report "%s" skipped: %s`,
+		KeySiteBatch:        `%s: success=%d partial=%d failed=%d skipped=%d warnings=%d`,
+		KeySiteAccountOK:    `Account %d %s completed successfully.`,
+		KeySiteAccountFail:  `Account %d %s failed: %s`,
+		KeyBackupOK:         `Backup uploaded to %s (%d bytes).`,
+		KeyBackupFail:       `%s`,
+		KeyBackupSkip:       `WebDAV backup did not produce a remote file.`,
+		KeyRestoreOK:        `Backup %s has been restored.`,
+		KeyRestoreFail:      `%s`,
+		KeyMigrationOK:      `Database migrated to %s. Restart needed: %v`,
+		KeyMigrationFail:    `%s`,
+		KeySelfUpdateOK:     `Octopus self-update completed successfully.`,
+		KeySelfUpdateFail:   `%s`,
+		KeyKeyHealthFail:    `Channel "%s" (ID: %d) consecutive %d key verification failures: %s`,
+		KeyKeyHealthRecover: `Channel "%s" (ID: %d) key verification recovered.`,
 	}
 )
 

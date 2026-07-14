@@ -1423,6 +1423,15 @@
         "availability": "Availability (highest first)",
         "speed": "Speed (highest TPS first)",
         "priority": "Priority (higher first)"
+      },
+      "keyHealth": {
+        "label": "Scheduled key health check",
+        "hint": "Periodically verify channel key availability. Failed channels are grayed out and notifications are sent. Skips channels with 'skip model test' enabled.",
+        "interval": "Interval (min)",
+        "failThreshold": "Failure threshold",
+        "notifyCooldown": "Notify cooldown (sec)",
+        "notifyEnabled": "Failure notification",
+        "recoveryNotify": "Recovery notification"
       }
     },
     "autoStrategy": {
@@ -2946,7 +2955,8 @@
       "keySelectionStrategyCost": "Cost",
       "keySelectionStrategyAvailability": "Availability",
       "keySelectionStrategySpeed": "Speed",
-      "keySelectionStrategyPriority": "Priority"
+      "keySelectionStrategyPriority": "Priority",
+      "keyHealthFailed": "Check failed"
     }
   },
   "errors": {
@@ -3152,7 +3162,8 @@
       "system": "System",
       "site": "Site",
       "backup": "Backup",
-      "usage": "Usage"
+      "usage": "Usage",
+      "key_health": "Key Health"
     },
     "severity": {
       "info": "Info",
@@ -3279,6 +3290,16 @@
       "fail": {
         "title": "Self update failed",
         "content": "{detail}"
+      }
+    },
+    "key_health": {
+      "fail": {
+        "title": "Channel \"{name}\" key verification failed",
+        "content": "Channel \"{name}\" (ID: {id}) consecutive {fails} key verification failures: {detail}"
+      },
+      "recover": {
+        "title": "Channel \"{name}\" key verification recovered",
+        "content": "Channel \"{name}\" (ID: {id}) key verification recovered."
       }
     }
   }

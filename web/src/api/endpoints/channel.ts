@@ -114,6 +114,9 @@ export type Channel = {
     channel_proxy?: string | null;
     request_rewrite?: RequestRewriteConfig | null;
     match_regex?: string | null;
+    key_health_passed?: boolean | null;
+    key_health_all_failed?: boolean | null;
+    key_health_at?: number;
     stats?: StatsChannel;
 };
 

@@ -1379,6 +1379,15 @@
         "availability": "可用度（最高優先）",
         "speed": "速度（TPS 最高優先）",
         "priority": "優先級（數字大優先）"
+      },
+      "keyHealth": {
+        "label": "定時 Key 可用性巡檢",
+        "hint": "按設定間隔自動驗證各渠道 Key 是否可用，失敗渠道標灰並發送通知。跳過已開啟「跳過模型測試」的渠道。",
+        "interval": "間隔（分鐘）",
+        "failThreshold": "連續失敗閾值",
+        "notifyCooldown": "通知冷卻（秒）",
+        "notifyEnabled": "失敗通知",
+        "recoveryNotify": "恢復通知"
       }
     },
     "autoStrategy": {
@@ -2902,7 +2911,8 @@
       "keySelectionStrategyCost": "成本",
       "keySelectionStrategyAvailability": "可用度",
       "keySelectionStrategySpeed": "速度",
-      "keySelectionStrategyPriority": "優先級"
+      "keySelectionStrategyPriority": "優先級",
+      "keyHealthFailed": "巡檢失敗"
     }
   },
   "errors": {
@@ -3152,7 +3162,8 @@
       "system": "系統",
       "site": "站點",
       "backup": "備份",
-      "usage": "用量"
+      "usage": "用量",
+      "key_health": "Key 巡檢"
     },
     "severity": {
       "info": "資訊",
@@ -3279,6 +3290,16 @@
       "fail": {
         "title": "自更新失敗",
         "content": "{detail}"
+      }
+    },
+    "key_health": {
+      "fail": {
+        "title": "渠道「{name}」Key 驗證失敗",
+        "content": "渠道「{name}」(ID: {id}) 連續 {fails} 次 Key 驗證失敗：{detail}"
+      },
+      "recover": {
+        "title": "渠道「{name}」Key 驗證恢復",
+        "content": "渠道「{name}」(ID: {id}) Key 驗證已恢復正常。"
       }
     }
   }

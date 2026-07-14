@@ -38,6 +38,8 @@ export function Card({ channel, stats, layout = 'grid' }: { channel: Channel; st
     const firstBaseUrl = channel.base_urls?.find((item) => item.url.trim())?.url?.trim() ?? '';
     const successRequests = getChannelMetricDisplayParts(stats.request_success);
     const failedRequests = getChannelMetricDisplayParts(stats.request_failed);
+    const isKeyHealthFailed = channel.key_health_passed === false;
+    const isKeyHealthAllFailed = channel.key_health_all_failed === true;
 
     const handleEnableChange = (checked: boolean) => {
         enableChannel.mutate(
@@ -64,11 +66,11 @@ export function Card({ channel, stats, layout = 'grid' }: { channel: Channel; st
         return (
             <MorphingDialog>
                 <MorphingDialogTrigger
-                    className="group w-full rounded-lg border border-border bg-card px-3 py-2 text-card-foreground transition-all duration-150 hover:border-border/80 hover:bg-muted/20 active:scale-[0.998]"
+                    className={`group w-full rounded-lg border border-border bg-card px-3 py-2 text-card-foreground transition-all duration-150 hover:border-border/80 hover:bg-muted/20 active:scale-[0.998] ${isKeyHealthAllFailed ? 'opacity-60 grayscale' : ''}`}
                 >
                     <div className="flex items-center gap-2">
                         {/* Status dot - vertically centered across both lines */}
-                        <span className={`h-2 w-2 shrink-0 self-center rounded-full ${channel.enabled ? 'bg-emerald-500' : 'bg-destructive'}`} />
+                        <span className={`h-2 w-2 shrink-0 self-center rounded-full ${isKeyHealthAllFailed ? 'bg-destructive' : isKeyHealthFailed ? 'bg-amber-500' : channel.enabled ? 'bg-emerald-500' : 'bg-destructive'}`} />
 
                         <div className="min-w-0 flex-1">
                             {/* Line 1: name + key badge */}
@@ -129,19 +131,24 @@ export function Card({ channel, stats, layout = 'grid' }: { channel: Channel; st
     return (
         <MorphingDialog>
             <MorphingDialogTrigger
-                className={`group relative flex w-full rounded-xl border border-border bg-card p-4 text-card-foreground transition-all duration-200 hover:border-border/80 hover:shadow-md hover:bg-muted/20 active:scale-[0.995] md:hover:-translate-y-0.5 md:active:translate-y-0 ${isListLayout ? 'min-h-[12rem]' : 'min-h-[16rem]'}`}
+                className={`group relative flex w-full rounded-xl border border-border bg-card p-4 text-card-foreground transition-all duration-200 hover:border-border/80 hover:shadow-md hover:bg-muted/20 active:scale-[0.995] md:hover:-translate-y-0.5 md:active:translate-y-0 ${isListLayout ? 'min-h-[12rem]' : 'min-h-[16rem]'} ${isKeyHealthAllFailed ? 'opacity-60 grayscale' : ''}`}
             >
                 <div className="relative flex w-full flex-col gap-3 sm:gap-4">
                     <header className="flex items-start justify-between gap-2 sm:gap-3">
                         <div className="min-w-0 flex-1 space-y-2 sm:space-y-3">
                             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                                <span className={`h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full ${channel.enabled ? 'bg-emerald-500' : 'bg-destructive'}`} />
+                                <span className={`h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full ${isKeyHealthAllFailed ? 'bg-destructive' : isKeyHealthFailed ? 'bg-amber-500' : channel.enabled ? 'bg-emerald-500' : 'bg-destructive'}`} />
                                 <Badge variant="secondary" className="rounded-md border border-border bg-muted px-1.5 sm:px-2 py-0.5 text-[0.65rem] sm:text-xs font-medium">
                                     #{channel.id}
                                 </Badge>
                                 <Badge variant="secondary" className="rounded-md border border-border bg-muted px-1.5 sm:px-2 py-0.5 text-[0.65rem] sm:text-xs font-medium">
                                     {enabledKeyCount}/{channel.keys.length}
                                 </Badge>
+                                {isKeyHealthFailed ? (
+                                    <Badge variant="secondary" className={`rounded-md border px-1.5 py-0.5 text-[0.6rem] sm:text-[0.65rem] font-medium ${isKeyHealthAllFailed ? 'border-destructive/30 bg-destructive/10 text-destructive' : 'border-amber-500/30 bg-amber-500/10 text-amber-600'}`}>
+                                        {tForm('keyHealthFailed')}
+                                    </Badge>
+                                ) : null}
                             </div>
                             <div className="flex items-center gap-2">
                                 <span

@@ -27,6 +27,12 @@ export function SettingRetry() {
         }, {});
         nextValues[SettingKey.KeySelectionStrategy] = settings.find((item) => item.key === SettingKey.KeySelectionStrategy)?.value ?? 'cost';
         nextValues[SettingKey.RetryEmptyOutput] = settings.find((item) => item.key === SettingKey.RetryEmptyOutput)?.value ?? 'true';
+        nextValues[SettingKey.KeyHealthCheckEnabled] = settings.find((item) => item.key === SettingKey.KeyHealthCheckEnabled)?.value ?? 'false';
+        nextValues[SettingKey.KeyHealthCheckInterval] = settings.find((item) => item.key === SettingKey.KeyHealthCheckInterval)?.value ?? '30';
+        nextValues[SettingKey.KeyHealthCheckFailThreshold] = settings.find((item) => item.key === SettingKey.KeyHealthCheckFailThreshold)?.value ?? '3';
+        nextValues[SettingKey.KeyHealthCheckNotifyEnabled] = settings.find((item) => item.key === SettingKey.KeyHealthCheckNotifyEnabled)?.value ?? 'true';
+        nextValues[SettingKey.KeyHealthCheckRecoveryNotify] = settings.find((item) => item.key === SettingKey.KeyHealthCheckRecoveryNotify)?.value ?? 'true';
+        nextValues[SettingKey.KeyHealthCheckNotifyCooldown] = settings.find((item) => item.key === SettingKey.KeyHealthCheckNotifyCooldown)?.value ?? '300';
 
         queueMicrotask(() => setValues(nextValues));
         initialValues.current = nextValues;
@@ -141,6 +147,92 @@ export function SettingRetry() {
                         <SelectItem className="rounded-lg" value="priority">{t('retry.keySelectionStrategy.priority')}</SelectItem>
                     </SelectContent>
                 </Select>
+            </div>
+            {/* 定时 Key 可用性巡检（issue #142） */}
+            <div className="space-y-4 rounded-lg border-border/30 bg-card p-4 shadow-sm">
+                <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="min-w-0 flex flex-col gap-1">
+                        <span className="text-sm font-medium">{t('retry.keyHealth.label')}</span>
+                        <span className="text-xs text-muted-foreground">{t('retry.keyHealth.hint')}</span>
+                    </div>
+                    <Switch
+                        checked={values[SettingKey.KeyHealthCheckEnabled] === 'true'}
+                        onCheckedChange={(checked) => {
+                            const value = checked ? 'true' : 'false';
+                            setValues((prev) => ({ ...prev, [SettingKey.KeyHealthCheckEnabled]: value }));
+                            setSetting.mutate(
+                                { key: SettingKey.KeyHealthCheckEnabled, value },
+                                {
+                                    onSuccess: () => {
+                                        toast.success(t('saved'));
+                                        initialValues.current = { ...initialValues.current, [SettingKey.KeyHealthCheckEnabled]: value };
+                                    },
+                                },
+                            );
+                        }}
+                    />
+                </div>
+                {values[SettingKey.KeyHealthCheckEnabled] === 'true' ? (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs text-muted-foreground">{t('retry.keyHealth.interval')}</label>
+                            <Input
+                                type="number"
+                                min={1}
+                                value={values[SettingKey.KeyHealthCheckInterval] ?? '30'}
+                                onChange={(e) => setValues((prev) => ({ ...prev, [SettingKey.KeyHealthCheckInterval]: e.target.value }))}
+                                onBlur={() => handleSave(SettingKey.KeyHealthCheckInterval)}
+                                className="h-9 rounded-lg"
+                            />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs text-muted-foreground">{t('retry.keyHealth.failThreshold')}</label>
+                            <Input
+                                type="number"
+                                min={1}
+                                value={values[SettingKey.KeyHealthCheckFailThreshold] ?? '3'}
+                                onChange={(e) => setValues((prev) => ({ ...prev, [SettingKey.KeyHealthCheckFailThreshold]: e.target.value }))}
+                                onBlur={() => handleSave(SettingKey.KeyHealthCheckFailThreshold)}
+                                className="h-9 rounded-lg"
+                            />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs text-muted-foreground">{t('retry.keyHealth.notifyCooldown')}</label>
+                            <Input
+                                type="number"
+                                min={1}
+                                value={values[SettingKey.KeyHealthCheckNotifyCooldown] ?? '300'}
+                                onChange={(e) => setValues((prev) => ({ ...prev, [SettingKey.KeyHealthCheckNotifyCooldown]: e.target.value }))}
+                                onBlur={() => handleSave(SettingKey.KeyHealthCheckNotifyCooldown)}
+                                className="h-9 rounded-lg"
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Switch
+                                    checked={values[SettingKey.KeyHealthCheckNotifyEnabled] !== 'false'}
+                                    onCheckedChange={(checked) => {
+                                        const value = checked ? 'true' : 'false';
+                                        setValues((prev) => ({ ...prev, [SettingKey.KeyHealthCheckNotifyEnabled]: value }));
+                                        setSetting.mutate({ key: SettingKey.KeyHealthCheckNotifyEnabled, value }, { onSuccess: () => { toast.success(t('saved')); initialValues.current = { ...initialValues.current, [SettingKey.KeyHealthCheckNotifyEnabled]: value }; } });
+                                    }}
+                                />
+                                {t('retry.keyHealth.notifyEnabled')}
+                            </label>
+                            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Switch
+                                    checked={values[SettingKey.KeyHealthCheckRecoveryNotify] !== 'false'}
+                                    onCheckedChange={(checked) => {
+                                        const value = checked ? 'true' : 'false';
+                                        setValues((prev) => ({ ...prev, [SettingKey.KeyHealthCheckRecoveryNotify]: value }));
+                                        setSetting.mutate({ key: SettingKey.KeyHealthCheckRecoveryNotify, value }, { onSuccess: () => { toast.success(t('saved')); initialValues.current = { ...initialValues.current, [SettingKey.KeyHealthCheckRecoveryNotify]: value }; } });
+                                    }}
+                                />
+                                {t('retry.keyHealth.recoveryNotify')}
+                            </label>
+                        </div>
+                    </div>
+                ) : null}
             </div>
         </div>
     );
