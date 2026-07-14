@@ -2749,6 +2749,18 @@
       "deleteSuccess": "渠道分组已删除",
       "deleteConfirm": "确认删除渠道分组“{name}”吗？分组内的渠道会自动移到默认分组。"
     },
+    "batchGroup": {
+      "enter": "批量分组",
+      "exit": "退出批量",
+      "selectedCount": "已选 {count} 个渠道",
+      "selectAll": "全选当前",
+      "clearAll": "取消全选",
+      "targetPlaceholder": "选择目标分组",
+      "move": "移动到分组",
+      "moving": "移动中...",
+      "moveSuccess": "已移动 {count} 个渠道",
+      "movePartial": "成功 {success} 个，失败 {failed} 个"
+    },
     "form": {
       "add": "添加",
       "basicInfo": "基础信息",

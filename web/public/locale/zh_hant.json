@@ -2749,6 +2749,18 @@
       "deleteSuccess": "渠道分組已刪除",
       "deleteConfirm": "確認刪除渠道分組「{name}」嗎？分組內的供應源會自動移到預設分組。"
     },
+    "batchGroup": {
+      "enter": "批次分組",
+      "exit": "退出批次",
+      "selectedCount": "已選 {count} 個渠道",
+      "selectAll": "全選目前",
+      "clearAll": "取消全選",
+      "targetPlaceholder": "選擇目標分組",
+      "move": "移動到分組",
+      "moving": "移動中...",
+      "moveSuccess": "已移動 {count} 個渠道",
+      "movePartial": "成功 {success} 個，失敗 {failed} 個"
+    },
     "form": {
       "add": "新增",
       "basicInfo": "基礎資訊",

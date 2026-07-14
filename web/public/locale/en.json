@@ -2793,6 +2793,18 @@
       "deleteSuccess": "Channel group deleted",
       "deleteConfirm": "Delete channel group \"{name}\"? Channels in this group will be moved to the default group."
     },
+    "batchGroup": {
+      "enter": "Batch Group",
+      "exit": "Exit Batch",
+      "selectedCount": "{count} selected",
+      "selectAll": "Select All",
+      "clearAll": "Clear All",
+      "targetPlaceholder": "Select target group",
+      "move": "Move to Group",
+      "moving": "Moving...",
+      "moveSuccess": "Moved {count} channels",
+      "movePartial": "{success} succeeded, {failed} failed"
+    },
     "form": {
       "add": "Add",
       "basicInfo": "Basic Information",

@@ -49,6 +49,7 @@ docs/
 .idea/
 .omo/
 .vscode/
+.zcode/
 
 # OS files
 .DS_Store

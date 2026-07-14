@@ -88,6 +88,11 @@ export type ChannelGroup = {
     updated_at: number;
 };
 
+export type ChannelBatchGroupResult = {
+    success_ids: number[];
+    failed_items: Array<{ id: number; message: string }>;
+};
+
 /**
  * 渠道完整数据（与后端 model.Channel 对齐；数组字段在前端保证为 []）
  */
@@ -420,6 +425,34 @@ export function useDeleteChannel() {
         },
         onError: (error) => {
             logger.error('渠道删除失败:', error);
+        },
+    });
+}
+
+/**
+ * 批量设置渠道分组 Hook
+ *
+ * 将选中的多个渠道统一移动到同一个目标分组（覆盖原有分组）。
+ *
+ * @example
+ * const batchSetGroup = useBatchSetChannelGroup();
+ * batchSetGroup.mutate({ ids: [1, 2, 3], group_id: 5 });
+ */
+export function useBatchSetChannelGroup() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (data: { ids: number[]; group_id: number }) => {
+            return apiClient.post<ChannelBatchGroupResult>('/api/v1/channel/batch-group', data);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['channels', 'list'] });
+            queryClient.invalidateQueries({ queryKey: ['channel-groups', 'list'] });
+            queryClient.invalidateQueries({ queryKey: ['models', 'channel'] });
+            queryClient.invalidateQueries({ queryKey: ['models', 'market'] });
+        },
+        onError: (error) => {
+            logger.error('渠道批量分组失败:', error);
         },
     });
 }

@@ -47,6 +47,11 @@ func init() {
 				Handle(enableChannel),
 		).
 		AddRoute(
+			router.NewRoute("/batch-group", http.MethodPost).
+				Use(middleware.RequirePermission(auth.PermChannelsWrite)).
+				Handle(batchGroupChannel),
+		).
+		AddRoute(
 			router.NewRoute("/delete/:id", http.MethodDelete).
 				Use(middleware.RequirePermission(auth.PermChannelsWrite)).
 				Handle(deleteChannel),
@@ -213,6 +218,28 @@ func enableChannel(c *gin.Context) {
 		return
 	}
 	resp.Success(c, nil)
+}
+
+func batchGroupChannel(c *gin.Context) {
+	var req model.ChannelBatchGroupRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.Error(c, http.StatusBadRequest, resp.ErrInvalidJSON)
+		return
+	}
+	if len(req.IDs) == 0 {
+		resp.Error(c, http.StatusBadRequest, resp.ErrInvalidParam)
+		return
+	}
+	result, err := ch.BatchUpdateGroup(req.IDs, req.GroupID, c.Request.Context())
+	if err != nil {
+		if status, msg, ok := classifyChannelMutationError(err); ok {
+			resp.Error(c, status, msg)
+			return
+		}
+		resp.InternalError(c)
+		return
+	}
+	resp.Success(c, result)
 }
 
 func deleteChannel(c *gin.Context) {

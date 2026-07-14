@@ -203,6 +203,23 @@ type ChannelKeyUpdateRequest struct {
 	Remark     *string `json:"remark,omitempty"`
 }
 
+// ChannelBatchGroupRequest 批量设置渠道分组请求
+type ChannelBatchGroupRequest struct {
+	IDs     []int `json:"ids" binding:"required"`
+	GroupID int   `json:"group_id"` // 0 表示默认分组
+}
+
+// ChannelBatchGroupResult 批量设置渠道分组结果
+type ChannelBatchGroupResult struct {
+	SuccessIDs  []int                      `json:"success_ids"`
+	FailedItems []ChannelBatchGroupFailure `json:"failed_items"`
+}
+
+type ChannelBatchGroupFailure struct {
+	ID      int    `json:"id"`
+	Message string `json:"message"`
+}
+
 // ChannelFetchModelRequest is used by /channel/fetch-model (not persisted).
 type ChannelFetchModelRequest struct {
 	Type    outbound.OutboundType `json:"type" binding:"required"`

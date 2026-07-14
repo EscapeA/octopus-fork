@@ -372,6 +372,26 @@ func Update(req *model.ChannelUpdateRequest, ctx context.Context) (*model.Channe
 	return &ch, nil
 }
 
+// BatchUpdateGroup 批量将多个渠道移动到同一个目标分组（覆盖原有分组）。
+// 逐个更新，单个失败不影响其余渠道，返回成功与失败明细。
+// groupID 为 0 时解析为默认分组，非 0 时校验分组存在。
+func BatchUpdateGroup(ids []int, groupID int, ctx context.Context) (*model.ChannelBatchGroupResult, error) {
+	result := &model.ChannelBatchGroupResult{
+		SuccessIDs:  make([]int, 0, len(ids)),
+		FailedItems: make([]model.ChannelBatchGroupFailure, 0),
+	}
+	for _, id := range ids {
+		gid := groupID
+		req := &model.ChannelUpdateRequest{ID: id, GroupID: &gid}
+		if _, err := Update(req, ctx); err != nil {
+			result.FailedItems = append(result.FailedItems, model.ChannelBatchGroupFailure{ID: id, Message: err.Error()})
+			continue
+		}
+		result.SuccessIDs = append(result.SuccessIDs, id)
+	}
+	return result, nil
+}
+
 func Enabled(id int, enabled bool, ctx context.Context) error {
 	runtimeUpdateLock.Lock()
 	defer runtimeUpdateLock.Unlock()

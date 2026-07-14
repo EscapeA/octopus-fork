@@ -4,7 +4,7 @@ import {
     MorphingDialogContainer,
     MorphingDialogContent,
 } from '@/components/ui/morphing-dialog';
-import { CheckCircle2, DollarSign, Globe, GripVertical, Key, Layers, MessageSquare, XCircle } from 'lucide-react';
+import { Check, CheckCircle2, DollarSign, Globe, GripVertical, Key, Layers, MessageSquare, XCircle } from 'lucide-react';
 import { type StatsMetricsFormatted } from '@/api/endpoints/stats';
 import { type Channel, useEnableChannel } from '@/api/endpoints/channel';
 import { CardContent } from './CardContent';
@@ -14,8 +14,23 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/common/Toast';
 import { Badge } from '@/components/ui/badge';
 import { getChannelMetricDisplayParts } from './metric-format';
+import { cn } from '@/lib/utils';
 
-export function Card({ channel, stats, layout = 'grid' }: { channel: Channel; stats: StatsMetricsFormatted; layout?: 'grid' | 'list' | 'compact' }) {
+export function Card({
+    channel,
+    stats,
+    layout = 'grid',
+    selectable = false,
+    selected = false,
+    onToggleSelect,
+}: {
+    channel: Channel;
+    stats: StatsMetricsFormatted;
+    layout?: 'grid' | 'list' | 'compact';
+    selectable?: boolean;
+    selected?: boolean;
+    onToggleSelect?: (id: number) => void;
+}) {
     const t = useTranslations('channel.card');
     const tForm = useTranslations('channel.form');
     const tSections = useTranslations('channel.detail.sections');
@@ -55,6 +70,36 @@ export function Card({ channel, stats, layout = 'grid' }: { channel: Channel; st
         );
     };
 
+    const handleSelectToggle = (e: React.MouseEvent | React.KeyboardEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onToggleSelect?.(channel.id);
+    };
+
+    // Overlay that intercepts card clicks in selection mode: toggles selection
+    // instead of opening the detail dialog. Renders a checkbox indicator.
+    const selectionOverlay = selectable ? (
+        <div
+            role="checkbox"
+            aria-checked={selected}
+            tabIndex={0}
+            onClick={handleSelectToggle}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') handleSelectToggle(e);
+            }}
+            className="absolute inset-0 z-20 flex cursor-pointer items-start justify-start rounded-xl"
+        >
+            <span
+                className={cn(
+                    'absolute left-2 top-2 flex h-5 w-5 items-center justify-center rounded-md border transition-colors',
+                    selected ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card/90'
+                )}
+            >
+                {selected ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : null}
+            </span>
+        </div>
+    ) : null;
+
     // ── Compact layout: single-line row ──────────────────────────────────
     if (isCompactLayout) {
         const successRaw = stats.request_success.raw;
@@ -66,8 +111,14 @@ export function Card({ channel, stats, layout = 'grid' }: { channel: Channel; st
         return (
             <MorphingDialog>
                 <MorphingDialogTrigger
-                    className={`group w-full rounded-lg border border-border bg-card px-3 py-2 text-card-foreground transition-all duration-150 hover:border-border/80 hover:bg-muted/20 active:scale-[0.998] ${isKeyHealthAllFailed ? 'opacity-60 grayscale' : ''}`}
+                    className={cn(
+                        'group w-full rounded-lg border border-border bg-card px-3 py-2 text-card-foreground transition-all duration-150 hover:border-border/80 hover:bg-muted/20 active:scale-[0.998]',
+                        isKeyHealthAllFailed && 'opacity-60 grayscale',
+                        selectable && selected && 'ring-2 ring-primary ring-offset-1 ring-offset-background',
+                        selectable && 'pl-8'
+                    )}
                 >
+                    {selectionOverlay}
                     <div className="flex items-center gap-2">
                         {/* Status dot - vertically centered across both lines */}
                         <span className={`h-2 w-2 shrink-0 self-center rounded-full ${isKeyHealthAllFailed ? 'bg-destructive' : isKeyHealthFailed ? 'bg-amber-500' : channel.enabled ? 'bg-emerald-500' : 'bg-destructive'}`} />
@@ -131,8 +182,14 @@ export function Card({ channel, stats, layout = 'grid' }: { channel: Channel; st
     return (
         <MorphingDialog>
             <MorphingDialogTrigger
-                className={`group relative flex w-full rounded-xl border border-border bg-card p-4 text-card-foreground transition-all duration-200 hover:border-border/80 hover:shadow-md hover:bg-muted/20 active:scale-[0.995] md:hover:-translate-y-0.5 md:active:translate-y-0 ${isListLayout ? 'min-h-[12rem]' : 'min-h-[16rem]'} ${isKeyHealthAllFailed ? 'opacity-60 grayscale' : ''}`}
+                className={cn(
+                    'group relative flex w-full rounded-xl border border-border bg-card p-4 text-card-foreground transition-all duration-200 hover:border-border/80 hover:shadow-md hover:bg-muted/20 active:scale-[0.995] md:hover:-translate-y-0.5 md:active:translate-y-0',
+                    isListLayout ? 'min-h-[12rem]' : 'min-h-[16rem]',
+                    isKeyHealthAllFailed && 'opacity-60 grayscale',
+                    selectable && selected && 'ring-2 ring-primary ring-offset-1 ring-offset-background'
+                )}
             >
+                {selectionOverlay}
                 <div className="relative flex w-full flex-col gap-3 sm:gap-4">
                     <header className="flex items-start justify-between gap-2 sm:gap-3">
                         <div className="min-w-0 flex-1 space-y-2 sm:space-y-3">

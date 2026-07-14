@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🚀 Features
+- **Channel (issue #144)**: batch set group - on the channel list page, toggle "Batch Group" mode to reveal a checkbox overlay on each card, select multiple channels, pick a target group from the dropdown, and move them all at once. A channel still belongs to one group, so the target overwrites the existing group. The backend (`POST /api/v1/channel/batch-group`) updates each channel independently and returns success/failed counts, so one bad channel doesn't abort the rest.
+
 ### 🛠 Optimizations
 - **Balancer (issue #133)**: the Auto strategy now deprioritizes fully circuit-broken channels during candidate scoring instead of only skipping them at iteration time. Auto scoring previously ignored breaker state, so a tripped channel could still sort first (only to be skipped later by `SkipCircuitBreak`), making the "smart selection" appear to conflict with circuit breaking. A new read-only `IsChannelAllKeysTripped` aggregate query checks whether all of a channel's enabled keys are tripped for the requested model - without triggering the `Open -> HalfOpen` state transition that `IsTripped` performs - and assigns the channel `score = -Inf` so it sorts last (kept in the list to preserve HalfOpen probe opportunities). Channels with at least one healthy key are unaffected.
 
