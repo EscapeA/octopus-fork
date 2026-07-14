@@ -9,6 +9,7 @@ import { formatCount, formatMoney } from '@/lib/utils';
 import { formatDateOnly } from '@/lib/time';
 import { AnimatedNumber } from '@/components/common/AnimatedNumber';
 import { useHomeStatsRefreshMs, useHomeViewStore, type ChartMetricType, type ChartPeriod } from '@/components/modules/home/store';
+import { useSettingStore } from '@/stores/setting';
 import { BarChart3, CalendarClock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +26,7 @@ export function StatsChart() {
     const { data: statsDaily } = useStatsDaily({ refetchIntervalMs: statsRefreshMs });
     const { data: statsHourly } = useStatsHourly({ refetchIntervalMs: statsRefreshMs });
     const t = useTranslations('home.chart');
+    const { chinaMode } = useSettingStore();
 
     const chartMetrics = useHomeViewStore((state) => state.chartMetrics);
     const toggleChartMetric = useHomeViewStore((state) => state.toggleChartMetric);
@@ -147,6 +149,29 @@ export function StatsChart() {
         return 'url(#fillMetric3)';
     };
 
+    // total_cost already went through formatMoney() in the stats select mapper,
+    // so in chinaMode stat.total_cost.raw is already CNY (USD x exchangeRate once).
+    // Formatting it again via formatMoney would apply the exchange rate a second
+    // time and desync the chart from Overview. Use formatDisplayCost for any value
+    // that is already in display currency.
+    const formatDisplayCost = (value: number): { value: string; unit: string } => {
+        if (chinaMode) {
+            const v = Number(value);
+            if (v >= 100_000_000) return { value: (v / 100_000_000).toFixed(2), unit: '亿元' };
+            if (v >= 10_000) return { value: (v / 10_000).toFixed(2), unit: '万元' };
+            return { value: v.toFixed(2), unit: '元' };
+        }
+        return formatMoney(value).formatted;
+    };
+
+    const costAxisFormatter = (value: number): string => {
+        const formatted = formatDisplayCost(Number(value));
+        return `${formatted.value}${formatted.unit}`;
+    };
+
+    const costSummary = formatDisplayCost(totals.cost);
+
+
     const summaryMetrics = [
         {
             key: 'requests',
@@ -157,8 +182,8 @@ export function StatsChart() {
         {
             key: 'cost',
             label: t('totalCost'),
-            value: formatMoney(totals.cost).formatted.value,
-            unit: formatMoney(totals.cost).formatted.unit,
+            value: costSummary.value,
+            unit: costSummary.unit,
         },
         {
             key: 'tokens',
@@ -264,8 +289,7 @@ export function StatsChart() {
                         tickFormatter={(value) => {
                             const primary = chartMetrics[0] ?? 'cost';
                             if (primary === 'cost') {
-                                const formatted = formatMoney(value);
-                                return `${formatted.formatted.value}${formatted.formatted.unit}`;
+                                return costAxisFormatter(Number(value));
                             } else if (primary === 'success-rate') {
                                 return `${value.toFixed(0)}%`;
                             } else if (primary === 'count' || primary === 'tokens') {
@@ -275,7 +299,21 @@ export function StatsChart() {
                             return value.toString();
                         }}
                     />
-                    <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
+                    <ChartTooltip
+                        cursor={false}
+                        content={
+                            <ChartTooltipContent
+                                indicator="line"
+                                formatter={(value) => {
+                                    const primary = chartMetrics[0] ?? 'cost';
+                                    if (primary === 'cost') return costAxisFormatter(Number(value));
+                                    if (primary === 'success-rate') return `${Number(value).toFixed(2)}%`;
+                                    const f = formatCount(Number(value));
+                                    return `${f.formatted.value}${f.formatted.unit}`;
+                                }}
+                            />
+                        }
+                    />
                     <Area
                         type="monotone"
                         dataKey={METRIC_DATA_KEYS[chartMetrics[0]]}
