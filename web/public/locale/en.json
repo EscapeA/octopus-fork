@@ -1418,9 +1418,10 @@
       },
       "keySelectionStrategy": {
         "label": "Key selection strategy",
-        "hint": "Default strategy for choosing among multiple keys in a channel. 'cost' picks the lowest-cost key; 'availability' picks the highest-availability key (penalized on errors, recovers on success/time); 'priority' picks the key with the higher priority number first. Channels can override this individually.",
+        "hint": "Default strategy for choosing among multiple keys in a channel. 'cost' picks the lowest-cost key; 'availability' picks the highest-availability key (penalized on errors, recovers on success/time); 'speed' picks the fastest key by EMA-smoothed TPS (tokens/sec, from successful requests); 'priority' picks the key with the higher priority number first. Channels can override this individually.",
         "cost": "Cost (lowest first)",
         "availability": "Availability (highest first)",
+        "speed": "Speed (highest TPS first)",
         "priority": "Priority (higher first)"
       }
     },
@@ -2944,6 +2945,7 @@
       "keySelectionStrategyInherit": "Inherit global",
       "keySelectionStrategyCost": "Cost",
       "keySelectionStrategyAvailability": "Availability",
+      "keySelectionStrategySpeed": "Speed",
       "keySelectionStrategyPriority": "Priority"
     }
   },

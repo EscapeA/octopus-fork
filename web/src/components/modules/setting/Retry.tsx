@@ -137,6 +137,7 @@ export function SettingRetry() {
                     <SelectContent className="rounded-xl">
                         <SelectItem className="rounded-lg" value="cost">{t('retry.keySelectionStrategy.cost')}</SelectItem>
                         <SelectItem className="rounded-lg" value="availability">{t('retry.keySelectionStrategy.availability')}</SelectItem>
+                        <SelectItem className="rounded-lg" value="speed">{t('retry.keySelectionStrategy.speed')}</SelectItem>
                         <SelectItem className="rounded-lg" value="priority">{t('retry.keySelectionStrategy.priority')}</SelectItem>
                     </SelectContent>
                 </Select>

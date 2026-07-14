@@ -135,8 +135,13 @@ type ChannelKey struct {
 // （不参与可用度评分，保持后台任务等场景可用）。
 var KeyAvailabilityScoreFunc func(channelID, keyID int, modelName string) float64
 
+// KeySpeedTPSFunc 由 balancer 包在启动时注入，用于查询某 (channelID, keyID,
+// modelName) 的 EMA 平滑 TPS（tokens/sec）。返回 0 表示无数据（冷启动）。
+// 未注入时返回 0，speed 策略回退 cost（不参与速度评分，保持后台任务等场景可用）。
+var KeySpeedTPSFunc func(channelID, keyID int, modelName string) float64
+
 // GlobalKeySelectionStrategyFunc 由 op/setting 包在启动时注入，用于读取全局 key 选择
-// 策略（"cost"、"availability" 或 "priority"）。model 包不能导入 internal/op（循环依赖），故用
+// 策略（"cost"、"availability"、"speed" 或 "priority"）。model 包不能导入 internal/op（循环依赖），故用
 // 函数变量解耦。未注入时返回 "cost"（默认策略）。
 var GlobalKeySelectionStrategyFunc func() string
 var KeyCooldownFunc func(channelID, keyID int, modelName string) bool
@@ -402,6 +407,10 @@ func (c *Channel) GetChannelKeyWithCooldown(modelName string, ratelimitCooldownS
 //   - "availability"：选可用度分数最高的 key（满分 100，出错衰减、成功/时间恢复）；
 //     同分按 Keys 数组顺序取第一个（初始全满分 → 用第一个 key）；全部分数 ≤ 0 时
 //     回退 cost 策略防卡死。可用度是软优先级，冷却/熔断/失败提示硬隔离仍生效。
+//   - "speed"：选 EMA 平滑 TPS（tokens/sec）最高的 key；仅记录成功请求的 TPS
+//     （output_tokens / attempt_duration_seconds），反映上游真实生成速度。
+//     同 TPS 按候选顺序取第一个；所有候选均无 TPS 数据时回退 cost 策略防卡死。
+//     速度是软优先级，冷却/熔断/失败提示硬隔离仍生效（issue #140）。
 //   - "priority"：选 Priority 数字最大的 key；同优先级选 TotalCost 更低者，仍相同则
 //     按 Keys 数组顺序取第一个。
 //
@@ -445,6 +454,9 @@ func (c *Channel) GetChannelKeyExcludingWithCooldown(excludeKeyIDs []int, modelN
 	strategy := c.effectiveKeySelectionStrategy()
 	if strategy == "availability" && KeyAvailabilityScoreFunc != nil && modelName != "" {
 		return c.selectKeyByAvailability(candidates, modelName)
+	}
+	if strategy == "speed" && KeySpeedTPSFunc != nil && modelName != "" {
+		return c.selectKeyBySpeed(candidates, modelName)
 	}
 	if strategy == "priority" {
 		return selectKeyByPriority(candidates)
@@ -507,6 +519,31 @@ func (c *Channel) selectKeyByAvailability(candidates []ChannelKey, modelName str
 	}
 	if !bestSet {
 		// 所有候选分数 ≤ 0，回退成本最低。
+		return selectKeyByCost(candidates)
+	}
+	return best
+}
+
+// selectKeyBySpeed 选 EMA 平滑 TPS 最高的 key。
+// 仅考虑有 TPS 数据（>0）的候选；同 TPS 按候选顺序取第一个（即 Keys 数组顺序）。
+// 若所有候选均无 TPS 数据（冷启动），回退成本最低（防卡死兜底）。
+func (c *Channel) selectKeyBySpeed(candidates []ChannelKey, modelName string) ChannelKey {
+	best := ChannelKey{}
+	bestTPS := 0.0
+	bestSet := false
+	for _, k := range candidates {
+		tps := KeySpeedTPSFunc(c.ID, k.ID, modelName)
+		if tps <= 0 {
+			continue
+		}
+		if !bestSet || tps > bestTPS {
+			best = k
+			bestTPS = tps
+			bestSet = true
+		}
+	}
+	if !bestSet {
+		// 所有候选均无 TPS 数据，回退成本最低。
 		return selectKeyByCost(candidates)
 	}
 	return best

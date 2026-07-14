@@ -290,3 +290,138 @@ func TestChannelInheritsGlobalPriorityStrategy(t *testing.T) {
 		t.Fatalf("expected key 1 (global priority strategy, highest priority), got key %d", key.ID)
 	}
 }
+
+// --- speed strategy tests (issue #140) ---
+
+var stubKeyTPSScores map[string]float64
+
+func stubKeyTPSFunc(channelID, keyID int, modelName string) float64 {
+	k := formatAvailabilityStubKey(channelID, keyID, modelName)
+	if s, ok := stubKeyTPSScores[k]; ok {
+		return s
+	}
+	return 0
+}
+
+func setupSpeedTest() func() {
+	oldFunc := KeySpeedTPSFunc
+	oldStrategy := GlobalKeySelectionStrategyFunc
+	KeySpeedTPSFunc = stubKeyTPSFunc
+	GlobalKeySelectionStrategyFunc = func() string { return "speed" }
+	stubKeyTPSScores = make(map[string]float64)
+	return func() {
+		KeySpeedTPSFunc = oldFunc
+		GlobalKeySelectionStrategyFunc = oldStrategy
+		stubKeyTPSScores = nil
+	}
+}
+
+func TestSelectKeyBySpeedPicksHighestTPS(t *testing.T) {
+	cleanup := setupSpeedTest()
+	defer cleanup()
+
+	ch := makeChannelWithKeys(
+		enabledKey(1, 5.0), // cost 5.0
+		enabledKey(2, 3.0), // cost 3.0
+		enabledKey(3, 1.0), // cost 1.0 (lowest cost)
+	)
+	// key 1: 50 tps, key 2: 100 tps (fastest), key 3: 30 tps
+	stubKeyTPSScores[availabilityStubKey(1, 1, "gpt-4o")] = 50
+	stubKeyTPSScores[availabilityStubKey(1, 2, "gpt-4o")] = 100
+	stubKeyTPSScores[availabilityStubKey(1, 3, "gpt-4o")] = 30
+
+	key := ch.GetChannelKeyWithCooldown("gpt-4o", 300)
+	if key.ID != 2 {
+		t.Fatalf("expected key 2 (highest tps), got key %d", key.ID)
+	}
+}
+
+func TestSelectKeyBySpeedTiePicksFirstInArray(t *testing.T) {
+	cleanup := setupSpeedTest()
+	defer cleanup()
+
+	ch := makeChannelWithKeys(
+		enabledKey(1, 5.0),
+		enabledKey(2, 3.0),
+	)
+	// Both have same TPS → first in array wins
+	stubKeyTPSScores[availabilityStubKey(1, 1, "gpt-4o")] = 100
+	stubKeyTPSScores[availabilityStubKey(1, 2, "gpt-4o")] = 100
+
+	key := ch.GetChannelKeyWithCooldown("gpt-4o", 300)
+	if key.ID != 1 {
+		t.Fatalf("expected key 1 (first in array on tie), got key %d", key.ID)
+	}
+}
+
+func TestSelectKeyBySpeedAllZeroFallsBackToCost(t *testing.T) {
+	cleanup := setupSpeedTest()
+	defer cleanup()
+
+	ch := makeChannelWithKeys(
+		enabledKey(1, 5.0), // cost 5.0
+		enabledKey(2, 1.0), // cost 1.0 (lowest cost)
+	)
+	// All zero TPS (cold start) → fall back to cost
+	stubKeyTPSScores[availabilityStubKey(1, 1, "gpt-4o")] = 0
+	stubKeyTPSScores[availabilityStubKey(1, 2, "gpt-4o")] = 0
+
+	key := ch.GetChannelKeyWithCooldown("gpt-4o", 300)
+	if key.ID != 2 {
+		t.Fatalf("expected key 2 (lowest cost fallback), got key %d", key.ID)
+	}
+}
+
+func TestSelectKeyBySpeedSkipsZeroTPS(t *testing.T) {
+	cleanup := setupSpeedTest()
+	defer cleanup()
+
+	ch := makeChannelWithKeys(
+		enabledKey(1, 1.0), // cost 1.0 (lowest), but 0 tps
+		enabledKey(2, 5.0), // cost 5.0, but 50 tps (only one with data)
+	)
+	stubKeyTPSScores[availabilityStubKey(1, 1, "gpt-4o")] = 0
+	stubKeyTPSScores[availabilityStubKey(1, 2, "gpt-4o")] = 50
+
+	key := ch.GetChannelKeyWithCooldown("gpt-4o", 300)
+	if key.ID != 2 {
+		t.Fatalf("expected key 2 (only one with tps data), got key %d", key.ID)
+	}
+}
+
+func TestSelectKeyByCostWhenStrategyIsSpeedButNoFunc(t *testing.T) {
+	cleanup := setupSpeedTest()
+	defer cleanup()
+	// Override to speed but no func injected
+	KeySpeedTPSFunc = nil
+
+	ch := makeChannelWithKeys(
+		enabledKey(1, 5.0),
+		enabledKey(2, 1.0), // cost 1.0 (lowest)
+	)
+	stubKeyTPSScores[availabilityStubKey(1, 1, "gpt-4o")] = 100
+	stubKeyTPSScores[availabilityStubKey(1, 2, "gpt-4o")] = 10
+
+	key := ch.GetChannelKeyWithCooldown("gpt-4o", 300)
+	if key.ID != 2 {
+		t.Fatalf("expected key 2 (lowest cost, no speed func), got key %d", key.ID)
+	}
+}
+
+func TestChannelStrategyOverridesGlobalSpeed(t *testing.T) {
+	cleanup := setupSpeedTest()
+	defer cleanup()
+
+	ch := makeChannelWithKeys(
+		enabledKey(1, 5.0),
+		enabledKey(2, 1.0), // cost 1.0 (lowest)
+	)
+	ch.KeySelectionStrategy = "cost"                            // override global speed
+	stubKeyTPSScores[availabilityStubKey(1, 1, "gpt-4o")] = 100 // fast
+	stubKeyTPSScores[availabilityStubKey(1, 2, "gpt-4o")] = 10  // slow
+
+	key := ch.GetChannelKeyWithCooldown("gpt-4o", 300)
+	if key.ID != 2 {
+		t.Fatalf("expected key 2 (channel overrides to cost), got key %d", key.ID)
+	}
+}

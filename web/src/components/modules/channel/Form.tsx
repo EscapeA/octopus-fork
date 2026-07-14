@@ -1624,6 +1624,7 @@ export function ChannelForm({
                                 <SelectItem className="rounded-xl" value="__inherit__">{t('keySelectionStrategyInherit')}</SelectItem>
                                 <SelectItem className="rounded-xl" value="cost">{t('keySelectionStrategyCost')}</SelectItem>
                                 <SelectItem className="rounded-xl" value="availability">{t('keySelectionStrategyAvailability')}</SelectItem>
+                                <SelectItem className="rounded-xl" value="speed">{t('keySelectionStrategySpeed')}</SelectItem>
                                 <SelectItem className="rounded-xl" value="priority">{t('keySelectionStrategyPriority')}</SelectItem>
                             </SelectContent>
                         </Select>

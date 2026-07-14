@@ -269,8 +269,8 @@ func (s *Setting) Validate() error {
 		}
 		return nil
 	case SettingKeyKeySelectionStrategy:
-		if s.Value != "cost" && s.Value != "availability" && s.Value != "priority" {
-			return fmt.Errorf("key selection strategy must be cost, availability or priority")
+		if s.Value != "cost" && s.Value != "availability" && s.Value != "speed" && s.Value != "priority" {
+			return fmt.Errorf("key selection strategy must be cost, availability, speed or priority")
 		}
 		return nil
 	case SettingKeyProxyURL, SettingKeySemanticCacheEmbeddingBaseURL, SettingKeyAIRouteBaseURL:
