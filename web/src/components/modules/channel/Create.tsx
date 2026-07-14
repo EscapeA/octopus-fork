@@ -9,7 +9,6 @@ import {
 import { Button } from '@/components/ui/button';
 import {
     AutoGroupType,
-    ChannelType,
     useCreateChannel,
 } from '@/api/endpoints/channel';
 import { Sparkles, X } from 'lucide-react';
@@ -22,6 +21,7 @@ import {
     type ChannelFormData,
 } from './Form';
 import { channelTemplates } from './templates';
+import { DEFAULT_CHANNEL_TYPE } from './type-options';
 
 export function CreateDialogContent() {
     const { setIsOpen } = useMorphingDialog();
@@ -30,7 +30,7 @@ export function CreateDialogContent() {
     const [formData, setFormData] = useState<ChannelFormData>({
         name: '',
         group_id: 0,
-        type: ChannelType.OpenAIResponse,
+        type: DEFAULT_CHANNEL_TYPE,
         base_urls: [{ url: '', delay: 0, suffix_mode: 'auto' }],
         custom_header: [],
         channel_proxy: '',
@@ -57,7 +57,7 @@ export function CreateDialogContent() {
         setFormData({
             name: '',
             group_id: 0,
-            type: ChannelType.OpenAIResponse,
+            type: DEFAULT_CHANNEL_TYPE,
             base_urls: [{ url: '', delay: 0, suffix_mode: 'auto' }],
             custom_header: [],
             channel_proxy: '',
