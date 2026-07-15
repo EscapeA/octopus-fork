@@ -30,6 +30,7 @@ const (
 	PlanProviderStepFunPlan   PlanProviderCategory = "stepfun_plan"
 	PlanProviderSenseNovaPlan PlanProviderCategory = "sensenova_plan"
 	PlanProviderMiMoPlan      PlanProviderCategory = "mimo_plan"
+	PlanProviderCodex         PlanProviderCategory = "codex"
 )
 
 // PlanProviderCategoryInfo 厂商元信息（非 DB 字段）
@@ -161,6 +162,15 @@ var PlanProviderCategories = []PlanProviderCategoryInfo{
 		Models:      "MiMo-V2-Pro,MiMo-V2-Flash,MiMo-V2-Edge",
 		Description: "小米 MiMo Token Plan 套餐用量查询。支持两种鉴权方式：① passToken（小米账号 SSO Token，有效期 30 天滚动刷新，可自动刷新 serviceToken，但安全风险——passToken 可能存在横向移动风险，未进行全方面测试，请自行判断是否需要使用）；② serviceToken（仅 MiMo 平台 Token，有效期约 1 天，过期需手动更新）。在浏览器登录 platform.xiaomimimo.com 后，按 F12 → Application → Cookies 复制。",
 		HelpURL:     "https://platform.xiaomimimo.com/console/plan-manage",
+	},
+	{
+		Category:    PlanProviderCodex,
+		Name:        "ChatGPT Codex 套餐",
+		Type:        PlanProviderTypeTokenPlan,
+		BaseURL:     "https://chatgpt.com",
+		Models:      "gpt-5,gpt-5-codex,gpt-5.1,gpt-5.1-codex,gpt-5.2,gpt-5.2-codex",
+		Description: "ChatGPT Codex 套餐用量查询（WHAM API）+ 自动创建 Codex 转发渠道。需填入 OAuth JSON 凭据（含 access_token 和 account_id），从 ChatGPT 订阅账号获取。系统将自动创建 Codex 类型渠道（接入点 chatgpt.com/backend-api/codex/responses）。access_token 有效期较短，过期后需重新获取。",
+		HelpURL:     "https://chatgpt.com",
 	},
 }
 

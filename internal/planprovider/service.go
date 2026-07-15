@@ -101,7 +101,8 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 	// 2. 渠道创建/复用
 	var channelID int
 	needCreateChannel := info.Type == model.PlanProviderTypeBalance ||
-		(isConsoleTokenPlanCategory(category) && forwardAPIKey != "")
+		(isConsoleTokenPlanCategory(category) && forwardAPIKey != "") ||
+		category == model.PlanProviderCodex
 	if needCreateChannel {
 		channelGroupID, err := ensurePlanChannelGroup(ctx)
 		if err != nil {
@@ -109,7 +110,8 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 		}
 
 		// 渠道接入点与凭据：balance 类用 info.BaseURL + apiKey；
-		// 控制台 token plan 类用各自的转发 API 地址 + forwardAPIKey。
+		// 控制台 token plan 类用各自的转发 API 地址 + forwardAPIKey；
+		// Codex 用 info.BaseURL + apiKey（OAuth JSON），channel type 为 Codex。
 		channelBaseURL := info.BaseURL
 		channelModel := info.Models
 		channelKey := apiKey
@@ -117,10 +119,15 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 		if customName != "" {
 			channelName = fmt.Sprintf("[%s] %s", info.Name, customName)
 		}
+		channelType := outbound.OutboundTypeOpenAIChat
 		if isConsoleTokenPlanCategory(category) {
 			channelBaseURL = planForwardAPIBaseURL(category)
 			channelKey = forwardAPIKey
 			channelName = fmt.Sprintf("[%s] %s", planForwardLabel(category), name)
+		}
+		if category == model.PlanProviderCodex {
+			channelType = outbound.OutboundTypeCodex
+			channelKey = apiKey // OAuth JSON, same as monitoring credential
 		}
 
 		// 查找可复用的已有渠道（同 category + 接入点 + 模型相同的渠道）
@@ -143,7 +150,7 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 			channel := &model.Channel{
 				Name:    channelName,
 				GroupID: channelGroupID,
-				Type:    outbound.OutboundTypeOpenAIChat,
+				Type:    channelType,
 				Enabled: true,
 				BaseUrls: []model.BaseUrl{
 					{URL: channelBaseURL, Delay: 0},

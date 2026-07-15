@@ -103,6 +103,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
 
     const isConsoleTokenPlan = selectedCategory === 'stepfun_plan' || selectedCategory === 'sensenova_plan' || selectedCategory === 'mimo_plan';
     const isMiMoPlan = selectedCategory === 'mimo_plan';
+    const isCodexPlan = selectedCategory === 'codex';
     const supportsForwardApiKey = isConsoleTokenPlan && !isMiMoPlan;
 
     const handleAdd = useCallback(async () => {
@@ -205,9 +206,11 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                 <label className="text-sm font-medium">
                                     {isMiMoPlan
                                         ? (t('plan.cookieLabel') || 'Cookie')
-                                        : isConsoleTokenPlan
-                                            ? (t('plan.consoleTokenLabel') || '控制台 Token')
-                                            : (t('plan.apiKeyLabel') || 'API Key')}
+                                        : isCodexPlan
+                                            ? (t('plan.codexOAuthLabel') || 'OAuth JSON')
+                                            : isConsoleTokenPlan
+                                                ? (t('plan.consoleTokenLabel') || '控制台 Token')
+                                                : (t('plan.apiKeyLabel') || 'API Key')}
                                 </label>
                                 {isMiMoPlan && (
                                     <div className="space-y-1">
@@ -228,11 +231,13 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                         ? (mimoAuthMode === 'passToken'
                                             ? (t('plan.mimoPassTokenPlaceholder') || '粘贴 account.xiaomi.com 的完整 Cookie（需包含 passToken=、userId=、cUserId= 字段）')
                                             : (t('plan.mimoServiceTokenPlaceholder') || '粘贴 platform.xiaomimimo.com 的完整 Cookie（需包含 api-platform_serviceToken=、userId=、api-platform_slh=、api-platform_ph= 字段）'))
-                                        : isConsoleTokenPlan
-                                            ? (selectedInfo?.category === 'sensenova_plan'
-                                                ? (t('plan.sensenovaTokenPlaceholder') || '粘贴控制台 Bearer Token 值')
-                                                : (t('plan.oasisTokenPlaceholder') || '粘贴控制台 Cookie 中的 Oasis-Token 值'))
-                                            : (t('plan.apiKeyPlaceholder') || '请输入 API Key')}
+                                        : isCodexPlan
+                                            ? (t('plan.codexOAuthPlaceholder') || '粘贴 OAuth JSON 凭据（含 access_token 和 account_id）')
+                                            : isConsoleTokenPlan
+                                                ? (selectedInfo?.category === 'sensenova_plan'
+                                                    ? (t('plan.sensenovaTokenPlaceholder') || '粘贴控制台 Bearer Token 值')
+                                                    : (t('plan.oasisTokenPlaceholder') || '粘贴控制台 Cookie 中的 Oasis-Token 值'))
+                                                : (t('plan.apiKeyPlaceholder') || '请输入 API Key')}
                                     value={apiKey}
                                     onChange={(e) => setApiKey(e.target.value)}
                                 />
@@ -251,6 +256,11 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                         {selectedInfo?.category === 'sensenova_plan'
                                             ? (t('plan.sensenovaTokenHint') || '需登录 platform.sensenova.cn 控制台，从请求头复制 Bearer Token 值。有效期约 3 小时，过期后需重新获取。')
                                             : (t('plan.oasisTokenHint') || '需登录 platform.stepfun.com 控制台，从浏览器 Cookie 复制 Oasis-Token 值（格式：access...refresh）。该 Token 有效期约 30 分钟，过期后需重新获取。')}
+                                    </p>
+                                )}
+                                {isCodexPlan && (
+                                    <p className="text-[11px] leading-tight text-amber-500">
+                                        {t('plan.codexOAuthHint') || '从 ChatGPT 订阅账号获取 OAuth JSON 凭据（含 access_token 和 account_id）。系统将自动创建 Codex 类型转发渠道（接入点 chatgpt.com/backend-api/codex/responses）。access_token 有效期较短，过期后需重新获取。'}
                                     </p>
                                 )}
                             </div>

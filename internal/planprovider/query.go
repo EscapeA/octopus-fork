@@ -79,6 +79,8 @@ func QueryTokenPlan(ctx context.Context, category model.PlanProviderCategory, ap
 		return queryMiMoPlanTokenPlan(ctx, apiKey)
 	case model.PlanProviderZhipu:
 		return queryZhipuTokenPlan(ctx, apiKey)
+	case model.PlanProviderCodex:
+		return queryCodexTokenPlan(ctx, apiKey)
 	default:
 		return nil, fmt.Errorf("unsupported tokenplan provider: %s", category)
 	}
@@ -989,6 +991,139 @@ func queryOpenAIBalance(ctx context.Context, apiKey string) (*BalanceResult, err
 		BalanceUsed: resp.TotalUsedUSD,
 		Currency:    "USD",
 	}, nil
+}
+
+// --- ChatGPT Codex 套餐 (WHAM API) ---
+//
+// ChatGPT Codex 订阅的套餐用量查询与 API 转发完全不同：
+//   - 域名：chatgpt.com（控制台 WHAM API），非 api.openai.com
+//   - 凭据：OAuth JSON（含 access_token 和 account_id），非 sk- API key
+//   - 鉴权：Bearer access_token + chatgpt-account-id header
+//   - 用量按百分比返回（used_percent），非绝对值
+//
+// 响应结构：
+//   {
+//     "plan_type": "...",
+//     "rate_limit": {
+//       "primary_window":   { "used_percent": 42.5, "reset_at": 1234567890, "limit_window_seconds": 604800 },
+//       "secondary_window": { "used_percent": 10.0, "reset_at": 1234567890, "limit_window_seconds": 18000 }
+//     },
+//     "additional_rate_limits": [...]
+//   }
+//
+// primary_window = 周配额（limit_window_seconds ≈ 604800 = 7 天）
+// secondary_window = 5 小时配额（limit_window_seconds ≈ 18000 = 5h）
+// used_percent 是 0-100 的百分比，转为 QuotaUsed/QuotaTotal 表示。
+var codexWhamUsageURL = "https://chatgpt.com/backend-api/wham/usage"
+
+func queryCodexTokenPlan(ctx context.Context, oauthKeyJSON string) (*TokenPlanResult, error) {
+	oauthKey, err := parseCodexOAuthKey(oauthKeyJSON)
+	if err != nil {
+		return nil, fmt.Errorf("codex: %w", err)
+	}
+	if oauthKey.AccessToken == "" {
+		return nil, fmt.Errorf("codex: access_token is required")
+	}
+	if oauthKey.AccountID == "" {
+		return nil, fmt.Errorf("codex: account_id is required")
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, codexWhamUsageURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("codex: create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+oauthKey.AccessToken)
+	req.Header.Set("chatgpt-account-id", oauthKey.AccountID)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("originator", "codex_cli_rs")
+
+	client := &http.Client{Timeout: requestTimeout}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("codex: http get: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("codex: read body: %w", err)
+	}
+
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return nil, fmt.Errorf("codex: authentication failed (status %d): %s", resp.StatusCode, string(body))
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("codex: http status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var wham struct {
+		PlanType  string `json:"plan_type"`
+		RateLimit *struct {
+			PrimaryWindow   *codexWhamWindow `json:"primary_window"`
+			SecondaryWindow *codexWhamWindow `json:"secondary_window"`
+		} `json:"rate_limit"`
+	}
+	if err := json.Unmarshal(body, &wham); err != nil {
+		return nil, fmt.Errorf("codex: parse response: %w", err)
+	}
+
+	result := &TokenPlanResult{}
+
+	// primary_window = 周配额（≈7 天窗口）
+	if wham.RateLimit != nil && wham.RateLimit.PrimaryWindow != nil {
+		w := wham.RateLimit.PrimaryWindow
+		// used_percent 0-100 -> 转为 100 为总量，used_percent 为已用
+		result.QuotaTotal = 100
+		result.QuotaUsed = w.UsedPercent
+		if w.ResetAt > 0 {
+			t := time.Unix(w.ResetAt, 0)
+			result.QuotaResetAt = &t
+		}
+	}
+
+	// secondary_window = 5 小时配额，映射到 weekly 字段（UI 显示为「周/日配额」）
+	if wham.RateLimit != nil && wham.RateLimit.SecondaryWindow != nil {
+		w := wham.RateLimit.SecondaryWindow
+		result.WeeklyTotal = 100
+		result.WeeklyUsed = w.UsedPercent
+		if w.ResetAt > 0 {
+			t := time.Unix(w.ResetAt, 0)
+			result.WeeklyResetAt = &t
+		}
+	}
+
+	return result, nil
+}
+
+type codexWhamWindow struct {
+	UsedPercent        float64 `json:"used_percent"`
+	ResetAt            int64   `json:"reset_at"`
+	ResetAfterSeconds  int64   `json:"reset_after_seconds"`
+	LimitWindowSeconds int64   `json:"limit_window_seconds"`
+}
+
+type codexOAuthKey struct {
+	AccessToken  string `json:"access_token"`
+	AccountID    string `json:"account_id"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+	IDToken      string `json:"id_token,omitempty"`
+	Email        string `json:"email,omitempty"`
+	Type         string `json:"type,omitempty"`
+}
+
+func parseCodexOAuthKey(raw string) (*codexOAuthKey, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, fmt.Errorf("empty oauth key")
+	}
+	if !strings.HasPrefix(raw, "{") {
+		return nil, fmt.Errorf("key must be a JSON object containing access_token and account_id")
+	}
+	var key codexOAuthKey
+	if err := json.Unmarshal([]byte(raw), &key); err != nil {
+		return nil, fmt.Errorf("invalid oauth key json: %w", err)
+	}
+	return &key, nil
 }
 
 // --- Helpers ---

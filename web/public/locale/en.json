@@ -161,7 +161,10 @@
       "mimoPassTokenPlaceholder": "Paste full Cookie from account.xiaomi.com",
       "mimoServiceTokenPlaceholder": "Paste full Cookie from platform.xiaomimimo.com",
       "mimoPassTokenHint": "Required fields: passToken=, userId=, cUserId=. Valid 30 days (auto-renewed on each use). ⚠️ Security risk: passToken is a long-lived Xiaomi account session token, may have lateral movement risk, not fully tested. System auto-refreshes serviceToken via SSO.",
-      "mimoServiceTokenHint": "Required fields: api-platform_serviceToken=, userId=, api-platform_slh=, api-platform_ph=. Valid ~1 day (server-controlled), manual update required. Login platform.xiaomimimo.com → F12 → Application → Cookies, copy all cookies under api-platform domain."
+      "mimoServiceTokenHint": "Required fields: api-platform_serviceToken=, userId=, api-platform_slh=, api-platform_ph=. Valid ~1 day (server-controlled), manual update required. Login platform.xiaomimimo.com -> F12 -> Application -> Cookies, copy all cookies under api-platform domain.",
+      "codexOAuthLabel": "OAuth JSON",
+      "codexOAuthPlaceholder": "Paste OAuth JSON credential (with access_token and account_id)",
+      "codexOAuthHint": "Obtain OAuth JSON credential (with access_token and account_id) from a ChatGPT subscription account. A Codex forwarding channel is automatically created (endpoint: chatgpt.com/backend-api/codex/responses). access_token has a short validity; re-obtain after expiry."
     },
     "title": "Remote Sites",
     "addSite": "Add Site",
