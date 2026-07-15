@@ -25,9 +25,10 @@ import { AnimatedNumber } from '@/components/common/AnimatedNumber';
 import { EASING } from '@/lib/animations/fluid-transitions';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn, formatCount, formatMoney } from '@/lib/utils';
-import { useHomeStatsRefreshMs, useHomeViewStore, type OverviewMetricKey, type OverviewRange } from './store';
+import { useHomeStatsRefreshMs, useHomeViewStore, type OverviewCountMode, type OverviewMetricKey, type OverviewRange } from './store';
 
 const RANGE_OPTIONS: readonly OverviewRange[] = ['7d', '30d', '90d', 'all'];
+const COUNT_MODE_OPTIONS: readonly OverviewCountMode[] = ['active', 'all'];
 
 type OverviewData = NonNullable<ReturnType<typeof useAnalyticsOverview>['data']>;
 type MetricIcon = typeof BarChart3;
@@ -45,6 +46,8 @@ export function HomeAnalyticsOverview() {
     const t = useTranslations('home.overview');
     const range = useHomeViewStore((state) => state.overviewRange);
     const setRange = useHomeViewStore((state) => state.setOverviewRange);
+    const countMode = useHomeViewStore((state) => state.overviewCountMode);
+    const setCountMode = useHomeViewStore((state) => state.setOverviewCountMode);
     const metricOrder = useHomeViewStore((state) => state.overviewMetricOrder);
     const hiddenMetrics = useHomeViewStore((state) => state.overviewHiddenMetrics);
     const setOverviewMetricHidden = useHomeViewStore((state) => state.setOverviewMetricHidden);
@@ -99,27 +102,36 @@ export function HomeAnalyticsOverview() {
                     icon: DollarSign,
                     accentClassName: 'bg-amber-500/10 text-amber-600',
                 };
-            case 'providerCount':
+            case 'providerCount': {
+                const v = countMode === 'all' ? d.enabled_provider_count : d.provider_count;
                 return {
                     ...base,
-                    value: formatCount(d.provider_count).formatted.value,
-                    unit: formatCount(d.provider_count).formatted.unit,
+                    title: countMode === 'all' ? t('metricsAll.providerCount') : titleByKey[key],
+                    value: formatCount(v).formatted.value,
+                    unit: formatCount(v).formatted.unit,
                     icon: Radio,
                 };
-            case 'apiKeyCount':
+            }
+            case 'apiKeyCount': {
+                const v = countMode === 'all' ? d.enabled_api_key_count : d.api_key_count;
                 return {
                     ...base,
-                    value: formatCount(d.api_key_count).formatted.value,
-                    unit: formatCount(d.api_key_count).formatted.unit,
+                    title: countMode === 'all' ? t('metricsAll.apiKeyCount') : titleByKey[key],
+                    value: formatCount(v).formatted.value,
+                    unit: formatCount(v).formatted.unit,
                     icon: KeyRound,
                 };
-            case 'modelCount':
+            }
+            case 'modelCount': {
+                const v = countMode === 'all' ? d.enabled_model_count : d.model_count;
                 return {
                     ...base,
-                    value: formatCount(d.model_count).formatted.value,
-                    unit: formatCount(d.model_count).formatted.unit,
+                    title: countMode === 'all' ? t('metricsAll.modelCount') : titleByKey[key],
+                    value: formatCount(v).formatted.value,
+                    unit: formatCount(v).formatted.unit,
                     icon: Boxes,
                 };
+            }
             case 'fallbackRate':
                 return {
                     ...base,
@@ -229,6 +241,16 @@ export function HomeAnalyticsOverview() {
                             </div>
                         </PopoverContent>
                     </Popover>
+
+                    <Tabs value={countMode} onValueChange={(value) => setCountMode(value as OverviewCountMode)}>
+                        <TabsList className="w-max rounded-lg border border-border bg-card p-1">
+                            {COUNT_MODE_OPTIONS.map((option) => (
+                                <TabsTrigger key={option} value={option}>
+                                    {t(`countMode.${option}`)}
+                                </TabsTrigger>
+                            ))}
+                        </TabsList>
+                    </Tabs>
 
                     <Tabs value={range} onValueChange={(value) => setRange(value as OverviewRange)}>
                         <TabsList className="w-max rounded-lg border border-border bg-card p-1">

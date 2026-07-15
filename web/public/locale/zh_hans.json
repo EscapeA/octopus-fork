@@ -1200,6 +1200,10 @@
         "90d": "90天",
         "all": "全部"
       },
+      "countMode": {
+        "active": "活跃",
+        "all": "全部"
+      },
       "metrics": {
         "requestCount": "请求次数",
         "successRate": "成功率",
@@ -1209,6 +1213,11 @@
         "apiKeyCount": "活跃 API 密钥",
         "modelCount": "活跃模型",
         "fallbackRate": "回退率"
+      },
+      "metricsAll": {
+        "providerCount": "供给源",
+        "apiKeyCount": "API 密钥",
+        "modelCount": "模型"
       }
     },
     "chart": {

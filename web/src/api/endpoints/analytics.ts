@@ -52,6 +52,9 @@ export interface AnalyticsOverview extends AnalyticsMetrics {
     api_key_count: number;
     model_count: number;
     fallback_rate: number;
+    enabled_provider_count: number;
+    enabled_model_count: number;
+    enabled_api_key_count: number;
 }
 
 export interface AnalyticsProviderBreakdownItem extends AnalyticsMetrics {

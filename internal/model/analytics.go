@@ -45,6 +45,13 @@ type AnalyticsOverview struct {
 	APIKeyCount   int     `json:"api_key_count"`
 	ModelCount    int     `json:"model_count"`
 	FallbackRate  float64 `json:"fallback_rate"`
+
+	// EnabledProviderCount/EnabledModelCount/EnabledAPIKeyCount 是启用状态的全量计数
+	//（启用渠道数、启用渠道配置的去重模型数、启用的 API Key 数），供前端在
+	//「活跃」与「全部」两种口径间切换展示（issue #145）。后端始终同时返回两者。
+	EnabledProviderCount int `json:"enabled_provider_count"`
+	EnabledModelCount    int `json:"enabled_model_count"`
+	EnabledAPIKeyCount   int `json:"enabled_api_key_count"`
 }
 
 type AnalyticsEvaluationSummary struct {

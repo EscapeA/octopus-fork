@@ -1244,6 +1244,10 @@
         "90d": "90D",
         "all": "All"
       },
+      "countMode": {
+        "active": "Active",
+        "all": "All"
+      },
       "metrics": {
         "requestCount": "Requests",
         "successRate": "Success Rate",
@@ -1253,6 +1257,11 @@
         "apiKeyCount": "Active API Keys",
         "modelCount": "Active Models",
         "fallbackRate": "Fallback Rate"
+      },
+      "metricsAll": {
+        "providerCount": "Providers",
+        "apiKeyCount": "API Keys",
+        "modelCount": "Models"
       }
     },
     "chart": {

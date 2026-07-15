@@ -7,6 +7,7 @@ export type RankSortMode = 'cost' | 'count' | 'tokens' | 'key-usage';
 export type ChartMetricType = 'cost' | 'count' | 'tokens' | 'success-rate';
 export type ChartPeriod = '1' | '7' | '30';
 export type OverviewRange = '7d' | '30d' | '90d' | 'all';
+export type OverviewCountMode = 'active' | 'all';
 export type StatsRefreshInterval = '5s' | '10s' | '15s' | '30s' | '60s' | 'off';
 
  const RANK_SORT_MODES: readonly RankSortMode[] = ['cost', 'count', 'tokens', 'key-usage'];
@@ -58,6 +59,12 @@ function normalizeChartPeriod(value: string | null | undefined): ChartPeriod {
 
 export function normalizeOverviewRange(value: string | null | undefined): OverviewRange {
     return OVERVIEW_RANGES.includes(value as OverviewRange) ? (value as OverviewRange) : '7d';
+}
+
+const OVERVIEW_COUNT_MODES: readonly OverviewCountMode[] = ['active', 'all'];
+
+export function normalizeOverviewCountMode(value: string | null | undefined): OverviewCountMode {
+    return OVERVIEW_COUNT_MODES.includes(value as OverviewCountMode) ? (value as OverviewCountMode) : 'active';
 }
 
 function normalizeStatsRefreshInterval(value: string | null | undefined): StatsRefreshInterval {
@@ -135,16 +142,18 @@ interface HomeViewState {
     overviewRange: OverviewRange;
     overviewMetricOrder: OverviewMetricKey[];
     overviewHiddenMetrics: OverviewMetricKey[];
+    overviewCountMode: OverviewCountMode;
     statsRefreshInterval: StatsRefreshInterval;
     setRankSortMode: (value: RankSortMode) => void;
     setChartMetricType: (value: ChartMetricType) => void;
     toggleChartMetric: (value: ChartMetricType) => void;
     setChartPeriod: (value: ChartPeriod) => void;
     setOverviewRange: (value: OverviewRange) => void;
-    setStatsRefreshInterval: (value: StatsRefreshInterval) => void;
+    setOverviewCountMode: (value: OverviewCountMode) => void;
     setOverviewMetricHidden: (key: OverviewMetricKey, hidden: boolean) => void;
     moveOverviewMetric: (key: OverviewMetricKey, direction: 'up' | 'down') => void;
     resetOverviewMetrics: () => void;
+    setStatsRefreshInterval: (value: StatsRefreshInterval) => void;
 }
 
 export const useHomeViewStore = create<HomeViewState>()(
@@ -157,6 +166,7 @@ export const useHomeViewStore = create<HomeViewState>()(
             overviewRange: '7d',
             overviewMetricOrder: [...OVERVIEW_METRIC_KEYS],
             overviewHiddenMetrics: [],
+            overviewCountMode: 'active',
             statsRefreshInterval: '30s',
             setRankSortMode: (value) => set({ rankSortMode: normalizeRankSortMode(value) }),
             setChartMetricType: (value) => set({
@@ -169,6 +179,7 @@ export const useHomeViewStore = create<HomeViewState>()(
             }),
             setChartPeriod: (value) => set({ chartPeriod: normalizeChartPeriod(value) }),
             setOverviewRange: (value) => set({ overviewRange: normalizeOverviewRange(value) }),
+            setOverviewCountMode: (value) => set({ overviewCountMode: normalizeOverviewCountMode(value) }),
             setStatsRefreshInterval: (value) =>
                 set({ statsRefreshInterval: normalizeStatsRefreshInterval(value) }),
             setOverviewMetricHidden: (key, hidden) => set((state) => {
@@ -207,6 +218,7 @@ export const useHomeViewStore = create<HomeViewState>()(
                 overviewRange: state.overviewRange,
                 overviewMetricOrder: state.overviewMetricOrder,
                 overviewHiddenMetrics: state.overviewHiddenMetrics,
+                overviewCountMode: state.overviewCountMode,
                 statsRefreshInterval: state.statsRefreshInterval,
             }),
             merge: (persistedState, currentState) => {
@@ -221,8 +233,8 @@ export const useHomeViewStore = create<HomeViewState>()(
                     chartMetrics: metrics,
                     chartPeriod: normalizeChartPeriod(typed?.chartPeriod),
                     overviewRange: normalizeOverviewRange(typed?.overviewRange),
-                    overviewMetricOrder: normalizeOverviewMetricOrder(typed?.overviewMetricOrder),
                     overviewHiddenMetrics: normalizeOverviewHiddenMetrics(typed?.overviewHiddenMetrics),
+                    overviewCountMode: normalizeOverviewCountMode(typed?.overviewCountMode),
                     statsRefreshInterval: normalizeStatsRefreshInterval(typed?.statsRefreshInterval),
                 };
             },

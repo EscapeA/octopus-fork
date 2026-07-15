@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { normalizeOverviewRange, statsRefreshIntervalMs, STATS_REFRESH_INTERVAL_OPTIONS } from './store.ts';
+import { normalizeOverviewRange, normalizeOverviewCountMode, statsRefreshIntervalMs, STATS_REFRESH_INTERVAL_OPTIONS } from './store.ts';
 
 test('normalizeOverviewRange defaults to 7d when value is invalid', () => {
     assert.equal(normalizeOverviewRange('unexpected'), '7d');
@@ -26,4 +26,15 @@ test('statsRefreshIntervalMs returns false for off to disable polling', () => {
 
 test('STATS_REFRESH_INTERVAL_OPTIONS covers 5s 10s 15s 30s 60s off', () => {
     assert.deepEqual([...STATS_REFRESH_INTERVAL_OPTIONS], ['5s', '10s', '15s', '30s', '60s', 'off']);
+});
+
+test('normalizeOverviewCountMode defaults to active when value is invalid', () => {
+    assert.equal(normalizeOverviewCountMode('unexpected'), 'active');
+    assert.equal(normalizeOverviewCountMode(undefined), 'active');
+    assert.equal(normalizeOverviewCountMode(null), 'active');
+});
+
+test('normalizeOverviewCountMode preserves active and all', () => {
+    assert.equal(normalizeOverviewCountMode('active'), 'active');
+    assert.equal(normalizeOverviewCountMode('all'), 'all');
 });

@@ -13,12 +13,15 @@ import (
 // ── buildAnalyticsOverview ──
 
 func TestBuildAnalyticsOverview_NoData(t *testing.T) {
-	got := buildAnalyticsOverview(model.StatsMetrics{}, 0, 0, 0, 0)
+	got := buildAnalyticsOverview(model.StatsMetrics{}, 0, 0, 0, 0, 0, 0, 0)
 	if got.RequestCount != 0 || got.TotalTokens != 0 || got.TotalCost != 0 {
 		t.Fatalf("unexpected non-zero overview: %+v", got)
 	}
 	if got.ProviderCount != 0 || got.APIKeyCount != 0 || got.ModelCount != 0 {
 		t.Fatalf("unexpected counts: %+v", got)
+	}
+	if got.EnabledProviderCount != 0 || got.EnabledModelCount != 0 || got.EnabledAPIKeyCount != 0 {
+		t.Fatalf("unexpected enabled counts: %+v", got)
 	}
 }
 
@@ -31,7 +34,7 @@ func TestBuildAnalyticsOverview_WithData(t *testing.T) {
 		InputCost:      0.10,
 		OutputCost:     0.15,
 	}
-	got := buildAnalyticsOverview(metrics, 5, 10, 20, 25.0)
+	got := buildAnalyticsOverview(metrics, 5, 10, 20, 57, 2817, 15, 25.0)
 	if got.RequestCount != 10 {
 		t.Fatalf("expected request count 10, got %d", got.RequestCount)
 	}
@@ -51,14 +54,16 @@ func TestBuildAnalyticsOverview_WithData(t *testing.T) {
 	if got.ProviderCount != 5 || got.APIKeyCount != 10 || got.ModelCount != 20 {
 		t.Fatalf("unexpected counts: %+v", got)
 	}
+	if got.EnabledProviderCount != 57 || got.EnabledModelCount != 2817 || got.EnabledAPIKeyCount != 15 {
+		t.Fatalf("unexpected enabled counts: %+v", got)
+	}
 	if got.FallbackRate != 25.0 {
 		t.Fatalf("expected fallback rate 25.0, got %f", got.FallbackRate)
 	}
 }
 
 func TestBuildAnalyticsOverview_ZeroDivision(t *testing.T) {
-	metrics := model.StatsMetrics{}
-	got := buildAnalyticsOverview(metrics, 0, 0, 0, 0)
+	got := buildAnalyticsOverview(model.StatsMetrics{}, 0, 0, 0, 0, 0, 0, 0)
 	if got.SuccessRate != 0 {
 		t.Fatalf("expected success rate 0 when request count is 0, got %f", got.SuccessRate)
 	}

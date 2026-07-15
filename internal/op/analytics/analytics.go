@@ -9,6 +9,7 @@ import (
 
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
+	"github.com/lingyuins/octopus/internal/op/apikey"
 	"github.com/lingyuins/octopus/internal/op/channel"
 	"github.com/lingyuins/octopus/internal/op/group"
 	"github.com/lingyuins/octopus/internal/op/navorder"
@@ -95,6 +96,13 @@ func AnalyticsOverviewGet(ctx context.Context, r model.AnalyticsRange) (*model.A
 		return nil, err
 	}
 
+	// 全量计数：启用渠道数、启用渠道配置的去重模型数、启用的 API Key 数。
+	// 供前端在「活跃」与「全部」两种口径间切换展示（issue #145）。
+	enabledChannels, enabledModels, enabledAPIKeys, err := loadAnalyticsEnabledCounts(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	logSummary, err := loadAnalyticsSummary(ctx, r)
 	if err != nil {
 		return nil, err
@@ -104,7 +112,11 @@ func AnalyticsOverviewGet(ctx context.Context, r model.AnalyticsRange) (*model.A
 		fallbackRate = (float64(logSummary.FallbackCount) / float64(logSummary.RequestCount)) * 100
 	}
 
-	overview := buildAnalyticsOverview(metrics, activeChannels, activeAPIKeys, activeModels, fallbackRate)
+	overview := buildAnalyticsOverview(
+		metrics, activeChannels, activeAPIKeys, activeModels,
+		enabledChannels, enabledModels, enabledAPIKeys,
+		fallbackRate,
+	)
 	return &overview, nil
 }
 
@@ -423,7 +435,12 @@ func aggregateAnalyticsDailyMetrics(daily []model.StatsDaily, r model.AnalyticsR
 	return metrics
 }
 
-func buildAnalyticsOverview(metrics model.StatsMetrics, providerCount, apiKeyCount, modelCount int, fallbackRate float64) model.AnalyticsOverview {
+func buildAnalyticsOverview(
+	metrics model.StatsMetrics,
+	providerCount, apiKeyCount, modelCount int,
+	enabledProviderCount, enabledModelCount, enabledAPIKeyCount int,
+	fallbackRate float64,
+) model.AnalyticsOverview {
 	requestCount := metrics.RequestSuccess + metrics.RequestFailed
 	successRate := 0.0
 	if requestCount > 0 {
@@ -439,10 +456,13 @@ func buildAnalyticsOverview(metrics model.StatsMetrics, providerCount, apiKeyCou
 			TotalCost:    metrics.InputCost + metrics.OutputCost,
 			SuccessRate:  successRate,
 		},
-		ProviderCount: providerCount,
-		APIKeyCount:   apiKeyCount,
-		ModelCount:    modelCount,
-		FallbackRate:  fallbackRate,
+		ProviderCount:        providerCount,
+		APIKeyCount:          apiKeyCount,
+		ModelCount:           modelCount,
+		FallbackRate:         fallbackRate,
+		EnabledProviderCount: enabledProviderCount,
+		EnabledModelCount:    enabledModelCount,
+		EnabledAPIKeyCount:   enabledAPIKeyCount,
 	}
 }
 
@@ -952,6 +972,41 @@ func loadAnalyticsActiveCounts(ctx context.Context, r model.AnalyticsRange) (int
 	lock.Unlock()
 
 	return len(channelSet), len(modelSet), len(apiKeySet), nil
+}
+
+// loadAnalyticsEnabledCounts 统计当前启用状态的渠道/模型/API Key 全量计数。
+// 与 loadAnalyticsActiveCounts（按时间范围统计实际有请求的去重数）互补，
+// 供前端在「活跃」与「全部」口径间切换（issue #145）。
+func loadAnalyticsEnabledCounts(ctx context.Context) (int, int, int, error) {
+	channels, err := channel.List(ctx)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	providerCount := 0
+	modelNames := make(map[string]struct{})
+	for _, ch := range channels {
+		if !ch.Enabled {
+			continue
+		}
+		providerCount++
+		for _, modelName := range splitAnalyticsChannelModels(ch) {
+			modelNames[modelName] = struct{}{}
+		}
+	}
+
+	apiKeys, err := apikey.List(ctx)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	apiKeyCount := 0
+	for _, apiKey := range apiKeys {
+		if apiKey.Enabled {
+			apiKeyCount++
+		}
+	}
+
+	return providerCount, len(modelNames), apiKeyCount, nil
 }
 
 // channelModelScope 描述分组维度下的 (渠道,模型) 过滤集合。
