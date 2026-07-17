@@ -380,11 +380,11 @@ func dailyDimensionUpdateColumns(dbConn *gorm.DB, includeName bool) clause.Set {
 		max("ftut_p50"),
 		max("ftut_p95"),
 		max("ftut_p99"),
-		add("histogram_lt_100"),
-		add("histogram_100_500"),
-		add("histogram_500_1k"),
-		add("histogram_1k_5k"),
-		add("histogram_gt_5k"),
+		add("histogram_lt100"),
+		add("histogram100to500"),
+		add("histogram500to1k"),
+		add("histogram1kto5k"),
+		add("histogram_gt5k"),
 	}
 	if includeName {
 		assignments = append([]clause.Assignment{{Column: clause.Column{Name: "name"}, Value: gorm.Expr(dailyDimensionExcludedExpr(dbConn, "name"))}}, assignments...)
