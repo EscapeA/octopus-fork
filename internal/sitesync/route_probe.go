@@ -202,6 +202,10 @@ func detectManagedExplicitGroupRoutes(
 		detections,
 		detectManagedAvailableModelRoutes(ctx, siteRecord, account, accessToken, model.SiteToken{}, modelFilter),
 	)
+	detections = mergeSiteModelRouteDetections(
+		detections,
+		detectManagedPerfMetricsSummary(ctx, siteRecord, account, accessToken, model.SiteToken{}, modelFilter),
+	)
 	if len(detections) == 0 {
 		return nil
 	}
