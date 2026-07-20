@@ -124,7 +124,6 @@ export function useModelList() {
             return apiClient.get<LLMInfo[]>('/api/v1/model/list');
         },
         refetchInterval: REFETCH_INTERVAL_CONFIG,
-        refetchOnMount: 'always',
     });
 }
 
@@ -157,7 +156,6 @@ export function useModelMarket() {
             return normalizeModelMarketResponse(response);
         },
         refetchInterval: REFETCH_INTERVAL_CONFIG,
-        refetchOnMount: 'always',
     });
 }
 
@@ -327,6 +325,5 @@ export function useModelCapabilities() {
             return apiClient.get<ModelCapability[]>('/api/v1/model/capabilities');
         },
         refetchInterval: 60_000,
-        refetchOnMount: 'always',
     });
 }

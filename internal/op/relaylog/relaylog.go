@@ -189,9 +189,17 @@ func relayLogFlushToDB(ctx context.Context) error {
 		return nil
 	}
 
+	// Create 前剥离大字段的副本？不行——需要把 content 写入 DB。
+	// Create 成功后截断缓存即可释放内存；截断前 batch 持有 content 是短暂尖刺。
 	result := conn.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(&batch)
 	if result.Error != nil {
 		return result.Error
+	}
+
+	// 尽快丢弃 batch 对大字段的引用，帮助 GC。
+	for i := range batch {
+		batch[i].RequestContent = ""
+		batch[i].ResponseContent = ""
 	}
 
 	relayLogCacheLock.Lock()
@@ -208,6 +216,11 @@ func relayLogFlushToDB(ctx context.Context) error {
 		}
 	}
 	if cutIdx > 0 {
+		// 显式清空被截断前缀的大字段，避免底层数组仍被引用时拖住内存。
+		for i := 0; i < cutIdx; i++ {
+			relayLogCache[i].RequestContent = ""
+			relayLogCache[i].ResponseContent = ""
+		}
 		relayLogCache = relayLogCache[cutIdx:]
 	}
 	if len(relayLogCache) == 0 {

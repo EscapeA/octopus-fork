@@ -276,8 +276,25 @@ export function useNotificationStream() {
     const [isConnected, setIsConnected] = useState(false);
 
     const handleNotification = useCallback((item: NotificationItem) => {
-        queryClient.setQueryData<{ count: number }>(['notifications', 'unread-count'], (old) => ({ count: (old?.count ?? 0) + (item.read_at ? 0 : 1) }));
-        queryClient.invalidateQueries({ queryKey: ['notifications', 'list'] });
+        queryClient.setQueryData<{ count: number }>(['notifications', 'unread-count'], (old) => ({
+            count: (old?.count ?? 0) + (item.read_at ? 0 : 1),
+        }));
+        // 增量写入第一页缓存，避免 invalidate 触发 infinite query 全量重拉。
+        queryClient.setQueriesData<{ pages: NotificationItem[][]; pageParams: unknown[] }>(
+            { queryKey: ['notifications', 'list'] },
+            (old) => {
+                if (!old || !('pages' in old) || !Array.isArray(old.pages)) {
+                    return old;
+                }
+                const first = old.pages[0] ?? [];
+                if (first.some((n) => n.id === item.id)) {
+                    return old;
+                }
+                const pages = [...old.pages];
+                pages[0] = [item, ...first];
+                return { ...old, pages };
+            },
+        );
     }, [queryClient]);
 
     useEffect(() => {

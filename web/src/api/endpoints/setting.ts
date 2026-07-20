@@ -118,7 +118,6 @@ export function useSettingList() {
             return apiClient.get<Setting[]>('/api/v1/setting/list');
         },
         refetchInterval: REFETCH_INTERVAL_DEFAULT,
-        refetchOnMount: 'always',
     });
 }
 
@@ -380,7 +379,6 @@ export function useGetCacheConfig() {
         queryFn: async () => {
             return apiClient.get<CacheConfig>('/api/v1/setting/cache/config');
         },
-        refetchOnMount: 'always',
     });
 }
 

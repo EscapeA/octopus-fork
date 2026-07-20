@@ -385,7 +385,13 @@ func recordMediaRelayLog(apiKeyID int, requestModel string, endpointType string,
 	if len(bodyBytes) > 0 {
 		contentEnabled, _ := setting.GetBool(dbmodel.SettingKeyRelayLogContentEnabled)
 		if contentEnabled {
-			relayLog.RequestContent = string(bodyBytes)
+			// 与 chat 路径 JSON 字段上限对齐，避免媒体请求 body 无界写入日志缓存。
+			const mediaLogBodyMaxBytes = 16 * 1024
+			if len(bodyBytes) > mediaLogBodyMaxBytes {
+				relayLog.RequestContent = string(bodyBytes[:mediaLogBodyMaxBytes]) + "...(truncated)"
+			} else {
+				relayLog.RequestContent = string(bodyBytes)
+			}
 		}
 	}
 
