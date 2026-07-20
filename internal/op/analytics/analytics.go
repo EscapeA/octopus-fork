@@ -1076,8 +1076,16 @@ func loadAnalyticsChannelModelRows(ctx context.Context, r model.AnalyticsRange, 
 		key := strconv.Itoa(row.ChannelID) + "\x00" + modelName
 		rows[key] = &rowCopy
 	}
-	if len(rows) == 0 {
-		return loadAnalyticsChannelModelRowsFromRelayLogs(ctx, r, scope)
+	// stats_daily 为主、relay_logs 补缺：stats_daily 未覆盖的 (channel, model)
+	// 组合从 relay_logs 补充，避免迁移后旧数据消失（issue #148）。
+	// 仅补缺不合并，避免同一请求在两个数据源中双计。
+	logRows, logErr := loadAnalyticsChannelModelRowsFromRelayLogs(ctx, r, scope)
+	if logErr == nil {
+		for key, logRow := range logRows {
+			if _, exists := rows[key]; !exists {
+				rows[key] = logRow
+			}
+		}
 	}
 
 	return rows, nil
@@ -1182,8 +1190,14 @@ func loadAnalyticsProviderRows(ctx context.Context, r model.AnalyticsRange) (map
 		rowCopy := row
 		rows[row.ChannelID] = &rowCopy
 	}
-	if len(rows) == 0 {
-		return loadAnalyticsProviderRowsFromRelayLogs(ctx, r)
+	// stats_daily 为主、relay_logs 补缺（issue #148）。
+	logRows, logErr := loadAnalyticsProviderRowsFromRelayLogs(ctx, r)
+	if logErr == nil {
+		for channelID, logRow := range logRows {
+			if _, exists := rows[channelID]; !exists {
+				rows[channelID] = logRow
+			}
+		}
 	}
 
 	return rows, nil
@@ -1223,8 +1237,14 @@ func loadAnalyticsModelRows(ctx context.Context, r model.AnalyticsRange) (map[st
 		rowCopy.ModelName = modelName
 		rows[modelName] = &rowCopy
 	}
-	if len(rows) == 0 {
-		return loadAnalyticsModelRowsFromRelayLogs(ctx, r)
+	// stats_daily 为主、relay_logs 补缺（issue #148）。
+	logRows, logErr := loadAnalyticsModelRowsFromRelayLogs(ctx, r)
+	if logErr == nil {
+		for modelName, logRow := range logRows {
+			if _, exists := rows[modelName]; !exists {
+				rows[modelName] = logRow
+			}
+		}
 	}
 
 	return rows, nil
@@ -1261,8 +1281,14 @@ func loadAnalyticsAPIKeyRows(ctx context.Context, r model.AnalyticsRange) (map[s
 		rowCopy.Name = strings.TrimSpace(row.Name)
 		rows[makeAnalyticsAPIKeyAggregateKey(row.APIKeyID, rowCopy.Name)] = &rowCopy
 	}
-	if len(rows) == 0 {
-		return loadAnalyticsAPIKeyRowsFromRelayLogs(ctx, r)
+	// stats_daily 为主、relay_logs 补缺（issue #148）。
+	logRows, logErr := loadAnalyticsAPIKeyRowsFromRelayLogs(ctx, r)
+	if logErr == nil {
+		for key, logRow := range logRows {
+			if _, exists := rows[key]; !exists {
+				rows[key] = logRow
+			}
+		}
 	}
 
 	return rows, nil
