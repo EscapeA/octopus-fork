@@ -161,22 +161,9 @@ func stringifyToolMessage(msg transmodel.Message) transmodel.Message {
 			label = "Tool error"
 		}
 		if text == "" {
-			var sb strings.Builder
-			sb.Grow(len(label) + len(*msg.ToolCallID) + 3)
-			sb.WriteString(label)
-			sb.WriteString(" (")
-			sb.WriteString(*msg.ToolCallID)
-			sb.WriteByte(')')
-			text = sb.String()
+			text = fmt.Sprintf("%s (%s)", label, *msg.ToolCallID)
 		} else {
-			var sb strings.Builder
-			sb.Grow(len(label) + len(*msg.ToolCallID) + len(text) + 5)
-			sb.WriteString(label)
-			sb.WriteString(" (")
-			sb.WriteString(*msg.ToolCallID)
-			sb.WriteString("):\n")
-			sb.WriteString(text)
-			text = sb.String()
+			text = fmt.Sprintf("%s (%s):\n%s", label, *msg.ToolCallID, text)
 		}
 	}
 

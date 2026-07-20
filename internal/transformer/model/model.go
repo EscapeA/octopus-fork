@@ -1,14 +1,17 @@
 package model
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
+	"net/url"
+	"slices"
 	"strings"
 
-	dbmodel "github.com/lingyuins/octopus/internal/model"
+	transformer "github.com/lingyuins/octopus/internal/transformer"
 )
+
+type APIFormat string
 
 const (
 	APIFormatOpenAIChatCompletion  APIFormat = "openai/chat_completions"
@@ -303,19 +306,10 @@ func (r *InternalLLMRequest) fillMissingToolCallIDs() {
 				continue
 			}
 
-			var sb strings.Builder
-			sb.Grow(32)
-			sb.WriteString("call_octopus_")
-			sb.WriteString(strconv.Itoa(messageIndex))
-			sb.WriteByte('_')
-			sb.WriteString(strconv.Itoa(toolCallIndex))
-			candidate := sb.String()
+			candidate := fmt.Sprintf("call_octopus_%d_%d", messageIndex, toolCallIndex)
 			if _, exists := usedIDs[candidate]; exists {
 				for {
-					sb.Reset()
-					sb.WriteString("call_octopus_")
-					sb.WriteString(strconv.Itoa(sequence))
-					candidate = sb.String()
+					candidate = fmt.Sprintf("call_octopus_%d", sequence)
 					sequence++
 					if _, conflict := usedIDs[candidate]; !conflict {
 						break
@@ -862,9 +856,7 @@ type ResponseError struct {
 func (e ResponseError) Error() string {
 	sb := strings.Builder{}
 	if e.StatusCode != 0 {
-		sb.WriteString("Request failed: ")
-		sb.WriteString(http.StatusText(e.StatusCode))
-		sb.WriteString(", ")
+		sb.WriteString(fmt.Sprintf("Request failed: %s, ", http.StatusText(e.StatusCode)))
 	}
 
 	if e.Detail.Message != "" {
