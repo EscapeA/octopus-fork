@@ -1,7 +1,6 @@
 package relay
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/base64"
@@ -811,7 +810,8 @@ func handleSSEResponse(c *gin.Context, response *http.Response) (int, error) {
 	c.Header("Connection", "keep-alive")
 	c.Header("X-Accel-Buffering", "no")
 
-	reader := bufio.NewReader(response.Body)
+	reader := getReader(response.Body)
+	defer putReader(reader)
 	for {
 		line, err := reader.ReadBytes('\n')
 		if len(line) > 0 {
