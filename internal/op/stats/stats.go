@@ -698,7 +698,8 @@ func touchModelActivity(modelID int64) {
 			return
 		}
 	}
-	p := new(int64)
+	var pVal int64
+	p := &pVal
 	atomic.StoreInt64(p, now)
 	actual, _ := modelLastActivity.LoadOrStore(modelID, p)
 	if ap, ok := actual.(*int64); ok && ap != p {
