@@ -161,6 +161,15 @@ func preparePersistedSyncModels(accountID int, incoming []model.SiteModel, exist
 		if existing, ok := existingModelMap[key]; ok {
 			item.ID = existing.ID
 			item.Disabled = existing.Disabled
+			// 本次同步没拉到价格时，保留历史上游价，避免 UI 闪空。
+			if !siteModelHasUpstreamPrice(item) && siteModelHasUpstreamPrice(existing) {
+				item.PriceBillingMode = existing.PriceBillingMode
+				item.PriceInput = existing.PriceInput
+				item.PriceOutput = existing.PriceOutput
+				item.PriceCacheRead = existing.PriceCacheRead
+				item.PriceCacheWrite = existing.PriceCacheWrite
+				item.PriceUpdatedAt = existing.PriceUpdatedAt
+			}
 			applyPersistedRouteState(&item, &existing, now)
 		} else {
 			applyPersistedRouteState(&item, nil, now)

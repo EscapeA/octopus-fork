@@ -482,17 +482,42 @@ func Enabled(id int, enabled bool, ctx context.Context) error {
 func LLMList(ctx context.Context) ([]model.LLMChannel, error) {
 	models := []model.LLMChannel{}
 	seen := make(map[string]struct{})
+
+	// 投影渠道：channel_id → (site_account_id, base_group_key)
+	channelIDs := make([]int, 0, chCache.Len())
+	for _, ch := range chCache.GetAll() {
+		channelIDs = append(channelIDs, ch.ID)
+	}
+	bindingByChannel := loadProjectedChannelBindings(ctx, channelIDs)
+	accountBalanceByID, modelsByAccountGroup := loadProjectedChannelPriceIndex(ctx, bindingByChannel)
+
 	for _, ch := range chCache.GetAll() {
 		modelNames := xstrings.SplitTrimCompact(",", ch.Model, ch.CustomModel)
+		binding, isProjected := bindingByChannel[ch.ID]
+		var accountBalance *float64
+		if isProjected {
+			if bal, ok := accountBalanceByID[binding.SiteAccountID]; ok {
+				copied := bal
+				accountBalance = &copied
+			}
+		}
 		for _, modelName := range modelNames {
 			if modelName == "" {
 				continue
 			}
 			item := model.LLMChannel{
-				Name:        modelName,
-				Enabled:     ch.Enabled,
-				ChannelID:   ch.ID,
-				ChannelName: ch.Name,
+				Name:           modelName,
+				Enabled:        ch.Enabled,
+				ChannelID:      ch.ID,
+				ChannelName:    ch.Name,
+				ChannelBalance: accountBalance,
+			}
+			if isProjected {
+				lookupKey := projectedModelLookupKey(binding.SiteAccountID, binding.BaseGroupKey, modelName)
+				if price, ok := modelsByAccountGroup[lookupKey]; ok {
+					copied := price
+					item.UpstreamPrice = &copied
+				}
 			}
 			key := fmt.Sprintf("%d|%s", item.ChannelID, item.Name)
 			if _, ok := seen[key]; ok {
@@ -503,6 +528,108 @@ func LLMList(ctx context.Context) ([]model.LLMChannel, error) {
 		}
 	}
 	return models, nil
+}
+
+type projectedChannelBindingInfo struct {
+	SiteAccountID int
+	BaseGroupKey  string
+}
+
+func loadProjectedChannelBindings(ctx context.Context, channelIDs []int) map[int]projectedChannelBindingInfo {
+	result := make(map[int]projectedChannelBindingInfo)
+	if len(channelIDs) == 0 {
+		return result
+	}
+	var bindings []model.SiteChannelBinding
+	if err := db.GetDB().WithContext(ctx).Where("channel_id IN ?", channelIDs).Find(&bindings).Error; err != nil {
+		return result
+	}
+	for _, binding := range bindings {
+		baseGroupKey, _ := model.ParseSiteChannelBindingKey(binding.GroupKey)
+		result[binding.ChannelID] = projectedChannelBindingInfo{
+			SiteAccountID: binding.SiteAccountID,
+			BaseGroupKey:  model.NormalizeSiteGroupKey(baseGroupKey),
+		}
+	}
+	return result
+}
+
+func loadProjectedChannelPriceIndex(
+	ctx context.Context,
+	bindingByChannel map[int]projectedChannelBindingInfo,
+) (map[int]float64, map[string]model.ChannelUpstreamPrice) {
+	balances := make(map[int]float64)
+	prices := make(map[string]model.ChannelUpstreamPrice)
+	if len(bindingByChannel) == 0 {
+		return balances, prices
+	}
+
+	accountIDs := make([]int, 0, len(bindingByChannel))
+	seenAccounts := make(map[int]struct{}, len(bindingByChannel))
+	for _, binding := range bindingByChannel {
+		if binding.SiteAccountID <= 0 {
+			continue
+		}
+		if _, ok := seenAccounts[binding.SiteAccountID]; ok {
+			continue
+		}
+		seenAccounts[binding.SiteAccountID] = struct{}{}
+		accountIDs = append(accountIDs, binding.SiteAccountID)
+	}
+	if len(accountIDs) == 0 {
+		return balances, prices
+	}
+
+	type accountBalanceRow struct {
+		ID      int
+		Balance float64
+	}
+	var accountRows []accountBalanceRow
+	if err := db.GetDB().WithContext(ctx).
+		Model(&model.SiteAccount{}).
+		Select("id, balance").
+		Where("id IN ?", accountIDs).
+		Find(&accountRows).Error; err == nil {
+		for _, row := range accountRows {
+			balances[row.ID] = row.Balance
+		}
+	}
+
+	var siteModels []model.SiteModel
+	if err := db.GetDB().WithContext(ctx).
+		Where("site_account_id IN ? AND disabled = ?", accountIDs, false).
+		Find(&siteModels).Error; err != nil {
+		return balances, prices
+	}
+	for _, siteModel := range siteModels {
+		if !siteModelHasUpstreamPriceLocal(siteModel) {
+			continue
+		}
+		key := projectedModelLookupKey(siteModel.SiteAccountID, siteModel.GroupKey, siteModel.ModelName)
+		prices[key] = model.ChannelUpstreamPrice{
+			BillingMode: strings.TrimSpace(siteModel.PriceBillingMode),
+			Input:       siteModel.PriceInput,
+			Output:      siteModel.PriceOutput,
+			CacheRead:   siteModel.PriceCacheRead,
+			CacheWrite:  siteModel.PriceCacheWrite,
+		}
+	}
+	return balances, prices
+}
+
+func projectedModelLookupKey(accountID int, groupKey, modelName string) string {
+	return fmt.Sprintf("%d|%s|%s",
+		accountID,
+		model.NormalizeSiteGroupKey(groupKey),
+		strings.ToLower(strings.TrimSpace(modelName)),
+	)
+}
+
+func siteModelHasUpstreamPriceLocal(item model.SiteModel) bool {
+	if strings.TrimSpace(item.PriceBillingMode) == "" {
+		return false
+	}
+	return item.PriceInput > 0 || item.PriceOutput > 0 || item.PriceCacheRead > 0 || item.PriceCacheWrite > 0
 }
 
 func Get(id int, ctx context.Context) (*model.Channel, error) {

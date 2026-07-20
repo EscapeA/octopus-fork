@@ -14,11 +14,24 @@ type LLMInfo struct {
 	LLMPrice
 }
 
+// ChannelUpstreamPrice 是投影渠道从上游站点同步到的展示用定价。
+// BillingMode: "token" 表示 $/M tokens；"per_call" 表示 $/次。
+// 仅用于 UI 展示，不参与本地 LLM 计费目录。
+type ChannelUpstreamPrice struct {
+	BillingMode string  `json:"billing_mode"`
+	Input       float64 `json:"input"`
+	Output      float64 `json:"output"`
+	CacheRead   float64 `json:"cache_read"`
+	CacheWrite  float64 `json:"cache_write"`
+}
+
 type LLMChannel struct {
-	Name        string `json:"name"`
-	Enabled     bool   `json:"enabled"`
-	ChannelID   int    `json:"channel_id"`
-	ChannelName string `json:"channel_name"`
+	Name           string                `json:"name"`
+	Enabled        bool                  `json:"enabled"`
+	ChannelID      int                   `json:"channel_id"`
+	ChannelName    string                `json:"channel_name"`
+	UpstreamPrice  *ChannelUpstreamPrice `json:"upstream_price,omitempty"`
+	ChannelBalance *float64              `json:"channel_balance,omitempty"`
 }
 
 type ModelMarketChannel struct {
