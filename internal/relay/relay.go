@@ -535,10 +535,10 @@ func (ra *relayAttempt) attempt() attemptResult {
 	// 而不是只看到笼统的 "rate limited, try another key"。
 	msg := decision.String()
 	if upstreamErr := extractUpstreamErrorDetail(fwdErr); upstreamErr != "" {
-		msg = fmt.Sprintf("%s: %s", msg, upstreamErr)
+		msg = buildErrorMessage(msg, upstreamErr)
 	}
 	if ra.tryTotal > 1 {
-		msg = fmt.Sprintf("attempt %d/%d: %s", ra.tryIndex, ra.tryTotal, msg)
+		msg = buildAttemptMessage(ra.tryIndex, ra.tryTotal, msg)
 	}
 	span.End(dbmodel.AttemptFailed, statusCode, msg)
 
@@ -1213,7 +1213,7 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 			channel, err := ch.Get(item.ChannelID, req.operationCtx)
 			if err != nil {
 				log.Warnf("failed to get channel %d: %v", item.ChannelID, err)
-				routeIter.Skip(item.ChannelID, 0, fmt.Sprintf("channel_%d", item.ChannelID), fmt.Sprintf("channel not found: %v", err))
+				routeIter.Skip(item.ChannelID, 0, buildChannelName(item.ChannelID), fmt.Sprintf("channel not found: %v", err))
 				continue
 			}
 			if !channel.Enabled {

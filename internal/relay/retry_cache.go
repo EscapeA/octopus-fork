@@ -130,7 +130,7 @@ type failureHintCache struct {
 var globalFailureHintCache = &failureHintCache{entries: make(map[string]failureHintEntry)}
 
 func failureHintKey(channelID, keyID int, modelName string) string {
-	return fmt.Sprintf("%d:%d:%s", channelID, keyID, strings.TrimSpace(modelName))
+	return buildFailureHintKey(channelID, keyID, modelName)
 }
 
 func shouldStoreFailureHint(statusCode int, err error) (time.Duration, bool) {
@@ -314,7 +314,7 @@ func requestSingleflightKey(apiKeyID int, endpointFamily, requestModel, text str
 	if len(req.Tools) > 0 {
 		return "", false
 	}
-	return fmt.Sprintf("%d|%s|%s|%s|false", apiKeyID, endpointFamily, requestModel, text), true
+	return buildSemanticCacheKey(apiKeyID, endpointFamily, requestModel, text), true
 }
 
 func lookupSemanticEmbeddingWithCache(ctx context.Context, req *relayRequest, cfg semantic_cache.RuntimeConfig, cacheKey string, text string) ([]float64, bool, error) {

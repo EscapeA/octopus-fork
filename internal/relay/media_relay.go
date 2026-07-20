@@ -190,7 +190,7 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 			channel, err := ch.Get(item.ChannelID, c.Request.Context())
 			if err != nil {
 				log.Warnf("failed to get channel %d: %v", item.ChannelID, err)
-				routeIter.Skip(item.ChannelID, 0, fmt.Sprintf("channel_%d", item.ChannelID), fmt.Sprintf("channel not found: %v", err))
+				routeIter.Skip(item.ChannelID, 0, buildChannelName(item.ChannelID), fmt.Sprintf("channel not found: %v", err))
 				continue
 			}
 			if !channel.Enabled {
@@ -293,7 +293,7 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 				// 决策摘要 + 上游原始错误，使 relay log 能区分 429 等错误的真实成因（issue #93）。
 				mediaFailMsg := decision.String()
 				if upstreamErr := extractUpstreamErrorDetail(fwdErr); upstreamErr != "" {
-					mediaFailMsg = fmt.Sprintf("%s: %s", mediaFailMsg, upstreamErr)
+					mediaFailMsg = buildErrorMessage(mediaFailMsg, upstreamErr)
 				}
 				span.End(dbmodel.AttemptFailed, statusCode, mediaFailMsg)
 				st.ChannelUpdate(channel.ID, dbmodel.StatsMetrics{
@@ -437,7 +437,7 @@ func recordPreparedCandidateSkip(iter *balancer.Iterator, item dbmodel.GroupItem
 	}
 
 	channelID := item.ChannelID
-	channelName := fmt.Sprintf("channel_%d", item.ChannelID)
+	channelName := buildChannelName(item.ChannelID)
 	keyID := 0
 	if prepare.Channel != nil {
 		channelID = prepare.Channel.ID
