@@ -33,6 +33,16 @@ export interface ChannelUpstreamPrice {
 }
 
 /**
+ * 上游模型广场性能指标（NewAPI /api/perf-metrics/summary）。
+ * success_rate: 0-1
+ */
+export interface ChannelUpstreamMetrics {
+    latency_ms: number;
+    avg_tps: number;
+    success_rate: number;
+}
+
+/**
  * LLM 渠道关联信息
  */
 export interface LLMChannel {
@@ -41,6 +51,7 @@ export interface LLMChannel {
     channel_id: number;
     channel_name: string;
     upstream_price?: ChannelUpstreamPrice | null;
+    upstream_metrics?: ChannelUpstreamMetrics | null;
     channel_balance?: number | null;
 }
 

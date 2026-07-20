@@ -25,13 +25,22 @@ type ChannelUpstreamPrice struct {
 	CacheWrite  float64 `json:"cache_write"`
 }
 
+// ChannelUpstreamMetrics 是投影渠道从上游模型广场同步到的性能指标。
+// LatencyMs 平均延迟毫秒；AvgTps 平均吞吐 tokens/s；SuccessRate 成功率 0-1。
+type ChannelUpstreamMetrics struct {
+	LatencyMs   int64   `json:"latency_ms"`
+	AvgTps      float64 `json:"avg_tps"`
+	SuccessRate float64 `json:"success_rate"`
+}
+
 type LLMChannel struct {
-	Name           string                `json:"name"`
-	Enabled        bool                  `json:"enabled"`
-	ChannelID      int                   `json:"channel_id"`
-	ChannelName    string                `json:"channel_name"`
-	UpstreamPrice  *ChannelUpstreamPrice `json:"upstream_price,omitempty"`
-	ChannelBalance *float64              `json:"channel_balance,omitempty"`
+	Name             string                  `json:"name"`
+	Enabled          bool                    `json:"enabled"`
+	ChannelID        int                     `json:"channel_id"`
+	ChannelName      string                  `json:"channel_name"`
+	UpstreamPrice    *ChannelUpstreamPrice   `json:"upstream_price,omitempty"`
+	UpstreamMetrics  *ChannelUpstreamMetrics `json:"upstream_metrics,omitempty"`
+	ChannelBalance   *float64                `json:"channel_balance,omitempty"`
 }
 
 type ModelMarketChannel struct {

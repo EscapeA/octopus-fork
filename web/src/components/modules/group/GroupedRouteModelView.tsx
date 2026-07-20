@@ -34,6 +34,7 @@ function RouteModelRow({ model, index }: { model: GroupedRouteModelRow; index: n
                 <UpstreamPriceBadges
                     price={model.upstream_price}
                     balance={model.channel_balance}
+                    metrics={model.upstream_metrics}
                     className="mt-0.5"
                 />
                 <div className="truncate text-xs text-muted-foreground">{model.channel_name}</div>

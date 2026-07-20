@@ -282,6 +282,7 @@ export function GroupCard({ group }: { group: Group }) {
                     item_id: item.id,
                     weight: item.weight,
                     upstream_price: channelModel?.upstream_price,
+                    upstream_metrics: channelModel?.upstream_metrics,
                     channel_balance: channelModel?.channel_balance,
                 };
             }),

@@ -489,7 +489,7 @@ func LLMList(ctx context.Context) ([]model.LLMChannel, error) {
 		channelIDs = append(channelIDs, ch.ID)
 	}
 	bindingByChannel := loadProjectedChannelBindings(ctx, channelIDs)
-	accountBalanceByID, modelsByAccountGroup := loadProjectedChannelPriceIndex(ctx, bindingByChannel)
+	accountBalanceByID, modelsByAccountGroup := loadProjectedChannelMetaIndex(ctx, bindingByChannel)
 
 	for _, ch := range chCache.GetAll() {
 		modelNames := xstrings.SplitTrimCompact(",", ch.Model, ch.CustomModel)
@@ -514,9 +514,15 @@ func LLMList(ctx context.Context) ([]model.LLMChannel, error) {
 			}
 			if isProjected {
 				lookupKey := projectedModelLookupKey(binding.SiteAccountID, binding.BaseGroupKey, modelName)
-				if price, ok := modelsByAccountGroup[lookupKey]; ok {
-					copied := price
-					item.UpstreamPrice = &copied
+				if meta, ok := modelsByAccountGroup[lookupKey]; ok {
+					if meta.Price != nil {
+						copied := *meta.Price
+						item.UpstreamPrice = &copied
+					}
+					if meta.Metrics != nil {
+						copied := *meta.Metrics
+						item.UpstreamMetrics = &copied
+					}
 				}
 			}
 			key := fmt.Sprintf("%d|%s", item.ChannelID, item.Name)
@@ -554,14 +560,19 @@ func loadProjectedChannelBindings(ctx context.Context, channelIDs []int) map[int
 	return result
 }
 
-func loadProjectedChannelPriceIndex(
+type projectedChannelModelMeta struct {
+	Price   *model.ChannelUpstreamPrice
+	Metrics *model.ChannelUpstreamMetrics
+}
+
+func loadProjectedChannelMetaIndex(
 	ctx context.Context,
 	bindingByChannel map[int]projectedChannelBindingInfo,
-) (map[int]float64, map[string]model.ChannelUpstreamPrice) {
+) (map[int]float64, map[string]projectedChannelModelMeta) {
 	balances := make(map[int]float64)
-	prices := make(map[string]model.ChannelUpstreamPrice)
+	metaByKey := make(map[string]projectedChannelModelMeta)
 	if len(bindingByChannel) == 0 {
-		return balances, prices
+		return balances, metaByKey
 	}
 
 	accountIDs := make([]int, 0, len(bindingByChannel))
@@ -577,7 +588,7 @@ func loadProjectedChannelPriceIndex(
 		accountIDs = append(accountIDs, binding.SiteAccountID)
 	}
 	if len(accountIDs) == 0 {
-		return balances, prices
+		return balances, metaByKey
 	}
 
 	type accountBalanceRow struct {
@@ -599,22 +610,34 @@ func loadProjectedChannelPriceIndex(
 	if err := db.GetDB().WithContext(ctx).
 		Where("site_account_id IN ? AND disabled = ?", accountIDs, false).
 		Find(&siteModels).Error; err != nil {
-		return balances, prices
+		return balances, metaByKey
 	}
 	for _, siteModel := range siteModels {
-		if !siteModelHasUpstreamPriceLocal(siteModel) {
-			continue
-		}
 		key := projectedModelLookupKey(siteModel.SiteAccountID, siteModel.GroupKey, siteModel.ModelName)
-		prices[key] = model.ChannelUpstreamPrice{
-			BillingMode: strings.TrimSpace(siteModel.PriceBillingMode),
-			Input:       siteModel.PriceInput,
-			Output:      siteModel.PriceOutput,
-			CacheRead:   siteModel.PriceCacheRead,
-			CacheWrite:  siteModel.PriceCacheWrite,
+		meta := metaByKey[key]
+		if siteModelHasUpstreamPriceLocal(siteModel) {
+			price := model.ChannelUpstreamPrice{
+				BillingMode: strings.TrimSpace(siteModel.PriceBillingMode),
+				Input:       siteModel.PriceInput,
+				Output:      siteModel.PriceOutput,
+				CacheRead:   siteModel.PriceCacheRead,
+				CacheWrite:  siteModel.PriceCacheWrite,
+			}
+			meta.Price = &price
+		}
+		if siteModelHasUpstreamPerfLocal(siteModel) {
+			metrics := model.ChannelUpstreamMetrics{
+				LatencyMs:   siteModel.PerfLatencyMs,
+				AvgTps:      siteModel.PerfAvgTps,
+				SuccessRate: siteModel.PerfSuccessRate,
+			}
+			meta.Metrics = &metrics
+		}
+		if meta.Price != nil || meta.Metrics != nil {
+			metaByKey[key] = meta
 		}
 	}
-	return balances, prices
+	return balances, metaByKey
 }
 
 func projectedModelLookupKey(accountID int, groupKey, modelName string) string {
@@ -630,6 +653,10 @@ func siteModelHasUpstreamPriceLocal(item model.SiteModel) bool {
 		return false
 	}
 	return item.PriceInput > 0 || item.PriceOutput > 0 || item.PriceCacheRead > 0 || item.PriceCacheWrite > 0
+}
+
+func siteModelHasUpstreamPerfLocal(item model.SiteModel) bool {
+	return item.PerfLatencyMs > 0 || item.PerfAvgTps > 0 || item.PerfSuccessRate > 0
 }
 
 func Get(id int, ctx context.Context) (*model.Channel, error) {

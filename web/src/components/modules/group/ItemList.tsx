@@ -153,6 +153,7 @@ function MemberItem({
                         <UpstreamPriceBadges
                             price={member.upstream_price}
                             balance={member.channel_balance}
+                            metrics={member.upstream_metrics}
                             className="min-w-0"
                         />
                     ) : null}

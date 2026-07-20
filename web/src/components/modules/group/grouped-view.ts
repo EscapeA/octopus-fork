@@ -15,6 +15,7 @@ export interface GroupedRouteModelRow {
     weight?: number;
     group_id?: number;
     upstream_price?: LLMChannel['upstream_price'];
+    upstream_metrics?: LLMChannel['upstream_metrics'];
     channel_balance?: LLMChannel['channel_balance'];
 }
 
@@ -122,6 +123,7 @@ export function buildGroupedRouteModelCategories(
                     weight: item.weight,
                     group_id: group.id,
                     upstream_price: channelModel?.upstream_price,
+                    upstream_metrics: channelModel?.upstream_metrics,
                     channel_balance: channelModel?.channel_balance,
                 };
             });
@@ -158,6 +160,7 @@ export function buildGroupedRouteModelCategories(
             channel_name: channelModel.channel_name,
             enabled: channelModel.enabled,
             upstream_price: channelModel.upstream_price,
+            upstream_metrics: channelModel.upstream_metrics,
             channel_balance: channelModel.channel_balance,
         }))
         .filter((model) => !term || rowMatches(model, term));

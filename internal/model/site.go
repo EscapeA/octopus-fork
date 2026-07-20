@@ -236,6 +236,11 @@ type SiteModel struct {
 	PriceCacheRead   float64    `json:"price_cache_read" gorm:"not null;default:0"`
 	PriceCacheWrite  float64    `json:"price_cache_write" gorm:"not null;default:0"`
 	PriceUpdatedAt   *time.Time `json:"price_updated_at"`
+	// 上游性能指标（NewAPI /api/perf-metrics/summary），仅展示。
+	PerfLatencyMs   int64      `json:"perf_latency_ms" gorm:"not null;default:0"`
+	PerfAvgTps      float64    `json:"perf_avg_tps" gorm:"not null;default:0"`
+	PerfSuccessRate float64    `json:"perf_success_rate" gorm:"not null;default:0"` // 0-1
+	PerfUpdatedAt   *time.Time `json:"perf_updated_at"`
 }
 
 type SiteChannelBinding struct {

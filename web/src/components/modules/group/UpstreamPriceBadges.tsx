@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import type { ChannelUpstreamPrice } from '@/api/endpoints/model';
+import type { ChannelUpstreamMetrics, ChannelUpstreamPrice } from '@/api/endpoints/model';
 
 function formatPrice(value: number): string {
     if (!Number.isFinite(value) || value <= 0) {
@@ -52,13 +52,94 @@ function formatRemainingCalls(value: number): string {
     return value.toFixed(1).replace(/0+$/, '').replace(/\.$/, '');
 }
 
+// NewAPI 模型广场：延迟 ms 较大时显示为秒（如 139000ms → 139s）。
+function formatLatency(latencyMs: number): string {
+    if (!Number.isFinite(latencyMs) || latencyMs <= 0) {
+        return '';
+    }
+    if (latencyMs >= 1000) {
+        const seconds = latencyMs / 1000;
+        if (seconds >= 100) {
+            return `${Math.round(seconds)}s`;
+        }
+        if (seconds >= 10) {
+            return `${seconds.toFixed(0)}s`;
+        }
+        return `${seconds.toFixed(1).replace(/\.0$/, '')}s`;
+    }
+    return `${Math.round(latencyMs)}ms`;
+}
+
+function formatThroughput(tps: number): string {
+    if (!Number.isFinite(tps) || tps <= 0) {
+        return '';
+    }
+    if (tps >= 100) {
+        return `${Math.round(tps)}t`;
+    }
+    if (tps >= 10) {
+        return `${tps.toFixed(0)}t`;
+    }
+    return `${tps.toFixed(1).replace(/\.0$/, '')}t`;
+}
+
+// 状态条：按成功率 0-1 映射 1-3 格，颜色绿/黄/红。
+function statusLevel(successRate: number): 0 | 1 | 2 | 3 {
+    if (!Number.isFinite(successRate) || successRate <= 0) {
+        return 0;
+    }
+    if (successRate >= 0.9) {
+        return 3;
+    }
+    if (successRate >= 0.7) {
+        return 2;
+    }
+    if (successRate >= 0.4) {
+        return 1;
+    }
+    return 1;
+}
+
+function StatusBars({ successRate }: { successRate: number }) {
+    const level = statusLevel(successRate);
+    if (level === 0) {
+        return null;
+    }
+    const color =
+        successRate >= 0.9
+            ? 'bg-emerald-500'
+            : successRate >= 0.7
+              ? 'bg-amber-500'
+              : 'bg-red-500';
+    const heights = ['h-1.5', 'h-2.5', 'h-3.5'] as const;
+    return (
+        <span
+            className="inline-flex items-end gap-0.5"
+            title={`成功率 ${(successRate * 100).toFixed(0)}%`}
+        >
+            {heights.map((h, idx) => (
+                <span
+                    key={h}
+                    className={cn(
+                        'w-0.5 rounded-sm',
+                        h,
+                        idx < level ? color : 'bg-muted-foreground/25',
+                    )}
+                />
+            ))}
+        </span>
+    );
+}
+
 export function UpstreamPriceBadges({
     price,
     balance,
+    metrics,
     className,
 }: {
     price?: ChannelUpstreamPrice | null;
     balance?: number | null;
+    metrics?: ChannelUpstreamMetrics | null;
     className?: string;
 }) {
     const isPerCall = price?.billing_mode === 'per_call';
@@ -70,10 +151,12 @@ export function UpstreamPriceBadges({
     const hasBalance = typeof balance === 'number' && Number.isFinite(balance);
     const balanceText = hasBalance ? formatBalance(balance!) : '';
 
-    // 按次：用单价估算剩余可用次数（余额 / 单次价格）。
-    // 优先用输入价，没有则用输出价。
     const perCallUnitPrice = isPerCall
-        ? (price && price.input > 0 ? price.input : price && price.output > 0 ? price.output : 0)
+        ? price && price.input > 0
+            ? price.input
+            : price && price.output > 0
+              ? price.output
+              : 0
         : 0;
     const remainingCalls =
         isPerCall && hasBalance && perCallUnitPrice > 0
@@ -82,12 +165,15 @@ export function UpstreamPriceBadges({
     const remainingCallsText =
         remainingCalls !== null ? formatRemainingCalls(remainingCalls) : '';
 
-    if (!hasPrice && !hasBalance) {
+    const latencyText = metrics ? formatLatency(metrics.latency_ms) : '';
+    const tpsText = metrics ? formatThroughput(metrics.avg_tps) : '';
+    const hasStatus = Boolean(metrics && metrics.success_rate > 0);
+    const hasMetrics = Boolean(latencyText || tpsText || hasStatus);
+
+    if (!hasPrice && !hasBalance && !hasMetrics) {
         return null;
     }
 
-    // 单行紧凑：绿输入 / 红输出 / 黄缓存 共用单位，余额单独蓝色。
-    // 按次时额外显示 (N/次) 估算可用次数。
     return (
         <span
             className={cn(
@@ -100,6 +186,9 @@ export function UpstreamPriceBadges({
                 cacheText ? `缓存读 ${cacheText}$/${unit}` : '',
                 balanceText ? `余额 ${balanceText}$` : '',
                 remainingCallsText ? `约可用 ${remainingCallsText} 次` : '',
+                latencyText ? `延迟 ${latencyText}` : '',
+                tpsText ? `吞吐 ${tpsText}` : '',
+                hasStatus ? `成功率 ${(metrics!.success_rate * 100).toFixed(0)}%` : '',
             ]
                 .filter(Boolean)
                 .join(' · ')}
@@ -130,6 +219,13 @@ export function UpstreamPriceBadges({
             {remainingCallsText ? (
                 <span className="shrink-0 font-bold text-violet-600 dark:text-violet-400">
                     ({remainingCallsText}/次)
+                </span>
+            ) : null}
+            {hasMetrics ? (
+                <span className="inline-flex shrink-0 items-center gap-x-1.5 text-muted-foreground">
+                    {latencyText ? <span className="shrink-0">{latencyText}</span> : null}
+                    {tpsText ? <span className="shrink-0">{tpsText}</span> : null}
+                    {hasStatus ? <StatusBars successRate={metrics!.success_rate} /> : null}
                 </span>
             ) : null}
         </span>

@@ -14,6 +14,7 @@ type siteModelRouteDetection struct {
 	RouteRawPayload string
 	ApplyRouteType  bool
 	Price           siteModelPriceDetection
+	Perf            siteModelPerfDetection
 }
 
 func applyDetectedRoutesToSiteModels(
@@ -63,6 +64,9 @@ func applyKnownRouteDetectionsToSiteModels(
 		if detection.Price.HasPrice {
 			applySiteModelPriceDetection(&items[i], detection.Price, now)
 		}
+		if detection.Perf.HasMetrics {
+			applySiteModelPerfDetection(&items[i], detection.Perf, now)
+		}
 	}
 	return items
 }
@@ -90,12 +94,22 @@ func detectSiteModelRoutes(
 
 	switch siteRecord.Platform {
 	case model.SitePlatformNewAPI, model.SitePlatformOneAPI:
-		return detectManagedPricingRoutes(ctx, siteRecord, account, accessToken, modelToken, modelFilter)
+		detections := detectManagedPricingRoutes(ctx, siteRecord, account, accessToken, modelToken, modelFilter)
+		detections = mergeSiteModelRouteDetections(
+			detections,
+			detectManagedPerfMetricsSummary(ctx, siteRecord, account, accessToken, modelToken, modelFilter),
+		)
+		return detections
 	case model.SitePlatformOneHub, model.SitePlatformDoneHub:
 		detections := detectManagedPricingRoutes(ctx, siteRecord, account, accessToken, modelToken, modelFilter)
 		detections = mergeSiteModelRouteDetections(
 			detections,
 			detectManagedAvailableModelRoutes(ctx, siteRecord, account, accessToken, modelToken, modelFilter),
+		)
+		// 新版 DoneHub/OneHub 若兼容 NewAPI 性能接口也一并尝试。
+		detections = mergeSiteModelRouteDetections(
+			detections,
+			detectManagedPerfMetricsSummary(ctx, siteRecord, account, accessToken, modelToken, modelFilter),
 		)
 		return detections
 	case model.SitePlatformAnyRouter:
@@ -122,6 +136,28 @@ func detectManagedPricingRoutes(
 		"/api/pricing",
 		modelFilter,
 		collectPricingRouteDetections,
+	)
+}
+
+func detectManagedPerfMetricsSummary(
+	ctx context.Context,
+	siteRecord *model.Site,
+	account *model.SiteAccount,
+	accessToken string,
+	modelToken model.SiteToken,
+	modelFilter map[string]struct{},
+) map[string]siteModelRouteDetection {
+	// NewAPI 新版模型广场：GET /api/perf-metrics/summary?hours=24
+	// 一次返回全部模型的 avg_latency_ms / avg_tps / success_rate。
+	return detectManagedRoutesFromPath(
+		ctx,
+		siteRecord,
+		account,
+		accessToken,
+		modelToken,
+		"/api/perf-metrics/summary?hours=24",
+		modelFilter,
+		collectPerfMetricsDetections,
 	)
 }
 
@@ -674,16 +710,27 @@ func mergeSiteModelRouteDetections(
 			continue
 		}
 		if shouldReplaceSiteModelRouteDetection(existing, value) {
-			// 新路由元数据更好时仍保留已有价格。
+			// 新路由元数据更好时仍保留已有价格/性能。
 			if !value.Price.HasPrice && existing.Price.HasPrice {
 				value.Price = existing.Price
+			}
+			if !value.Perf.HasMetrics && existing.Perf.HasMetrics {
+				value.Perf = existing.Perf
 			}
 			dst[key] = value
 			continue
 		}
-		// 路由元数据不替换时，若新值带价格则补上。
+		// 路由元数据不替换时，若新值带价格/性能则补上。
+		changed := false
 		if value.Price.HasPrice && !existing.Price.HasPrice {
 			existing.Price = value.Price
+			changed = true
+		}
+		if value.Perf.HasMetrics && !existing.Perf.HasMetrics {
+			existing.Perf = value.Perf
+			changed = true
+		}
+		if changed {
 			dst[key] = existing
 		}
 	}
