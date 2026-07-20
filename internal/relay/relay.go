@@ -2,7 +2,6 @@ package relay
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -174,7 +173,7 @@ func resolveAPIRateLimit(modelName string, c *gin.Context) (rpm int, tpm int) {
 	}
 
 	var quotas map[string]perModelQuota
-	if err := json.Unmarshal([]byte(perModelJSON), &quotas); err != nil {
+	if err := jsonAPI.Unmarshal([]byte(perModelJSON), &quotas); err != nil {
 		return
 	}
 
@@ -892,7 +891,7 @@ func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http
 					// 关键词拦截：发送错误 SSE 事件并终止流
 					filterCfg := ra.getResponseFilterConfig()
 					if ra.streamSession != nil {
-						errPayload, _ := json.Marshal(map[string]any{
+						errPayload, _ := jsonAPI.Marshal(map[string]any{
 							"error": map[string]any{
 								"message": filterCfg.ErrorMessage,
 								"type":    "content_filter",
@@ -1008,7 +1007,7 @@ func (ra *relayAttempt) handleResponse(ctx context.Context, response *http.Respo
 				"code":    "content_blocked",
 			},
 		}
-		data, _ := json.Marshal(errorResp)
+		data, _ := jsonAPI.Marshal(errorResp)
 		ra.c.Data(http.StatusOK, "application/json", data)
 		return nil
 	}
@@ -1084,7 +1083,7 @@ func (ra *relayAttempt) collectAndStoreStreamResponse() {
 	if internalResponse == nil {
 		return
 	}
-	if responseJSON, err := json.Marshal(internalResponse); err == nil {
+	if responseJSON, err := jsonAPI.Marshal(internalResponse); err == nil {
 		storeSemanticCacheResponse(ra.operationCtx, ra.internalRequest, responseJSON)
 	}
 }

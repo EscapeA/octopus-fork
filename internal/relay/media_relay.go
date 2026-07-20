@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
-	"encoding/json"
+
 	"errors"
 	"fmt"
 	"io"
@@ -467,7 +467,7 @@ func extractModelFromJSON(c *gin.Context) (string, []byte, bool, error) {
 	}
 
 	var raw map[string]any
-	if err := json.Unmarshal(body, &raw); err != nil {
+	if err := jsonAPI.Unmarshal(body, &raw); err != nil {
 		return "", nil, false, fmt.Errorf("invalid JSON body: %w", err)
 	}
 
@@ -724,13 +724,13 @@ func replaceModelInJSON(body []byte, originalModel, resolvedModel string) ([]byt
 	}
 
 	var raw map[string]any
-	if err := json.Unmarshal(body, &raw); err != nil {
+	if err := jsonAPI.Unmarshal(body, &raw); err != nil {
 		log.Debugf("replaceModelInJSON: failed to parse JSON body, returning original: %v", err)
 		return body, nil
 	}
 
 	raw["model"] = resolvedModel
-	return json.Marshal(raw)
+	return jsonAPI.Marshal(raw)
 }
 
 // buildMediaUpstreamURL constructs the full upstream URL from base URL and path.
@@ -863,7 +863,7 @@ func rewriteMusicRequestByProvider(group dbmodel.Group, cfg mediaEndpointConfig,
 	}
 
 	var raw map[string]any
-	if err := json.Unmarshal(body, &raw); err != nil {
+	if err := jsonAPI.Unmarshal(body, &raw); err != nil {
 		return nil, "", err
 	}
 
@@ -876,7 +876,7 @@ func rewriteMusicRequestByProvider(group dbmodel.Group, cfg mediaEndpointConfig,
 	}
 	delete(raw, "prompt")
 
-	converted, err := json.Marshal(raw)
+	converted, err := jsonAPI.Marshal(raw)
 	if err != nil {
 		return nil, "", err
 	}
@@ -911,7 +911,7 @@ func rewriteAudioSpeechRequestByProvider(group dbmodel.Group, cfg mediaEndpointC
 	}
 
 	var raw map[string]any
-	if err := json.Unmarshal(body, &raw); err != nil {
+	if err := jsonAPI.Unmarshal(body, &raw); err != nil {
 		return body, cfg
 	}
 
@@ -944,7 +944,7 @@ func rewriteAudioSpeechRequestByProvider(group dbmodel.Group, cfg mediaEndpointC
 		},
 	}
 
-	converted, err := json.Marshal(mimoReq)
+	converted, err := jsonAPI.Marshal(mimoReq)
 	if err != nil {
 		return body, cfg
 	}
@@ -972,7 +972,7 @@ func handleMimoTTSResponse(c *gin.Context, response *http.Response, audioFormat 
 	}
 
 	var mimoResp mimoTTSChatResponse
-	if err := json.Unmarshal(respBody, &mimoResp); err != nil {
+	if err := jsonAPI.Unmarshal(respBody, &mimoResp); err != nil {
 		return response.StatusCode, fmt.Errorf("failed to parse MiMo TTS response: %w", err)
 	}
 

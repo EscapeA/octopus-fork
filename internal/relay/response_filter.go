@@ -1,7 +1,6 @@
 package relay
 
 import (
-	"encoding/json"
 	"strings"
 	"unicode/utf8"
 
@@ -31,7 +30,7 @@ func loadResponseFilterConfig() responseFilterConfig {
 		ErrorMessage: errMsg,
 	}
 	if raw != "" {
-		_ = json.Unmarshal([]byte(raw), &cfg.Keywords)
+		_ = jsonAPI.Unmarshal([]byte(raw), &cfg.Keywords)
 	}
 
 	if cfg.Action == "" {
