@@ -1350,8 +1350,7 @@
     "corsAllowOrigins": {
       "label": "CORS Allowed Origins",
       "hint": "Empty = deny all, * = allow all",
-      "example": "Only allow specific domains: https://example.com,https://example2.com",
-      "removeAriaLabel": "Remove {origin}"
+      "example": "Only allow specific domains: https://example.com,https://example2.com"
     },
     "trustedProxies": {
       "label": "Trusted Reverse Proxies",

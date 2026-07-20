@@ -1306,8 +1306,7 @@
     "corsAllowOrigins": {
       "label": "CORS 跨網域白名單",
       "hint": "為空禁止跨網域，* 允許所有",
-      "example": "只允許指定域名: https://example.com,https://example2.com",
-      "removeAriaLabel": "移除 {origin}"
+      "example": "只允許指定域名: https://example.com,https://example2.com"
     },
     "trustedProxies": {
       "label": "可信反向代理",
