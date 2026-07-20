@@ -97,6 +97,7 @@ export const SettingKey = {
     WebAuthnRPName: 'webauthn_rp_name',
     WebAuthnOrigins: 'webauthn_origins',
     TrustedProxies: 'trusted_proxies',
+    GroupUpstreamMetaDisplayEnabled: 'group_upstream_meta_display_enabled',
 } as const;
 
 /**

@@ -1,18 +1,13 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
-import { GripVertical, X, Trash2, Waves, Dot, CircleAlert, CircleCheck, Loader2 } from 'lucide-react';
-import {
-    DragDropContext,
-    Draggable,
-    Droppable,
-    type DraggableProvided,
-    type DropResult,
-} from '@hello-pangea/dnd';
-import { motion, AnimatePresence } from 'motion/react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { CircleAlert, CircleCheck, Dot, GripVertical, Loader2, Trash2, Waves, X } from 'lucide-react';
+import { DragDropContext, Draggable, Droppable, type DraggableProvided, type DropResult } from '@hello-pangea/dnd';
+import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { getModelIcon } from '@/lib/model-icons';
 import type { LLMChannel } from '@/api/endpoints/model';
+import { SettingKey, useSettingList } from '@/api/endpoints/setting';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/animate-ui/components/animate/tooltip';
 import { useTranslations } from 'next-intl';
 import { UpstreamPerfBadges, UpstreamPriceBadges } from './UpstreamPriceBadges';
@@ -278,6 +273,12 @@ export function MemberList({
 }: MemberListProps) {
     const internalLayoutScope = useId();
     const layoutScope = externalLayoutScope ?? internalLayoutScope;
+    const { data: settings } = useSettingList();
+    // 外观设置默认开启；仅当显式 false 时关闭。分组卡仍可通过 prop 强制隐藏。
+    const settingEnabled =
+        settings?.find((item) => item.key === SettingKey.GroupUpstreamMetaDisplayEnabled)?.value !==
+        'false';
+    const effectiveShowUpstreamMeta = showUpstreamMeta && settingEnabled;
 
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const prevMemberCountRef = useRef<number>(0);
@@ -382,7 +383,7 @@ export function MemberList({
                                                 index={index}
                                                 showWeight={showWeight}
                                                 showConfirmDelete={showConfirmDelete}
-                                                showUpstreamMeta={showUpstreamMeta}
+                                                showUpstreamMeta={effectiveShowUpstreamMeta}
                                                 layoutScope={layoutScope}
                                                 dnd={{
                                                     innerRef: draggableProvided.innerRef,
