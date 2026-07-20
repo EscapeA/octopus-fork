@@ -2,8 +2,8 @@ package balancer
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"github.com/lingyuins/octopus/internal/utils/json"
 	"strings"
 	"sync"
 	"time"
