@@ -3150,6 +3150,10 @@
     "unreadCount": "{count} 条未读",
     "empty": "暂无通知",
     "loading": "正在加载通知...",
+    "list": {
+      "loadingMore": "加载更多...",
+      "noMore": "没有更多通知了"
+    },
     "tabs": {
       "inbox": "收件箱",
       "archived": "已归档",

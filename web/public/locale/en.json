@@ -3150,6 +3150,10 @@
     "unreadCount": "{count} unread",
     "empty": "No notifications",
     "loading": "Loading notifications...",
+    "list": {
+      "loadingMore": "Loading more...",
+      "noMore": "No more notifications"
+    },
     "tabs": {
       "inbox": "Inbox",
       "archived": "Archived",
