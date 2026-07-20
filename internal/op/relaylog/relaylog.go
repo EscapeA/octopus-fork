@@ -128,6 +128,24 @@ func RelayLogStreamTokenRevoke(token string) {
 	relayLogStreamTokensLock.Unlock()
 }
 
+// PurgeExpiredStreamTokens 清理过期的 SSE 流 token（5 分钟 TTL）。
+// 虽然 Verify 会惰性删除过期条目，但长期未访问的 token 会驻留；
+// 周期主动清理防止 map 在高频创建 + 低频访问场景下无界增长。
+func PurgeExpiredStreamTokens() int {
+	now := time.Now()
+	relayLogStreamTokensLock.Lock()
+	defer relayLogStreamTokensLock.Unlock()
+
+	deleted := 0
+	for token, createdAt := range relayLogStreamTokens {
+		if now.Sub(createdAt) > relayLogStreamTokenTTL {
+			delete(relayLogStreamTokens, token)
+			deleted++
+		}
+	}
+	return deleted
+}
+
 func RelayLogSubscribe() chan model.RelayLog {
 	ch := make(chan model.RelayLog, 10)
 	relayLogSubscribersLock.Lock()

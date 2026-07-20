@@ -88,6 +88,9 @@ func Init() {
 	}
 
 	Register(TaskRelayLogSave, 10*time.Minute, false, func() {
+		// 清理过期的 SSE 流 token（issue #149 内存优化补充）
+		relaylog.PurgeExpiredStreamTokens()
+
 		// 清理过期的失败提示缓存条目
 		relay.PurgeFailureHintCache()
 
