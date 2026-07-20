@@ -53,6 +53,7 @@ export interface LLMChannel {
     upstream_price?: ChannelUpstreamPrice | null;
     upstream_metrics?: ChannelUpstreamMetrics | null;
     channel_balance?: number | null;
+    channel_today_income?: number | null;
 }
 
 export interface ModelMarketChannel {

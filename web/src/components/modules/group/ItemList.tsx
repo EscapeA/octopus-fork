@@ -15,7 +15,7 @@ import { getModelIcon } from '@/lib/model-icons';
 import type { LLMChannel } from '@/api/endpoints/model';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/animate-ui/components/animate/tooltip';
 import { useTranslations } from 'next-intl';
-import { UpstreamPriceBadges } from './UpstreamPriceBadges';
+import { UpstreamPerfBadges, UpstreamPriceBadges } from './UpstreamPriceBadges';
 
 export interface SelectedMember extends LLMChannel {
     id: string;
@@ -127,7 +127,7 @@ function MemberItem({
                     <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
                         <Tooltip side="top" sideOffset={10} align="start">
                             <TooltipTrigger className={cn(
-                                'min-w-0 flex-1 text-left text-xs font-medium truncate leading-tight md:text-sm',
+                                'min-w-0 max-w-[55%] text-left text-xs font-medium truncate leading-tight md:text-sm',
                                 isDisabled && 'text-muted-foreground',
                                 availabilityStatus === 'unavailable' && 'text-destructive'
                             )}>
@@ -135,6 +135,9 @@ function MemberItem({
                             </TooltipTrigger>
                             <TooltipContent key={member.name}>{member.name}</TooltipContent>
                         </Tooltip>
+                        {showUpstreamMeta ? (
+                            <UpstreamPerfBadges metrics={member.upstream_metrics} />
+                        ) : null}
                         {availabilityStatus === 'testing' ? <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" /> : null}
                         {availabilityStatus === 'available' ? <CircleCheck className="size-3.5 shrink-0 text-emerald-500" /> : null}
                         {availabilityStatus === 'unavailable' ? (
@@ -153,7 +156,7 @@ function MemberItem({
                         <UpstreamPriceBadges
                             price={member.upstream_price}
                             balance={member.channel_balance}
-                            metrics={member.upstream_metrics}
+                            todayIncome={member.channel_today_income}
                             className="min-w-0"
                         />
                     ) : null}

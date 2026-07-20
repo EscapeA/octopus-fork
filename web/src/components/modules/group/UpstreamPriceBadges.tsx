@@ -1,5 +1,6 @@
 'use client';
 
+import { ArrowUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ChannelUpstreamMetrics, ChannelUpstreamPrice } from '@/api/endpoints/model';
 
@@ -22,11 +23,14 @@ function formatPrice(value: number): string {
     return value.toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
 }
 
-function formatBalance(value: number): string {
+function formatMoney(value: number): string {
     if (!Number.isFinite(value)) {
         return '';
     }
     const abs = Math.abs(value);
+    if (abs >= 1000) {
+        return `${(value / 1000).toFixed(abs >= 10000 ? 0 : 1).replace(/\.0$/, '')}k`;
+    }
     if (abs >= 100) {
         return value.toFixed(1);
     }
@@ -59,11 +63,8 @@ function formatLatency(latencyMs: number): string {
     }
     if (latencyMs >= 1000) {
         const seconds = latencyMs / 1000;
-        if (seconds >= 100) {
-            return `${Math.round(seconds)}s`;
-        }
         if (seconds >= 10) {
-            return `${seconds.toFixed(0)}s`;
+            return `${Math.round(seconds)}s`;
         }
         return `${seconds.toFixed(1).replace(/\.0$/, '')}s`;
     }
@@ -74,16 +75,12 @@ function formatThroughput(tps: number): string {
     if (!Number.isFinite(tps) || tps <= 0) {
         return '';
     }
-    if (tps >= 100) {
-        return `${Math.round(tps)}t`;
-    }
     if (tps >= 10) {
-        return `${tps.toFixed(0)}t`;
+        return `${Math.round(tps)}t`;
     }
     return `${tps.toFixed(1).replace(/\.0$/, '')}t`;
 }
 
-// 状态条：按成功率 0-1 映射 1-3 格，颜色绿/黄/红。
 function statusLevel(successRate: number): 0 | 1 | 2 | 3 {
     if (!Number.isFinite(successRate) || successRate <= 0) {
         return 0;
@@ -93,9 +90,6 @@ function statusLevel(successRate: number): 0 | 1 | 2 | 3 {
     }
     if (successRate >= 0.7) {
         return 2;
-    }
-    if (successRate >= 0.4) {
-        return 1;
     }
     return 1;
 }
@@ -131,15 +125,54 @@ function StatusBars({ successRate }: { successRate: number }) {
     );
 }
 
+/** 模型名右侧：延迟 / 吞吐 / 状态条 */
+export function UpstreamPerfBadges({
+    metrics,
+    className,
+}: {
+    metrics?: ChannelUpstreamMetrics | null;
+    className?: string;
+}) {
+    if (!metrics) {
+        return null;
+    }
+    const latencyText = formatLatency(metrics.latency_ms);
+    const tpsText = formatThroughput(metrics.avg_tps);
+    const hasStatus = metrics.success_rate > 0;
+    if (!latencyText && !tpsText && !hasStatus) {
+        return null;
+    }
+    return (
+        <span
+            className={cn(
+                'inline-flex shrink-0 items-center gap-x-1.5 text-[10px] font-semibold leading-none tabular-nums text-muted-foreground md:text-[11px]',
+                className,
+            )}
+            title={[
+                latencyText ? `延迟 ${latencyText}` : '',
+                tpsText ? `吞吐 ${tpsText}` : '',
+                hasStatus ? `成功率 ${(metrics.success_rate * 100).toFixed(0)}%` : '',
+            ]
+                .filter(Boolean)
+                .join(' · ')}
+        >
+            {latencyText ? <span className="shrink-0">{latencyText}</span> : null}
+            {tpsText ? <span className="shrink-0">{tpsText}</span> : null}
+            {hasStatus ? <StatusBars successRate={metrics.success_rate} /> : null}
+        </span>
+    );
+}
+
+/** 价格行：输入/输出/缓存 + 余额 + 今日收入 */
 export function UpstreamPriceBadges({
     price,
     balance,
-    metrics,
+    todayIncome,
     className,
 }: {
     price?: ChannelUpstreamPrice | null;
     balance?: number | null;
-    metrics?: ChannelUpstreamMetrics | null;
+    todayIncome?: number | null;
     className?: string;
 }) {
     const isPerCall = price?.billing_mode === 'per_call';
@@ -149,7 +182,9 @@ export function UpstreamPriceBadges({
     const cacheText = price ? formatPrice(price.cache_read) : '';
     const hasPrice = Boolean(inputText || outputText || cacheText);
     const hasBalance = typeof balance === 'number' && Number.isFinite(balance);
-    const balanceText = hasBalance ? formatBalance(balance!) : '';
+    const balanceText = hasBalance ? formatMoney(balance!) : '';
+    const hasTodayIncome = typeof todayIncome === 'number' && Number.isFinite(todayIncome);
+    const todayIncomeText = hasTodayIncome ? formatMoney(todayIncome!) : '';
 
     const perCallUnitPrice = isPerCall
         ? price && price.input > 0
@@ -165,12 +200,7 @@ export function UpstreamPriceBadges({
     const remainingCallsText =
         remainingCalls !== null ? formatRemainingCalls(remainingCalls) : '';
 
-    const latencyText = metrics ? formatLatency(metrics.latency_ms) : '';
-    const tpsText = metrics ? formatThroughput(metrics.avg_tps) : '';
-    const hasStatus = Boolean(metrics && metrics.success_rate > 0);
-    const hasMetrics = Boolean(latencyText || tpsText || hasStatus);
-
-    if (!hasPrice && !hasBalance && !hasMetrics) {
+    if (!hasPrice && !hasBalance && !hasTodayIncome) {
         return null;
     }
 
@@ -186,9 +216,7 @@ export function UpstreamPriceBadges({
                 cacheText ? `缓存读 ${cacheText}$/${unit}` : '',
                 balanceText ? `余额 ${balanceText}$` : '',
                 remainingCallsText ? `约可用 ${remainingCallsText} 次` : '',
-                latencyText ? `延迟 ${latencyText}` : '',
-                tpsText ? `吞吐 ${tpsText}` : '',
-                hasStatus ? `成功率 ${(metrics!.success_rate * 100).toFixed(0)}%` : '',
+                todayIncomeText ? `今日收入 ${todayIncomeText}$` : '',
             ]
                 .filter(Boolean)
                 .join(' · ')}
@@ -221,11 +249,10 @@ export function UpstreamPriceBadges({
                     ({remainingCallsText}/次)
                 </span>
             ) : null}
-            {hasMetrics ? (
-                <span className="inline-flex shrink-0 items-center gap-x-1.5 text-muted-foreground">
-                    {latencyText ? <span className="shrink-0">{latencyText}</span> : null}
-                    {tpsText ? <span className="shrink-0">{tpsText}</span> : null}
-                    {hasStatus ? <StatusBars successRate={metrics!.success_rate} /> : null}
+            {hasTodayIncome ? (
+                <span className="inline-flex shrink-0 items-center gap-0.5 font-semibold text-emerald-600 dark:text-emerald-400">
+                    <ArrowUp className="size-3 stroke-[2.5]" />
+                    <span>{todayIncomeText}$</span>
                 </span>
             ) : null}
         </span>

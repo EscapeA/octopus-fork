@@ -11,7 +11,7 @@ import type {
     GroupedRouteModelRow,
 } from './grouped-view';
 import { UNGROUPED_BUCKET_ID, UNCATEGORIZED_CATEGORY_ID } from './grouped-view';
-import { UpstreamPriceBadges } from './UpstreamPriceBadges';
+import { UpstreamPerfBadges, UpstreamPriceBadges } from './UpstreamPriceBadges';
 
 function RouteModelRow({ model, index }: { model: GroupedRouteModelRow; index: number }) {
     const { Avatar: ModelAvatar } = getModelIcon(model.name);
@@ -30,11 +30,14 @@ function RouteModelRow({ model, index }: { model: GroupedRouteModelRow; index: n
                 <ModelAvatar size={18} />
             </span>
             <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium text-foreground">{model.name}</div>
+                <div className="flex min-w-0 items-center gap-1.5">
+                    <div className="min-w-0 max-w-[55%] truncate text-sm font-medium text-foreground">{model.name}</div>
+                    <UpstreamPerfBadges metrics={model.upstream_metrics} />
+                </div>
                 <UpstreamPriceBadges
                     price={model.upstream_price}
                     balance={model.channel_balance}
-                    metrics={model.upstream_metrics}
+                    todayIncome={model.channel_today_income}
                     className="mt-0.5"
                 />
                 <div className="truncate text-xs text-muted-foreground">{model.channel_name}</div>

@@ -489,16 +489,21 @@ func LLMList(ctx context.Context) ([]model.LLMChannel, error) {
 		channelIDs = append(channelIDs, ch.ID)
 	}
 	bindingByChannel := loadProjectedChannelBindings(ctx, channelIDs)
-	accountBalanceByID, modelsByAccountGroup := loadProjectedChannelMetaIndex(ctx, bindingByChannel)
+	accountBalanceByID, accountTodayIncomeByID, modelsByAccountGroup := loadProjectedChannelMetaIndex(ctx, bindingByChannel)
 
 	for _, ch := range chCache.GetAll() {
 		modelNames := xstrings.SplitTrimCompact(",", ch.Model, ch.CustomModel)
 		binding, isProjected := bindingByChannel[ch.ID]
 		var accountBalance *float64
+		var accountTodayIncome *float64
 		if isProjected {
 			if bal, ok := accountBalanceByID[binding.SiteAccountID]; ok {
 				copied := bal
 				accountBalance = &copied
+			}
+			if income, ok := accountTodayIncomeByID[binding.SiteAccountID]; ok {
+				copied := income
+				accountTodayIncome = &copied
 			}
 		}
 		for _, modelName := range modelNames {
@@ -506,11 +511,12 @@ func LLMList(ctx context.Context) ([]model.LLMChannel, error) {
 				continue
 			}
 			item := model.LLMChannel{
-				Name:           modelName,
-				Enabled:        ch.Enabled,
-				ChannelID:      ch.ID,
-				ChannelName:    ch.Name,
-				ChannelBalance: accountBalance,
+				Name:               modelName,
+				Enabled:            ch.Enabled,
+				ChannelID:          ch.ID,
+				ChannelName:        ch.Name,
+				ChannelBalance:     accountBalance,
+				ChannelTodayIncome: accountTodayIncome,
 			}
 			if isProjected {
 				lookupKey := projectedModelLookupKey(binding.SiteAccountID, binding.BaseGroupKey, modelName)
@@ -568,11 +574,12 @@ type projectedChannelModelMeta struct {
 func loadProjectedChannelMetaIndex(
 	ctx context.Context,
 	bindingByChannel map[int]projectedChannelBindingInfo,
-) (map[int]float64, map[string]projectedChannelModelMeta) {
+) (map[int]float64, map[int]float64, map[string]projectedChannelModelMeta) {
 	balances := make(map[int]float64)
+	todayIncomes := make(map[int]float64)
 	metaByKey := make(map[string]projectedChannelModelMeta)
 	if len(bindingByChannel) == 0 {
-		return balances, metaByKey
+		return balances, todayIncomes, metaByKey
 	}
 
 	accountIDs := make([]int, 0, len(bindingByChannel))
@@ -588,21 +595,23 @@ func loadProjectedChannelMetaIndex(
 		accountIDs = append(accountIDs, binding.SiteAccountID)
 	}
 	if len(accountIDs) == 0 {
-		return balances, metaByKey
+		return balances, todayIncomes, metaByKey
 	}
 
 	type accountBalanceRow struct {
-		ID      int
-		Balance float64
+		ID          int
+		Balance     float64
+		TodayIncome float64
 	}
 	var accountRows []accountBalanceRow
 	if err := db.GetDB().WithContext(ctx).
 		Model(&model.SiteAccount{}).
-		Select("id, balance").
+		Select("id, balance, today_income").
 		Where("id IN ?", accountIDs).
 		Find(&accountRows).Error; err == nil {
 		for _, row := range accountRows {
 			balances[row.ID] = row.Balance
+			todayIncomes[row.ID] = row.TodayIncome
 		}
 	}
 
@@ -610,7 +619,7 @@ func loadProjectedChannelMetaIndex(
 	if err := db.GetDB().WithContext(ctx).
 		Where("site_account_id IN ? AND disabled = ?", accountIDs, false).
 		Find(&siteModels).Error; err != nil {
-		return balances, metaByKey
+		return balances, todayIncomes, metaByKey
 	}
 	for _, siteModel := range siteModels {
 		key := projectedModelLookupKey(siteModel.SiteAccountID, siteModel.GroupKey, siteModel.ModelName)
@@ -637,7 +646,7 @@ func loadProjectedChannelMetaIndex(
 			metaByKey[key] = meta
 		}
 	}
-	return balances, metaByKey
+	return balances, todayIncomes, metaByKey
 }
 
 func projectedModelLookupKey(accountID int, groupKey, modelName string) string {

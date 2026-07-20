@@ -34,13 +34,14 @@ type ChannelUpstreamMetrics struct {
 }
 
 type LLMChannel struct {
-	Name             string                  `json:"name"`
-	Enabled          bool                    `json:"enabled"`
-	ChannelID        int                     `json:"channel_id"`
-	ChannelName      string                  `json:"channel_name"`
-	UpstreamPrice    *ChannelUpstreamPrice   `json:"upstream_price,omitempty"`
-	UpstreamMetrics  *ChannelUpstreamMetrics `json:"upstream_metrics,omitempty"`
-	ChannelBalance   *float64                `json:"channel_balance,omitempty"`
+	Name               string                  `json:"name"`
+	Enabled            bool                    `json:"enabled"`
+	ChannelID          int                     `json:"channel_id"`
+	ChannelName        string                  `json:"channel_name"`
+	UpstreamPrice      *ChannelUpstreamPrice   `json:"upstream_price,omitempty"`
+	UpstreamMetrics    *ChannelUpstreamMetrics `json:"upstream_metrics,omitempty"`
+	ChannelBalance     *float64                `json:"channel_balance,omitempty"`
+	ChannelTodayIncome *float64                `json:"channel_today_income,omitempty"`
 }
 
 type ModelMarketChannel struct {

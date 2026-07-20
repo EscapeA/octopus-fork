@@ -284,6 +284,7 @@ export function GroupCard({ group }: { group: Group }) {
                     upstream_price: channelModel?.upstream_price,
                     upstream_metrics: channelModel?.upstream_metrics,
                     channel_balance: channelModel?.channel_balance,
+                    channel_today_income: channelModel?.channel_today_income,
                 };
             }),
         [group.items, channelByKey, channelNameByKey, enabledByKey, t]
