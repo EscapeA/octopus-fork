@@ -10,7 +10,7 @@ import type { StatsMetricsFormatted } from '@/api/endpoints/stats';
 
 import { LoadingState } from '@/components/common/LoadingState';
 import { ErrorState } from '@/components/common/ErrorState';
-import { Radio, RefreshCw, Clock3, Layers, CheckSquare, X } from 'lucide-react';
+import { Radio, RefreshCw, Clock3, Layers, CheckSquare, X, FolderTree } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/common/Toast';
@@ -23,7 +23,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { getChannelGroupDisplayName } from './GroupManager';
+import { getChannelGroupDisplayName, ChannelGroupManagerDialog } from './GroupManager';
 
 type ChannelListItem = {
     raw: ChannelModel;
@@ -283,7 +283,14 @@ export function Channel() {
                         <section className="rounded-xl border border-border/30 bg-card/70 p-3 md:p-4">
                             {activeGroup ? (
                                 <header className="mb-3 flex flex-wrap items-center gap-2">
-                                    <h3 className="text-sm font-semibold text-card-foreground">
+                                    <ChannelGroupManagerDialog className={cn(
+                                        "inline-flex items-center gap-1.5 text-sm font-semibold text-card-foreground hover:text-primary transition-colors sm:hidden",
+                                        "p-0 border-0 shadow-none bg-transparent hover:bg-transparent"
+                                    )}>
+                                        <FolderTree className="size-4" />
+                                        <span>{getChannelGroupDisplayName(activeGroup, defaultGroupName)}</span>
+                                    </ChannelGroupManagerDialog>
+                                    <h3 className="hidden text-sm font-semibold text-card-foreground sm:block">
                                         {getChannelGroupDisplayName(activeGroup, defaultGroupName)}
                                     </h3>
                                     {activeGroup.is_default ? (
