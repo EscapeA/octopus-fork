@@ -260,18 +260,17 @@ export function Notification() {
         });
     };
 
-
     const renderMessages = () => (
         <>
-            <div className="grid gap-2 rounded-2xl border bg-card p-3 sm:gap-3 md:grid-cols-[1fr_auto_auto]">
-                <div className="relative">
+            <div className="flex flex-wrap items-center gap-2">
+                <div className="relative flex-1 min-w-[12rem]">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('filters.search')} className="pl-9" />
+                    <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('filters.search')} className="h-9 pl-9" />
                 </div>
-                <select value={type} onChange={(e) => setType(e.target.value)} className="rounded-xl border bg-background px-3 py-2 text-sm">
+                <select value={type} onChange={(e) => setType(e.target.value)} className="h-9 rounded-xl border bg-background px-3 text-sm">
                     {TYPES.map((v) => <option key={v} value={v}>{v ? t(`type.${v}`) : t('filters.allTypes')}</option>)}
                 </select>
-                <select value={severity} onChange={(e) => setSeverity(e.target.value)} className="rounded-xl border bg-background px-3 py-2 text-sm">
+                <select value={severity} onChange={(e) => setSeverity(e.target.value)} className="h-9 rounded-xl border bg-background px-3 text-sm">
                     {SEVERITIES.map((v) => <option key={v} value={v}>{v ? t(`severity.${v}`) : t('filters.allSeverities')}</option>)}
                 </select>
             </div>
@@ -426,23 +425,24 @@ export function Notification() {
                             {groupIcon(item)}{t(`groups.${item}`)}
                         </SectionButton>
                     ))}
-                </div>
-
-                <div className="flex items-center gap-2 overflow-x-auto scrollbar-none -mx-1 px-1">
                     {group === 'messages' && <>
+                        <div className="w-px h-8 bg-border mx-1" />
                         <SectionButton active={subTab === 'inbox'} onClick={() => setSubTab('inbox')}><Inbox className="h-4 w-4" />{t('tabs.inbox')}</SectionButton>
                         <SectionButton active={subTab === 'archived'} onClick={() => setSubTab('archived')}><Archive className="h-4 w-4" />{t('tabs.archived')}</SectionButton>
                     </>}
                     {group === 'alerts' && <>
+                        <div className="w-px h-8 bg-border mx-1" />
                         <SectionButton active={subTab === 'rules'} onClick={() => setSubTab('rules')}><Bell className="h-4 w-4" />{t('tabs.alertRules')}</SectionButton>
                         <SectionButton active={subTab === 'history'} onClick={() => setSubTab('history')}><Clock className="h-4 w-4" />{t('tabs.alertHistory')}</SectionButton>
                     </>}
                     {group === 'delivery' && <>
+                        <div className="w-px h-8 bg-border mx-1" />
                         <SectionButton active={subTab === 'channels'} onClick={() => setSubTab('channels')}><Megaphone className="h-4 w-4" />{t('tabs.channels')}</SectionButton>
                         <SectionButton active={subTab === 'policies'} onClick={() => setSubTab('policies')}><Bell className="h-4 w-4" />{t('tabs.policies')}</SectionButton>
                         <SectionButton active={subTab === 'preferences'} onClick={() => setSubTab('preferences')}><Check className="h-4 w-4" />{t('tabs.preferences')}</SectionButton>
                     </>}
                     {group === 'reports' && <>
+                        <div className="w-px h-8 bg-border mx-1" />
                         <SectionButton active={subTab === 'reportSchedules'} onClick={() => setSubTab('reportSchedules')}><Clock className="h-4 w-4" />{t('tabs.reportSchedules')}</SectionButton>
                         <SectionButton active={subTab === 'reportHistory'} onClick={() => setSubTab('reportHistory')}><Archive className="h-4 w-4" />{t('tabs.reportHistory')}</SectionButton>
                     </>}
