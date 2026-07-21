@@ -1237,6 +1237,7 @@ func handleClientDisconnect(req *relayRequest, allAttempts []dbmodel.ChannelAtte
 func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, maxKeyRetriesPerRoute int, maxRouteRetries int, ratelimitCooldown int, maxTotalAttempts int) (*inflightRelayResult, error) {
 	var allAttempts []dbmodel.ChannelAttempt
 	var lastErr error
+	rateLimitHoldCfg := getRateLimitHoldConfig()
 
 	// forwardedBase 记录进入当前路由轮次之前已经发生的真实转发次数（跨轮次累加）。
 	// 最大总尝试次数的检查使用 forwardedBase + 当前迭代器的 ForwardedAttempts()，
@@ -1330,6 +1331,7 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 
 			req.internalRequest.Model = resolvedModelName
 			var failedKeyIDs []int
+			rateLimitHoldWaited := time.Duration(0)
 			for keyRound := 1; keyRound <= maxKeyRetriesPerRoute; keyRound++ {
 				if reachedMaxTotalAttempts(routeIter) {
 					lastErr = fmt.Errorf("reached relay max total attempts: %d", maxTotalAttempts)
@@ -1447,6 +1449,21 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 				case ScopeSameChannel:
 					lastErr = result.Err
 					failedKeyIDs = append(failedKeyIDs, usedKey.ID)
+					// 429 渠道内延时重试：符合条件时等待后清除冷却再重试下一个 Key
+					if result.Decision.Code == http.StatusTooManyRequests &&
+						rateLimitHoldCfg.Enabled &&
+						rateLimitHoldWaited < rateLimitHoldCfg.MaxWait &&
+						keyRound < maxKeyRetriesPerRoute {
+						waitDuration := rateLimitHoldCfg.Interval
+						if waitDuration > rateLimitHoldCfg.MaxWait-rateLimitHoldWaited {
+							waitDuration = rateLimitHoldCfg.MaxWait - rateLimitHoldWaited
+						}
+						log.Infof("429 rate-limit hold: waiting %v before retry (channel %s key %d model %s)",
+							waitDuration, channel.Name, usedKey.ID, resolvedModelName)
+						time.Sleep(waitDuration)
+						rateLimitHoldWaited += waitDuration
+						balancer.ClearKeyCooldown(channel.ID, usedKey.ID, resolvedModelName)
+					}
 				case ScopeNextChannel:
 					lastErr = result.Err
 					failedKeyIDs = append(failedKeyIDs, usedKey.ID)
