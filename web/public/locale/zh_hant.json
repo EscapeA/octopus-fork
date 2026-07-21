@@ -1399,7 +1399,6 @@
         "notifyCooldown": "通知冷卻（秒）",
         "notifyEnabled": "失敗通知",
         "recoveryNotify": "恢復通知"
-      }
       },
       "logQueueDropPolicy": {
         "label": "日誌佇列丟棄策略",
@@ -1411,6 +1410,7 @@
       "streamReplay": {
         "label": "串流重連重放",
         "hint": "啟用串流請求的斷線重連緩衝功能。關閉後立即釋放串流事件緩衝區以降低記憶體占用（見 OOM 診斷報告），但客戶端無法重連恢復串流。"
+      }
     },
     "autoStrategy": {
       "title": "智慧選擇策略",
