@@ -21,6 +21,8 @@ const (
 	SettingKeyRelayLogKeepCount                    SettingKey = "relay_log_keep_count"                     // 日志保留条数(0=不按条数)
 	SettingKeyRelayLogKeepEnabled                  SettingKey = "relay_log_keep_enabled"                   // 是否保留历史日志
 	SettingKeyRelayLogContentEnabled               SettingKey = "relay_log_content_enabled"                // 是否记录请求/响应内容大字段（关闭可大幅降低写入量与磁盘 IO）
+	SettingKeyRelayLogQueueDropPolicy              SettingKey = "relay_log_queue_drop_policy"              // 日志队列满时的丢弃策略：disabled(阻塞触发刷盘) | oldest(丢弃最旧) | newest(丢弃最新)
+	SettingKeyStreamSessionReplayEnabled           SettingKey = "stream_session_replay_enabled"            // 是否保留完成会话的缓冲区以支持断线重连重放（关闭可降低内存占用）
 	SettingKeyCORSAllowOrigins                     SettingKey = "cors_allow_origins"                       // 跨域白名单(逗号分隔, 如 "example.com,example2.com"). 为空不允许跨域, "*"允许所有
 	SettingKeyRelayRetryCount                      SettingKey = "relay_retry_count"                        // 单个候选渠道内 Key 级最大重试次数
 	SettingKeyRelayRouteRetries                    SettingKey = "relay_route_retries"                      // 路由级最大重试次数（全部渠道遍历一轮算一次）
@@ -109,23 +111,24 @@ type Setting struct {
 func DefaultSettings() []Setting {
 	return []Setting{
 		{Key: SettingKeyProxyURL, Value: ""},
-		{Key: SettingKeyStatsSaveInterval, Value: "10"},          // 默认10分钟保存一次统计信息
-		{Key: SettingKeyCORSAllowOrigins, Value: ""},             // CORS 默认不允许跨域，设置为 "*" 才允许所有来源
-		{Key: SettingKeyModelInfoUpdateInterval, Value: "24"},    // 默认24小时更新一次模型信息
-		{Key: SettingKeySyncLLMInterval, Value: "24"},            // 默认24小时同步一次LLM
-		{Key: SettingKeyRelayLogKeepPeriod, Value: "7"},          // 默认日志保存7天
-		{Key: SettingKeyRelayLogKeepCount, Value: "0"},           // 默认不按条数保留(0=禁用)
-		{Key: SettingKeyRelayLogKeepEnabled, Value: "true"},      // 默认保留历史日志
-		{Key: SettingKeyRelayLogContentEnabled, Value: "true"},   // 默认记录请求/响应内容，保持兼容；高负载可关闭以降低 IO
-		{Key: SettingKeyRelayRetryCount, Value: "3"},             // 默认单个渠道内 Key 级重试3次
-		{Key: SettingKeyRelayRouteRetries, Value: "2"},           // 默认路由级重试2次（全部渠道遍历两轮）
-		{Key: SettingKeyCircuitBreakerThreshold, Value: "5"},     // 默认连续失败5次触发熔断
-		{Key: SettingKeyCircuitBreakerCooldown, Value: "60"},     // 默认基础冷却60秒
-		{Key: SettingKeyCircuitBreakerMaxCooldown, Value: "600"}, // 默认最大冷却600秒（10分钟）
-		{Key: SettingKeyRatelimitCooldown, Value: "300"},         // 默认 Key 错误冷却300秒（5分钟），0=关闭
-		{Key: SettingKeyKeySelectionStrategy, Value: "cost"},     // 默认 Key 选择策略：成本最低优先；可选 availability（可用度优先）
-		{Key: SettingKeyRelayMaxTotalAttempts, Value: "0"},       // 默认不限制所有候选渠道的总尝试次数
-		{Key: SettingKeyRetryEmptyOutput, Value: "true"},         // 默认启用空输出重试
+		{Key: SettingKeyStatsSaveInterval, Value: "10"},            // 默认10分钟保存一次统计信息
+		{Key: SettingKeyCORSAllowOrigins, Value: ""},               // CORS 默认不允许跨域，设置为 "*" 才允许所有来源
+		{Key: SettingKeyModelInfoUpdateInterval, Value: "24"},      // 默认24小时更新一次模型信息
+		{Key: SettingKeySyncLLMInterval, Value: "24"},              // 默认24小时同步一次LLM
+		{Key: SettingKeyRelayLogKeepPeriod, Value: "7"},            // 默认日志保存7天
+		{Key: SettingKeyRelayLogContentEnabled, Value: "true"},     // 默认记录请求/响应内容，保持兼容；高负载可关闭以降低 IO
+		{Key: SettingKeyRelayLogQueueDropPolicy, Value: "oldest"},  // 默认丢弃最旧日志，防止队列溢出 OOM（高 QPS 下推荐）
+		{Key: SettingKeyStreamSessionReplayEnabled, Value: "true"}, // 默认启用重连重放，保持兼容；内存受限可关闭
+		{Key: SettingKeyRelayLogKeepEnabled, Value: "true"},        // 默认保留历史日志
+		{Key: SettingKeyRelayRetryCount, Value: "3"},               // 默认单个渠道内 Key 级重试3次
+		{Key: SettingKeyRelayRouteRetries, Value: "2"},             // 默认路由级重试2次（全部渠道遍历两轮）
+		{Key: SettingKeyCircuitBreakerThreshold, Value: "5"},       // 默认连续失败5次触发熔断
+		{Key: SettingKeyCircuitBreakerCooldown, Value: "60"},       // 默认基础冷却60秒
+		{Key: SettingKeyCircuitBreakerMaxCooldown, Value: "600"},   // 默认最大冷却600秒（10分钟）
+		{Key: SettingKeyRatelimitCooldown, Value: "300"},           // 默认 Key 错误冷却300秒（5分钟），0=关闭
+		{Key: SettingKeyKeySelectionStrategy, Value: "cost"},       // 默认 Key 选择策略：成本最低优先；可选 availability（可用度优先）
+		{Key: SettingKeyRelayMaxTotalAttempts, Value: "0"},         // 默认不限制所有候选渠道的总尝试次数
+		{Key: SettingKeyRetryEmptyOutput, Value: "true"},           // 默认启用空输出重试
 		{Key: SettingKeyPublicAPIBaseURL, Value: ""},
 		{Key: SettingKeyAlertNotifyLanguage, Value: "en"},
 		{Key: SettingKeyAutoStrategyMinSamples, Value: "10"},       // 默认最小样本数10次
@@ -186,13 +189,13 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyWebAuthnRPID, Value: ""},
 		{Key: SettingKeyWebAuthnRPName, Value: "Octopus"},
 		{Key: SettingKeyWebAuthnOrigins, Value: ""},
-		{Key: SettingKeyTrustedProxies, Value: ""},                   // 默认不信任任何代理（安全默认，防 XFF 伪造）；反代/Docker 部署需配置实际代理网段
-		{Key: SettingKeyKeyHealthCheckEnabled, Value: "false"},       // 默认关闭定时 Key 巡检（issue #142）
-		{Key: SettingKeyKeyHealthCheckInterval, Value: "30"},         // 默认 30 分钟
-		{Key: SettingKeyKeyHealthCheckFailThreshold, Value: "3"},     // 默认连续失败 3 次标记异常
-		{Key: SettingKeyKeyHealthCheckNotifyEnabled, Value: "true"},  // 默认发送失败通知
-		{Key: SettingKeyKeyHealthCheckRecoveryNotify, Value: "true"}, // 默认发送恢复通知
-		{Key: SettingKeyKeyHealthCheckNotifyCooldown, Value: "300"},  // 默认通知冷却 5 分钟
+		{Key: SettingKeyTrustedProxies, Value: ""},                      // 默认不信任任何代理（安全默认，防 XFF 伪造）；反代/Docker 部署需配置实际代理网段
+		{Key: SettingKeyKeyHealthCheckEnabled, Value: "false"},          // 默认关闭定时 Key 巡检（issue #142）
+		{Key: SettingKeyKeyHealthCheckInterval, Value: "30"},            // 默认 30 分钟
+		{Key: SettingKeyKeyHealthCheckFailThreshold, Value: "3"},        // 默认连续失败 3 次标记异常
+		{Key: SettingKeyKeyHealthCheckNotifyEnabled, Value: "true"},     // 默认发送失败通知
+		{Key: SettingKeyKeyHealthCheckRecoveryNotify, Value: "true"},    // 默认发送恢复通知
+		{Key: SettingKeyKeyHealthCheckNotifyCooldown, Value: "300"},     // 默认通知冷却 5 分钟
 		{Key: SettingKeyGroupUpstreamMetaDisplayEnabled, Value: "true"}, // 默认开启分组上游元信息展示
 	}
 }
@@ -278,7 +281,7 @@ func (s *Setting) Validate() error {
 				return fmt.Errorf("setting value must be greater than 0")
 			}
 		}
-	case SettingKeyRelayLogKeepEnabled, SettingKeyRelayLogContentEnabled, SettingKeySemanticCacheEnabled, SettingKeyModelNormalizeMarketDedupeDefault, SettingKeyRetryEmptyOutput, SettingKeyKeyHealthCheckEnabled, SettingKeyKeyHealthCheckNotifyEnabled, SettingKeyKeyHealthCheckRecoveryNotify:
+	case SettingKeyRelayLogKeepEnabled, SettingKeyRelayLogContentEnabled, SettingKeyStreamSessionReplayEnabled, SettingKeySemanticCacheEnabled, SettingKeyModelNormalizeMarketDedupeDefault, SettingKeyRetryEmptyOutput, SettingKeyKeyHealthCheckEnabled, SettingKeyKeyHealthCheckNotifyEnabled, SettingKeyKeyHealthCheckRecoveryNotify:
 		if s.Value != "true" && s.Value != "false" {
 			return fmt.Errorf("setting value must be true or false")
 		}
@@ -286,6 +289,11 @@ func (s *Setting) Validate() error {
 	case SettingKeyKeySelectionStrategy:
 		if s.Value != "cost" && s.Value != "availability" && s.Value != "speed" && s.Value != "priority" {
 			return fmt.Errorf("key selection strategy must be cost, availability, speed or priority")
+		}
+		return nil
+	case SettingKeyRelayLogQueueDropPolicy:
+		if s.Value != "disabled" && s.Value != "oldest" && s.Value != "newest" {
+			return fmt.Errorf("relay log queue drop policy must be disabled, oldest or newest")
 		}
 		return nil
 	case SettingKeyProxyURL, SettingKeySemanticCacheEmbeddingBaseURL, SettingKeyAIRouteBaseURL:
