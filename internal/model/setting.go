@@ -120,6 +120,7 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyModelInfoUpdateInterval, Value: "24"},      // 默认24小时更新一次模型信息
 		{Key: SettingKeySyncLLMInterval, Value: "24"},              // 默认24小时同步一次LLM
 		{Key: SettingKeyRelayLogKeepPeriod, Value: "7"},            // 默认日志保存7天
+		{Key: SettingKeyRelayLogKeepCount, Value: "0"},             // 默认不按条数保留(0=禁用)
 		{Key: SettingKeyRelayLogContentEnabled, Value: "true"},     // 默认记录请求/响应内容，保持兼容；高负载可关闭以降低 IO
 		{Key: SettingKeyRelayLogQueueDropPolicy, Value: "oldest"},  // 默认丢弃最旧日志，防止队列溢出 OOM（高 QPS 下推荐）
 		{Key: SettingKeyStreamSessionReplayEnabled, Value: "true"}, // 默认启用重连重放，保持兼容；内存受限可关闭
