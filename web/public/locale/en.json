@@ -1443,7 +1443,6 @@
         "notifyCooldown": "Notify cooldown (sec)",
         "notifyEnabled": "Failure notification",
         "recoveryNotify": "Recovery notification"
-      }
       },
       "logQueueDropPolicy": {
         "label": "Log queue drop policy",
@@ -1455,6 +1454,7 @@
       "streamReplay": {
         "label": "Stream reconnect replay",
         "hint": "Enable buffering for streaming reconnect & replay. Disabling immediately frees stream event buffers to reduce memory (see OOM diagnostics report), but clients cannot reconnect to resume streams."
+      }
     },
     "autoStrategy": {
       "title": "Auto Strategy",
