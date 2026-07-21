@@ -288,10 +288,7 @@ export function Channel() {
                                     <ChannelGroupManagerDialog className={cn(
                                         "inline-flex items-center gap-1.5 text-sm font-semibold text-card-foreground hover:text-primary transition-colors sm:hidden",
                                         "p-0 border-0 shadow-none bg-transparent hover:bg-transparent"
-                                    )}>
-                                        <FolderTree className="size-4" />
-                                        <span>{getChannelGroupDisplayName(activeGroup, defaultGroupName)}</span>
-                                    </ChannelGroupManagerDialog>
+                                    )} />
                                     <h3 className="hidden text-sm font-semibold text-card-foreground sm:block">
                                         {getChannelGroupDisplayName(activeGroup, defaultGroupName)}
                                     </h3>
