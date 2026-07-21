@@ -707,6 +707,7 @@ func RelayLogList(ctx context.Context, filter LogFilter, page, pageSize int) ([]
 					"client_ip",
 					"endpoint_type", "channel_id", "channel_name", "actual_model_name",
 					"input_tokens", "output_tokens", "semantic_cache_hit", "cache_read_tokens",
+					"reasoning_effort", "reasoning_tokens",
 					"ftut", "use_time",
 					"cost", "error", "attempts", "total_attempts", "is_test")
 			if filter.StartTime != nil {

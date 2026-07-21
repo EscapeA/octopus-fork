@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🚀 Features
+- **Log**: show effective outbound reasoning effort and upstream reasoning tokens on log cards (hidden when empty; field toggles default on).
+
+### 🐛 Bug Fixes
+- **Transformer**: preserve OpenAI `reasoning_effort` values `minimal`/`xhigh`/`max` instead of collapsing them to `high`; Anthropic/Gemini budget mapping now covers `xhigh`/`max`.
+
 ## [v2.4.0] - 2026-07-15
 
 ### 🚀 Features

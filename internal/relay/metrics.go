@@ -296,6 +296,14 @@ func (m *RelayMetrics) saveLog(ctx context.Context, err error, duration time.Dur
 		relayLog.InputTokens = int(m.InternalResponse.Usage.PromptTokens)
 		relayLog.OutputTokens = int(m.InternalResponse.Usage.CompletionTokens)
 		relayLog.Cost = m.Stats.InputCost + m.Stats.OutputCost
+		if m.InternalResponse.Usage.CompletionTokensDetails != nil {
+			relayLog.ReasoningTokens = int(m.InternalResponse.Usage.CompletionTokensDetails.ReasoningTokens)
+		}
+	}
+
+	// 出站最终思考强度：以 InternalRequest 当前值为准（出站 sanitize/normalize 后写回）。
+	if m.InternalRequest != nil {
+		relayLog.ReasoningEffort = strings.TrimSpace(m.InternalRequest.ReasoningEffort)
 	}
 
 	// 大字段（请求/响应内容）记录开关。关闭时跳过 JSON 构造与存储，可大幅

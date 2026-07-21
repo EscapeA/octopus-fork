@@ -311,19 +311,21 @@ func convertToAnthropicRequest(req *model.InternalLLMRequest) *anthropicModel.Me
 	}
 
 	// Convert thinking/reasoning
-	if req.ReasoningEffort != "" {
-		if req.AdaptiveThinking {
-			result.Thinking = &anthropicModel.Thinking{
-				Type: anthropicModel.ThinkingTypeAdaptive,
-			}
-			result.OutputConfig = &anthropicModel.OutputConfig{
-				Effort: req.ReasoningEffort,
-			}
-		} else {
-			result.Thinking = &anthropicModel.Thinking{
-				Type:         anthropicModel.ThinkingTypeEnabled,
-				BudgetTokens: getThinkingBudget(req.ReasoningEffort, req.ReasoningBudget),
-			}
+	// 优先级：
+	// 1) 客户端显式 budget_tokens（ReasoningBudget）→ 保留 enabled+budget，兼容老请求
+	// 2) 有 reasoning effort（含 AdaptiveThinking / OpenAI reasoning_effort）→
+	//    与 Claude Code 一致：adaptive + output_config.effort 原样透传，不再猜 budget
+	if req.ReasoningBudget != nil {
+		result.Thinking = &anthropicModel.Thinking{
+			Type:         anthropicModel.ThinkingTypeEnabled,
+			BudgetTokens: getThinkingBudget(req.ReasoningEffort, req.ReasoningBudget),
+		}
+	} else if effort := strings.TrimSpace(req.ReasoningEffort); effort != "" {
+		result.Thinking = &anthropicModel.Thinking{
+			Type: anthropicModel.ThinkingTypeAdaptive,
+		}
+		result.OutputConfig = &anthropicModel.OutputConfig{
+			Effort: effort,
 		}
 	}
 
@@ -757,13 +759,18 @@ func getThinkingBudget(effort string, budget *int64) *int64 {
 	}
 
 	var result int64
-	switch effort {
+	switch strings.ToLower(strings.TrimSpace(effort)) {
 	case anthropicModel.EffortLow:
 		result = 1024
 	case anthropicModel.EffortMedium:
 		result = 8192
 	case anthropicModel.EffortHigh:
 		result = 32768
+	case anthropicModel.EffortXHigh:
+		// 扩展高强度：介于 high 与 max 之间，给更大 budget。
+		result = 65536
+	case anthropicModel.EffortMax:
+		result = 128000
 	default:
 		result = 8192
 	}

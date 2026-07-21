@@ -2641,7 +2641,7 @@
     },
     "viewOptions": {
       "title": "Display Fields",
-      "endpointType": "Endpoint Type",
+      "endpointType": "Outbound Protocol",
       "channelName": "Channel Name",
       "actualModel": "Actual Model",
       "apiKeyName": "API Key Name",
@@ -2649,7 +2649,9 @@
       "cost": "Cost",
       "reset": "Reset",
       "tps": "TPS",
-      "cacheHitRate": "Cache Hit Rate"
+      "cacheHitRate": "Cache Hit Rate",
+      "reasoningEffort": "Reasoning Effort",
+      "reasoningTokens": "Reasoning Tokens"
     },
     "card": {
       "error": "Error",
@@ -2692,7 +2694,21 @@
         "volcengine": "Volcengine"
       },
       "tps": "TPS",
-      "cacheHitRate": "Cache Hit Rate"
+      "cacheHitRate": "Cache Hit Rate",
+      "reasoningEffort": "Reasoning Effort",
+      "reasoningTokens": "Reasoning Tokens",
+      "adapterLabels": {
+        "chat": "Chat Completions",
+        "response": "Responses",
+        "anthropic": "Anthropic",
+        "gemini": "Gemini",
+        "volcengine": "Volcengine",
+        "embedding": "Embedding",
+        "mimo": "MiMo",
+        "cloudflare": "Cloudflare",
+        "passthrough": "Passthrough",
+        "codex": "Codex"
+      }
     }
   },
   "channel": {

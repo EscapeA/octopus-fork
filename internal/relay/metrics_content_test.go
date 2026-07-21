@@ -109,3 +109,54 @@ func TestSaveLogContentEnabledToggle(t *testing.T) {
 		t.Fatalf("content disabled: CacheReadTokens = %d, want %d (from Usage)", last2.CacheReadTokens, cachedTokens)
 	}
 }
+
+func TestSaveLogPersistsReasoningEffortAndTokens(t *testing.T) {
+	dsn := filepath.Join(t.TempDir(), "metrics-reasoning.db")
+	if err := db.InitDB("sqlite", dsn, false); err != nil {
+		t.Fatalf("InitDB failed: %v", err)
+	}
+	if err := db.InitLogDB("", "", false); err != nil {
+		t.Fatalf("InitLogDB(shared) failed: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := setting.RefreshCache(context.Background()); err != nil {
+		t.Fatalf("RefreshCache failed: %v", err)
+	}
+	t.Cleanup(relaylog.SetCacheForTest(nil))
+
+	resp := &transformerModel.InternalLLMResponse{
+		Usage: &transformerModel.Usage{
+			PromptTokens:     100,
+			CompletionTokens: 50,
+			CompletionTokensDetails: &transformerModel.CompletionTokensDetails{
+				ReasoningTokens: 42,
+			},
+		},
+	}
+	metrics := &RelayMetrics{
+		APIKeyID:     1,
+		RequestModel: "gpt-5.5",
+		EndpointType: "chat",
+		ClientIP:     "127.0.0.1",
+		StartTime:    time.Now().Add(-50 * time.Millisecond),
+		InternalRequest: &transformerModel.InternalLLMRequest{
+			ReasoningEffort: "max",
+		},
+	}
+	metrics.SetInternalResponse(resp, "gpt-5.5")
+	metrics.saveLog(context.Background(), nil, 50*time.Millisecond, []model.ChannelAttempt{
+		{ChannelID: 1, ChannelName: "ch", ModelName: "gpt-5.5", Status: model.AttemptSuccess},
+	}, 1, "ch")
+
+	logs, _ := relaylog.GetCacheAndLock()
+	if len(logs) == 0 {
+		t.Fatal("expected log in cache")
+	}
+	last := logs[len(logs)-1]
+	if last.ReasoningEffort != "max" {
+		t.Fatalf("ReasoningEffort=%q, want max", last.ReasoningEffort)
+	}
+	if last.ReasoningTokens != 42 {
+		t.Fatalf("ReasoningTokens=%d, want 42", last.ReasoningTokens)
+	}
+}
