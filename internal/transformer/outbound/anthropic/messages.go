@@ -250,10 +250,27 @@ func (o *MessageOutbound) TransformStream(ctx context.Context, eventData []byte)
 		if streamEvent.Usage != nil {
 			usage := convertAnthropicUsage(streamEvent.Usage)
 			if o.streamUsage != nil {
-				usage.PromptTokens = o.streamUsage.PromptTokens
-				usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
+				// message_start 通常只有 input/cache；message_delta 补 output。
+				if usage.PromptTokens == 0 && o.streamUsage.PromptTokens > 0 {
+					usage.PromptTokens = o.streamUsage.PromptTokens
+				}
+				if usage.PromptTokensDetails == nil && o.streamUsage.PromptTokensDetails != nil {
+					usage.PromptTokensDetails = o.streamUsage.PromptTokensDetails
+				}
+				if usage.CacheCreationInputTokens == 0 && o.streamUsage.CacheCreationInputTokens > 0 {
+					usage.CacheCreationInputTokens = o.streamUsage.CacheCreationInputTokens
+				}
+				usage.AnthropicUsage = true
 			}
+			usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
+			if usage.PromptTokensDetails != nil {
+				usage.TotalTokens += usage.PromptTokensDetails.CachedTokens
+			}
+			usage.TotalTokens += usage.CacheCreationInputTokens
 			o.streamUsage = usage
+			// 必须写到本 chunk：入站聚合只认 chunk.Usage；仅更新 streamUsage
+			// 而等 message_stop 时，部分网关可能不发 stop 或 stop 被丢弃，导致日志 usage 全 0。
+			resp.Usage = usage
 		}
 
 		if streamEvent.Delta != nil && streamEvent.Delta.StopReason != nil {

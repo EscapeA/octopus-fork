@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Log**: when official reasoning tokens are absent, fall back to thinking text character count (UTF-8 runes) and display as “思考 XXt” / “思考 XX字”.
 
 ### 🐛 Bug Fixes
+- **Transformer**: Anthropic streaming now attaches usage on `message_delta` chunks so relay logs keep input/output tokens when `message_stop` is missing.
 - **Transformer**: preserve OpenAI `reasoning_effort` values `minimal`/`xhigh`/`max` instead of collapsing them to `high`; Anthropic/Gemini budget mapping now covers `xhigh`/`max`.
 
 ## [v2.4.0] - 2026-07-15
