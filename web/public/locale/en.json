@@ -2033,7 +2033,9 @@
         "addFailed": "Failed to add Passkey",
         "deleteSuccess": "Passkey removed",
         "deleteFailed": "Failed to remove",
-        "insecureContext": "This page is not a secure context (not HTTPS and not localhost). Passkey requires a secure context — please access via HTTPS or localhost to add a passkey."
+        "insecureContext": "This page is not a secure context (not HTTPS and not localhost). Passkey requires a secure context — please access via HTTPS or localhost to add a passkey.",
+        "currentOrigin": "Current Origin",
+        "originHint": "Ensure this URL is configured in Settings → Passkey(WebAuthn) → Allowed Origin"
       }
     },
     "info": {
