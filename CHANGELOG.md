@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🐛 Bug Fixes
+- **Relay**: 上游 400 类客户端错误（如 `context_length_exceeded`）不再被 adapter 回退链路改写成换渠道，也不再吞成管理端 502；原样把上游状态码与错误体回给下游，便于 omp 等客户端识别溢出并自动压缩上下文。
+
 ## [v2.4.0] - 2026-07-15
 
 ### 🚀 Features
