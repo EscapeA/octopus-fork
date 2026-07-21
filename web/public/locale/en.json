@@ -2651,7 +2651,7 @@
       "tps": "TPS",
       "cacheHitRate": "Cache Hit Rate",
       "reasoningEffort": "Reasoning Effort",
-      "reasoningTokens": "Reasoning Tokens"
+      "reasoningTokens": "Reasoning Size"
     },
     "card": {
       "error": "Error",
@@ -2696,7 +2696,7 @@
       "tps": "TPS",
       "cacheHitRate": "Cache Hit Rate",
       "reasoningEffort": "Reasoning Effort",
-      "reasoningTokens": "Reasoning Tokens",
+      "reasoningTokens": "Reasoning",
       "adapterLabels": {
         "chat": "Chat Completions",
         "response": "Responses",
@@ -2708,7 +2708,9 @@
         "cloudflare": "Cloudflare",
         "passthrough": "Passthrough",
         "codex": "Codex"
-      }
+      },
+      "reasoningChars": "Reasoning",
+      "reasoningCharsUnit": " chars"
     }
   },
   "channel": {

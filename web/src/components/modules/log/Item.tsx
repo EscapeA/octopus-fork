@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useMemo, useState, useEffect } from 'react';
-import { Clock, Cpu, Gauge, Zap, AlertCircle, ArrowDownToLine, ArrowUpFromLine, DollarSign, JapaneseYen, ArrowRight, ArrowDown, Send, MessageSquare, Loader2, Percent, RotateCw, ChevronDown, ChevronUp, Pin, KeyRound, Globe, ChevronsDownUp, ChevronsUpDown, TestTube2, Sigma, Brain } from 'lucide-react';
+import { Clock, Cpu, Gauge, Zap, AlertCircle, ArrowDownToLine, ArrowUpFromLine, DollarSign, JapaneseYen, ArrowRight, ArrowDown, Send, MessageSquare, Loader2, Percent, RotateCw, ChevronDown, ChevronUp, Pin, KeyRound, Globe, ChevronsDownUp, ChevronsUpDown, TestTube2, Sigma, Brain, Type } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'motion/react';
 import JsonView from '@uiw/react-json-view';
@@ -521,7 +521,13 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                 {vis.reasoningTokens && (log.reasoning_tokens ?? 0) > 0 && (
                                     <div className="flex items-center gap-1.5">
                                         <Brain className="size-3.5 shrink-0 text-indigo-500" />
-                                        <span>{t('reasoningTokens')} {fmt(formatCount(log.reasoning_tokens ?? 0).formatted)}</span>
+                                        <span>{t('reasoningTokens')} {fmt(formatCount(log.reasoning_tokens ?? 0).formatted)}t</span>
+                                    </div>
+                                )}
+                                {vis.reasoningTokens && (log.reasoning_tokens ?? 0) <= 0 && (log.reasoning_chars ?? 0) > 0 && (
+                                    <div className="flex items-center gap-1.5">
+                                        <Type className="size-3.5 shrink-0 text-indigo-500" />
+                                        <span>{t('reasoningChars')} {fmt(formatCount(log.reasoning_chars ?? 0).formatted)}{t('reasoningCharsUnit')}</span>
                                     </div>
                                 )}
                             </div>
@@ -870,7 +876,13 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                             {vis.reasoningTokens && (log.reasoning_tokens ?? 0) > 0 && (
                                 <div className="flex items-center gap-1.5">
                                     <Brain className="size-3.5 text-indigo-500" />
-                                    <span>{t('reasoningTokens')}: {fmt(formatCount(log.reasoning_tokens ?? 0).formatted)}</span>
+                                    <span>{t('reasoningTokens')}: {fmt(formatCount(log.reasoning_tokens ?? 0).formatted)}t</span>
+                                </div>
+                            )}
+                            {vis.reasoningTokens && (log.reasoning_tokens ?? 0) <= 0 && (log.reasoning_chars ?? 0) > 0 && (
+                                <div className="flex items-center gap-1.5">
+                                    <Type className="size-3.5 text-indigo-500" />
+                                    <span>{t('reasoningChars')}: {fmt(formatCount(log.reasoning_chars ?? 0).formatted)}{t('reasoningCharsUnit')}</span>
                                 </div>
                             )}
                             </div>

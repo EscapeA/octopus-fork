@@ -40,7 +40,8 @@ type RelayLog struct {
 	SemanticCacheHit  bool             `json:"semantic_cache_hit" gorm:"column:semantic_cache_hit"`                                                                                        // 语义缓存命中（写入时落库，避免列表查询重解析大字段）
 	CacheReadTokens   int              `json:"cache_read_tokens" gorm:"column:cache_read_tokens"`                                                                                          // 提供方提示缓存命中 Token（写入时落库）
 	ReasoningEffort   string           `json:"reasoning_effort" gorm:"column:reasoning_effort"`                                                                                            // 出站最终思考强度（effective）
-	ReasoningTokens   int              `json:"reasoning_tokens" gorm:"column:reasoning_tokens"`                                                                                            // 上游返回的思考 Token（usage）
+	ReasoningTokens   int              `json:"reasoning_tokens" gorm:"column:reasoning_tokens"`                                                                                            // 上游返回的思考 Token（usage，确定性）
+	ReasoningChars    int              `json:"reasoning_chars" gorm:"column:reasoning_chars"`                                                                                              // 思考文本字符数（无官方 token 时的估算回退，UTF-8 rune 数）
 
 	Ftut              int              `json:"ftut" gorm:"column:ftut"`                                                                                                                    // 首字时间(毫秒)
 	UseTime           int              `json:"use_time" gorm:"column:use_time"`                                                                                                            // 总用时(毫秒)
@@ -71,6 +72,7 @@ type RelayLogListItem struct {
 	CacheReadTokens   int              `json:"cache_read_tokens" gorm:"column:cache_read_tokens"`
 	ReasoningEffort   string           `json:"reasoning_effort" gorm:"column:reasoning_effort"`
 	ReasoningTokens   int              `json:"reasoning_tokens" gorm:"column:reasoning_tokens"`
+	ReasoningChars    int              `json:"reasoning_chars" gorm:"column:reasoning_chars"`
 	Ftut              int              `json:"ftut" gorm:"column:ftut"`
 	UseTime           int              `json:"use_time" gorm:"column:use_time"`
 	Cost              float64          `json:"cost" gorm:"column:cost"`
@@ -122,6 +124,7 @@ func (r *RelayLog) ToListItem() RelayLogListItem {
 		CacheReadTokens:   r.CacheReadTokens,
 		ReasoningEffort:   r.ReasoningEffort,
 		ReasoningTokens:   r.ReasoningTokens,
+		ReasoningChars:    r.ReasoningChars,
 		Ftut:              r.Ftut,
 		UseTime:           r.UseTime,
 		Cost:              r.Cost,

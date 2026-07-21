@@ -306,6 +306,12 @@ func (m *RelayMetrics) saveLog(ctx context.Context, err error, duration time.Dur
 		relayLog.ReasoningEffort = strings.TrimSpace(m.InternalRequest.ReasoningEffort)
 	}
 
+	// 无官方 reasoning_tokens 时，回退统计思考文本字符数（UTF-8 rune，中英等统一按字计）。
+	// 有官方 token 时不写 chars，避免前端同时出现两种口径。
+	if relayLog.ReasoningTokens <= 0 {
+		relayLog.ReasoningChars = reasoningCharsFromResponse(m.InternalResponse)
+	}
+
 	// 大字段（请求/响应内容）记录开关。关闭时跳过 JSON 构造与存储，可大幅
 	// 降低每条日志的写入量与磁盘 IO（高负载日志性能优化的主要杠杆）。
 	// SemanticCacheHit 与 CacheReadTokens 不依赖大字段：前者从请求判断，后者
@@ -390,6 +396,25 @@ func cacheReadTokensFromUsage(resp *transformerModel.InternalLLMResponse) int {
 		return int(resp.Usage.PromptTokensDetails.CachedTokens)
 	}
 	return 0
+}
+
+// reasoningCharsFromResponse 统计响应里思考文本的字符数（UTF-8 rune）。
+// 一个中文/英文/其他字符都计 1，用于 Anthropic 等无官方 reasoning_tokens 的回退展示。
+func reasoningCharsFromResponse(resp *transformerModel.InternalLLMResponse) int {
+	if resp == nil {
+		return 0
+	}
+	total := 0
+	for i := range resp.Choices {
+		choice := &resp.Choices[i]
+		if choice.Message != nil {
+			total += utf8.RuneCountInString(choice.Message.GetReasoningContent())
+		}
+		if choice.Delta != nil {
+			total += utf8.RuneCountInString(choice.Delta.GetReasoningContent())
+		}
+	}
+	return total
 }
 
 func filterMessageForLog(msg *transformerModel.Message) *transformerModel.Message {
