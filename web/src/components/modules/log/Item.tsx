@@ -1,5 +1,6 @@
 'use client';
 
+import { memo, useMemo, useState, useEffect } from 'react';
 import { Clock, Cpu, Gauge, Zap, AlertCircle, ArrowDownToLine, ArrowUpFromLine, DollarSign, JapaneseYen, ArrowRight, ArrowDown, Send, MessageSquare, Loader2, Percent, RotateCw, ChevronDown, ChevronUp, Pin, KeyRound, Globe, ChevronsDownUp, ChevronsUpDown, TestTube2, Sigma, Brain } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'motion/react';
