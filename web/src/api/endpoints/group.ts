@@ -361,6 +361,25 @@ export interface GroupItemUpdateRequest {
 }
 
 /**
+ * 分组创建请求
+ */
+export interface CreateGroupRequest {
+    name: string;
+    category: string;
+    endpoint_type: string;
+    endpoint_provider: string;
+    outbound_format: string;
+    mode: GroupMode;
+    match_regex: string;
+    first_token_time_out: number;
+    attempt_time_out: number;
+    session_keep_time: number;
+    condition: string;
+    items: GroupItem[];
+    reasoning_buffer_strategy?: string;
+}
+
+/**
  * 分组更新请求 - 仅包含变更的数据
  */
 export interface GroupUpdateRequest {
@@ -396,7 +415,7 @@ export function useCreateGroup() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (data: Group) => {
+        mutationFn: async (data: CreateGroupRequest) => {
             return apiClient.post<Group>('/api/v1/group/create', data);
         },
         onSuccess: (data) => {
