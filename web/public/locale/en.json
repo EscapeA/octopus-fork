@@ -2411,6 +2411,14 @@
       "attemptTimeOutHint": "Unit: seconds, per-attempt relay timeout, 0 = no limit (applies to both streaming and non-streaming)",
       "sessionKeepTime": "Session Keep Time",
       "sessionKeepTimeHint": "Unit: seconds, keeps using the same channel within a session, 0 = disabled",
+      "reasoningBufferStrategy": {
+        "label": "Reasoning Buffer Strategy",
+        "hint": "Controls how reasoning tokens (thinking process) are streamed for this group. Override the global setting for specific upstreams (e.g. Cloudflare Workers with strict timeouts).",
+        "groupHint": "Empty = use global setting; buffer = wait for visible content (safe retry, CF timeout risk); immediate = send reasoning instantly (real-time display, no retry on empty output).",
+        "useGlobal": "Use global setting",
+        "buffer": "Buffer (safe retry)",
+        "immediate": "Immediate (real-time)"
+      },
       "condition": {
         "label": "Condition (JSON)",
         "hint": "JSON array of rules. Leave empty to always match.",
