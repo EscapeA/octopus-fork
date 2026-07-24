@@ -1454,6 +1454,12 @@
       "streamReplay": {
         "label": "Stream reconnect replay",
         "hint": "Enable buffering for streaming reconnect & replay. Disabling immediately frees stream event buffers to reduce memory (see OOM diagnostics report), but clients cannot reconnect to resume streams."
+      },
+      "reasoningBufferStrategy": {
+        "label": "Reasoning buffer strategy",
+        "hint": "Controls how reasoning tokens (thinking process) are streamed. 'buffer' waits for visible content before sending reasoning (safe retry, but may trigger Cloudflare/Nginx timeouts on long reasoning). 'immediate' sends reasoning chunks instantly (real-time thinking display, but empty-output retry is unavailable).",
+        "buffer": "Buffer (safe retry, CF timeout risk)",
+        "immediate": "Immediate (real-time, no retry)"
       }
     },
     "autoStrategy": {
@@ -1465,18 +1471,18 @@
         "placeholder": "10"
       },
       "timeWindow": {
-        "label": "Time Window (sec)",
-        "hint": "Time window for calculating success rate",
+        "label": "Time Window (seconds)",
+        "hint": "Time window for recent samples. Samples older than this are dropped when evaluating channel success rate.",
         "placeholder": "300"
       },
       "sampleThreshold": {
         "label": "Sample Threshold",
-        "hint": "Maximum number of samples to keep in sliding window",
+        "hint": "Max recent samples per channel. Older samples beyond this cap are dropped (sliding window).",
         "placeholder": "100"
       },
       "latencyWeight": {
-        "label": "Latency Weight (0-100)",
-        "hint": "Higher values prefer lower-latency channels more strongly; lower values lean more on success rate.",
+        "label": "Latency Weight (%)",
+        "hint": "Weight for latency in automatic channel selection (0-100). Higher values favor faster channels. Lower values favor reliability.",
         "placeholder": "30"
       }
     },

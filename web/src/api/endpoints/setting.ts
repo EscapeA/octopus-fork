@@ -37,6 +37,7 @@ export const SettingKey = {
     KeyHealthCheckNotifyCooldown: 'key_health_check_notify_cooldown',
     RelayMaxTotalAttempts: 'relay_max_total_attempts',
     RetryEmptyOutput: 'retry_empty_output',
+    ReasoningBufferStrategy: 'reasoning_buffer_strategy',
     CircuitBreakerThreshold: 'circuit_breaker_threshold',
     CircuitBreakerCooldown: 'circuit_breaker_cooldown',
     CircuitBreakerMaxCooldown: 'circuit_breaker_max_cooldown',

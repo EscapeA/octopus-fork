@@ -32,6 +32,7 @@ export type GroupEditorValues = {
     first_token_time_out: number;
     attempt_time_out: number;
     session_keep_time: number;
+    reasoning_buffer_strategy?: string; // "" | "buffer" | "immediate"
     members: SelectedMember[];
 };
 
