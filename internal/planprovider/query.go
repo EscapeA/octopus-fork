@@ -1225,16 +1225,19 @@ func queryBailianPlanTokenPlan(ctx context.Context, cookie string) (*TokenPlanRe
 	usage := usageResp.Data.DataV2.Data.Data
 
 	// 3. 映射到 TokenPlanResult
-	// 百炼用量是百分比（0-1），转为 0-100 表示
+	// 百炼用量是百分比（0-1），转为 0-100 表示。
+	// 百炼仅提供 5 小时与 1 周两档，无月配额：
+	//   Per5HourPercentage -> FiveHour 槽（近5小时用量）
+	//   Per1WeekPercentage -> Weekly 槽（近一周用量）
 	result := &TokenPlanResult{
-		QuotaTotal:  100,
-		QuotaUsed:   usage.Per5HourPercentage * 100,
-		WeeklyTotal: 100,
-		WeeklyUsed:  usage.Per1WeekPercentage * 100,
+		FiveHourTotal: 100,
+		FiveHourUsed:  usage.Per5HourPercentage * 100,
+		WeeklyTotal:   100,
+		WeeklyUsed:    usage.Per1WeekPercentage * 100,
 	}
 	if usage.Per5HourResetTime > 0 {
 		t := time.UnixMilli(usage.Per5HourResetTime)
-		result.QuotaResetAt = &t
+		result.FiveHourResetAt = &t
 	}
 	if usage.Per1WeekResetTime > 0 {
 		t := time.UnixMilli(usage.Per1WeekResetTime)
@@ -1246,24 +1249,47 @@ func queryBailianPlanTokenPlan(ctx context.Context, cookie string) (*TokenPlanRe
 
 // bailianGatewayPost 向百炼控制台网关发送 POST 请求。
 // apiPath 是网关 API 路径（如 zeldaHttp.apikeyMgr./tokenplan/personal/api/v2/usage），
-// dataJSON 是 Data 字段的 JSON 内容。
+// dataJSON 是 Data 字段的业务参数 JSON（如 subscription 的 queryInstanceInfoRequest；usage 为 {}）。
+//
+// 网关请求体结构（与浏览器抓包一致）：
+//
+//	params={"Api":...,"V":"1.0","Data":{ <业务参数>, "cornerstoneParam":{...} }}&region=cn-beijing
+//
+// cornerstoneParam 嵌在 Data 内（不是 params 顶层），且必须携带 switchAgent/switchUserType/
+// domain/consoleSite/xsp_lang/X-Anonymous-Id 等字段，否则网关返回 Bad Request。
+// api 查询参数原样不编码（浏览器 :path 中 api 值含 / 与 . 未编码）。
 func bailianGatewayPost(ctx context.Context, cookie, apiPath, dataJSON string) ([]byte, error) {
-	// 构造 cornerstoneParam
+	// 构造 cornerstoneParam（字段与浏览器抓包一致；X-Anonymous-Id 为 cna cookie 值，可留空）
 	cornerstone := fmt.Sprintf(
-		`{"feTraceId":"%s","feURL":"https://bailian.console.aliyun.com/cn-beijing?tab=plan#/efm/subscription/token-plan/personal","protocol":"V2","console":"ONE_CONSOLE","productCode":"p_efm"}`,
+		`{"feTraceId":"%s","feURL":"https://bailian.console.aliyun.com/cn-beijing?tab=plan#/efm/subscription/token-plan/personal","protocol":"V2","console":"ONE_CONSOLE","productCode":"p_efm","switchAgent":15437370,"switchUserType":3,"domain":"bailian.console.aliyun.com","consoleSite":"BAILIAN_ALIYUN","userNickName":"","userPrincipalName":"","xsp_lang":"zh-CN","X-Anonymous-Id":""}`,
 		uuid.NewString(),
 	)
 
-	// 构造完整 params JSON
+	// 将 cornerstoneParam 合并进 Data 对象（保留业务参数）
+	var dataObj map[string]json.RawMessage
+	if strings.TrimSpace(dataJSON) == "" {
+		dataJSON = "{}"
+	}
+	if err := json.Unmarshal([]byte(dataJSON), &dataObj); err != nil {
+		return nil, fmt.Errorf("parse data json: %w", err)
+	}
+	dataObj["cornerstoneParam"] = json.RawMessage(cornerstone)
+	mergedData, err := json.Marshal(dataObj)
+	if err != nil {
+		return nil, fmt.Errorf("marshal data: %w", err)
+	}
+
+	// 构造完整 params JSON（cornerstoneParam 在 Data 内）
 	paramsJSON := fmt.Sprintf(
-		`{"Api":"%s","V":"1.0","Data":%s,"cornerstoneParam":%s}`,
-		apiPath, dataJSON, cornerstone,
+		`{"Api":"%s","V":"1.0","Data":%s}`,
+		apiPath, mergedData,
 	)
 
-	// URL 编码 params
-	body := "params=" + url.QueryEscape(paramsJSON)
+	// URL 编码 params，追加 region 参数（与浏览器一致）
+	body := "params=" + url.QueryEscape(paramsJSON) + "&region=cn-beijing"
 
-	reqURL := bailianPlanGatewayURL + "?action=BroadScopeAspnGateway&product=sfm_bailian&api=" + url.QueryEscape(apiPath) + "&_v=undefined"
+	// api 参数原样不编码（浏览器 :path 中 api 值含 / 与 . 未编码）
+	reqURL := bailianPlanGatewayURL + "?action=BroadScopeAspnGateway&product=sfm_bailian&api=" + apiPath + "&_v=undefined"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, strings.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
