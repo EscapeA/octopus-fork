@@ -1,22 +1,13 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { Plus, RefreshCw, Trash2, Key, LayoutList, ExternalLink, Loader2 } from 'lucide-react';
+import { useCallback, useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { Plus, RefreshCw, Trash2, ExternalLink, Key, Loader2 } from 'lucide-react';
-import {
-    useBalanceProviders,
-    useTokenPlanProviders,
-    useBalanceCategories,
-    useTokenPlanCategories,
-    useAddPlanProvider,
-    useRefreshPlanProvider,
-    useDeletePlanProvider,
-    type PlanProvider,
-    type PlanProviderCategoryInfo,
-} from '@/api/endpoints/plan-provider';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import {
     Select,
     SelectContent,
@@ -37,8 +28,17 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/animate-ui/components/animate/tooltip';
-import { toast } from '@/components/common/Toast';
-import { cn } from '@/lib/utils';
+import {
+    useBalanceProviders,
+    useTokenPlanProviders,
+    useBalanceCategories,
+    useTokenPlanCategories,
+    useAddPlanProvider,
+    useRefreshPlanProvider,
+    useDeletePlanProvider,
+    type PlanProvider,
+    type PlanProviderCategoryInfo,
+} from '@/api/endpoints/plan-provider';
 
 // --- Balance Section ---
 
@@ -100,6 +100,17 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
     const [forwardApiKey, setForwardApiKey] = useState('');
     const [customName, setCustomName] = useState('');
     const [mimoAuthMode, setMimoAuthMode] = useState<'passToken' | 'serviceToken'>('serviceToken');
+    
+    // Compact view state with localStorage persistence
+    const [compactView, setCompactView] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        const stored = localStorage.getItem('tokenplan-compact-view');
+        return stored === 'true';
+    });
+    
+    useEffect(() => {
+        localStorage.setItem('tokenplan-compact-view', String(compactView));
+    }, [compactView]);
 
     const isConsoleTokenPlan = selectedCategory === 'stepfun_plan' || selectedCategory === 'sensenova_plan' || selectedCategory === 'mimo_plan' || selectedCategory === 'bailian_plan' || selectedCategory === 'volcengine_plan';
     const isVolcenginePlan = selectedCategory === 'volcengine_plan';
@@ -156,13 +167,25 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
             {/* Header */}
             <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold">{title}</h2>
-                <Dialog open={addOpen} onOpenChange={(open) => { setAddOpen(open); if (!open) { setMimoAuthMode('serviceToken'); setApiKey(''); } }}>
-                    <DialogTrigger asChild>
-                        <Button size="sm" className="rounded-xl gap-1.5">
-                            <Plus className="size-4" />
-                            <span className="hidden sm:inline">{t('plan.addProvider') || '添加'}</span>
+                <div className="flex items-center gap-2">
+                    {type === 'tokenplan' && (
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className="rounded-xl gap-1.5"
+                            onClick={() => setCompactView(!compactView)}
+                        >
+                            <LayoutList className="size-4" />
+                            <span className="hidden sm:inline">{compactView ? '详细' : '极简'}</span>
                         </Button>
-                    </DialogTrigger>
+                    )}
+                    <Dialog open={addOpen} onOpenChange={(open) => { setAddOpen(open); if (!open) { setMimoAuthMode('serviceToken'); setApiKey(''); } }}>
+                        <DialogTrigger asChild>
+                            <Button size="sm" className="rounded-xl gap-1.5">
+                                <Plus className="size-4" />
+                                <span className="hidden sm:inline">{t('plan.addProvider') || '添加'}</span>
+                            </Button>
+                        </DialogTrigger>
                     <DialogContent className="sm:max-w-md">
                         <DialogHeader>
                             <DialogTitle>{t('plan.addProviderTitle') || '添加额度监控'}</DialogTitle>
@@ -317,7 +340,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                     </DialogContent>
                 </Dialog>
             </div>
-
+            </div>
             {/* Content */}
             {isLoading ? (
                 <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground text-center">
@@ -342,6 +365,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                             onDelete={handleDelete}
                             isRefreshing={refreshMutation.isPending}
                             isDeleting={deleteMutation.isPending}
+                            compact={type === 'tokenplan' && compactView}
                         />
                     ))}
                 </div>
@@ -379,11 +403,13 @@ function QuotaTier({
     total,
     used,
     resetAt,
+    compact = false,
 }: {
     label: string;
     total: number;
     used: number;
     resetAt: string | null;
+    compact?: boolean;
 }) {
     const t = useTranslations('hub');
     const [countdown, setCountdown] = useState('');
@@ -420,6 +446,20 @@ function QuotaTier({
     if (total <= 0) return null;
     const pct = Math.min(100, (used / total) * 100);
 
+    // Compact mode: inline display without progress bar
+    if (compact) {
+        return (
+            <div className="inline-flex items-center gap-2 text-xs">
+                <span className="text-muted-foreground">{label}</span>
+                <span className="font-semibold tabular-nums">{formatBalance(total - used)}</span>
+                <span className="text-muted-foreground">/</span>
+                <span className="tabular-nums text-muted-foreground">{formatBalance(total)}</span>
+                <span className="text-muted-foreground">({pct.toFixed(0)}%)</span>
+            </div>
+        );
+    }
+
+    // Normal mode: card with progress bar
     return (
         <div className="rounded-lg bg-muted/50 p-2.5">
             <div className="flex items-center justify-between mb-1">
@@ -458,12 +498,14 @@ function ProviderCard({
     onDelete,
     isRefreshing,
     isDeleting,
+    compact = false,
 }: {
     provider: PlanProvider;
     onRefresh: (id: number) => void;
     onDelete: (id: number) => void;
     isRefreshing: boolean;
     isDeleting: boolean;
+    compact?: boolean;
 }) {
     const t = useTranslations('hub');
 
@@ -548,6 +590,30 @@ function ProviderCard({
                             {formatBalance(provider.balance_used)}
                         </p>
                     </div>
+                </div>
+            ) : compact ? (
+                <div className="flex items-center gap-4 flex-wrap text-xs">
+                    <QuotaTier
+                        label={t('plan.tierFiveHour') || '5h'}
+                        total={provider.five_hour_total}
+                        used={provider.five_hour_used}
+                        resetAt={provider.five_hour_reset_at}
+                        compact
+                    />
+                    <QuotaTier
+                        label={t('plan.tierWeekly') || '周'}
+                        total={provider.weekly_total}
+                        used={provider.weekly_used}
+                        resetAt={provider.weekly_reset_at}
+                        compact
+                    />
+                    <QuotaTier
+                        label={t('plan.tierMonthly') || '月'}
+                        total={provider.quota_total}
+                        used={provider.quota_used}
+                        resetAt={provider.quota_reset_at}
+                        compact
+                    />
                 </div>
             ) : (
                 <div className="space-y-2">
