@@ -2479,7 +2479,9 @@
       "emptyTitle": "沒有匹配的路由模型",
       "emptyDescription": "請調整搜尋詞或篩選條件。",
       "emptyGroup": "該分組暫無路由模型"
-    }
+    },
+    "moveUp": "上移",
+    "moveDown": "下移"
   },
   "model": {
     "loading": "載入模型廣場中...",
@@ -2977,7 +2979,13 @@
       "keySelectionStrategyAvailability": "可用度",
       "keySelectionStrategySpeed": "速度",
       "keySelectionStrategyPriority": "優先級",
-      "keyHealthFailed": "巡檢失敗"
+      "keyHealthFailed": "巡檢失敗",
+      "tabs": {
+        "basic": "基礎",
+        "keys": "密鑰",
+        "models": "模型",
+        "advanced": "進階"
+      }
     }
   },
   "errors": {

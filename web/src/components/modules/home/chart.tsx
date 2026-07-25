@@ -12,6 +12,7 @@ import { useHomeStatsRefreshMs, useHomeViewStore, type ChartMetricType, type Cha
 import { useSettingStore } from '@/stores/setting';
 import { BarChart3, CalendarClock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const METRIC_DATA_KEYS: Record<ChartMetricType, string> = {
     cost: 'total_cost',
@@ -26,6 +27,7 @@ export function StatsChart() {
     const { data: statsDaily } = useStatsDaily({ refetchIntervalMs: statsRefreshMs });
     const { data: statsHourly } = useStatsHourly({ refetchIntervalMs: statsRefreshMs });
     const t = useTranslations('home.chart');
+    const isMobile = useIsMobile();
     const { chinaMode } = useSettingStore();
 
     const chartMetrics = useHomeViewStore((state) => state.chartMetrics);
@@ -228,7 +230,7 @@ export function StatsChart() {
                                     onClick={() => toggleChartMetric(type)}
                                     aria-pressed={active}
                                     className={cn(
-                                        'inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
+                                        'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors sm:px-3 sm:text-xs',
                                         active
                                             ? 'border-primary/40 bg-primary/10 text-primary'
                                             : 'border-border bg-card text-muted-foreground hover:text-foreground',
@@ -261,8 +263,12 @@ export function StatsChart() {
                 </div>
             </div>
             <div className="relative mx-3 mb-3 overflow-hidden rounded-lg border border-border bg-card pt-3">
-                <ChartContainer config={chartConfig} className="h-[20rem] w-full md:h-[24rem]">
-                <ComposedChart accessibilityLayer data={chartData}>
+                <ChartContainer config={chartConfig} className="h-[16rem] w-full touch-pan-y sm:h-[20rem] md:h-[24rem]">
+                <ComposedChart
+                    accessibilityLayer
+                    data={chartData}
+                    margin={isMobile ? { top: 8, right: 8, left: 0, bottom: 0 } : { top: 12, right: 12, left: 4, bottom: 0 }}
+                >
                     <defs>
                         <linearGradient id="fillMetric1" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={1.0} />
@@ -282,10 +288,19 @@ export function StatsChart() {
                         </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="date" tickLine={false} axisLine={false} />
+                    <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        axisLine={false}
+                        minTickGap={isMobile ? 28 : 12}
+                        tick={{ fontSize: isMobile ? 10 : 12 }}
+                        interval={isMobile ? 'preserveStartEnd' : 0}
+                    />
                     <YAxis
                         tickLine={false}
                         axisLine={false}
+                        width={isMobile ? 36 : 48}
+                        tick={{ fontSize: isMobile ? 10 : 12 }}
                         tickFormatter={(value) => {
                             const primary = chartMetrics[0] ?? 'cost';
                             if (primary === 'cost') {
@@ -323,7 +338,9 @@ export function StatsChart() {
                         dataKey={METRIC_DATA_KEYS[chartMetrics[0]]}
                         stroke={getChartStroke(chartMetrics[0])}
                         fill={getChartFill(chartMetrics[0])}
-                        strokeWidth={2}
+                        strokeWidth={isMobile ? 2.5 : 2}
+                        activeDot={{ r: isMobile ? 5 : 4 }}
+                        dot={false}
                     />
                 </ComposedChart>
                 </ChartContainer>

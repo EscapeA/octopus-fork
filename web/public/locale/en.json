@@ -2523,7 +2523,9 @@
       "emptyTitle": "No route models match",
       "emptyDescription": "Try changing the search term or filter.",
       "emptyGroup": "No route models in this group"
-    }
+    },
+    "moveUp": "Move up",
+    "moveDown": "Move down"
   },
   "model": {
     "loading": "Loading model market...",
@@ -3021,7 +3023,13 @@
       "keySelectionStrategyAvailability": "Availability",
       "keySelectionStrategySpeed": "Speed",
       "keySelectionStrategyPriority": "Priority",
-      "keyHealthFailed": "Check failed"
+      "keyHealthFailed": "Check failed",
+      "tabs": {
+        "basic": "Basic",
+        "keys": "Keys",
+        "models": "Models",
+        "advanced": "Advanced"
+      }
     }
   },
   "errors": {

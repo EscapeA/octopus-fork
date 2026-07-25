@@ -42,6 +42,7 @@ import {
 } from '@/components/ui/morphing-dialog';
 import { toast } from '@/components/common/Toast';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, X, Plus, FlaskConical, CheckCircle2, AlertTriangle, Trash2, Sparkles, Orbit, Layers3, KeyRound, Cable, Search, Check, ListFilter, ChevronRight } from 'lucide-react';
@@ -574,6 +575,16 @@ export function ChannelForm({
     onShowTemplatePicker,
 }: ChannelFormProps) {
     const t = useTranslations('channel.form');
+    const isMobile = useIsMobile();
+    type FormTab = 'basic' | 'keys' | 'models' | 'advanced';
+    const [activeTab, setActiveTab] = useState<FormTab>('basic');
+    const tabs: Array<{ id: FormTab; label: string }> = [
+        { id: 'basic', label: t('tabs.basic') },
+        { id: 'keys', label: t('tabs.keys') },
+        { id: 'models', label: t('tabs.models') },
+        { id: 'advanced', label: t('tabs.advanced') },
+    ];
+    const showSection = (tab: FormTab) => !isMobile || activeTab === tab;
     const { data: settings } = useSettingList();
     const { data: channelGroups = [] } = useChannelGroupList();
     const { data: notifChannels = [] } = useAlertNotifChannelList();
@@ -888,6 +899,27 @@ export function ChannelForm({
     return (
         <form onSubmit={onSubmit} className="flex h-full min-h-0 flex-col">
             <div className="flex-1 min-h-0 space-y-4 overflow-y-auto pb-2">
+            {isMobile ? (
+                <div className="sticky top-0 z-10 -mx-1 mb-1 flex gap-1 overflow-x-auto rounded-xl border border-border/40 bg-card/95 p-1 backdrop-blur no-scrollbar">
+                    {tabs.map((tab) => (
+                        <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setActiveTab(tab.id)}
+                            className={cn(
+                                'h-9 shrink-0 rounded-lg px-3 text-xs font-medium transition-colors',
+                                activeTab === tab.id
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                            )}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+            ) : null}
+            {showSection('basic') ? (
+            <>
             {showTemplatePicker ? (
                 <section className={sectionClassName}>
                     <SectionHeader icon={Sparkles} title={t('template.label')} hint={t('template.hint')} />
@@ -1044,6 +1076,10 @@ export function ChannelForm({
                 </div>
             </section>
 
+            </>
+            ) : null}
+
+            {showSection('keys') ? (
             <section className={sectionClassName}>
                 <SectionHeader icon={KeyRound} title={t('apiKeyConfig')} />
                 <div className="flex items-center justify-end gap-2">
@@ -1179,6 +1215,9 @@ export function ChannelForm({
                 )}
             </section>
 
+            ) : null}
+
+            {showSection('models') ? (
             <section className={sectionClassName}>
                 <SectionHeader icon={Layers3} title={t('modelConfig')} />
                 <div className="flex items-center justify-end gap-2">
@@ -1288,9 +1327,18 @@ export function ChannelForm({
                 </div>
             </section>
 
-            <Accordion type="single" collapsible className="w-full">
+            ) : null}
+
+            {showSection('advanced') ? (
+            <Accordion
+                key={isMobile ? 'mobile-advanced-open' : 'desktop-advanced'}
+                type="single"
+                collapsible={!isMobile}
+                defaultValue={isMobile ? 'advanced' : undefined}
+                className="w-full"
+            >
                 <AccordionItem value="advanced" className="border-none">
-                    <AccordionTrigger className="rounded-lg bg-card/70 px-4 py-4 text-sm font-medium text-card-foreground transition-colors hover:bg-card hover:no-underline">
+                    <AccordionTrigger className={cn('rounded-lg bg-card/70 px-4 py-4 text-sm font-medium text-card-foreground transition-colors hover:bg-card hover:no-underline', isMobile && 'pointer-events-none')}>
                         <span className="flex items-center gap-2">
                             <span className="h-2 w-2 rounded-full bg-primary/70" />
                             {t('advanced')}
@@ -1538,6 +1586,7 @@ export function ChannelForm({
                     </AccordionContent>
                 </AccordionItem>
             </Accordion>
+            ) : null}
             </div>
 
             <section className={`${sectionClassName} mt-4 flex shrink-0 flex-col gap-4 border-t border-border/20 pt-4`}>

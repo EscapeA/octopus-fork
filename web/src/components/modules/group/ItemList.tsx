@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { CircleAlert, CircleCheck, Dot, GripVertical, Loader2, Trash2, Waves, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, CircleAlert, CircleCheck, Dot, GripVertical, Loader2, Trash2, Waves, X } from 'lucide-react';
 import { DragDropContext, Draggable, Droppable, type DraggableProvided, type DropResult } from '@hello-pangea/dnd';
 import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -42,6 +42,10 @@ function MemberItem({
     member,
     onRemove,
     onWeightChange,
+    onMoveUp,
+    onMoveDown,
+    canMoveUp,
+    canMoveDown,
     isRemoving,
     index,
     showWeight = false,
@@ -55,6 +59,10 @@ function MemberItem({
     member: SelectedMember;
     onRemove: (id: string) => void;
     onWeightChange?: (id: string, weight: number) => void;
+    onMoveUp?: () => void;
+    onMoveDown?: () => void;
+    canMoveUp?: boolean;
+    canMoveDown?: boolean;
     isRemoving?: boolean;
     index: number;
     showWeight?: boolean;
@@ -173,6 +181,29 @@ function MemberItem({
                         )}
                     />
                 )}
+
+                <div className="relative flex shrink-0 items-center gap-0.5 md:hidden">
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onMoveUp?.(); }}
+                        disabled={!canMoveUp || isRemoving}
+                        className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+                        title={t('moveUp')}
+                        aria-label={t('moveUp')}
+                    >
+                        <ChevronUp className="size-3.5" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onMoveDown?.(); }}
+                        disabled={!canMoveDown || isRemoving}
+                        className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+                        title={t('moveDown')}
+                        aria-label={t('moveDown')}
+                    >
+                        <ChevronDown className="size-3.5" />
+                    </button>
+                </div>
 
                 {(!showConfirmDelete || !confirmDelete) && (
                     <motion.button
@@ -379,6 +410,20 @@ export function MemberList({
                                                 member={member}
                                                 onRemove={onRemove}
                                                 onWeightChange={onWeightChange}
+                                                onMoveUp={() => {
+                                                    if (index <= 0) return;
+                                                    const next = reorderList(members, index, index - 1);
+                                                    onReorder(next);
+                                                    onDrop?.(next);
+                                                }}
+                                                onMoveDown={() => {
+                                                    if (index >= members.length - 1) return;
+                                                    const next = reorderList(members, index, index + 1);
+                                                    onReorder(next);
+                                                    onDrop?.(next);
+                                                }}
+                                                canMoveUp={index > 0}
+                                                canMoveDown={index < members.length - 1}
                                                 isRemoving={removingIds.has(member.id)}
                                                 index={index}
                                                 showWeight={showWeight}
