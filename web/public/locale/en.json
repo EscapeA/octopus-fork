@@ -157,6 +157,8 @@
       "consoleTokenLabel": "Console Token",
       "sensenovaTokenPlaceholder": "Paste console Bearer Token value",
       "sensenovaTokenHint": "Log in to platform.sensenova.cn console, copy the Bearer Token from request headers. Valid for ~3 hours; re-obtain after expiry.",
+      "volcengineCredentialPlaceholder": "Cookie value|||x-csrf-token value (copy from console request headers, joined with |||)",
+      "volcengineCredentialHint": "Log in to console.volcengine.com/ark -> F12 -> Network -> any plan API, copy the full Cookie request header and x-csrf-token request header, joined with |||. Session expiry requires re-obtaining.",
       "cookieLabel": "Cookie",
       "mimoPassTokenPlaceholder": "Paste full Cookie from account.xiaomi.com",
       "mimoServiceTokenPlaceholder": "Paste full Cookie from platform.xiaomimimo.com",
