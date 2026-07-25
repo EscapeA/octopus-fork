@@ -147,6 +147,95 @@ func TestTransformRequestKeepsBodyWhenModelUnchanged(t *testing.T) {
 	}
 }
 
+func TestTransformRequestPreservePathUsesRawPath(t *testing.T) {
+	raw := []byte(`{"model":"group-name","messages":[{"role":"user","content":"hello"}],"max_tokens":32,"custom":true}`)
+	stream := true
+	req, err := (&Outbound{PreservePath: true}).TransformRequest(context.Background(), &model.InternalLLMRequest{
+		Model:        "claude-sonnet-4-20250514",
+		RawRequest:   raw,
+		RawAPIFormat: model.APIFormatAnthropicMessage,
+		RawPath:      "/v1/messages",
+		Stream:       &stream,
+		Query:        mapQuery("trace", "1"),
+	}, "https://anthropic.example.com", "sk-ant")
+	if err != nil {
+		t.Fatalf("TransformRequest error: %v", err)
+	}
+
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal body: %v", err)
+	}
+	if got["model"] != "claude-sonnet-4-20250514" {
+		t.Fatalf("model = %#v, want rewritten upstream model", got["model"])
+	}
+	if got["custom"] != true {
+		t.Fatalf("custom field should be preserved, got %#v", got["custom"])
+	}
+	// 保留客户端原始路径 /v1/messages，而不是 Anthropic 固定端点 /messages
+	if req.URL.String() != "https://anthropic.example.com/v1/messages?trace=1" {
+		t.Fatalf("url = %s", req.URL.String())
+	}
+	if got := req.Header.Get("X-API-Key"); got != "sk-ant" {
+		t.Fatalf("X-API-Key = %q", got)
+	}
+}
+
+func TestTransformRequestPreservePathDeduplicatesVersionRoot(t *testing.T) {
+	raw := []byte(`{"model":"client-model","messages":[{"role":"user","content":"hello"}]}`)
+	req, err := (&Outbound{PreservePath: true}).TransformRequest(context.Background(), &model.InternalLLMRequest{
+		Model:        "client-model",
+		RawRequest:   raw,
+		RawAPIFormat: model.APIFormatOpenAIChatCompletion,
+		RawPath:      "/v1/chat/completions",
+	}, "https://example.com/v1", "sk-test")
+	if err != nil {
+		t.Fatalf("TransformRequest error: %v", err)
+	}
+
+	if req.URL.String() != "https://example.com/v1/chat/completions" {
+		t.Fatalf("url = %s, want version root deduplicated", req.URL.String())
+	}
+}
+
+func TestTransformRequestPreservePathAppendsToBasePrefix(t *testing.T) {
+	raw := []byte(`{"model":"client-model","messages":[{"role":"user","content":"hello"}],"max_tokens":32}`)
+	req, err := (&Outbound{PreservePath: true}).TransformRequest(context.Background(), &model.InternalLLMRequest{
+		Model:        "client-model",
+		RawRequest:   raw,
+		RawAPIFormat: model.APIFormatAnthropicMessage,
+		RawPath:      "/v1/messages",
+	}, "https://proxy.example.com/anthropic", "sk-ant")
+	if err != nil {
+		t.Fatalf("TransformRequest error: %v", err)
+	}
+
+	if req.URL.String() != "https://proxy.example.com/anthropic/v1/messages" {
+		t.Fatalf("url = %s, want raw path appended to base prefix", req.URL.String())
+	}
+}
+
+func TestTransformRequestPreservePathFallsBackWhenRawPathEmpty(t *testing.T) {
+	raw := []byte(`{"model":"client-model","messages":[{"role":"user","content":"hello"}]}`)
+	req, err := (&Outbound{PreservePath: true}).TransformRequest(context.Background(), &model.InternalLLMRequest{
+		Model:        "client-model",
+		RawRequest:   raw,
+		RawAPIFormat: model.APIFormatOpenAIChatCompletion,
+	}, "https://example.com/api", "sk-test")
+	if err != nil {
+		t.Fatalf("TransformRequest error: %v", err)
+	}
+
+	if req.URL.String() != "https://example.com/api/v1/chat/completions" {
+		t.Fatalf("url = %s, want canonical endpoint fallback", req.URL.String())
+	}
+}
+
 func TestTransformRequestRejectsUnsupportedFormat(t *testing.T) {
 	_, err := (&Outbound{}).TransformRequest(context.Background(), &model.InternalLLMRequest{
 		RawRequest:   []byte(`{"model":"x"}`),

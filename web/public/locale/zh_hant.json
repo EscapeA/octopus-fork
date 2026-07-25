@@ -2411,13 +2411,14 @@
       },
       "outboundFormat": {
         "label": "出站請求格式",
-        "hint": "選擇首選的出站 API 格式。「自動/Chat/Responses」會在主格式失敗後回退到另一種；Messages 優先使用 Anthropic Messages；原始透傳會直接把客戶端原始請求體發給上游，不做格式轉換或回退；「僅」模式則不回退，適合只支援單一格式（如公益站）的上游。",
+        "hint": "選擇首選的出站 API 格式。「自動/Chat/Responses」會在主格式失敗後回退到另一種；Messages 優先使用 Anthropic Messages；原始透傳會直接把客戶端原始請求體發給上游，不做格式轉換或回退；原始穿透（資訊體）在此基礎上保留客戶端原始請求路徑，僅改寫模型名；「僅」模式則不回退，適合只支援單一格式（如公益站）的上游。",
         "options": {
           "auto": "自動",
           "chat": "Chat Completions",
           "responses": "Responses",
           "messages": "Anthropic Messages",
           "passthrough": "原始透傳",
+          "raw": "原始穿透（資訊體）",
           "chatOnly": "僅 Chat Completions",
           "responsesOnly": "僅 Responses",
           "messagesOnly": "僅 Anthropic Messages"
