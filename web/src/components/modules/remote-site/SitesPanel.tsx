@@ -14,6 +14,16 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { Globe, RefreshCw, Plus, Trash2, ExternalLink, CircleDot, Pencil, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/common/Toast';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
@@ -92,13 +102,22 @@ export function SitesPanel() {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingSite, setEditingSite] = useState<RemoteSiteModel | null>(null);
     const [discoveredSites, setDiscoveredSites] = useState<DiscoveredSite[] | null>(null);
+    const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
+    const commonT = useTranslations('common');
     const discoverSites = useDiscoverSites();
     const t = useTranslations('hub');
 
     const handleDelete = (id: number) => {
-        if (!confirm(t('confirmDelete'))) return;
-        deleteSite.mutate(id, {
-            onSuccess: () => toast.success(t('deleted')),
+        setPendingDeleteId(id);
+    };
+
+    const confirmDelete = () => {
+        if (pendingDeleteId == null) return;
+        deleteSite.mutate(pendingDeleteId, {
+            onSuccess: () => {
+                toast.success(t('deleted'));
+                setPendingDeleteId(null);
+            },
             onError: (err) => toast.error(err.message),
         });
     };
@@ -169,6 +188,7 @@ export function SitesPanel() {
     if (isError) return <ErrorState onRetry={refetch} />;
 
     return (
+        <>
         <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
@@ -285,5 +305,21 @@ export function SitesPanel() {
                 </div>
             )}
         </div>
+
+            <AlertDialog open={pendingDeleteId != null} onOpenChange={(open) => { if (!open) setPendingDeleteId(null); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t('confirmDelete')}</AlertDialogTitle>
+                        <AlertDialogDescription>{t('confirmDelete')}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>{commonT('dialog.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction variant="destructive" onClick={confirmDelete} disabled={deleteSite.isPending}>
+                            {commonT('dialog.confirm')}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 }

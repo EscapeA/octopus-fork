@@ -505,7 +505,7 @@ export function AppContainer() {
                         </div>
                     </div>
                 </header>
-                <div className="h-full min-h-0 flex-1 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
+                <div className="h-full min-h-0 flex-1 pb-[calc(6.25rem+env(safe-area-inset-bottom,0px))] md:pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
                     <ContentLoader activeRoute={activeItem} />
                 </div>
             </main>

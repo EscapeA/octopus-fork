@@ -40,6 +40,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Plus, Pencil, Trash2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -48,6 +58,7 @@ export function ModelMappingPage() {
   const queryClient = useQueryClient()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingMapping, setEditingMapping] = useState<ModelMapping | null>(null)
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
   const [formData, setFormData] = useState<CreateModelMappingRequest | UpdateModelMappingRequest>({
     name: '',
     pattern: '',
@@ -135,9 +146,14 @@ export function ModelMappingPage() {
   }
 
   const handleDelete = (id: number) => {
-    if (confirm(t('confirm_delete'))) {
-      deleteMutation.mutate(id)
-    }
+    setPendingDeleteId(id)
+  }
+
+  const confirmDelete = () => {
+    if (pendingDeleteId == null) return
+    deleteMutation.mutate(pendingDeleteId, {
+      onSettled: () => setPendingDeleteId(null),
+    })
   }
 
   const handleSubmit = () => {
@@ -170,6 +186,7 @@ export function ModelMappingPage() {
   }
 
   return (
+    <>
     <div className="container mx-auto py-6">
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -356,5 +373,20 @@ export function ModelMappingPage() {
         </DialogContent>
       </Dialog>
     </div>
+      <AlertDialog open={pendingDeleteId != null} onOpenChange={(open) => { if (!open) setPendingDeleteId(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('confirm_delete')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('confirm_delete')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={confirmDelete} disabled={deleteMutation.isPending}>
+              {t('confirm_delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

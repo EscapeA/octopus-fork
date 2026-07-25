@@ -18,6 +18,16 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 import { CredentialDialog } from '../credential/CredentialDialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 function healthColor(status: string): string {
     switch (status) {
@@ -76,12 +86,21 @@ export function CredentialPanel() {
     const generateExport = useGenerateCLIExport();
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editing, setEditing] = useState<APICredentialProfile | null>(null);
+    const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
+    const commonT = useTranslations('common');
     const t = useTranslations('credential');
 
     const handleDelete = (id: number) => {
-        if (!confirm(t('confirmDelete'))) return;
-        deleteProfile.mutate(id, {
-            onSuccess: () => toast.success(t('deleted')),
+        setPendingDeleteId(id);
+    };
+
+    const confirmDelete = () => {
+        if (pendingDeleteId == null) return;
+        deleteProfile.mutate(pendingDeleteId, {
+            onSuccess: () => {
+                toast.success(t('deleted'));
+                setPendingDeleteId(null);
+            },
             onError: (err) => toast.error(err.message),
         });
     };
@@ -130,6 +149,7 @@ export function CredentialPanel() {
     if (isError) return <ErrorState onRetry={refetch} />;
 
     return (
+        <>
         <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
@@ -173,5 +193,21 @@ export function CredentialPanel() {
                 editing={editing}
             />
         </div>
+
+            <AlertDialog open={pendingDeleteId != null} onOpenChange={(open) => { if (!open) setPendingDeleteId(null); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t('confirmDelete')}</AlertDialogTitle>
+                        <AlertDialogDescription>{t('confirmDelete')}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>{commonT('dialog.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction variant="destructive" onClick={confirmDelete} disabled={deleteProfile.isPending}>
+                            {commonT('dialog.confirm')}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 }

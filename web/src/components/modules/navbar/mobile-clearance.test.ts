@@ -9,6 +9,6 @@ const __dirname = path.dirname(__filename);
 const source = fs.readFileSync(path.join(__dirname, '../../app.tsx'), 'utf8');
 
 test('mobile content keeps bottom scroll clearance for fixed navbar', () => {
-    assert.match(source, /pb-\[calc\(5\.5rem\+env\(safe-area-inset-bottom,0px\)\)\]/);
+    assert.match(source, /pb-\[calc\(6\.25rem\+env\(safe-area-inset-bottom,0px\)\)\]/);
     assert.match(source, /md:pb-\[calc\(1rem\+env\(safe-area-inset-bottom,0px\)\)\]/);
 });

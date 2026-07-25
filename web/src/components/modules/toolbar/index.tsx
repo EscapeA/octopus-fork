@@ -83,14 +83,14 @@ function CreateDialogContent({ activeItem }: { activeItem: ToolbarPage }) {
 
 function getCreateDialogContentClassName(activeItem: ToolbarPage) {
     if (activeItem === 'group') {
-        return 'h-[calc(100dvh-1rem)] w-[min(100vw-1rem,92rem)] max-w-none rounded-xl border border-border bg-card px-2 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] text-card-foreground shadow-lg flex flex-col overflow-hidden sm:max-w-none md:h-[calc(100dvh-2rem)] md:w-[min(100vw-2rem,92rem)] md:rounded-xl md:px-4 md:py-4';
+        return 'h-[calc(100dvh-env(safe-area-inset-top,0px)-0.5rem)] w-[min(100vw-0.5rem,92rem)] max-w-none rounded-t-2xl border border-border bg-card px-2 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] text-card-foreground shadow-lg flex flex-col overflow-hidden sm:max-w-none sm:rounded-xl md:h-[calc(100dvh-2rem)] md:w-[min(100vw-2rem,92rem)] md:px-4 md:py-4';
     }
 
     if (activeItem === 'channel') {
-        return 'h-[calc(100dvh-1rem)] w-[min(100vw-1rem,64rem)] max-w-full rounded-xl border border-border bg-card px-2 py-2 text-card-foreground shadow-lg flex flex-col overflow-hidden md:h-[calc(100dvh-3rem)] md:w-[min(100vw-3rem,64rem)] md:rounded-xl md:px-4 md:py-4';
+        return 'h-[calc(100dvh-env(safe-area-inset-top,0px)-0.5rem)] w-[min(100vw-0.5rem,64rem)] max-w-full rounded-t-2xl border border-border bg-card px-2 py-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] text-card-foreground shadow-lg flex flex-col overflow-hidden sm:rounded-xl md:h-[calc(100dvh-3rem)] md:w-[min(100vw-3rem,64rem)] md:px-4 md:py-4';
     }
 
-    return 'w-[min(100vw-1rem,34rem)] max-w-full bg-card text-card-foreground px-4 py-4 rounded-xl max-h-[calc(100dvh-1rem)] flex flex-col overflow-hidden md:px-6 md:max-h-[calc(100dvh-2rem)]';
+    return 'w-[min(100vw-0.75rem,34rem)] max-w-full bg-card text-card-foreground px-4 py-4 rounded-t-2xl max-h-[calc(100dvh-env(safe-area-inset-top,0px)-0.75rem)] flex flex-col overflow-hidden pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:rounded-xl md:px-6 md:max-h-[calc(100dvh-2rem)] md:pb-4';
 }
 
 export function Toolbar() {

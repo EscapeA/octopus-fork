@@ -21,6 +21,16 @@ import {
 import { PageWrapper } from '@/components/common/PageWrapper';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useTranslations } from 'next-intl';
 import {
     applyAlertChannelDraft,
@@ -326,6 +336,9 @@ export function AlertSections({ section, showTabs = false }: { section?: AlertSe
     const [showNewChannel, setShowNewChannel] = useState(false);
     const [editingRuleId, setEditingRuleId] = useState<number | null>(null);
     const [editingChannelId, setEditingChannelId] = useState<number | null>(null);
+    const [pendingDeleteRuleId, setPendingDeleteRuleId] = useState<number | null>(null);
+    const [pendingDeleteChannelId, setPendingDeleteChannelId] = useState<number | null>(null);
+    const commonT = useTranslations('common');
     const [testingKey, setTestingKey] = useState<string | null>(null);
     const [newRule, setNewRule] = useState<AlertRuleDraft>(() => createAlertRuleDraft());
     const [editingRule, setEditingRule] = useState<AlertRuleDraft>(() => createAlertRuleDraft());
@@ -525,6 +538,7 @@ export function AlertSections({ section, showTabs = false }: { section?: AlertSe
     }
 
     return (
+        <>
         <div className="space-y-4">
             {showTabs && (
                 <div className="flex items-center gap-2 mb-2 overflow-x-auto scrollbar-none -mx-1 px-1">
@@ -830,17 +844,7 @@ export function AlertSections({ section, showTabs = false }: { section?: AlertSe
                                                 </button>
                                             ) : null}
                                             <button
-                                                onClick={() => {
-                                                    if (!confirm(t('rules.confirmDelete'))) return;
-                                                    deleteRule.mutate(rule.id, {
-                                                        onSuccess: () => {
-                                                            if (editingRuleId === rule.id) {
-                                                                resetRuleEdit();
-                                                            }
-                                                        },
-                                                        onError: (e) => toast.error(t('toast.actionFailed'), { description: e.message }),
-                                                    });
-                                                }}
+                                                onClick={() => setPendingDeleteRuleId(rule.id)}
                                                 className="p-1.5 rounded-xl text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-all active:scale-95"
                                             >
                                                 <Trash2 className="h-4 w-4" />
@@ -994,17 +998,7 @@ export function AlertSections({ section, showTabs = false }: { section?: AlertSe
                                                 </>
                                             ) : null}
                                             <button
-                                                onClick={() => {
-                                                    if (!confirm(t('channels.confirmDelete'))) return;
-                                                    deleteChannel.mutate(channel.id, {
-                                                        onSuccess: () => {
-                                                            if (editingChannelId === channel.id) {
-                                                                resetChannelEdit();
-                                                            }
-                                                        },
-                                                        onError: (e) => toast.error(t('toast.actionFailed'), { description: e.message }),
-                                                    });
-                                                }}
+                                                onClick={() => setPendingDeleteChannelId(channel.id)}
                                                 className="p-1.5 rounded-xl text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-all active:scale-95"
                                             >
                                                 <Trash2 className="h-4 w-4" />
@@ -1071,6 +1065,66 @@ export function AlertSections({ section, showTabs = false }: { section?: AlertSe
                 </div>
             )}
         </div>
+
+            <AlertDialog open={pendingDeleteRuleId != null} onOpenChange={(open) => { if (!open) setPendingDeleteRuleId(null); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t('rules.confirmDelete')}</AlertDialogTitle>
+                        <AlertDialogDescription>{t('rules.confirmDelete')}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>{commonT('dialog.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction
+                            variant="destructive"
+                            onClick={() => {
+                                if (pendingDeleteRuleId == null) return;
+                                deleteRule.mutate(pendingDeleteRuleId, {
+                                    onSuccess: () => {
+                                        if (editingRuleId === pendingDeleteRuleId) {
+                                            resetRuleEdit();
+                                        }
+                                        setPendingDeleteRuleId(null);
+                                    },
+                                    onError: (e: Error) => toast.error(t('toast.actionFailed'), { description: e.message }),
+                                });
+                            }}
+                            disabled={deleteRule.isPending}
+                        >
+                            {commonT('dialog.confirm')}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            <AlertDialog open={pendingDeleteChannelId != null} onOpenChange={(open) => { if (!open) setPendingDeleteChannelId(null); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t('channels.confirmDelete')}</AlertDialogTitle>
+                        <AlertDialogDescription>{t('channels.confirmDelete')}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>{commonT('dialog.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction
+                            variant="destructive"
+                            onClick={() => {
+                                if (pendingDeleteChannelId == null) return;
+                                deleteChannel.mutate(pendingDeleteChannelId, {
+                                    onSuccess: () => {
+                                        if (editingChannelId === pendingDeleteChannelId) {
+                                            resetChannelEdit();
+                                        }
+                                        setPendingDeleteChannelId(null);
+                                    },
+                                    onError: (e: Error) => toast.error(t('toast.actionFailed'), { description: e.message }),
+                                });
+                            }}
+                            disabled={deleteChannel.isPending}
+                        >
+                            {commonT('dialog.confirm')}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 }
 

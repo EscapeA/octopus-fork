@@ -10,6 +10,16 @@ import { toast } from '@/components/common/Toast';
 import { useExportDB, useImportDB, useMigrateDatabase, useTestDatabaseConnection } from '@/api/endpoints/setting';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type ImportMode = 'incremental' | 'full';
 
@@ -39,6 +49,8 @@ export function SettingBackup() {
     const [advancedDSN, setAdvancedDSN] = useState(false); // 高级模式：直接编辑 DSN
 
     const [file, setFile] = useState<File | null>(null);
+    const [migrateConfirmOpen, setMigrateConfirmOpen] = useState(false);
+    const commonT = useTranslations('common');
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     const rowsAffected = importDB.data?.rows_affected ?? null;
@@ -126,23 +138,26 @@ export function SettingBackup() {
         }
     };
 
-    const onMigrateDatabase = async () => {
+    const onMigrateDatabase = () => {
         if (!resolvedTargetPath.trim()) {
             toast.error(t('backup.migration.targetRequired'));
             return;
         }
-        if (!window.confirm(t('backup.migration.confirm'))) {
-            return;
-        }
+        setMigrateConfirmOpen(true);
+    };
+
+    const confirmMigrateDatabase = async () => {
         try {
             await migrateDatabase.mutateAsync(migrationPayload);
-            toast.success(t('backup.migration.success')); 
+            toast.success(t('backup.migration.success'));
+            setMigrateConfirmOpen(false); 
         } catch (e) {
             toast.error(e instanceof Error ? e.message : t('backup.migration.failed')); 
         }
     };
 
     return (
+        <>
         <div className="rounded-xl border-border/35 bg-card p-4 sm:p-6 space-y-4 sm:space-y-5 text-card-foreground shadow-md ">
             <h2 className="text-lg font-bold text-card-foreground flex items-center gap-2">
                 <Database className="h-5 w-5" />
@@ -414,5 +429,21 @@ export function SettingBackup() {
             </div>
 
         </div>
+
+            <AlertDialog open={migrateConfirmOpen} onOpenChange={setMigrateConfirmOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t('backup.migration.confirm')}</AlertDialogTitle>
+                        <AlertDialogDescription>{t('backup.migration.confirm')}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>{commonT('dialog.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction variant="destructive" onClick={() => { void confirmMigrateDatabase(); }} disabled={migrateDatabase.isPending}>
+                            {commonT('dialog.confirm')}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 }

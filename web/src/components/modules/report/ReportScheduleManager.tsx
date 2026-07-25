@@ -20,6 +20,16 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import {
     useReportScheduleList,
@@ -56,6 +66,8 @@ export function ReportScheduleManager() {
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingSchedule, setEditingSchedule] = useState<ReportSchedule | null>(null);
+    const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
+    const commonT = useTranslations('common');
 
     const handleCreate = () => {
         setEditingSchedule(null);
@@ -67,11 +79,16 @@ export function ReportScheduleManager() {
         setIsDialogOpen(true);
     };
 
-    const handleDelete = async (id: number) => {
-        if (!confirm(t('confirmDelete'))) return;
+    const handleDelete = (id: number) => {
+        setPendingDeleteId(id);
+    };
+
+    const confirmDelete = async () => {
+        if (pendingDeleteId == null) return;
         try {
-            await deleteSchedule.mutateAsync(id);
+            await deleteSchedule.mutateAsync(pendingDeleteId);
             toast.success(t('deleteSuccess'));
+            setPendingDeleteId(null);
         } catch {
             toast.error(t('deleteFailed'));
         }
@@ -108,6 +125,7 @@ export function ReportScheduleManager() {
     }
 
     return (
+        <>
         <div className="space-y-4">
             <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold">{t('scheduleTitle')}</h3>
@@ -146,6 +164,22 @@ export function ReportScheduleManager() {
                 notifChannels={notifChannels}
             />
         </div>
+
+            <AlertDialog open={pendingDeleteId != null} onOpenChange={(open) => { if (!open) setPendingDeleteId(null); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t('confirmDelete')}</AlertDialogTitle>
+                        <AlertDialogDescription>{t('confirmDelete')}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>{commonT('dialog.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction variant="destructive" onClick={() => { void confirmDelete(); }} disabled={deleteSchedule.isPending}>
+                            {commonT('dialog.confirm')}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 }
 

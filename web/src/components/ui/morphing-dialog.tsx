@@ -311,9 +311,13 @@ function MorphingDialogContent({
       exit={disableSharedLayout ? { opacity: 0, scale: 0.98 } : undefined}
       transition={disableSharedLayout ? { duration: 0.12, ease: 'easeOut' } : undefined}
       className={cn(
-        'relative flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-lg w-[calc(100vw-2rem)] sm:max-w-2xl max-h-[85dvh] sm:max-h-[90dvh]',
-        className
-      )}
+              // Mobile-first shell: near-fullscreen sheet with safe-area padding.
+              // Call sites can still override width/height for desktop layouts.
+              'relative flex flex-col overflow-hidden rounded-t-2xl border border-border bg-card shadow-lg',
+              'w-[calc(100vw-0.75rem)] max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)-0.75rem))]',
+              'pb-[env(safe-area-inset-bottom,0px)] sm:rounded-xl sm:w-[calc(100vw-2rem)] sm:max-w-2xl sm:max-h-[90dvh] sm:pb-0',
+              className
+            )}
       data-slot='morphing-dialog-content'
       data-dialog-id={uniqueId}
       style={style}

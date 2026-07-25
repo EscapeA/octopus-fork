@@ -1003,28 +1003,22 @@ export function GroupListItem({ group }: { group: Group }) {
                         <h3 className="truncate text-sm font-semibold text-card-foreground md:text-base">
                             {group.name}
                             {allFailed && (
-                                <Tooltip side="top" sideOffset={6} align="center">
-                                    <TooltipTrigger asChild>
-                                        <span className="ml-1.5 inline-flex translate-y-0.5">
-                                            <CircleX className="size-3.5 text-destructive" />
-                                        </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        {t('card.lastTestFailed')}
-                                    </TooltipContent>
-                                </Tooltip>
+                                <span
+                                    className="ml-1.5 inline-flex translate-y-0.5"
+                                    title={t('card.lastTestFailed')}
+                                    aria-label={t('card.lastTestFailed')}
+                                >
+                                    <CircleX className="size-3.5 text-destructive" />
+                                </span>
                             )}
                             {partialFailed && (
-                                <Tooltip side="top" sideOffset={6} align="center">
-                                    <TooltipTrigger asChild>
-                                        <span className="ml-1.5 inline-flex translate-y-0.5">
-                                            <AlertTriangle className="size-3.5 text-amber-500" />
-                                        </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        {t('toast.testPartialFailed')}
-                                    </TooltipContent>
-                                </Tooltip>
+                                <span
+                                    className="ml-1.5 inline-flex translate-y-0.5"
+                                    title={t('toast.testPartialFailed')}
+                                    aria-label={t('toast.testPartialFailed')}
+                                >
+                                    <AlertTriangle className="size-3.5 text-amber-500" />
+                                </span>
                             )}
                         </h3>
                         <p className="line-clamp-2 text-xs text-muted-foreground">
@@ -1033,6 +1027,16 @@ export function GroupListItem({ group }: { group: Group }) {
                             {firstModelName ? ` · ${firstModelName}` : ''}
                             {' · '}
                             {t('card.modelCount', { count: memberCount })}
+                            {health && health.status !== 'healthy' ? (
+                                <>
+                                    {' · '}
+                                    <span className={cn(
+                                        health.status === 'down' ? 'text-destructive' : 'text-amber-600 dark:text-amber-400'
+                                    )}>
+                                        {t('card.healthScore')}: {health.health_score}
+                                    </span>
+                                </>
+                            ) : null}
                         </p>
                     </div>
                 </div>
@@ -1041,32 +1045,27 @@ export function GroupListItem({ group }: { group: Group }) {
                 <div className="flex shrink-0 items-center gap-2">
                     {/* Route health badge */}
                     {health && health.status !== 'healthy' && (
-                        <Tooltip side="top" sideOffset={8} align="center">
-                            <TooltipTrigger asChild>
-                                <span
-                                    className={cn(
-                                        'inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold',
-                                        health.status === 'down'
-                                            ? 'border-destructive/20 bg-destructive/10 text-destructive'
-                                            : health.status === 'degraded'
-                                              ? 'border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                                              : 'border-border/40 bg-muted/40 text-muted-foreground',
-                                    )}
-                                >
-                                    {health.status === 'down' ? (
-                                        <CircleX className="size-3" />
-                                    ) : (
-                                        <AlertTriangle className="size-3" />
-                                    )}
-                                    {health.failure_count > 0
-                                        ? health.failure_count
-                                        : t('card.healthLow')}
-                                </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                {t('card.healthScore')}: {health.health_score} · {t(`healthStatus.${health.status}`)}
-                            </TooltipContent>
-                        </Tooltip>
+                        <span
+                            title={`${t('card.healthScore')}: ${health.health_score} · ${t(`healthStatus.${health.status}`)}`}
+                            aria-label={`${t('card.healthScore')}: ${health.health_score} · ${t(`healthStatus.${health.status}`)}`}
+                            className={cn(
+                                'inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold',
+                                health.status === 'down'
+                                    ? 'border-destructive/20 bg-destructive/10 text-destructive'
+                                    : health.status === 'degraded'
+                                      ? 'border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                      : 'border-border/40 bg-muted/40 text-muted-foreground',
+                            )}
+                        >
+                            {health.status === 'down' ? (
+                                <CircleX className="size-3" />
+                            ) : (
+                                <AlertTriangle className="size-3" />
+                            )}
+                            {health.failure_count > 0
+                                ? health.failure_count
+                                : t('card.healthLow')}
+                        </span>
                     )}
 
                     {/* Status indicator */}
@@ -1075,21 +1074,16 @@ export function GroupListItem({ group }: { group: Group }) {
                         className="flex items-center"
                     >
                         {!testDone && !isTesting && (
-                            <Tooltip side="top" sideOffset={8} align="center">
-                                <TooltipTrigger asChild>
-                                    <button
-                                        type="button"
-                                        onClick={handleTestGroup}
-                                        disabled={!group.id}
-                                        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        <Activity className="size-4" />
-                                    </button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    {t('detail.actions.testAvailability')}
-                                </TooltipContent>
-                            </Tooltip>
+                            <button
+                                type="button"
+                                onClick={handleTestGroup}
+                                disabled={!group.id}
+                                title={t('detail.actions.testAvailability')}
+                                aria-label={t('detail.actions.testAvailability')}
+                                className="rounded-md p-2.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 md:p-1.5"
+                            >
+                                <Activity className="size-4" />
+                            </button>
                         )}
                         {isTesting && (
                             <Loader2 className="size-4 animate-spin text-muted-foreground" />

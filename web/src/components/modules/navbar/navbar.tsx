@@ -132,7 +132,7 @@ export function NavBar() {
                             }}
                             className={cn(
                                 "group relative z-20 flex items-center justify-center rounded-lg border transition-[color,background-color,border-color,box-shadow] duration-150 md:w-full",
-                                isMobile ? "size-9" : "h-11 md:justify-start md:gap-3 md:px-3",
+                                isMobile ? "size-11" : "h-11 md:justify-start md:gap-3 md:px-3",
                                 isActive
                                     ? cn(
                                         "border-transparent bg-primary/15 text-primary border-t-2 border-t-primary md:border-t-0 md:border-l-2 md:border-l-primary md:border-r-0 md:border-b-0",

@@ -17,6 +17,16 @@ import {
     useDeleteWebDAVBackup,
     type WebDAVConfig,
 } from '@/api/endpoints/webdav';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export function SettingWebDAV() {
     const t = useTranslations('setting');
@@ -38,6 +48,9 @@ export function SettingWebDAV() {
     const [includeStats, setIncludeStats] = useState(true);
     const [includeLogs, setIncludeLogs] = useState(false);
     const [maxBackups, setMaxBackups] = useState(10);
+    const [pendingRestore, setPendingRestore] = useState<string | null>(null);
+    const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+    const commonT = useTranslations('common');
 
     useEffect(() => {
         if (!config) return;
@@ -94,21 +107,31 @@ export function SettingWebDAV() {
         }
     };
 
-    const onRestore = async (filename: string) => {
-        if (!window.confirm(t('webdav.restoreConfirm', { filename }))) return;
+    const onRestore = (filename: string) => {
+        setPendingRestore(filename);
+    };
+
+    const confirmRestore = async () => {
+        if (!pendingRestore) return;
         try {
-            await restoreBackup.mutateAsync(filename);
+            await restoreBackup.mutateAsync(pendingRestore);
             toast.success(t('webdav.restoreSuccess'));
+            setPendingRestore(null);
         } catch (e) {
             toast.error(e instanceof Error ? e.message : t('webdav.restoreFailed'));
         }
     };
 
-    const onDelete = async (filename: string) => {
-        if (!window.confirm(t('webdav.deleteConfirm', { filename }))) return;
+    const onDelete = (filename: string) => {
+        setPendingDelete(filename);
+    };
+
+    const confirmDelete = async () => {
+        if (!pendingDelete) return;
         try {
-            await deleteBackup.mutateAsync(filename);
+            await deleteBackup.mutateAsync(pendingDelete);
             toast.success(t('webdav.deleteSuccess'));
+            setPendingDelete(null);
         } catch (e) {
             toast.error(e instanceof Error ? e.message : t('webdav.deleteFailed'));
         }
@@ -125,6 +148,7 @@ export function SettingWebDAV() {
     }
 
     return (
+        <>
         <div className="rounded-xl border-border/35 bg-card p-6 space-y-5 text-card-foreground shadow-md">
             <h2 className="text-lg font-bold text-card-foreground flex items-center gap-2">
                 <Cloud className="h-5 w-5" />
@@ -295,5 +319,35 @@ export function SettingWebDAV() {
                 </>
             )}
         </div>
+
+            <AlertDialog open={pendingRestore != null} onOpenChange={(open) => { if (!open) setPendingRestore(null); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{pendingRestore ? t('webdav.restoreConfirm', { filename: pendingRestore }) : ''}</AlertDialogTitle>
+                        <AlertDialogDescription>{pendingRestore ? t('webdav.restoreConfirm', { filename: pendingRestore }) : ''}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>{commonT('dialog.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => { void confirmRestore(); }} disabled={restoreBackup.isPending}>
+                            {commonT('dialog.confirm')}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            <AlertDialog open={pendingDelete != null} onOpenChange={(open) => { if (!open) setPendingDelete(null); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{pendingDelete ? t('webdav.deleteConfirm', { filename: pendingDelete }) : ''}</AlertDialogTitle>
+                        <AlertDialogDescription>{pendingDelete ? t('webdav.deleteConfirm', { filename: pendingDelete }) : ''}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>{commonT('dialog.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction variant="destructive" onClick={() => { void confirmDelete(); }} disabled={deleteBackup.isPending}>
+                            {commonT('dialog.confirm')}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 }
