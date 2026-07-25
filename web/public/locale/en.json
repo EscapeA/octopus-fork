@@ -3029,6 +3029,11 @@
         "keys": "Keys",
         "models": "Models",
         "advanced": "Advanced"
+      },
+      "validation": {
+        "nameRequired": "Please enter a channel name",
+        "baseUrlRequired": "Please provide at least one base URL",
+        "modelRequired": "Please select or add at least one model"
       }
     }
   },

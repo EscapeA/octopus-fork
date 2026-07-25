@@ -896,8 +896,36 @@ export function ChannelForm({
         setTestSummary(null);
     };
 
+    const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+        // Mobile tabs unmount inactive sections, so HTML5 `required` may not run.
+        // Validate critical fields against form state before delegating.
+        if (isMobile) {
+            if (!formData.name.trim()) {
+                event.preventDefault();
+                setActiveTab('basic');
+                toast.error(t('validation.nameRequired'));
+                return;
+            }
+            const hasBaseUrl = (formData.base_urls ?? []).some((u) => u.url.trim());
+            if (!hasBaseUrl) {
+                event.preventDefault();
+                setActiveTab('basic');
+                toast.error(t('validation.baseUrlRequired'));
+                return;
+            }
+            const hasModel = Boolean(formData.model?.trim() || formData.custom_model?.trim());
+            if (!hasModel) {
+                event.preventDefault();
+                setActiveTab('models');
+                toast.error(t('validation.modelRequired'));
+                return;
+            }
+        }
+        onSubmit(event);
+    };
+
     return (
-        <form onSubmit={onSubmit} className="flex h-full min-h-0 flex-col">
+        <form onSubmit={handleFormSubmit} className="flex h-full min-h-0 flex-col">
             <div className="flex-1 min-h-0 space-y-4 overflow-y-auto pb-2">
             {isMobile ? (
                 <div className="sticky top-0 z-10 -mx-1 mb-1 flex gap-1 overflow-x-auto rounded-xl border border-border/40 bg-card/95 p-1 backdrop-blur no-scrollbar">

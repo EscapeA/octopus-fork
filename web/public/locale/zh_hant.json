@@ -2985,6 +2985,11 @@
         "keys": "密鑰",
         "models": "模型",
         "advanced": "進階"
+      },
+      "validation": {
+        "nameRequired": "請填寫渠道名稱",
+        "baseUrlRequired": "請至少填寫一個 Base URL",
+        "modelRequired": "請至少選擇或新增一個模型"
       }
     }
   },
