@@ -467,11 +467,11 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                 )}
                                 <div className="flex items-center gap-1.5">
                                     <Zap className="size-3.5 shrink-0 text-amber-500" />
-                                    <span>{isMobile ? formatDuration(log.ftut) : `${t('firstToken')} ${formatDuration(log.ftut)}`}</span>
+                                    <span>{`${t('firstToken')} ${formatDuration(log.ftut)}`}</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                     <Cpu className="size-3.5 shrink-0 text-blue-500" />
-                                    <span>{isMobile ? formatDuration(log.use_time) : `${t('totalTime')} ${formatDuration(log.use_time)}`}</span>
+                                    <span>{`${t('totalTime')} ${formatDuration(log.use_time)}`}</span>
                                 </div>
                                 {!isMobile && vis.tps && (
                                     <div className="flex items-center gap-1.5">
@@ -485,10 +485,14 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                         <span>{t('cacheHitRate')} {formatCacheHitRate(cacheReadTokens, totalTokens)}</span>
                                     </div>
                                 )}
-                                <div className="flex items-center gap-1.5">
-                                    <ArrowDownToLine className="size-3.5 shrink-0 text-green-500" />
-                                    <span>{isMobile ? inputTokenDisplay : `${inputLabel} ${inputTokenDisplay}`}</span>
-                                </div>
+                                {/* Desktop keeps "real input"; mobile collapsed prioritizes total tokens
+                                    so high cache hits (e.g. 31.6万 cache + 366 real) are not misread. */}
+                                {!isMobile && (
+                                    <div className="flex items-center gap-1.5">
+                                        <ArrowDownToLine className="size-3.5 shrink-0 text-green-500" />
+                                        <span>{`${inputLabel} ${inputTokenDisplay}`}</span>
+                                    </div>
+                                )}
                                 {!isMobile && semanticCacheHit && (
                                     <div className="flex items-center gap-1.5">
                                         <ArrowDownToLine className="size-3.5 shrink-0 text-cyan-500" />
@@ -503,19 +507,23 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                 )}
                                 <div className="flex items-center gap-1.5">
                                     <ArrowUpFromLine className="size-3.5 shrink-0 text-purple-500" />
-                                    <span>{isMobile ? outputTokenDisplay : `${t('output')} ${outputTokenDisplay}`}</span>
+                                    <span>{`${t('output')} ${outputTokenDisplay}`}</span>
                                 </div>
-                                {!isMobile && (
+                                <div className="flex items-center gap-1.5">
+                                    <Sigma className="size-3.5 shrink-0 text-rose-500" />
+                                    <span className="font-medium text-rose-600 dark:text-rose-400">{t('totalTokens')} {totalTokenDisplay}</span>
+                                </div>
+                                {isMobile && vis.cacheHitRate && cacheReadTokens > 0 && (
                                     <div className="flex items-center gap-1.5">
-                                        <Sigma className="size-3.5 shrink-0 text-rose-500" />
-                                        <span className="font-medium text-rose-600 dark:text-rose-400">{t('totalTokens')} {totalTokenDisplay}</span>
+                                        <Percent className="size-3.5 shrink-0 text-teal-500" />
+                                        <span>{t('cacheHitRate')} {formatCacheHitRate(cacheReadTokens, totalTokens)}</span>
                                     </div>
                                 )}
                                 {vis.cost && (
                                     <div className="flex items-center gap-1.5">
                                         {chinaMode ? <JapaneseYen className="size-3.5 shrink-0 text-emerald-500" /> : <DollarSign className="size-3.5 shrink-0 text-emerald-500" />}
                                         <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                                            {isMobile ? costDisplay : `${t('cost')} ${costDisplay}`}
+                                            {`${t('cost')} ${costDisplay}`}
                                         </span>
                                     </div>
                                 )}
