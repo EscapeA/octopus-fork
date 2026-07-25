@@ -404,12 +404,14 @@ function QuotaTier({
     used,
     resetAt,
     compact = false,
+    className,
 }: {
     label: string;
     total: number;
     used: number;
     resetAt: string | null;
     compact?: boolean;
+    className?: string;
 }) {
     const t = useTranslations('hub');
     const [countdown, setCountdown] = useState('');
@@ -461,7 +463,7 @@ function QuotaTier({
 
     // Normal mode: card with progress bar
     return (
-        <div className="rounded-lg bg-muted/50 p-2.5">
+        <div className={cn('rounded-lg bg-muted/50 p-2.5', className)}>
             <div className="flex items-center justify-between mb-1">
                 <p className="text-xs text-muted-foreground">{label}</p>
                 {resetAt && (
@@ -511,6 +513,15 @@ function ProviderCard({
 
     // Find category info for display
     const isBalance = provider.provider_type === 'balance';
+
+    // 有效配额档（total>0）。外层先过滤，使 length/idx 反映真实渲染数，
+    // 用于 normal 网格布局的"奇数末项跨两列"判断（QuotaTier 内部
+    // total<=0 返回 null 不产生 DOM，但若不过滤，map 的 idx 会被 null 项污染）。
+    const tiers = [
+        { key: 'five_hour', label: t('plan.tierFiveHour') || '近5小时用量', total: provider.five_hour_total, used: provider.five_hour_used, resetAt: provider.five_hour_reset_at },
+        { key: 'weekly', label: t('plan.tierWeekly') || '近一周用量', total: provider.weekly_total, used: provider.weekly_used, resetAt: provider.weekly_reset_at },
+        { key: 'monthly', label: t('plan.tierMonthly') || '近一月用量', total: provider.quota_total, used: provider.quota_used, resetAt: provider.quota_reset_at },
+    ].filter((tier) => tier.total > 0);
 
     return (
         <div className={cn(
@@ -616,25 +627,17 @@ function ProviderCard({
                     />
                 </div>
             ) : (
-                <div className="space-y-2">
-                    <QuotaTier
-                        label={t('plan.tierFiveHour') || '近5小时用量'}
-                        total={provider.five_hour_total}
-                        used={provider.five_hour_used}
-                        resetAt={provider.five_hour_reset_at}
-                    />
-                    <QuotaTier
-                        label={t('plan.tierWeekly') || '近一周用量'}
-                        total={provider.weekly_total}
-                        used={provider.weekly_used}
-                        resetAt={provider.weekly_reset_at}
-                    />
-                    <QuotaTier
-                        label={t('plan.tierMonthly') || '近一月用量'}
-                        total={provider.quota_total}
-                        used={provider.quota_used}
-                        resetAt={provider.quota_reset_at}
-                    />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {tiers.map((tier, idx) => (
+                        <QuotaTier
+                            key={tier.key}
+                            label={tier.label}
+                            total={tier.total}
+                            used={tier.used}
+                            resetAt={tier.resetAt}
+                            className={idx === tiers.length - 1 && tiers.length % 2 === 1 ? 'sm:col-span-2' : undefined}
+                        />
+                    ))}
                 </div>
             )}
 
