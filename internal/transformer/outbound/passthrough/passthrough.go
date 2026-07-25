@@ -146,6 +146,16 @@ func (o *Outbound) buildUpstreamURL(baseURL, endpointPath string, request *model
 			if !strings.HasPrefix(rawPath, "/") {
 				rawPath = "/" + rawPath
 			}
+			// Anthropic 协议使用独立拼接规则（与 buildPassthroughURL 一致）：
+			// base URL 与路径直接拼接，不做 OpenAI 风格的 /v1 前缀去重。
+			if request.RawAPIFormat == model.APIFormatAnthropicMessage {
+				parsed, err := url.Parse(strings.TrimSuffix(baseURL, "/"))
+				if err != nil {
+					return "", fmt.Errorf("failed to parse base url: %w", err)
+				}
+				parsed.Path = strings.TrimSuffix(parsed.Path, "/") + rawPath
+				return appendQuery(parsed.String(), request.Query)
+			}
 			upstreamURL, err := openai.BuildOpenAIUpstreamURL(baseURL, rawPath)
 			if err != nil {
 				return "", err

@@ -186,6 +186,35 @@ func TestTransformRequestPreservePathUsesRawPath(t *testing.T) {
 	}
 }
 
+// Anthropic PreservePath 的 base URL 带前缀时必须原样拼接（不做 OpenAI 风格的
+// /v1 去重），否则 raw 出站 + Anthropic 入站会得到 404 的错误 URL。
+func TestTransformRequestPreservePathAnthropicKeepsBasePrefix(t *testing.T) {
+	raw := []byte(`{"model":"client-model","messages":[{"role":"user","content":"hello"}],"max_tokens":32}`)
+	stream := true
+	req, err := (&Outbound{PreservePath: true}).TransformRequest(context.Background(), &model.InternalLLMRequest{
+		Model:        "client-model",
+		RawRequest:   raw,
+		RawAPIFormat: model.APIFormatAnthropicMessage,
+		RawPath:      "/v1/messages",
+		Stream:       &stream,
+		Query:        mapQuery("beta", "1"),
+	}, "https://anthropic-proxy.example.com/api", "sk-ant")
+	if err != nil {
+		t.Fatalf("TransformRequest error: %v", err)
+	}
+
+	want := "https://anthropic-proxy.example.com/api/v1/messages?beta=1"
+	if req.URL.String() != want {
+		t.Fatalf("url = %s, want %s", req.URL.String(), want)
+	}
+	if got := req.Header.Get("X-API-Key"); got != "sk-ant" {
+		t.Fatalf("X-API-Key = %q", got)
+	}
+	if got := req.Header.Get("Anthropic-Version"); got != "2023-06-01" {
+		t.Fatalf("Anthropic-Version = %q", got)
+	}
+}
+
 func TestTransformRequestPreservePathDeduplicatesVersionRoot(t *testing.T) {
 	raw := []byte(`{"model":"client-model","messages":[{"role":"user","content":"hello"}]}`)
 	req, err := (&Outbound{PreservePath: true}).TransformRequest(context.Background(), &model.InternalLLMRequest{

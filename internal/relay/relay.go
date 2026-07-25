@@ -976,7 +976,6 @@ func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http
 						log.Warnf("channel %s returned empty stream (immediate strategy, no retry)", ra.channel.Name)
 					}
 					return nil
-					return errEmptyOutput
 				}
 				return nil
 			}
