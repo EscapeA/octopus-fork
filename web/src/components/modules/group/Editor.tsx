@@ -752,7 +752,7 @@ export function GroupEditor({
                 </FieldGroup>
             </div>
 
-            <div className="mt-auto shrink-0 px-1 pt-4 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
+            <div className="sticky bottom-0 z-10 mt-auto shrink-0 border-t border-border/20 bg-card/95 px-1 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] backdrop-blur supports-[backdrop-filter]:bg-card/80">
                 <div className="flex gap-2">
                     {onCancel && (
                         <Button type="button" variant="secondary" className="h-11 flex-1 rounded-lg" onClick={onCancel}>

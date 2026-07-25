@@ -863,7 +863,7 @@ function SelectionCheckbox({
             aria-label={ariaLabel}
             onChange={(event) => onCheckedChange(event.target.checked)}
             className={cn(
-                'size-4 rounded border-border bg-background align-middle accent-primary disabled:cursor-not-allowed disabled:opacity-50',
+                'size-5 rounded border-border bg-background align-middle accent-primary disabled:cursor-not-allowed disabled:opacity-50 sm:size-4',
                 className,
             )}
         />
@@ -890,7 +890,7 @@ function MoveRoutePopover({
                     type="button"
                     disabled={disabled}
                     className={cn(
-                        'rounded-lg p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50',
+                        'rounded-lg p-2.5 text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 sm:p-1.5',
                         buttonClassName,
                     )}
                 >
@@ -936,7 +936,9 @@ const STICKY_HEAD_CELL = 'sticky top-0 z-10 bg-card';
 function SiteChannelMobileCard({
     model,
     isPending,
+    isSelected,
     isHighlighted,
+    onToggleSelect,
     onMoveModel,
     onToggleDisabled,
     onDeleteManualModel,
@@ -945,7 +947,9 @@ function SiteChannelMobileCard({
 }: {
     model: SiteModelView;
     isPending: boolean;
+    isSelected: boolean;
     isHighlighted: boolean;
+    onToggleSelect: (modelKey: string, checked: boolean) => void;
     onMoveModel: (model: SiteModelView, routeType: SiteModelRouteType) => void;
     onToggleDisabled: (model: SiteModelView) => void;
     onDeleteManualModel: (model: SiteModelView) => void;
@@ -953,6 +957,7 @@ function SiteChannelMobileCard({
     registerModelRef: (modelKey: string, node: HTMLElement | null) => void;
 }) {
     const [expanded, setExpanded] = useState(false);
+    const [historyOpen, setHistoryOpen] = useState(false);
     const modelKey = makeModelKey(model.group_key, model.model_name);
     const { Avatar: ModelAvatar } = getModelIcon(model.model_name);
     const historyCount = getModelHistoryCount(model);
@@ -965,16 +970,31 @@ function SiteChannelMobileCard({
                 'first:rounded-t-xl last:rounded-b-xl not-first:-mt-px',
                 model.disabled && 'opacity-60',
                 isPending && 'opacity-70',
+                isSelected && 'bg-primary/5',
                 isHighlighted && 'z-10 ring-2 ring-primary/35 ring-inset',
             )}
         >
-            <button
-                type="button"
-                onClick={() => setExpanded((prev) => !prev)}
-                aria-expanded={expanded}
-                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left"
-            >
-                <div className="grid size-8 shrink-0 place-items-center self-center rounded-lg border border-border/25 bg-card">
+            <div className="flex w-full items-center gap-2 px-3 py-2.5">
+                <div
+                    className="shrink-0 self-center"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                >
+                    <SelectionCheckbox
+                        checked={isSelected}
+                        disabled={isPending}
+                        ariaLabel={`选择模型 ${model.model_name}`}
+                        onCheckedChange={(checked) => onToggleSelect(modelKey, checked)}
+                        className="mt-0.5"
+                    />
+                </div>
+                <button
+                    type="button"
+                    onClick={() => setExpanded((prev) => !prev)}
+                    aria-expanded={expanded}
+                    className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                >
+                <div className="grid size-9 shrink-0 place-items-center self-center rounded-lg border border-border/25 bg-card">
                     <ModelAvatar size={18} />
                 </div>
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -998,7 +1018,8 @@ function SiteChannelMobileCard({
                         ) : null}
                     </div>
                 </div>
-            </button>
+                </button>
+            </div>
 
             <AnimatePresence initial={false}>
                 {expanded ? (
@@ -1045,36 +1066,38 @@ function SiteChannelMobileCard({
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <MoveRoutePopover
                                     currentRouteType={model.route_type}
                                     disabled={isPending || model.disabled}
                                     buttonClassName="border border-border/25"
                                     onMove={(routeType) => onMoveModel(model, routeType)}
                                 />
-                                <HoverCard>
-                                    <HoverCardTrigger asChild>
+                                <Popover open={historyOpen} onOpenChange={setHistoryOpen}>
+                                    <PopoverTrigger asChild>
                                         <button
                                             type="button"
-                                            className="rounded-lg border border-border/25 p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                                            className="inline-flex h-10 min-w-10 items-center justify-center gap-1 rounded-lg border border-border/25 px-2.5 text-muted-foreground transition hover:bg-muted hover:text-foreground sm:h-8 sm:min-w-8 sm:p-1"
+                                            title="历史"
                                         >
                                             <History className="size-4" />
+                                            <span className="text-xs sm:hidden">{historyCount}</span>
                                         </button>
-                                    </HoverCardTrigger>
-                                    <HoverCardContent
+                                    </PopoverTrigger>
+                                    <PopoverContent
                                         side="top"
                                         align="start"
-                                        className="w-auto max-w-none rounded-2xl border border-border/70 bg-card p-0 shadow-xl"
+                                        className="w-auto max-w-[min(100vw-2rem,24rem)] rounded-2xl border border-border/70 bg-card p-0 shadow-xl"
                                     >
                                         <HistorySummary model={model} />
-                                    </HoverCardContent>
-                                </HoverCard>
+                                    </PopoverContent>
+                                </Popover>
                                 {model.source === 'manual' ? (
                                     <button
                                         type="button"
                                         onClick={() => onDeleteManualModel(model)}
                                         disabled={isPending}
-                                        className="rounded-lg border border-border/25 p-1 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                                        className="inline-flex h-10 min-w-10 items-center justify-center rounded-lg border border-border/25 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-50 sm:h-8 sm:min-w-8 sm:p-1"
                                         title="删除自定义模型"
                                     >
                                         <Trash2 className="size-4" />
@@ -1085,11 +1108,12 @@ function SiteChannelMobileCard({
                                     onClick={() => onToggleDisabled(model)}
                                     disabled={isPending}
                                     className={cn(
-                                        'rounded-lg border border-border/25 p-1 transition',
+                                        'inline-flex h-10 min-w-10 items-center justify-center rounded-lg border border-border/25 transition sm:h-8 sm:min-w-8 sm:p-1',
                                         model.disabled
                                             ? 'text-destructive hover:bg-destructive/10'
                                             : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                                     )}
+                                    title={model.disabled ? '启用' : '禁用'}
                                 >
                                     <CircleOff className="size-4" />
                                 </button>
@@ -1107,7 +1131,9 @@ function SiteChannelMobileList({
     hasMore,
     onReachEnd,
     pendingModelKeys,
+    selectedModelKeys,
     highlightedModelKey,
+    onToggleModelSelection,
     onMoveModel,
     onToggleDisabled,
     onDeleteManualModel,
@@ -1118,7 +1144,9 @@ function SiteChannelMobileList({
     hasMore: boolean;
     onReachEnd: () => void;
     pendingModelKeys: Set<string>;
+    selectedModelKeys: Set<string>;
     highlightedModelKey: string | null;
+    onToggleModelSelection: (modelKey: string, checked: boolean) => void;
     onMoveModel: (model: SiteModelView, routeType: SiteModelRouteType) => void;
     onToggleDisabled: (model: SiteModelView) => void;
     onDeleteManualModel: (model: SiteModelView) => void;
@@ -1156,7 +1184,9 @@ function SiteChannelMobileList({
                             key={modelKey}
                             model={model}
                             isPending={pendingModelKeys.has(modelKey)}
+                            isSelected={selectedModelKeys.has(modelKey)}
                             isHighlighted={highlightedModelKey === modelKey}
+                            onToggleSelect={onToggleModelSelection}
                             onMoveModel={onMoveModel}
                             onToggleDisabled={onToggleDisabled}
                             onDeleteManualModel={onDeleteManualModel}
@@ -2756,7 +2786,9 @@ function SiteAccountPanel({
                         hasMore={displayedModels.length < visibleModels.length}
                         onReachEnd={handleLoadMoreModels}
                         pendingModelKeys={pendingModelKeys}
+                        selectedModelKeys={selectedModelKeys}
                         highlightedModelKey={highlightedModelKey}
+                        onToggleModelSelection={handleToggleModelSelection}
                         onMoveModel={(model, nextRouteType) => applyRouteChange([model], nextRouteType)}
                         onToggleDisabled={handleToggleDisabled}
                         onDeleteManualModel={handleDeleteManualModel}
@@ -3206,7 +3238,7 @@ function SiteCardImpl({
             </div>
 
             <MorphingDialogContainer>
-                <MorphingDialogContent className="!w-[calc(100vw-1rem)] !max-w-[calc(100vw-1rem)] overflow-hidden rounded-[2rem] bg-background max-h-[90vh] md:!w-[min(96vw,92rem)] md:!max-w-[min(96vw,92rem)]">
+                <MorphingDialogContent className="!w-[calc(100vw-0.5rem)] !max-w-[calc(100vw-0.5rem)] overflow-hidden rounded-t-2xl rounded-b-none bg-background max-h-[min(94dvh,calc(100dvh-env(safe-area-inset-top,0px)))] pb-[env(safe-area-inset-bottom,0px)] sm:rounded-[2rem] md:!w-[min(96vw,92rem)] md:!max-w-[min(96vw,92rem)] md:max-h-[90vh] md:pb-0">
                     <SiteChannelDialog
                         card={card}
                         jumpRequest={jumpRequest?.target.siteId === card.site_id ? jumpRequest : null}

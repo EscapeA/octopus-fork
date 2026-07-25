@@ -104,11 +104,11 @@ function MemberItem({
 
                 <div
                     className={cn(
-                        'relative rounded-md p-1.5 touch-none transition-colors md:p-1',
-                        isDisabled
-                            ? 'cursor-grab active:cursor-grabbing hover:bg-muted/60'
-                            : 'cursor-grab active:cursor-grabbing hover:bg-primary/8'
-                    )}
+                                            'relative rounded-md p-2.5 touch-none transition-colors md:p-1.5',
+                                            isDisabled
+                                                ? 'cursor-grab active:cursor-grabbing hover:bg-muted/60'
+                                                : 'cursor-grab active:cursor-grabbing hover:bg-primary/8'
+                                        )}
                     // eslint-disable-next-line react-hooks/refs
                     {...dnd.dragHandleProps}
                 >

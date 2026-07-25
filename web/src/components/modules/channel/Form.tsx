@@ -1632,7 +1632,7 @@ export function ChannelForm({
                 </div>
             </section>
 
-            <div className={`shrink-0 flex flex-col gap-3 pt-4 ${onCancel ? 'sm:flex-row' : ''}`}>
+            <div className={`sticky bottom-0 z-10 -mx-1 shrink-0 border-t border-border/20 bg-card/95 px-1 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] backdrop-blur supports-[backdrop-filter]:bg-card/80 ${onCancel ? 'sm:flex-row flex flex-col gap-3' : 'flex flex-col gap-3'}`}>
                 {onCancel && cancelText && (
                     <Button
                         type="button"
