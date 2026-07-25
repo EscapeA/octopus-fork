@@ -163,7 +163,7 @@
       "sensenovaTokenPlaceholder": "貼上控制台 Bearer Token 值",
       "sensenovaTokenHint": "需登入 platform.sensenova.cn 控制台，從請求頭複製 Bearer Token 值。有效期約 3 小時，過期後需重新取得。",
       "bailianTokenPlaceholder": "貼上控制台完整 Cookie 值",
-      "bailianTokenHint": "需登入 bailian.console.aliyun.com 控制台，按 F12 打開開發者工具 → Application → Cookies，複製完整 Cookie 值。工作階段過期後需重新取得。",
+      "bailianTokenHint": "需登入 bailian.console.aliyun.com 控制台，按 F12 打開開發者工具 → Network（網路）→ 重新整理頁面，點擊任意請求，從請求頭（Request Headers）複製完整 Cookie 值。工作階段過期後需重新取得。",
       "volcengineCredentialPlaceholder": "Cookie值|||x-csrf-token值（從控制台請求頭複製，用竪線分隔）",
       "volcengineCredentialHint": "登入 console.volcengine.com/ark → F12 → Network → 任意 plan 介面，複製完整 Cookie 請求頭和 x-csrf-token 請求頭，用 ||| 連接。工作階段過期後需重新取得。",
       "cookieLabel": "Cookie",
