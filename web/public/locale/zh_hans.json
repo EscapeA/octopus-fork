@@ -1116,7 +1116,8 @@
             "h": "h"
           }
         }
-      }
+      },
+      "actions": "操作"
     }
   },
   "common": {
@@ -1128,7 +1129,9 @@
     },
     "dialog": {
       "open": "打开弹窗",
-      "close": "关闭弹窗"
+      "close": "关闭弹窗",
+      "confirm": "确认",
+      "cancel": "取消"
     },
     "routeNotFound": "未找到路由：{route}",
     "unknown": "未知",
@@ -2604,7 +2607,11 @@
       "allLogs": "全部日志",
       "testOnly": "仅测试",
       "nonTest": "仅正式",
-      "clear": "清除"
+      "clear": "清除",
+      "open": "筛选",
+      "title": "日志筛选",
+      "apply": "完成",
+      "activeCount": "{count} 项"
     },
     "viewOptions": {
       "title": "显示字段",

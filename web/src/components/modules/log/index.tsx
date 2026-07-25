@@ -6,7 +6,7 @@ import { useAPIKeyList } from '@/api/endpoints/apikey';
 import { useLogs, type LogFilter } from '@/api/endpoints/log';
 import { useModelList } from '@/api/endpoints/model';
 import { LogCard } from './Item';
-import { Loader2, X, Columns3, Check, ChevronsUpDown, Search } from 'lucide-react';
+import { Loader2, X, Columns3, Check, ChevronsUpDown, Search, SlidersHorizontal } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useLogFieldVisibilityStore, useLogModelSearchStore, type LogFieldName } from './ui-store';
 import { useTranslations } from 'next-intl';
@@ -19,6 +19,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 import { ENDPOINT_TYPE_OPTIONS } from '@/components/modules/group/utils';
 
 const EMPTY_FILTER: LogFilter = {};
@@ -36,10 +39,12 @@ function LogFilterBar({
     const t = useTranslations('log.filter');
     const tGroup = useTranslations('group');
     const tView = useTranslations('log.viewOptions');
+    const isMobile = useIsMobile();
     const { data: channels = [] } = useChannelList();
     const { data: apiKeys = [] } = useAPIKeyList();
     const { data: models = [] } = useModelList();
     const visibility = useLogFieldVisibilityStore((s) => s.visibility);
+    const [mobileOpen, setMobileOpen] = useState(false);
 
     const hasFilter = !!(
         filter.channel_id != null ||
@@ -49,6 +54,14 @@ function LogFilterBar({
         filter.is_test != null ||
         (filter.models && filter.models.length > 0)
     );
+    const activeFilterCount = [
+        filter.channel_id != null,
+        filter.api_key_id != null,
+        !!filter.endpoint_type,
+        !!filter.status,
+        filter.is_test != null,
+        !!(filter.models && filter.models.length > 0),
+    ].filter(Boolean).length;
 
     const selectedModels = useMemo(() => new Set(filter.models ?? []), [filter.models]);
     const [modelSearchTerm, setModelSearchTerm] = useState('');
@@ -83,8 +96,18 @@ function LogFilterBar({
         setModelSearch('');
     }, [onChange, setModelSearch]);
 
-    return (
-        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto py-1">
+    const selectTriggerClass = isMobile
+        ? 'h-10 w-full text-sm min-w-0'
+        : 'h-7 text-xs min-w-[7rem]';
+    const compactSelectTriggerClass = isMobile
+        ? 'h-10 w-full text-sm min-w-0'
+        : 'h-7 text-xs min-w-[6rem]';
+    const modelPickerClass = isMobile
+        ? 'flex h-10 w-full items-center justify-between gap-1 rounded-md border border-border/50 bg-background px-3 text-sm hover:bg-muted transition-colors'
+        : 'flex h-7 items-center gap-1 rounded-md border border-border/50 bg-background px-2 text-xs hover:bg-muted transition-colors min-w-[7rem]';
+
+    const filtersBody = (
+        <div className={cn(isMobile ? 'grid gap-3' : 'flex flex-nowrap items-center gap-2')}>
             <Select
                 value={filter.channel_id != null ? String(filter.channel_id) : ''}
                 onValueChange={(v) => {
@@ -97,14 +120,14 @@ function LogFilterBar({
                     onChange(next);
                 }}
             >
-                <SelectTrigger size="sm" className="h-7 text-xs min-w-[7rem]">
+                <SelectTrigger size="sm" className={selectTriggerClass}>
                     <SelectValue placeholder={t('allChannels')} />
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="__all__">{t('allChannels')}</SelectItem>
-                    {channels.map((ch) => (
-                        <SelectItem key={ch.raw.id} value={String(ch.raw.id)}>
-                            {ch.raw.name}
+                    {channels.map((item) => (
+                        <SelectItem key={item.raw.id} value={String(item.raw.id)}>
+                            {item.raw.name}
                         </SelectItem>
                     ))}
                 </SelectContent>
@@ -122,7 +145,7 @@ function LogFilterBar({
                     onChange(next);
                 }}
             >
-                <SelectTrigger size="sm" className="h-7 text-xs min-w-[7rem]">
+                <SelectTrigger size="sm" className={selectTriggerClass}>
                     <SelectValue placeholder={t('allKeys')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -147,7 +170,7 @@ function LogFilterBar({
                     onChange(next);
                 }}
             >
-                <SelectTrigger size="sm" className="h-7 text-xs min-w-[7rem]">
+                <SelectTrigger size="sm" className={selectTriggerClass}>
                     <SelectValue placeholder={t('allTypes')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -172,7 +195,7 @@ function LogFilterBar({
                     onChange(next);
                 }}
             >
-                <SelectTrigger size="sm" className="h-7 text-xs min-w-[6rem]">
+                <SelectTrigger size="sm" className={compactSelectTriggerClass}>
                     <SelectValue placeholder={t('allStatuses')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -196,7 +219,7 @@ function LogFilterBar({
                     onChange(next);
                 }}
             >
-                <SelectTrigger size="sm" className="h-7 text-xs min-w-[6rem]">
+                <SelectTrigger size="sm" className={compactSelectTriggerClass}>
                     <SelectValue placeholder={t('allLogs')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -205,6 +228,7 @@ function LogFilterBar({
                     <SelectItem value="false">{t('nonTest')}</SelectItem>
                 </SelectContent>
             </Select>
+
             <Popover
                 onOpenChange={(open) => {
                     if (open) {
@@ -214,10 +238,7 @@ function LogFilterBar({
                 }}
             >
                 <PopoverTrigger asChild>
-                    <button
-                        type="button"
-                        className="flex h-7 items-center gap-1 rounded-md border border-border/50 bg-background px-2 text-xs hover:bg-muted transition-colors min-w-[7rem]"
-                    >
+                    <button type="button" className={modelPickerClass}>
                         <span className="truncate">
                             {selectedModels.size > 0
                                 ? `${t('modelsSelected', { count: selectedModels.size })}`
@@ -226,101 +247,179 @@ function LogFilterBar({
                         <ChevronsUpDown className="size-3 shrink-0 opacity-50" />
                     </button>
                 </PopoverTrigger>
-                <PopoverContent align="start" className="w-64 p-0">
-                    <div className="flex items-center gap-1.5 border-b border-border/50 px-2.5 py-2">
-                        <Search className="size-3.5 shrink-0 text-muted-foreground" />
+                <PopoverContent align={isMobile ? 'center' : 'start'} className="w-72 p-2">
+                    <div className="mb-2 flex items-center gap-2 rounded-md border border-border/50 px-2">
+                        <Search className="size-3.5 text-muted-foreground" />
                         <input
                             ref={modelSearchInputRef}
                             value={modelSearchTerm}
                             onChange={(e) => setModelSearchTerm(e.target.value)}
                             placeholder={t('searchModel')}
-                            className="h-5 min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/50"
+                            className="h-8 w-full bg-transparent text-sm outline-none"
                         />
-                        {selectedModels.size > 0 && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    const next = { ...filter };
-                                    delete next.models;
-                                    onChange(next);
-                                }}
-                                className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
-                            >
-                                {t('clearModels')}
-                            </button>
-                        )}
                     </div>
-                    <div className="max-h-60 overflow-y-auto py-1">
+                    <div className="max-h-56 space-y-1 overflow-y-auto">
                         {filteredModelOptions.length === 0 ? (
-                            <p className="px-2.5 py-2 text-xs text-muted-foreground">{t('noModels')}</p>
+                            <p className="px-2 py-3 text-xs text-muted-foreground">{t('noModels')}</p>
                         ) : (
-                            filteredModelOptions.map((m) => {
-                                const checked = selectedModels.has(m.name);
+                            filteredModelOptions.map((model) => {
+                                const checked = selectedModels.has(model.name);
                                 return (
                                     <button
-                                        key={m.name}
+                                        key={model.name}
                                         type="button"
-                                        onClick={() => toggleModel(m.name)}
-                                        className="flex w-full items-center gap-2 px-2.5 py-1 text-xs hover:bg-muted transition-colors"
+                                        onClick={() => toggleModel(model.name)}
+                                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted"
                                     >
-                                        <span className={`flex size-3.5 shrink-0 items-center justify-center rounded border ${checked ? 'border-primary bg-primary text-primary-foreground' : 'border-border/60'}`}>
-                                            {checked && <Check className="size-3" />}
+                                        <span className={cn(
+                                            'grid size-4 place-items-center rounded border',
+                                            checked ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
+                                        )}>
+                                            {checked ? <Check className="size-3" /> : null}
                                         </span>
-                                        <span className="truncate">{m.name}</span>
+                                        <span className="min-w-0 truncate">{model.name}</span>
                                     </button>
-                                    );
-                                })
+                                );
+                            })
                         )}
                     </div>
+                    {selectedModels.size > 0 ? (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const next = { ...filter };
+                                delete next.models;
+                                onChange(next);
+                            }}
+                            className="mt-2 w-full rounded-md border border-border/50 px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted"
+                        >
+                            {t('clearModels')}
+                        </button>
+                    ) : null}
                 </PopoverContent>
             </Popover>
 
-            {hasFilter && (
+            {hasFilter ? (
                 <button
                     type="button"
                     onClick={handleClear}
-                    className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    className={cn(
+                        'inline-flex items-center justify-center gap-1 rounded-md border border-border/50 text-muted-foreground hover:bg-muted hover:text-foreground',
+                        isMobile ? 'h-10 px-3 text-sm' : 'h-7 px-2 text-xs'
+                    )}
                 >
-                    <X className="size-3" />
+                    <X className="size-3.5" />
                     {t('clear')}
                 </button>
-            )}
+            ) : null}
 
             <Popover>
                 <PopoverTrigger asChild>
                     <button
                         type="button"
-                        className="flex items-center gap-1 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                        title={tView('title')}
+                        className={cn(
+                            'inline-flex items-center justify-center gap-1 rounded-md border border-border/50 text-muted-foreground hover:bg-muted hover:text-foreground',
+                            isMobile ? 'h-10 px-3 text-sm' : 'h-7 px-2 text-xs'
+                        )}
                     >
                         <Columns3 className="size-3.5" />
+                        {tView('title')}
                     </button>
                 </PopoverTrigger>
-                <PopoverContent align="end" className="w-52 p-3">
-                    <p className="text-xs font-medium text-muted-foreground mb-2">{tView('title')}</p>
-                    <div className="flex flex-col gap-1">
-                        {(['endpointType', 'channelName', 'actualModel', 'apiKeyName', 'clientIP', 'cost', 'tps', 'cacheHitRate', 'reasoningEffort', 'reasoningTokens'] as LogFieldName[]).map((field) => (
-                            <label key={field} className="flex items-center gap-2 cursor-pointer rounded px-1.5 py-1 text-xs hover:bg-muted transition-colors">
-                                <input
-                                    type="checkbox"
-                                    checked={visibility[field]}
-                                    onChange={() => useLogFieldVisibilityStore.getState().toggleField(field)}
-                                    className="size-3 rounded"
-                                />
+                <PopoverContent align="end" className="w-64 p-2">
+                    <div className="mb-2 flex items-center justify-between px-1">
+                        <p className="text-xs font-semibold text-muted-foreground">{tView('title')}</p>
+                        <button
+                            type="button"
+                            onClick={() => useLogFieldVisibilityStore.getState().resetFields()}
+                            className="text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground rounded px-1.5 py-0.5 transition-colors"
+                        >
+                            {tView('reset')}
+                        </button>
+                    </div>
+                    <div className="grid gap-1">
+                        {(Object.keys(visibility) as LogFieldName[]).map((field) => (
+                            <button
+                                key={field}
+                                type="button"
+                                onClick={() => useLogFieldVisibilityStore.getState().toggleField(field)}
+                                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted"
+                            >
+                                <span className={cn(
+                                    'grid size-4 place-items-center rounded border',
+                                    visibility[field] ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
+                                )}>
+                                    {visibility[field] ? <Check className="size-3" /> : null}
+                                </span>
                                 {tView(field)}
-                            </label>
+                            </button>
                         ))}
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => useLogFieldVisibilityStore.getState().resetFields()}
-                        className="mt-2 w-full rounded-md border border-border/50 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                    >
-                        {tView('reset')}
-                    </button>
                 </PopoverContent>
             </Popover>
         </div>
+    );
+
+    if (!isMobile) {
+        return (
+            <div className="overflow-x-auto py-1">
+                {filtersBody}
+            </div>
+        );
+    }
+
+    return (
+        <>
+            <div className="flex items-center gap-2 py-1">
+                <button
+                    type="button"
+                    onClick={() => setMobileOpen(true)}
+                    className={cn(
+                        'inline-flex h-10 min-h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground',
+                        hasFilter && 'border-primary/40 bg-primary/5 text-primary'
+                    )}
+                >
+                    <SlidersHorizontal className="size-4" />
+                    <span>{t('open')}</span>
+                    {activeFilterCount > 0 ? (
+                        <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs tabular-nums">
+                            {t('activeCount', { count: activeFilterCount })}
+                        </span>
+                    ) : null}
+                </button>
+                {hasFilter ? (
+                    <button
+                        type="button"
+                        onClick={handleClear}
+                        className="inline-flex h-10 min-h-10 items-center justify-center gap-1 rounded-xl border border-border bg-card px-3 text-sm text-muted-foreground"
+                    >
+                        <X className="size-4" />
+                        {t('clear')}
+                    </button>
+                ) : null}
+            </div>
+
+            <Dialog open={mobileOpen} onOpenChange={setMobileOpen}>
+                <DialogContent
+                    showCloseButton={false}
+                    className="top-auto bottom-0 left-0 right-0 max-h-[min(88dvh,40rem)] w-full max-w-none translate-x-0 translate-y-0 rounded-t-2xl rounded-b-none border-border p-0 sm:max-w-none"
+                >
+                    <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                        <DialogTitle className="text-base font-semibold">{t('title')}</DialogTitle>
+                        <button
+                            type="button"
+                            onClick={() => setMobileOpen(false)}
+                            className="rounded-lg px-3 py-1.5 text-sm font-medium text-primary"
+                        >
+                            {t('apply')}
+                        </button>
+                    </div>
+                    <div className="max-h-[calc(min(88dvh,40rem)-3.5rem)] overflow-y-auto px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
+                        {filtersBody}
+                    </div>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }
 
@@ -407,7 +506,7 @@ export function Log() {
                         items={logs}
                         layout="list"
                         columns={{ default: 1 }}
-                        estimateItemHeight={180}
+                        estimateItemHeight={148}
                         overscan={8}
                         getItemKey={(log) => `log-${log.id}`}
                         renderItem={(log) => <LogCard log={log} channelNameById={channelNameById} />}

@@ -140,7 +140,8 @@ export function Toolbar() {
     };
 
     if (!toolbarItem) return null;
-    const showLayoutOptions = toolbarItem !== 'group';
+    // Mobile always forces compact list rendering; layout toggles would be no-ops.
+    const showLayoutOptions = toolbarItem !== 'group' && !isMobile;
     const showCombinedSortOptions = toolbarItem === 'channel' || toolbarItem === 'group';
     const showSortOptions = toolbarItem !== 'model';
 
@@ -522,6 +523,15 @@ export function Toolbar() {
                                                     </div>
                                                 </div>
                                             </>
+                                        )}
+                                        {toolbarItem === 'group' && (
+                                            <div className="grid gap-2 rounded-lg border border-border bg-muted/14 p-2 sm:hidden">
+                                                <p className="text-[11px] font-semibold text-muted-foreground">{t('popover.actions')}</p>
+                                                <div className="grid gap-2">
+                                                    <MaintenanceButton className="w-full justify-start" />
+                                                    <CCSwitchLinkButton className="w-full justify-start" />
+                                                </div>
+                                            </div>
                                         )}
                                         {toolbarItem === 'group' && (
                                             <div className="grid gap-2 rounded-lg border border-border bg-muted/14 p-2">

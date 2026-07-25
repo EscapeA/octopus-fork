@@ -24,6 +24,16 @@ import { toast } from '@/components/common/Toast';
 import { useTranslations } from 'next-intl';
 import { Check, FolderTree, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToolbarViewOptionsStore } from '@/components/modules/toolbar/view-options-store';
 
 type ChannelGroupManagerPanelProps = {
@@ -60,6 +70,7 @@ export function ChannelGroupManagerPanel({
     const [newGroupName, setNewGroupName] = useState('');
     const [editingGroupID, setEditingGroupID] = useState<number | null>(null);
     const [editingGroupName, setEditingGroupName] = useState('');
+    const [pendingDeleteGroup, setPendingDeleteGroup] = useState<ChannelGroup | null>(null);
 
     const handleCreate = () => {
         const name = newGroupName.trim();
@@ -102,12 +113,15 @@ export function ChannelGroupManagerPanel({
     };
 
     const handleDelete = (group: ChannelGroup) => {
-        if (!window.confirm(t('deleteConfirm', { name: group.name }))) {
-            return;
-        }
-        deleteChannelGroup.mutate(group.id, {
+        setPendingDeleteGroup(group);
+    };
+
+    const confirmDeleteGroup = () => {
+        if (!pendingDeleteGroup) return;
+        deleteChannelGroup.mutate(pendingDeleteGroup.id, {
             onSuccess: () => {
                 toast.success(t('deleteSuccess'));
+                setPendingDeleteGroup(null);
             },
             onError: (error) => {
                 toast.error(error.message);
@@ -295,6 +309,22 @@ export function ChannelGroupManagerPanel({
                     })
                 )}
             </div>
+            <AlertDialog open={pendingDeleteGroup != null} onOpenChange={(open) => { if (!open) setPendingDeleteGroup(null); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t('delete')}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {pendingDeleteGroup ? t('deleteConfirm', { name: pendingDeleteGroup.name }) : ''}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+                        <AlertDialogAction variant="destructive" onClick={confirmDeleteGroup} disabled={deleteChannelGroup.isPending}>
+                            {t('delete')}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </section>
     );
 }

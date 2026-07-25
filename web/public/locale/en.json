@@ -1160,7 +1160,8 @@
             "h": "h"
           }
         }
-      }
+      },
+      "actions": "Actions"
     }
   },
   "common": {
@@ -1172,7 +1173,9 @@
     },
     "dialog": {
       "open": "Open dialog",
-      "close": "Close dialog"
+      "close": "Close dialog",
+      "confirm": "Confirm",
+      "cancel": "Cancel"
     },
     "routeNotFound": "Route not found: {route}",
     "unknown": "Unknown",
@@ -2648,7 +2651,11 @@
       "allLogs": "All logs",
       "testOnly": "Test only",
       "nonTest": "Non-test",
-      "clear": "Clear"
+      "clear": "Clear",
+      "open": "Filters",
+      "title": "Log filters",
+      "apply": "Done",
+      "activeCount": "{count}"
     },
     "viewOptions": {
       "title": "Display Fields",

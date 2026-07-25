@@ -106,7 +106,14 @@ export const useToolbarViewOptionsStore = create<ToolbarViewOptionsState>()(
             modelSortMode: 'success-rate',
             modelLatencyUnit: 'auto',
 
-            getLayout: (item) => get().layouts[item] || 'grid',
+            getLayout: (item) => {
+                // Mobile always prefers the dense single-column compact row.
+                // Persisted desktop layout choices are preserved for wider viewports.
+                if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                    return 'compact';
+                }
+                return get().layouts[item] || 'compact';
+            },
             setLayout: (item, value) => {
                 set((state) => ({ layouts: { ...state.layouts, [item]: value } }));
             },

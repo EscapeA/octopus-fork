@@ -1116,7 +1116,8 @@
             "h": "h"
           }
         }
-      }
+      },
+      "actions": "操作"
     }
   },
   "common": {
@@ -1128,7 +1129,9 @@
     },
     "dialog": {
       "open": "打開視窗",
-      "close": "關閉視窗"
+      "close": "關閉視窗",
+      "confirm": "確認",
+      "cancel": "取消"
     },
     "routeNotFound": "找不到路由：{route}",
     "unknown": "未知",
@@ -2604,7 +2607,11 @@
       "allLogs": "全部日誌",
       "testOnly": "僅測試",
       "nonTest": "僅正式",
-      "clear": "清除"
+      "clear": "清除",
+      "open": "篩選",
+      "title": "日誌篩選",
+      "apply": "完成",
+      "activeCount": "{count} 項"
     },
     "viewOptions": {
       "title": "顯示欄位",

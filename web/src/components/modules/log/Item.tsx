@@ -17,6 +17,7 @@ import { endpointTypeLabelKey } from '@/components/modules/group/utils';
 import { resolveLogDisplayFields, formatJsonForCopy } from './display';
 import { useLogFieldVisibility } from './ui-store';
 import { useSettingStore } from '@/stores/setting';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { CopyIconButton } from '@/components/common/CopyButton';
 import {
     MorphingDialog,
@@ -300,6 +301,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
     const displayFields = useMemo(() => resolveLogDisplayFields(log, detail, channelNameById), [channelNameById, detail, log]);
     const vis = useLogFieldVisibility();
     const chinaMode = useSettingStore((s) => s.chinaMode);
+    const isMobile = useIsMobile();
     const { Avatar: ModelAvatar, color: brandColor } = useMemo(
         () => getModelIcon(displayFields.actualModelName),
         [displayFields.actualModelName]
@@ -441,12 +443,15 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                     <Pin className="size-3.5 shrink-0 text-amber-500" />
                                 )}
                             </div>
-                            <div className="grid grid-cols-2 md:grid-cols-7 gap-x-4 gap-y-1.5 text-xs tabular-nums text-muted-foreground">
+                            <div className={cn(
+                                'grid gap-x-4 gap-y-1.5 text-xs tabular-nums text-muted-foreground',
+                                isMobile ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-7'
+                            )}>
                                 <div className="flex items-center gap-1.5">
                                     <Clock className="size-3.5 shrink-0" style={{ color: brandColor }} />
                                     <span>{formatTime(log.time)}</span>
                                 </div>
-                                {vis.apiKeyName && requestAPIKeyName && (
+                                {!isMobile && vis.apiKeyName && requestAPIKeyName && (
                                     <div className="flex items-center gap-1.5">
                                         <KeyRound className="size-3.5 shrink-0 text-orange-500" />
                                         <span className="truncate" title={requestAPIKeyName}>
@@ -454,7 +459,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                         </span>
                                     </div>
                                 )}
-                                {vis.clientIP && clientIP && (
+                                {!isMobile && vis.clientIP && clientIP && (
                                     <div className="flex items-center gap-1.5">
                                         <Globe className="size-3.5 shrink-0 text-sky-500" />
                                         <span className="truncate" title={clientIP}>{clientIP}</span>
@@ -462,19 +467,19 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                 )}
                                 <div className="flex items-center gap-1.5">
                                     <Zap className="size-3.5 shrink-0 text-amber-500" />
-                                    <span>{t('firstToken')} {formatDuration(log.ftut)}</span>
+                                    <span>{isMobile ? formatDuration(log.ftut) : `${t('firstToken')} ${formatDuration(log.ftut)}`}</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                     <Cpu className="size-3.5 shrink-0 text-blue-500" />
-                                    <span>{t('totalTime')} {formatDuration(log.use_time)}</span>
+                                    <span>{isMobile ? formatDuration(log.use_time) : `${t('totalTime')} ${formatDuration(log.use_time)}`}</span>
                                 </div>
-                                {vis.tps && (
+                                {!isMobile && vis.tps && (
                                     <div className="flex items-center gap-1.5">
                                         <Gauge className="size-3.5 shrink-0 text-lime-500" />
                                         <span>{t('tps')} {formatTPS(log.output_tokens, log.use_time)}</span>
                                     </div>
                                 )}
-                                {vis.cacheHitRate && cacheReadTokens > 0 && (
+                                {!isMobile && vis.cacheHitRate && cacheReadTokens > 0 && (
                                     <div className="flex items-center gap-1.5">
                                         <Percent className="size-3.5 shrink-0 text-teal-500" />
                                         <span>{t('cacheHitRate')} {formatCacheHitRate(cacheReadTokens, totalTokens)}</span>
@@ -482,15 +487,15 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                 )}
                                 <div className="flex items-center gap-1.5">
                                     <ArrowDownToLine className="size-3.5 shrink-0 text-green-500" />
-                                    <span>{inputLabel} {inputTokenDisplay}</span>
+                                    <span>{isMobile ? inputTokenDisplay : `${inputLabel} ${inputTokenDisplay}`}</span>
                                 </div>
-                                {semanticCacheHit && (
+                                {!isMobile && semanticCacheHit && (
                                     <div className="flex items-center gap-1.5">
                                         <ArrowDownToLine className="size-3.5 shrink-0 text-cyan-500" />
                                         <span>{t('semanticCacheHit')}</span>
                                     </div>
                                 )}
-                                {cacheReadTokens > 0 && (
+                                {!isMobile && cacheReadTokens > 0 && (
                                     <div className="flex items-center gap-1.5">
                                         <ArrowDownToLine className="size-3.5 shrink-0 text-teal-500" />
                                         <span>{t('cacheHit')} {fmt(formatCount(cacheReadTokens).formatted)}</span>
@@ -498,33 +503,35 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                 )}
                                 <div className="flex items-center gap-1.5">
                                     <ArrowUpFromLine className="size-3.5 shrink-0 text-purple-500" />
-                                    <span>{t('output')} {outputTokenDisplay}</span>
+                                    <span>{isMobile ? outputTokenDisplay : `${t('output')} ${outputTokenDisplay}`}</span>
                                 </div>
-                                <div className="flex items-center gap-1.5">
-                                    <Sigma className="size-3.5 shrink-0 text-rose-500" />
-                                    <span className="font-medium text-rose-600 dark:text-rose-400">{t('totalTokens')} {totalTokenDisplay}</span>
-                                </div>
+                                {!isMobile && (
+                                    <div className="flex items-center gap-1.5">
+                                        <Sigma className="size-3.5 shrink-0 text-rose-500" />
+                                        <span className="font-medium text-rose-600 dark:text-rose-400">{t('totalTokens')} {totalTokenDisplay}</span>
+                                    </div>
+                                )}
                                 {vis.cost && (
                                     <div className="flex items-center gap-1.5">
                                         {chinaMode ? <JapaneseYen className="size-3.5 shrink-0 text-emerald-500" /> : <DollarSign className="size-3.5 shrink-0 text-emerald-500" />}
                                         <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                                            {t('cost')} {costDisplay}
+                                            {isMobile ? costDisplay : `${t('cost')} ${costDisplay}`}
                                         </span>
                                     </div>
                                 )}
-                                {vis.reasoningEffort && !!log.reasoning_effort && (
+                                {!isMobile && vis.reasoningEffort && !!log.reasoning_effort && (
                                     <div className="flex items-center gap-1.5">
                                         <Brain className="size-3.5 shrink-0 text-violet-500" />
                                         <span>{t('reasoningEffort')} {log.reasoning_effort}</span>
                                     </div>
                                 )}
-                                {vis.reasoningTokens && (log.reasoning_tokens ?? 0) > 0 && (
+                                {!isMobile && vis.reasoningTokens && (log.reasoning_tokens ?? 0) > 0 && (
                                     <div className="flex items-center gap-1.5">
                                         <Brain className="size-3.5 shrink-0 text-indigo-500" />
                                         <span>{t('reasoningTokens')} {fmt(formatCount(log.reasoning_tokens ?? 0).formatted)}t</span>
                                     </div>
                                 )}
-                                {vis.reasoningTokens && (log.reasoning_tokens ?? 0) <= 0 && (log.reasoning_chars ?? 0) > 0 && (
+                                {!isMobile && vis.reasoningTokens && (log.reasoning_tokens ?? 0) <= 0 && (log.reasoning_chars ?? 0) > 0 && (
                                     <div className="flex items-center gap-1.5">
                                         <Type className="size-3.5 shrink-0 text-indigo-500" />
                                         <span>{t('reasoningChars')} {fmt(formatCount(log.reasoning_chars ?? 0).formatted)}{t('reasoningCharsUnit')}</span>
@@ -541,9 +548,9 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                 </MorphingDialogTrigger>
 
                 <MorphingDialogContainer>
-                    <MorphingDialogContent className="relative flex max-h-[calc(100dvh-2rem)] min-h-0 w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl bg-card px-6 py-4 text-card-foreground md:w-[95vw] md:max-w-7xl">
+                    <MorphingDialogContent className="relative flex max-h-[calc(100dvh-1rem)] min-h-0 w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl bg-card px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] text-card-foreground sm:px-6 md:w-[95vw] md:max-w-7xl md:max-h-[calc(100dvh-2rem)]">
                         <MorphingDialogClose className="top-4 right-5 text-muted-foreground hover:text-foreground transition-colors" />
-                        <MorphingDialogTitle className="flex items-center gap-2 mb-3 text-sm">
+                        <MorphingDialogTitle className="mb-3 flex flex-wrap items-center gap-2 text-sm">
                             <ModelAvatar size={28} />
                             <span className="font-semibold text-card-foreground">{displayRequestModelName}</span>
                             {log.is_test && (

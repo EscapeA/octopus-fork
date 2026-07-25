@@ -15,6 +15,16 @@ import {
 } from '@/components/ui/morphing-dialog';
 import { buttonVariants } from '@/components/ui/button';
 import { CreateDialogContent } from './Create';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 function RoleBadge({ role, label }: { role: string; label: string }) {
     const config = {
@@ -37,6 +47,7 @@ export function User() {
     const updateRole = useUpdateUserRole();
     const deleteUser = useDeleteUser();
     const [editingId, setEditingId] = useState<number | null>(null);
+    const [deleteId, setDeleteId] = useState<number | null>(null);
     const roleOptions = ['admin', 'editor', 'viewer'] as const;
 
     const handleRoleChange = (id: number, role: string) => {
@@ -50,9 +61,16 @@ export function User() {
     };
 
     const handleDelete = (id: number) => {
-        if (!confirm(t('confirmDelete'))) return;
-        deleteUser.mutate(id, {
-            onSuccess: () => toast.success(t('toast.deleted')),
+        setDeleteId(id);
+    };
+
+    const confirmDelete = () => {
+        if (deleteId == null) return;
+        deleteUser.mutate(deleteId, {
+            onSuccess: () => {
+                toast.success(t('toast.deleted'));
+                setDeleteId(null);
+            },
             onError: (e) => toast.error(t('toast.actionFailed'), { description: e.message }),
         });
     };
@@ -127,6 +145,20 @@ export function User() {
                     ))}
                 </div>
             </div>
+            <AlertDialog open={deleteId != null} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t('deleteUser')}</AlertDialogTitle>
+                        <AlertDialogDescription>{t('confirmDelete')}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+                        <AlertDialogAction variant="destructive" onClick={confirmDelete} disabled={deleteUser.isPending}>
+                            {t('deleteUser')}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </PageWrapper>
     );
 }
