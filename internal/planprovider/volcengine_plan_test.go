@@ -124,6 +124,19 @@ func TestQueryVolcenginePlanTokenPlan_Success(t *testing.T) {
 	if result.WeeklyUsed != 34.5528 {
 		t.Errorf("WeeklyUsed = %v, want 34.5528", result.WeeklyUsed)
 	}
+	// 5 小时档
+	if result.FiveHourTotal != 10000 {
+		t.Errorf("FiveHourTotal = %v, want 10000", result.FiveHourTotal)
+	}
+	if result.FiveHourUsed != 34.5528 {
+		t.Errorf("FiveHourUsed = %v, want 34.5528", result.FiveHourUsed)
+	}
+	if result.FiveHourResetAt == nil {
+		t.Fatal("FiveHourResetAt 不应为 nil")
+	}
+	if want := time.UnixMilli(1784966376000); !result.FiveHourResetAt.Equal(want) {
+		t.Errorf("FiveHourResetAt = %v, want %v", result.FiveHourResetAt, want)
+	}
 	// ResetTime 毫秒时间戳转换
 	if result.QuotaResetAt == nil {
 		t.Fatal("QuotaResetAt 不应为 nil")

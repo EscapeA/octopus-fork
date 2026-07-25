@@ -33,6 +33,10 @@ type TokenPlanResult struct {
 	WeeklyTotal   float64    `json:"weekly_total"`
 	WeeklyUsed    float64    `json:"weekly_used"`
 	WeeklyResetAt *time.Time `json:"weekly_reset_at"`
+	// FiveHour 档：仅部分厂商（如火山方舟 Agent Plan）提供 5 小时窗口配额
+	FiveHourTotal   float64    `json:"five_hour_total"`
+	FiveHourUsed    float64    `json:"five_hour_used"`
+	FiveHourResetAt *time.Time `json:"five_hour_reset_at"`
 	// 各模型明细
 	Models []TokenPlanModelUsage `json:"models,omitempty"`
 }
@@ -1298,7 +1302,7 @@ func bailianGatewayPost(ctx context.Context, cookie, apiPath, dataJSON string) (
 // 用户凭据格式：`Cookie值|||x-csrf-token值`（三部分竖线分隔）。
 // Cookie 从 console.volcengine.com 控制台请求头复制，x-csrf-token 同页请求头获取。
 //
-// 用量接口一次返回五档配额（5h/日/周/月），取月配额为主配额、周配额为次配额。
+// 用量接口返回多档配额（5h/日/周/月），取月配额为主配额、周配额为次配额、5h 为第三档。
 // 转发渠道使用火山方舟 OpenAI 兼容端点 + ark- API Key：
 //   - 接入点：https://ark.cn-beijing.volces.com/api/plan/v3
 //   - API Key：ark-... 格式（控制台 API Key 管理页创建）
@@ -1348,8 +1352,9 @@ func queryVolcenginePlanTokenPlan(ctx context.Context, credential string) (*Toke
 		Result struct {
 			PlanType    string `json:"PlanType"`
 			AFPFiveHour struct {
-				Quota float64 `json:"Quota"`
-				Used  float64 `json:"Used"`
+				Quota     float64 `json:"Quota"`
+				Used      float64 `json:"Used"`
+				ResetTime int64   `json:"ResetTime"`
 			} `json:"AFPFiveHour"`
 			AFPWeekly struct {
 				Quota     float64 `json:"Quota"`
@@ -1373,10 +1378,16 @@ func queryVolcenginePlanTokenPlan(ctx context.Context, credential string) (*Toke
 
 	r := usageResp.Result
 	result := &TokenPlanResult{
-		QuotaTotal:  r.AFPMonthly.Quota,
-		QuotaUsed:   r.AFPMonthly.Used,
-		WeeklyTotal: r.AFPWeekly.Quota,
-		WeeklyUsed:  r.AFPWeekly.Used,
+		QuotaTotal:    r.AFPMonthly.Quota,
+		QuotaUsed:     r.AFPMonthly.Used,
+		WeeklyTotal:   r.AFPWeekly.Quota,
+		WeeklyUsed:    r.AFPWeekly.Used,
+		FiveHourTotal: r.AFPFiveHour.Quota,
+		FiveHourUsed:  r.AFPFiveHour.Used,
+	}
+	if r.AFPFiveHour.ResetTime > 0 {
+		t := time.UnixMilli(r.AFPFiveHour.ResetTime)
+		result.FiveHourResetAt = &t
 	}
 	if r.AFPMonthly.ResetTime > 0 {
 		t := time.UnixMilli(r.AFPMonthly.ResetTime)

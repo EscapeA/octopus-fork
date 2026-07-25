@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Plus, RefreshCw, Trash2, ExternalLink, Key, Loader2 } from 'lucide-react';
 import {
@@ -334,7 +334,6 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                         <ProviderCard
                             key={provider.id}
                             provider={provider}
-                            type={type}
                             onRefresh={handleRefresh}
                             onDelete={handleDelete}
                             isRefreshing={refreshMutation.isPending}
@@ -349,16 +348,114 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
 
 // --- Provider Card ---
 
+const formatBalance = (val: number) => {
+    if (val === 0) return '0';
+    if (Math.abs(val) < 0.01) return val.toFixed(6);
+    return val.toLocaleString(undefined, { maximumFractionDigits: 2 });
+};
+
+const formatTime = (val: string | null) => {
+    if (!val) return '';
+    try {
+        const d = new Date(val);
+        return d.toLocaleString('zh-CN', {
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    } catch {
+        return val;
+    }
+};
+
+// 单档配额卡片（官网三档样式：标题 + 倒计时 + 剩余/总量 + 进度条百分比）
+function QuotaTier({
+    label,
+    total,
+    used,
+    resetAt,
+}: {
+    label: string;
+    total: number;
+    used: number;
+    resetAt: string | null;
+}) {
+    const t = useTranslations('hub');
+    const [countdown, setCountdown] = useState('');
+
+    // 官网风格相对倒计时："13天23小时后重置" / "即将重置"。
+    // Date.now() 是 impure，不能直接在 render 中调用，故在 effect 中计算并定时刷新。
+    useEffect(() => {
+        if (!resetAt) {
+            setCountdown('');
+            return;
+        }
+        const target = new Date(resetAt).getTime();
+        const compute = () => {
+            const ms = target - Date.now();
+            if (Number.isNaN(ms) || ms <= 0) {
+                setCountdown(t('plan.resetNow') || '即将重置');
+                return;
+            }
+            const totalMin = Math.floor(ms / 60000);
+            const d = Math.floor(totalMin / 1440);
+            const h = Math.floor((totalMin % 1440) / 60);
+            const m = totalMin % 60;
+            let rel = '';
+            if (d > 0) rel += `${d}${t('plan.days') || '天'}`;
+            if (h > 0) rel += `${h}${t('plan.hours') || '小时'}`;
+            if (d === 0 && h === 0) rel += `${m}${t('plan.minutes') || '分钟'}`;
+            setCountdown(`${rel}${t('plan.resetSuffix') || '后重置'}`);
+        };
+        compute();
+        const timer = setInterval(compute, 30000);
+        return () => clearInterval(timer);
+    }, [resetAt, t]);
+
+    if (total <= 0) return null;
+    const pct = Math.min(100, (used / total) * 100);
+
+    return (
+        <div className="rounded-lg bg-muted/50 p-2.5">
+            <div className="flex items-center justify-between mb-1">
+                <p className="text-xs text-muted-foreground">{label}</p>
+                {resetAt && (
+                    <p className="text-xs text-muted-foreground tabular-nums">
+                        {countdown}
+                    </p>
+                )}
+            </div>
+            <div className="flex items-baseline gap-1.5">
+                <span className="font-semibold text-base tabular-nums">
+                    {formatBalance(total - used)}
+                </span>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                    / {formatBalance(total)}
+                </span>
+            </div>
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden mt-1.5">
+                <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{ width: `${pct}%` }}
+                />
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1">
+                <span>{t('plan.usedLabel') || '已使用'}</span>
+                <span className="tabular-nums">{pct.toFixed(1)}%</span>
+            </div>
+        </div>
+    );
+}
+
 function ProviderCard({
     provider,
-    type,
     onRefresh,
     onDelete,
     isRefreshing,
     isDeleting,
 }: {
     provider: PlanProvider;
-    type: 'balance' | 'tokenplan';
     onRefresh: (id: number) => void;
     onDelete: (id: number) => void;
     isRefreshing: boolean;
@@ -368,27 +465,6 @@ function ProviderCard({
 
     // Find category info for display
     const isBalance = provider.provider_type === 'balance';
-
-    const formatBalance = (val: number) => {
-        if (val === 0) return '0';
-        if (Math.abs(val) < 0.01) return val.toFixed(6);
-        return val.toLocaleString(undefined, { maximumFractionDigits: 2 });
-    };
-
-    const formatTime = (val: string | null) => {
-        if (!val) return '';
-        try {
-            const d = new Date(val);
-            return d.toLocaleString('zh-CN', {
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-            });
-        } catch {
-            return val;
-        }
-    };
 
     return (
         <div className={cn(
@@ -471,71 +547,24 @@ function ProviderCard({
                 </div>
             ) : (
                 <div className="space-y-2">
-                    {/* 主配额 */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-lg bg-muted/50 p-2.5">
-                            <p className="text-xs text-muted-foreground mb-1">
-                                {t('plan.quotaTotal') || '总配额'}
-                            </p>
-                            <p className="text-lg font-bold tabular-nums">
-                                {formatBalance(provider.quota_total)}
-                            </p>
-                        </div>
-                        <div className="rounded-lg bg-muted/50 p-2.5">
-                            <p className="text-xs text-muted-foreground mb-1">
-                                {t('plan.quotaUsed') || '已使用'}
-                            </p>
-                            <p className="text-lg font-bold tabular-nums text-orange-500">
-                                {formatBalance(provider.quota_used)}
-                            </p>
-                        </div>
-                    </div>
-                    {/* 进度条 */}
-                    {provider.quota_total > 0 && (
-                        <div className="space-y-1">
-                            <div className="h-2 rounded-full bg-muted overflow-hidden">
-                                <div
-                                    className="h-full rounded-full bg-primary transition-all"
-                                    style={{
-                                        width: `${Math.min(100, (provider.quota_used / provider.quota_total) * 100)}%`
-                                    }}
-                                />
-                            </div>
-                            <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                <span>
-                                    {((provider.quota_used / provider.quota_total) * 100).toFixed(1)}%
-                                </span>
-                                {provider.quota_reset_at && (
-                                    <span>
-                                        {t('plan.resetAt') || '重置'} {formatTime(provider.quota_reset_at)}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    )}
-                    {/* 周配额（如果有） */}
-                    {provider.weekly_total > 0 && (
-                        <div className="rounded-lg bg-muted/50 p-2.5">
-                            <div className="flex items-center justify-between">
-                                <p className="text-xs text-muted-foreground">
-                                    {t('plan.weeklyQuota') || '周/日配额'}
-                                </p>
-                                {provider.weekly_reset_at && (
-                                    <p className="text-xs text-muted-foreground">
-                                        {t('plan.resetAt') || '重置'} {formatTime(provider.weekly_reset_at)}
-                                    </p>
-                                )}
-                            </div>
-                            <div className="flex items-baseline gap-2 mt-1">
-                                <span className="font-semibold text-sm tabular-nums">
-                                    {formatBalance(provider.weekly_total - provider.weekly_used)}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                    / {formatBalance(provider.weekly_total)}
-                                </span>
-                            </div>
-                        </div>
-                    )}
+                    <QuotaTier
+                        label={t('plan.tierFiveHour') || '近5小时用量'}
+                        total={provider.five_hour_total}
+                        used={provider.five_hour_used}
+                        resetAt={provider.five_hour_reset_at}
+                    />
+                    <QuotaTier
+                        label={t('plan.tierWeekly') || '近一周用量'}
+                        total={provider.weekly_total}
+                        used={provider.weekly_used}
+                        resetAt={provider.weekly_reset_at}
+                    />
+                    <QuotaTier
+                        label={t('plan.tierMonthly') || '近一月用量'}
+                        total={provider.quota_total}
+                        used={provider.quota_used}
+                        resetAt={provider.quota_reset_at}
+                    />
                 </div>
             )}
 
