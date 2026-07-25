@@ -239,7 +239,9 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                                     ? (t('plan.volcengineCredentialPlaceholder') || 'Cookie值|||x-csrf-token值（从控制台请求头复制，用竖线分隔）')
                                                     : selectedInfo?.category === 'sensenova_plan'
                                                         ? (t('plan.sensenovaTokenPlaceholder') || '粘贴控制台 Bearer Token 值')
-                                                        : (t('plan.oasisTokenPlaceholder') || '粘贴控制台 Cookie 中的 Oasis-Token 值'))
+                                                        : selectedInfo?.category === 'bailian_plan'
+                                                            ? (t('plan.bailianTokenPlaceholder') || '粘贴控制台完整 Cookie 值')
+                                                            : (t('plan.oasisTokenPlaceholder') || '粘贴控制台 Cookie 中的 Oasis-Token 值'))
                                                 : (t('plan.apiKeyPlaceholder') || '请输入 API Key')}
                                     value={apiKey}
                                     onChange={(e) => setApiKey(e.target.value)}
@@ -260,7 +262,9 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                             ? (t('plan.volcengineCredentialHint') || '登录 console.volcengine.com/ark → F12 → Network → 任意 plan 接口，复制完整 Cookie 请求头和 x-csrf-token 请求头，用 ||| 连接。会话过期后需重新获取。')
                                             : selectedInfo?.category === 'sensenova_plan'
                                                 ? (t('plan.sensenovaTokenHint') || '需登录 platform.sensenova.cn 控制台，从请求头复制 Bearer Token 值。有效期约 3 小时，过期后需重新获取。')
-                                                : (t('plan.oasisTokenHint') || '需登录 platform.stepfun.com 控制台，从浏览器 Cookie 复制 Oasis-Token 值（格式：access...refresh）。该 Token 有效期约 30 分钟，过期后需重新获取。')}
+                                                : selectedInfo?.category === 'bailian_plan'
+                                                    ? (t('plan.bailianTokenHint') || '需登录 bailian.console.aliyun.com 控制台，按 F12 打开开发者工具 → Application → Cookies，复制完整 Cookie 值。会话过期后需重新获取。')
+                                                    : (t('plan.oasisTokenHint') || '需登录 platform.stepfun.com 控制台，从浏览器 Cookie 复制 Oasis-Token 值（格式：access...refresh）。该 Token 有效期约 30 分钟，过期后需重新获取。')}
                                     </p>
                                 )}
                                 {isCodexPlan && (

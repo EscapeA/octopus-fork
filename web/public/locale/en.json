@@ -162,6 +162,8 @@
       "consoleTokenLabel": "Console Token",
       "sensenovaTokenPlaceholder": "Paste console Bearer Token value",
       "sensenovaTokenHint": "Log in to platform.sensenova.cn console, copy the Bearer Token from request headers. Valid for ~3 hours; re-obtain after expiry.",
+      "bailianTokenPlaceholder": "Paste full Cookie value from console",
+      "bailianTokenHint": "Log in to bailian.console.aliyun.com console, press F12 to open DevTools -> Application -> Cookies, copy the full Cookie value. Session expiry requires re-obtaining.",
       "volcengineCredentialPlaceholder": "Cookie value|||x-csrf-token value (copy from console request headers, joined with |||)",
       "volcengineCredentialHint": "Log in to console.volcengine.com/ark -> F12 -> Network -> any plan API, copy the full Cookie request header and x-csrf-token request header, joined with |||. Session expiry requires re-obtaining.",
       "cookieLabel": "Cookie",
