@@ -1225,15 +1225,15 @@ func queryBailianPlanTokenPlan(ctx context.Context, cookie string) (*TokenPlanRe
 	usage := usageResp.Data.DataV2.Data.Data
 
 	// 3. 映射到 TokenPlanResult
-	// 百炼用量是百分比（0-1），转为 0-100 表示。
+	// 百炼用量百分比（0-1）表示"剩余"而非"已使用"，需用 1 减去。
 	// 百炼仅提供 5 小时与 1 周两档，无月配额：
 	//   Per5HourPercentage -> FiveHour 槽（近5小时用量）
 	//   Per1WeekPercentage -> Weekly 槽（近一周用量）
 	result := &TokenPlanResult{
 		FiveHourTotal: 100,
-		FiveHourUsed:  usage.Per5HourPercentage * 100,
+		FiveHourUsed:  (1 - usage.Per5HourPercentage) * 100,
 		WeeklyTotal:   100,
-		WeeklyUsed:    usage.Per1WeekPercentage * 100,
+		WeeklyUsed:    (1 - usage.Per1WeekPercentage) * 100,
 	}
 	if usage.Per5HourResetTime > 0 {
 		t := time.UnixMilli(usage.Per5HourResetTime)
