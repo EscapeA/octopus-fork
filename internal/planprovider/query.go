@@ -1403,13 +1403,14 @@ func queryVolcenginePlanTokenPlan(ctx context.Context, credential string) (*Toke
 	}
 
 	r := usageResp.Result
+	// 火山方舟 API 的 Used 字段表示"剩余可用量"，需转换为"已使用量"
 	result := &TokenPlanResult{
 		QuotaTotal:    r.AFPMonthly.Quota,
-		QuotaUsed:     r.AFPMonthly.Used,
+		QuotaUsed:     r.AFPMonthly.Quota - r.AFPMonthly.Used,
 		WeeklyTotal:   r.AFPWeekly.Quota,
-		WeeklyUsed:    r.AFPWeekly.Used,
+		WeeklyUsed:    r.AFPWeekly.Quota - r.AFPWeekly.Used,
 		FiveHourTotal: r.AFPFiveHour.Quota,
-		FiveHourUsed:  r.AFPFiveHour.Used,
+		FiveHourUsed:  r.AFPFiveHour.Quota - r.AFPFiveHour.Used,
 	}
 	if r.AFPFiveHour.ResetTime > 0 {
 		t := time.UnixMilli(r.AFPFiveHour.ResetTime)
