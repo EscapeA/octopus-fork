@@ -21,6 +21,7 @@ import (
 	st "github.com/lingyuins/octopus/internal/op/stats"
 	"github.com/lingyuins/octopus/internal/relay/balancer"
 	"github.com/lingyuins/octopus/internal/relay/condition"
+	"github.com/lingyuins/octopus/internal/relay/poolscheduler"
 	"github.com/lingyuins/octopus/internal/server/resp"
 	"github.com/lingyuins/octopus/internal/transformer/inbound"
 	"github.com/lingyuins/octopus/internal/transformer/model"
@@ -1422,10 +1423,35 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 				}
 
 				var usedKey dbmodel.ChannelKey
-				if keyRound == 1 {
-					usedKey = channel.GetChannelKeyWithCooldown(resolvedModelName, ratelimitCooldown)
+				var poolAccount *dbmodel.PoolAccount
+				if channel.PoolID > 0 {
+					// 号池模式：从池调度器选账号。
+					sessionHash := strconv.Itoa(req.apiKeyID) + ":" + requestModel
+					var excludeAccountIDs []int
+					for _, kid := range failedKeyIDs {
+						excludeAccountIDs = append(excludeAccountIDs, kid)
+					}
+					acct, selErr := poolscheduler.SelectAccount(channel.PoolID, sessionHash, excludeAccountIDs, 1)
+					if selErr != nil || acct == nil {
+						routeIter.Skip(channel.ID, 0, channel.Name, "no available pool account")
+						lastErr = fmt.Errorf("channel %s: no available pool account", channel.Name)
+						break
+					}
+					poolAccount = acct
+					cred := dbmodel.ParsePoolCredential(acct.Credentials)
+					usedKey = dbmodel.ChannelKey{
+						ID:         acct.ID,
+						ChannelID:  channel.ID,
+						Enabled:    true,
+						ChannelKey: cred.Token,
+						Priority:   acct.Priority,
+					}
 				} else {
-					usedKey, _ = PrepareCandidateForRetry(channel, failedKeyIDs, routeIter, ratelimitCooldown, resolvedModelName)
+					if keyRound == 1 {
+						usedKey = channel.GetChannelKeyWithCooldown(resolvedModelName, ratelimitCooldown)
+					} else {
+						usedKey, _ = PrepareCandidateForRetry(channel, failedKeyIDs, routeIter, ratelimitCooldown, resolvedModelName)
+					}
 				}
 				if usedKey.ChannelKey == "" {
 					// When the key loop exits via break without forwarding
@@ -1438,16 +1464,19 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 					}
 					break
 				}
-				if hint, ok := globalFailureHintCache.get(channel.ID, usedKey.ID, resolvedModelName); ok {
-					failedKeyIDs = append(failedKeyIDs, usedKey.ID)
-					routeIter.Skip(channel.ID, usedKey.ID, channel.Name, failureHintSkipReason(hint))
-					keyRound--
-					continue
-				}
-				if routeIter.SkipCircuitBreak(channel.ID, usedKey.ID, channel.Name, resolvedModelName) {
-					failedKeyIDs = append(failedKeyIDs, usedKey.ID)
-					keyRound--
-					continue
+				// 号池模式跳过熔断器和失败提示（池调度器有自己的健康管理）。
+				if channel.PoolID == 0 {
+					if hint, ok := globalFailureHintCache.get(channel.ID, usedKey.ID, resolvedModelName); ok {
+						failedKeyIDs = append(failedKeyIDs, usedKey.ID)
+						routeIter.Skip(channel.ID, usedKey.ID, channel.Name, failureHintSkipReason(hint))
+						keyRound--
+						continue
+					}
+					if routeIter.SkipCircuitBreak(channel.ID, usedKey.ID, channel.Name, resolvedModelName) {
+						failedKeyIDs = append(failedKeyIDs, usedKey.ID)
+						keyRound--
+						continue
+					}
 				}
 
 				log.Infof("request model %s, mode: %d, channel: %s (%s) model: %s key_id: %d (route R%d, key %d/%d, sticky=%t)",
@@ -1488,14 +1517,29 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 				}
 				currentAttempts := append(allAttempts, req.iter.Attempts()...)
 				if result.Success {
+					if poolAccount != nil {
+						poolscheduler.ReportResult(channel.PoolID, poolAccount.ID, true, 0, 0)
+						poolscheduler.ReleaseSlot(channel.PoolID, poolAccount.ID)
+					}
 					namespace, requestText, _ := semanticCacheStoreMetadata(req.internalRequest)
 					req.metrics.Save(true, nil, currentAttempts)
 					return newInflightRelayResult(cloneInternalResponse(req.metrics.InternalResponse), req.internalRequest.Model, currentAttempts, namespace, requestText), nil
 				}
 
+				// 号池模式：上报失败 + 释放槽位 + 设置冷却。
+				if poolAccount != nil {
+					poolscheduler.ReportResult(channel.PoolID, poolAccount.ID, false, 0, 0)
+					poolscheduler.ReleaseSlot(channel.PoolID, poolAccount.ID)
+					if result.Decision.Code == http.StatusTooManyRequests {
+						poolscheduler.SetRateLimitCooldown(channel.PoolID, poolAccount.ID, time.Now().Add(5*time.Minute))
+					} else if result.Decision.Code >= 500 {
+						poolscheduler.SetOverload(channel.PoolID, poolAccount.ID, time.Now().Add(60*time.Second))
+					}
+				}
+
 				// 熔断器和 Auto 策略：在所有 adapter 类型（如 Responses→Chat）均失败后才记录，
 				// 避免 Response adapter 降级到 Chat 的过程中误触发熔断。
-				if result.Decision.Scope == ScopeNextChannel || result.Decision.Scope == ScopeAbortAll {
+				if channel.PoolID == 0 && (result.Decision.Scope == ScopeNextChannel || result.Decision.Scope == ScopeAbortAll) {
 					balancer.RecordFailure(channel.ID, usedKey.ID, resolvedModelName)
 					balancer.RecordAutoFailure(channel.ID, resolvedModelName)
 				}
@@ -1507,7 +1551,9 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 					return nil, result.Err
 				}
 
-				recordFailureHint(channel.ID, usedKey.ID, resolvedModelName, result.Decision, result.Err, ratelimitCooldown)
+				if channel.PoolID == 0 {
+					recordFailureHint(channel.ID, usedKey.ID, resolvedModelName, result.Decision, result.Err, ratelimitCooldown)
+				}
 				switch result.Decision.Scope {
 				case ScopeNone:
 					lastErr = result.Err
@@ -1536,7 +1582,9 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 							waitDuration, channel.Name, usedKey.ID, resolvedModelName)
 						time.Sleep(waitDuration)
 						rateLimitHoldWaited += waitDuration
-						balancer.ClearKeyCooldown(channel.ID, usedKey.ID, resolvedModelName)
+						if channel.PoolID == 0 {
+							balancer.ClearKeyCooldown(channel.ID, usedKey.ID, resolvedModelName)
+						}
 					}
 				case ScopeNextChannel:
 					lastErr = result.Err
