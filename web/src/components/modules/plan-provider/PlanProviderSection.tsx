@@ -453,7 +453,7 @@ function QuotaTier({
         return (
             <div className="inline-flex items-center gap-2 text-xs">
                 <span className="text-muted-foreground">{label}</span>
-                <span className="font-semibold tabular-nums">{formatBalance(total - used)}</span>
+                <span className="font-semibold tabular-nums">{formatBalance(used)}</span>
                 <span className="text-muted-foreground">/</span>
                 <span className="tabular-nums text-muted-foreground">{formatBalance(total)}</span>
                 <span className="text-muted-foreground">({pct.toFixed(0)}%)</span>
@@ -474,7 +474,7 @@ function QuotaTier({
             </div>
             <div className="flex items-baseline gap-1.5">
                 <span className="font-semibold text-base tabular-nums">
-                    {formatBalance(total - used)}
+                    {formatBalance(used)}
                 </span>
                 <span className="text-xs text-muted-foreground tabular-nums">
                     / {formatBalance(total)}
