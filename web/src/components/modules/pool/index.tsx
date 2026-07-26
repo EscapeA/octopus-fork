@@ -156,7 +156,7 @@ function PoolDetail({ pool, onBack }: { pool: AccountPool; onBack: () => void })
     const createAccount = useCreatePoolAccount(pool.id);
     const deleteAccount = useDeletePoolAccount(pool.id);
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [form, setForm] = useState({ name: '', credentials: '', base_url: '', priority: 0, concurrency: 0 });
+    const [form, setForm] = useState({ name: '', credentials: '', base_url: '', priority: 0, concurrency: 0, proxy_config_id: null as number | null });
     const [now] = useState(() => Math.floor(Date.now() / 1000));
 
     if (isLoading) return <LoadingState />;
@@ -164,7 +164,7 @@ function PoolDetail({ pool, onBack }: { pool: AccountPool; onBack: () => void })
 
     const handleCreate = () => {
         createAccount.mutate(form, {
-            onSuccess: () => { setDialogOpen(false); setForm({ name: '', credentials: '', base_url: '', priority: 0, concurrency: 0 }); toast.success(t('accountCreated')); },
+            onSuccess: () => { setDialogOpen(false); setForm({ name: '', credentials: '', base_url: '', priority: 0, concurrency: 0, proxy_config_id: null }); toast.success(t('accountCreated')); },
             onError: (e) => toast.error(String(e)),
         });
     };
@@ -257,6 +257,10 @@ function PoolDetail({ pool, onBack }: { pool: AccountPool; onBack: () => void })
                                 <Label>{t('concurrency')} (0={t('inheritPool')})</Label>
                                 <Input type="number" value={form.concurrency} onChange={(e) => setForm({ ...form, concurrency: Number(e.target.value) })} />
                             </div>
+                        </div>
+                        <div>
+                            <Label>{t('proxyConfig')}</Label>
+                            <Input type="number" value={form.proxy_config_id ?? ''} onChange={(e) => setForm({ ...form, proxy_config_id: e.target.value ? Number(e.target.value) : null })} placeholder={t('proxyConfigPlaceholder')} />
                         </div>
                     </div>
                     <DialogFooter>

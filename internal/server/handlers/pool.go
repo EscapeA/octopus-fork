@@ -178,13 +178,14 @@ func updatePoolAccount(c *gin.Context) {
 		return
 	}
 	var req struct {
-		Name        string `json:"name"`
-		Credentials string `json:"credentials"`
-		BaseURL     string `json:"base_url"`
-		Status      string `json:"status"`
-		Schedulable *bool  `json:"schedulable"`
-		Priority    *int   `json:"priority"`
-		Concurrency *int   `json:"concurrency"`
+		Name          string `json:"name"`
+		Credentials   string `json:"credentials"`
+		BaseURL       string `json:"base_url"`
+		Status        string `json:"status"`
+		Schedulable   *bool  `json:"schedulable"`
+		Priority      *int   `json:"priority"`
+		Concurrency   *int   `json:"concurrency"`
+		ProxyConfigID *int   `json:"proxy_config_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		resp.Error(c, http.StatusBadRequest, "invalid request: "+err.Error())
@@ -211,6 +212,9 @@ func updatePoolAccount(c *gin.Context) {
 	}
 	if req.Concurrency != nil {
 		updates["concurrency"] = *req.Concurrency
+	}
+	if req.ProxyConfigID != nil {
+		updates["proxy_config_id"] = *req.ProxyConfigID
 	}
 	if err := pool.UpdateAccount(poolID, accountID, updates); err != nil {
 		resp.InternalError(c)

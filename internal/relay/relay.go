@@ -828,10 +828,22 @@ func (ra *relayAttempt) copyHeaders(outboundRequest *http.Request, effectiveRewr
 
 // sendRequest 发送 HTTP 请求
 func (ra *relayAttempt) sendRequest(req *http.Request) (*http.Response, error) {
-	httpClient, err := helper.ChannelHttpClient(ra.channel)
-	if err != nil {
-		log.Warnf("failed to get http client: %v", err)
-		return nil, err
+	var httpClient *http.Client
+	var err error
+	// 号池账号级代理优先；未配置时回退到渠道级代理。
+	if ra.poolProxyConfigID != nil {
+		httpClient, err = helper.PoolAccountHttpClient(ra.poolProxyConfigID)
+		if err != nil {
+			log.Warnf("failed to get pool account http client: %v", err)
+			return nil, err
+		}
+	}
+	if httpClient == nil {
+		httpClient, err = helper.ChannelHttpClient(ra.channel)
+		if err != nil {
+			log.Warnf("failed to get http client: %v", err)
+			return nil, err
+		}
 	}
 
 	response, err := httpClient.Do(req)
@@ -1431,6 +1443,7 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 				var usedKey dbmodel.ChannelKey
 				var poolAccount *dbmodel.PoolAccount
 				var poolCredType string
+				var poolProxyConfigID *int
 				if channel.PoolID > 0 {
 					// 号池模式：从池调度器选账号。
 					sessionHash := strconv.Itoa(req.apiKeyID) + ":" + requestModel
@@ -1447,6 +1460,7 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 					poolAccount = acct
 					cred := dbmodel.ParsePoolCredential(acct.Credentials)
 					poolCredType = cred.Type
+					poolProxyConfigID = acct.ProxyConfigID
 					usedKey = dbmodel.ChannelKey{
 						ID:         acct.ID,
 						ChannelID:  channel.ID,
@@ -1508,6 +1522,7 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 						tryIndex:             keyRound,
 						tryTotal:             maxKeyRetriesPerRoute,
 						poolCredType:         poolCredType,
+						poolProxyConfigID:    poolProxyConfigID,
 					}
 
 					result = ra.attempt()

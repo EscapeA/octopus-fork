@@ -23,6 +23,7 @@ export type PoolAccount = {
     schedulable: boolean;
     priority: number;
     concurrency: number;
+    proxy_config_id?: number | null;
     rate_limit_reset_at: number;
     overload_until: number;
     total_requests: number;
@@ -59,6 +60,7 @@ export type CreatePoolAccountRequest = {
     schedulable?: boolean;
     priority?: number;
     concurrency?: number;
+    proxy_config_id?: number | null;
 };
 
 export type UpdatePoolAccountRequest = {
@@ -69,6 +71,7 @@ export type UpdatePoolAccountRequest = {
     schedulable?: boolean;
     priority?: number;
     concurrency?: number;
+    proxy_config_id?: number | null;
 };
 
 // --- Queries ---

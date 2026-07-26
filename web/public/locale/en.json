@@ -3420,6 +3420,8 @@
     "credentials": "Credentials (JSON)",
     "baseUrl": "Base URL",
     "priority": "Priority",
-    "inheritPool": "inherit pool"
+    "inheritPool": "inherit pool",
+    "proxyConfig": "Proxy Config ID",
+    "proxyConfigPlaceholder": "Optional: proxy pool config ID"
   }
 }

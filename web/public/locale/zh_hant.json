@@ -3420,6 +3420,8 @@
     "credentials": "憑據 (JSON)",
     "baseUrl": "上游地址",
     "priority": "優先級",
-    "inheritPool": "繼承池默認"
+    "inheritPool": "繼承池默認",
+    "proxyConfig": "代理配置 ID",
+    "proxyConfigPlaceholder": "可選：代理池配置 ID"
   }
 }

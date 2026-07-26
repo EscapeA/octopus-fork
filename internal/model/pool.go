@@ -31,6 +31,7 @@ type PoolAccount struct {
 	Schedulable      bool      `json:"schedulable" gorm:"default:true"`
 	Priority         int       `json:"priority" gorm:"default:0"`
 	Concurrency      int       `json:"concurrency" gorm:"default:0"`
+	ProxyConfigID    *int      `json:"proxy_config_id"`
 	RateLimitResetAt int64     `json:"rate_limit_reset_at" gorm:"default:0"`
 	OverloadUntil    int64     `json:"overload_until" gorm:"default:0"`
 	TotalRequests    int64     `json:"total_requests" gorm:"default:0"`
