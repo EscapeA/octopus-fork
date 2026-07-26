@@ -652,6 +652,12 @@ func (ra *relayAttempt) forward() (int, error) {
 		return 0, fmt.Errorf("failed to create request: %w", err)
 	}
 
+	// 号池 cookie 凭据：将 Authorization 替换为 Cookie header。
+	if ra.poolCredType == "cookie" {
+		outboundRequest.Header.Del("Authorization")
+		outboundRequest.Header.Set("Cookie", ra.usedKey.ChannelKey)
+	}
+
 	// 复制请求头
 	ra.copyHeaders(outboundRequest, effectiveRewrite)
 
@@ -1424,6 +1430,7 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 
 				var usedKey dbmodel.ChannelKey
 				var poolAccount *dbmodel.PoolAccount
+				var poolCredType string
 				if channel.PoolID > 0 {
 					// 号池模式：从池调度器选账号。
 					sessionHash := strconv.Itoa(req.apiKeyID) + ":" + requestModel
@@ -1439,6 +1446,7 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 					}
 					poolAccount = acct
 					cred := dbmodel.ParsePoolCredential(acct.Credentials)
+					poolCredType = cred.Type
 					usedKey = dbmodel.ChannelKey{
 						ID:         acct.ID,
 						ChannelID:  channel.ID,
@@ -1499,6 +1507,7 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 						attemptTimeOutSec:    group.AttemptTimeOut,
 						tryIndex:             keyRound,
 						tryTotal:             maxKeyRetriesPerRoute,
+						poolCredType:         poolCredType,
 					}
 
 					result = ra.attempt()

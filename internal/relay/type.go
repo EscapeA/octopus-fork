@@ -223,6 +223,8 @@ type relayAttempt struct {
 	attemptTimeOutSec    int
 	tryIndex             int
 	tryTotal             int
+	// poolCredType 号池凭据类型（"bearer" 或 "cookie"）。空字符串表示非号池模式。
+	poolCredType string
 
 	// filterCfg 缓存本次尝试的响应关键词过滤配置，避免在流式响应的每个
 	// chunk 上重复读取 setting 并解析关键词 JSON。通过 getResponseFilterConfig
