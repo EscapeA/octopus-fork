@@ -40,6 +40,8 @@ const (
 	SettingKeyRateLimitHoldInterval      SettingKey = "rate_limit_hold_interval"      // 429 渠道内延时重试间隔（秒）
 	SettingKeyRateLimitHoldMaxWait       SettingKey = "rate_limit_hold_max_wait"      // 429 渠道内延时重试总等待上限（秒），超时后才换下一渠道
 
+	SettingKeyPoolTokenRefreshInterval             SettingKey = "pool_token_refresh_interval"              // 号池 OAuth token 刷新检查间隔（分钟）
+	SettingKeyPoolQuotaSyncInterval                SettingKey = "pool_quota_sync_interval"                 // 号池额度同步间隔（分钟）
 	SettingKeyAutoStrategyMinSamples               SettingKey = "auto_strategy_min_samples"                // Auto策略最小样本数阈值
 	SettingKeyAutoStrategyTimeWindow               SettingKey = "auto_strategy_time_window"                // Auto策略时间窗口（秒）
 	SettingKeyAutoStrategySampleThreshold          SettingKey = "auto_strategy_sample_threshold"           // Auto策略滑动窗口大小
@@ -208,6 +210,8 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyKeyHealthCheckRecoveryNotify, Value: "true"},    // 默认发送恢复通知
 		{Key: SettingKeyKeyHealthCheckNotifyCooldown, Value: "300"},     // 默认通知冷却 5 分钟
 		{Key: SettingKeyGroupUpstreamMetaDisplayEnabled, Value: "true"}, // 默认开启分组上游元信息展示
+		{Key: SettingKeyPoolTokenRefreshInterval, Value: "10"},          // 默认 10 分钟检查号池 OAuth token 刷新
+		{Key: SettingKeyPoolQuotaSyncInterval, Value: "360"},            // 默认 6 小时同步号池额度
 	}
 }
 
@@ -237,7 +241,8 @@ func (s *Setting) Validate() error {
 		SettingKeyLoginRateLimitWindow, SettingKeyLoginRateLimitMaxFailed,
 		SettingKeyStreamSessionTTLMinutes, SettingKeyStreamSessionMaxEvents, SettingKeyStreamSessionMaxBytesMB,
 		SettingKeyNotifyHTTPTimeoutSeconds,
-		SettingKeyFailureHintTTLUnauthorized, SettingKeyFailureHintTTLRateLimit, SettingKeyFailureHintTTLNetwork:
+		SettingKeyFailureHintTTLUnauthorized, SettingKeyFailureHintTTLRateLimit, SettingKeyFailureHintTTLNetwork,
+		SettingKeyPoolTokenRefreshInterval, SettingKeyPoolQuotaSyncInterval:
 		v, err := strconv.Atoi(s.Value)
 		if err != nil {
 			return fmt.Errorf("setting value must be an integer")
@@ -289,9 +294,9 @@ func (s *Setting) Validate() error {
 		case SettingKeyJWTDefaultExpiryMinutes, SettingKeyJWTRememberMeExpiryDays,
 			SettingKeyLoginRateLimitWindow, SettingKeyLoginRateLimitMaxFailed,
 			SettingKeyStreamSessionTTLMinutes, SettingKeyStreamSessionMaxEvents, SettingKeyStreamSessionMaxBytesMB,
-			SettingKeyNotifyHTTPTimeoutSeconds,
 			SettingKeyFailureHintTTLUnauthorized, SettingKeyFailureHintTTLRateLimit, SettingKeyFailureHintTTLNetwork,
-			SettingKeyKeyHealthCheckInterval, SettingKeyKeyHealthCheckFailThreshold, SettingKeyKeyHealthCheckNotifyCooldown:
+			SettingKeyKeyHealthCheckInterval, SettingKeyKeyHealthCheckFailThreshold, SettingKeyKeyHealthCheckNotifyCooldown,
+			SettingKeyPoolTokenRefreshInterval, SettingKeyPoolQuotaSyncInterval:
 			if v < 1 {
 				return fmt.Errorf("setting value must be greater than 0")
 			}
