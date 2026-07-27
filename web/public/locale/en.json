@@ -1390,7 +1390,11 @@
         "label": "Max Cooldown (seconds)",
         "placeholder": "Enter max cooldown in seconds"
       },
-      "hint": "When a channel fails consecutively up to the threshold, circuit breaker trips. Cooldown grows exponentially up to the max cooldown"
+      "probeTimeout": {
+        "label": "Half-Open Probe Timeout (seconds)",
+        "placeholder": "Enter probe timeout in seconds"
+      },
+      "hint": "When a channel fails consecutively up to the threshold, circuit breaker trips. Cooldown grows exponentially up to the max cooldown. Half-open probe timeout allows a lost probe (client disconnect, etc.) to retry after timeout, preventing channels from being permanently skipped"
     },
     "responseFilter": {
       "title": "Response Keyword Filter",
