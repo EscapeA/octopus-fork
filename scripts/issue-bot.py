@@ -57,10 +57,16 @@ def comment_issue(issue_number, body):
     gh_request("POST", f"issues/{issue_number}/comments", json={"body": body})
     print(f"  💬 Commented on #{issue_number}")
 
-def close_issue(issue_number):
-    """关闭 Issue"""
-    gh_request("PATCH", f"issues/{issue_number}", json={"state": "closed"})
-    print(f"  🔒 Closed #{issue_number}")
+def close_issue(issue_number, reason="not_planned"):
+    """关闭 Issue
+
+    reason: GitHub state_reason，可选 "not_planned"（未计划）或 "completed"（已完成）。
+    """
+    payload = {"state": "closed"}
+    if reason:
+        payload["state_reason"] = reason
+    gh_request("PATCH", f"issues/{issue_number}", json=payload)
+    print(f"  🔒 Closed #{issue_number} (reason: {reason})")
 
 LABEL_COLORS = ["d73a4a", "0075ca", "e4e669", "a2eeef", "7057ff",
                 "008672", "fbca04", "5319e7", "c5def5", "bfdadc"]
@@ -164,7 +170,7 @@ def detect_images_in_body(body):
 SYSTEM_PROMPT = """你是一个 GitHub Issue 自动分类助手。分析新提交的 issue 并返回 JSON。
 
 任务：
-1. 分类（选一个）：bug / enhancement / question / documentation / duplicate
+1. 分类（选一个）：bug / enhancement / question / documentation / duplicate / invalid
 2. 优先级（选一个）：low / medium / high
 3. 生成标签：1-3 个英文 label（kebab-case）
 4. 生成回复：给提交者一个友好、有帮助的初步回复（Markdown）
@@ -176,11 +182,18 @@ SYSTEM_PROMPT = """你是一个 GitHub Issue 自动分类助手。分析新提�
 - question → 给出可能的排查方向
 - enhancement → 表示会评估需求
 - duplicate → 建议搜索已有 issue
+- invalid → 简要说明为何关闭（胡言乱语/与本项目无关/模型本身问题等），保持礼貌
 - 中文 issue 用中文回复，英文 issue 用英文回复
+
+invalid 分类标准（命中任一即判 invalid）：
+- 内容胡言乱语、无意义乱码、纯属灌水
+- 与本项目（Octopus LLM 网关）完全无关的提问或请求
+- 属于上游模型/服务商自身的问题（如某模型胡说八道、接口异常），而非 Octopus 网关 bug
+- 广告、推广、无关链接
 
 返回格式（纯 JSON，不要 markdown 代码块）：
 {
-  "category": "bug|enhancement|question|documentation|duplicate",
+  "category": "bug|enhancement|question|documentation|duplicate|invalid",
   "priority": "low|medium|high",
   "labels": ["label1", "label2"],
   "reply": "回复内容",
@@ -529,6 +542,30 @@ def on_issue_opened(payload):
 
             print(f"  ✅ AI: {category}/{priority} — {summary}")
 
+            # invalid 分类：胡言乱语/模型问题/与本项目无关 → 打标签 + 回复 + 关闭
+            if category == "invalid":
+                invalid_labels = list(set(labels + ["invalid"]))
+                add_labels(number, invalid_labels)
+                if reply:
+                    header = (
+                        f"> 🤖 **AI Issue Bot** · 自动分类回复\n"
+                        f"> 模型：`{CFG.get('llm', {}).get('model', '?')}`\n"
+                        f"> ⚠️ 此回复由 AI 自动生成，仅供参考\n\n---\n\n"
+                    )
+                    table = (
+                        f"\n\n---\n\n"
+                        f"| 🏷️ 分类 | 📝 摘要 |\n"
+                        f"|:---:|---|\n"
+                        f"| `invalid` | {summary} |\n"
+                    )
+                    comment_issue(number, header + reply + table)
+                if issue_cfg.get("auto_close_invalid", True):
+                    close_issue(number, reason="not_planned")
+                    print(f"  🔒 Issue #{number} closed as invalid (not_planned)")
+                    return
+                else:
+                    print(f"  ⏭️ auto_close_invalid disabled, leaving #{number} open")
+
             # 打标签
             if labels:
                 add_labels(number, labels)
@@ -543,7 +580,7 @@ def on_issue_opened(payload):
                 table = (
                     f"\n\n---\n\n"
                     f"| 🏷️ 分类 | ⚡ 优先级 | 📝 摘要 |\n"
-                    f"|:---:|:---:|:---|\n"
+                    f"|:---:|:---:|---|\n"
                     f"| `{category}` | `{priority}` | {summary} |\n"
                 )
                 comment_issue(number, header + reply + table)

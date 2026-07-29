@@ -17,6 +17,8 @@
 issue:
   # 是否启用 AI 分类（需要 OCTOPUS_API_KEY / OCTOPUS_BASE_URL secrets）
   ai_triage: true
+  # AI 判定为 invalid（胡言乱语/模型问题/与本项目无关）时自动关闭 issue（state_reason: not_planned）
+  auto_close_invalid: true
 
   # Issue 必须包含的隐藏标记（不在正文里出现就关闭，参考 xuexb replyInvalid）
   # 留空则不校验
