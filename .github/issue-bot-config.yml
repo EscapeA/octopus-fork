@@ -30,8 +30,9 @@ issue:
 
   # label → assignee 自动分配映射（参考 xuexb autoAssign）
   label_to_assignee:
-    # bug: "your-username"
-    # enhancement: "your-username"
+    bug: "lingyuins"
+    enhancement: "lingyuins"
+    question: "lingyuins"
 
   # label → 自动回复模板（参考 xuexb replyNeedDemo）
   label_to_reply:
@@ -87,8 +88,8 @@ pull_request:
 
   # label → reviewer 自动请求（参考 xuexb autoReviewRequest）
   label_to_reviewer:
-    # bug: "reviewer-username"
-    # enhancement: "reviewer-username"
+    bug: "lingyuins"
+    enhancement: "lingyuins"
 
 # ============================================================
 # Release 配置
