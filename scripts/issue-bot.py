@@ -68,6 +68,11 @@ def close_issue(issue_number, reason="not_planned"):
     gh_request("PATCH", f"issues/{issue_number}", json=payload)
     print(f"  🔒 Closed #{issue_number} (reason: {reason})")
 
+def rename_issue(issue_number, new_title):
+    """重命名 Issue 标题"""
+    gh_request("PATCH", f"issues/{issue_number}", json={"title": new_title})
+    print(f"  ✏️ Renamed #{issue_number} title → {new_title}")
+
 LABEL_COLORS = ["d73a4a", "0075ca", "e4e669", "a2eeef", "7057ff",
                 "008672", "fbca04", "5319e7", "c5def5", "bfdadc"]
 
@@ -175,6 +180,9 @@ SYSTEM_PROMPT = """你是一个 GitHub Issue 自动分类助手。分析新提�
 3. 生成标签：1-3 个英文 label（kebab-case）
 4. 生成回复：给提交者一个友好、有帮助的初步回复（Markdown）
 5. 生成摘要：一句话总结
+6. 生成建议标题：当标题的前缀与实际内容不符时（如内容是 Bug 但标题用了 [Feature]），
+   生成修正后的标题（保持 [Bug] 或 [Feature] 前缀 + 简洁描述）。
+   若标题已正确则为空字符串。
 
 回复要求：
 - 简洁专业，3-5 段
@@ -203,7 +211,8 @@ profane 分类标准（命中任一即判 profane）：
   "priority": "low|medium|high",
   "labels": ["label1", "label2"],
   "reply": "回复内容",
-  "summary": "一句话总结"
+  "summary": "一句话总结",
+  "suggested_title": "修正后的标题（标题已正确时为空字符串）"
 }"""
 
 
@@ -591,6 +600,27 @@ def on_issue_opened(payload):
             summary = analysis.get("summary", "")
 
             print(f"  ✅ AI: {category}/{priority} — {summary}")
+
+            # 标题修正：AI 返回 suggested_title 且与原标题不同时自动重命名 + 同步标签
+            suggested_title = (analysis.get("suggested_title") or "").strip()
+            if suggested_title and suggested_title != title:
+                old_title = title
+                rename_issue(number, suggested_title)
+                title = suggested_title
+                # 标签同步：若标题前缀从 [Feature] 改为 [Bug]，移除旧标签加新标签
+                prefix_label_map = {"bug": "bug", "feature": "enhancement"}
+                old_p = re.match(r'^\[([^\]]+)\]', old_title)
+                new_p = re.match(r'^\[([^\]]+)\]', suggested_title)
+                if old_p and new_p:
+                    old_label = prefix_label_map.get(old_p.group(1).lower())
+                    new_label = prefix_label_map.get(new_p.group(1).lower())
+                    if old_label and old_label != new_label and has_label(number, old_label):
+                        remove_label(number, old_label)
+                        labels = [l for l in labels if l != old_label]
+                    if new_label and not has_label(number, new_label):
+                        add_labels(number, [new_label])
+                        labels = list(set(labels + [new_label]))
+                comment_issue(number, f"> 🤖 **AI Issue Bot** · 标题已自动修正\n\n原标题与内容不符，已将标题修正为 `{suggested_title}`。")
 
             # invalid/profane 分类：胡言乱语/模型问题/无关/侮辱性内容 → 打标签 + 回复 + 关闭
             if category in ("invalid", "profane"):
