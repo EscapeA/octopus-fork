@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lingyuins/octopus/internal/conf"
 	"github.com/lingyuins/octopus/internal/helper"
 	dbmodel "github.com/lingyuins/octopus/internal/model"
 	ch "github.com/lingyuins/octopus/internal/op/channel"
@@ -987,6 +988,14 @@ func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http
 		}()
 	}
 
+	// SSE 心跳：当上游在可见内容后出现较长间隔（如 reasoning 阶段）时，定期写入
+	// SSE comment（": ping\n\n"）防止反向代理因 proxy_read_timeout 判定后端无响应而
+	// 切断连接返回 502。仅在 hasVisibleContent 之后发送——首 token 前的心跳会让
+	// c.Writer.Written() 变 true，破坏 buffer 策略下 reasoning 阶段的安全重试语义
+	//（见 issue #155），且首 token 超时已由 firstTokenTimer 兜底。
+	heartbeatTicker := time.NewTicker(conf.SSEHeartbeatInterval)
+	defer heartbeatTicker.Stop()
+
 	for {
 		select {
 		case <-clientDone:
@@ -1002,6 +1011,15 @@ func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http
 				log.Warnf("failed to close response body on first token timeout: %v", err)
 			}
 			return fmt.Errorf("first token timeout (%ds)", ra.firstTokenTimeOutSec)
+		case <-heartbeatTicker.C:
+			if hasVisibleContent {
+				if _, err := ra.c.Writer.Write([]byte(": ping\n\n")); err != nil {
+					markClientDisconnected()
+					logClientDisconnected()
+					continue
+				}
+				ra.c.Writer.Flush()
+			}
 		case r, ok := <-results:
 			if !ok {
 				// results channel 被 SSE reader goroutine 关闭。
