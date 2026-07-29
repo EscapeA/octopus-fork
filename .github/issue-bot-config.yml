@@ -103,7 +103,7 @@ release:
 # ============================================================
 llm:
   # 模型名（需与 Octopus 网关中的 model ID 一致）
-  model: "deepseek-v4-flash"
+  model: "gpt-oss-120b-free"
 
   # 网关地址 — 不写死在这里！从环境变量 OCTOPUS_BASE_URL 读取（GitHub Secret）
 
