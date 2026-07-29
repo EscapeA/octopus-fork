@@ -2171,7 +2171,13 @@
         "clearing": "Clearing..."
       },
       "clearContentsSuccess": "Log content cleared",
-      "clearContentsFailed": "Failed to clear log content"
+      "clearContentsFailed": "Failed to clear log content",
+      "autoRefresh": {
+        "label": "Auto Refresh",
+        "description": "Periodically refresh the log list. This preference is stored in your browser.",
+        "off": "Off",
+        "seconds": "{count}s"
+      }
     },
     "navOrder": {
       "title": "Page Order & Visibility",

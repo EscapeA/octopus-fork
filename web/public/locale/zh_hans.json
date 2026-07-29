@@ -2127,7 +2127,13 @@
         "clearing": "清空中..."
       },
       "clearContentsSuccess": "日志内容已清空",
-      "clearContentsFailed": "清空日志内容失败"
+      "clearContentsFailed": "清空日志内容失败",
+      "autoRefresh": {
+        "label": "自动刷新",
+        "description": "按设定间隔自动刷新日志列表，此偏好保存在本地浏览器。",
+        "off": "关闭",
+        "seconds": "{count} 秒"
+      }
     },
     "navOrder": {
       "title": "页面顺序与显示",

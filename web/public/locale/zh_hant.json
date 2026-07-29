@@ -2127,7 +2127,13 @@
         "clearing": "清空中..."
       },
       "clearContentsSuccess": "日誌內容已清空",
-      "clearContentsFailed": "清空日誌內容失敗"
+      "clearContentsFailed": "清空日誌內容失敗",
+      "autoRefresh": {
+        "label": "自動重新整理",
+        "description": "按設定間隔自動重新整理日誌列表，此偏好儲存於本機瀏覽器。",
+        "off": "關閉",
+        "seconds": "{count} 秒"
+      }
     },
     "navOrder": {
       "title": "頁面順序與顯示",
