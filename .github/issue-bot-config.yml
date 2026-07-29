@@ -23,6 +23,19 @@ issue:
   # Issue 必须包含的隐藏标记（不在正文里出现就关闭，参考 xuexb replyInvalid）
   # 留空则不校验
   required_marker: ""
+  # 标题前缀校验：必须以方括号前缀开头（如 [Bug] [Feature]），否则按未计划关闭
+  title_prefix_validation:
+    enabled: true
+    # 合法前缀（方括号内不区分大小写，字母打乱/错拼不算）
+    valid_prefixes: ["Bug", "Feature"]
+    # 无前缀或不合格前缀的关闭回复模板
+    invalid_prefix_comment: |
+      hi @{author}，感谢提交 Issue！
+
+      但是该 Issue 的标题不符合规范。标题必须以方括号前缀开头，例如 `[Bug]` 或 `[Feature]`。
+
+      请检查标题拼写是否正确（打乱字母或错拼不算合格前缀），修改后重新提交 Issue，当前 Issue 将被关闭。
+    # 侮辱性标题检测由 AI 分类处理（SYSTEM_PROMPT 中 profane 分类），无需算法配置
 
   # 不规范 issue 的关闭回复模板
   invalid_comment: |

@@ -170,7 +170,7 @@ def detect_images_in_body(body):
 SYSTEM_PROMPT = """你是一个 GitHub Issue 自动分类助手。分析新提交的 issue 并返回 JSON。
 
 任务：
-1. 分类（选一个）：bug / enhancement / question / documentation / duplicate / invalid
+1. 分类（选一个）：bug / enhancement / question / documentation / duplicate / invalid / profane
 2. 优先级（选一个）：low / medium / high
 3. 生成标签：1-3 个英文 label（kebab-case）
 4. 生成回复：给提交者一个友好、有帮助的初步回复（Markdown）
@@ -183,6 +183,7 @@ SYSTEM_PROMPT = """你是一个 GitHub Issue 自动分类助手。分析新提�
 - enhancement → 表示会评估需求
 - duplicate → 建议搜索已有 issue
 - invalid → 简要说明为何关闭（胡言乱语/与本项目无关/模型本身问题等），保持礼貌
+- profane → 说明标题或内容含侮辱性内容，保持礼貌
 - 中文 issue 用中文回复，英文 issue 用英文回复
 
 invalid 分类标准（命中任一即判 invalid）：
@@ -191,9 +192,14 @@ invalid 分类标准（命中任一即判 invalid）：
 - 属于上游模型/服务商自身的问题（如某模型胡说八道、接口异常），而非 Octopus 网关 bug
 - 广告、推广、无关链接
 
+profane 分类标准（命中任一即判 profane）：
+- 标题或正文含侮辱性、攻击性词汇（含拼写变体、字母打乱、谐音替代，如 fock/fukc/fcuk）
+- 标题或正文含针对性辱骂、人身攻击
+- 注意：正常的 bug 抱怨或技术批评不算侮辱性，须有明确的侮辱意图
+
 返回格式（纯 JSON，不要 markdown 代码块）：
 {
-  "category": "bug|enhancement|question|documentation|duplicate|invalid",
+  "category": "bug|enhancement|question|documentation|duplicate|invalid|profane",
   "priority": "low|medium|high",
   "labels": ["label1", "label2"],
   "reply": "回复内容",
@@ -489,7 +495,38 @@ def call_llm(title, body, author):
 
 # ============================================================
 # Issue 模块（参考 xuexb src/modules/issues/）
-# ============================================================
+# 侮辱性标题检测由 AI 分类完成（SYSTEM_PROMPT 中 profane 分类），不使用纯算法匹配
+
+
+def validate_issue_title(title, title_cfg):
+    """校验 Issue 标题前缀格式
+
+    返回 (is_valid, reason)：
+    - (True, "ok") — 标题前缀合法
+    - (False, "no_prefix") — 无方括号前缀
+    - (False, "invalid_prefix") — 有方括号前缀但不匹配合法列表
+    """
+    if not title_cfg.get("enabled", False):
+        return True, "ok"
+
+    valid_prefixes = title_cfg.get("valid_prefixes", [])
+    if not valid_prefixes:
+        return True, "ok"
+
+    # 提取方括号前缀：[Bug] / [Feature] 等
+    m = re.match(r'^\[([^\]]+)\]', title.strip())
+    if not m:
+        return False, "no_prefix"
+
+    prefix_content = m.group(1).strip()
+    # 合法前缀必须精确匹配（不区分大小写），打乱字母不算
+    for vp in valid_prefixes:
+        if prefix_content.lower() == vp.lower():
+            return True, "ok"
+
+    return False, "invalid_prefix"
+
+
 def on_issue_opened(payload):
     """Issue 被打开时触发（融合 autoLabel + replyInvalid + AI triage）"""
     issue = payload["issue"]
@@ -512,6 +549,19 @@ def on_issue_opened(payload):
         add_labels(number, ["invalid"])
         close_issue(number)
         print(f"  ❌ Invalid issue (missing marker), closed")
+        return
+    # --- 1b. 标题前缀格式校验（侮辱性由 AI 分类处理）---
+    title_cfg = issue_cfg.get("title_prefix_validation", {})
+
+    # 前缀格式校验 → 关闭并提示重新提交
+    is_valid, reason = validate_issue_title(title, title_cfg)
+    if not is_valid:
+        tpl = title_cfg.get("invalid_prefix_comment", "标题前缀不规范，请修改后重新提交。")
+        comment = tpl.format(author=author)
+        comment_issue(number, comment)
+        add_labels(number, ["invalid"])
+        close_issue(number, reason="not_planned")
+        print(f"  ❌ Issue #{number} closed: {reason}")
         return
 
     # --- 2. AI 分类 ---
@@ -542,10 +592,10 @@ def on_issue_opened(payload):
 
             print(f"  ✅ AI: {category}/{priority} — {summary}")
 
-            # invalid 分类：胡言乱语/模型问题/与本项目无关 → 打标签 + 回复 + 关闭
-            if category == "invalid":
-                invalid_labels = list(set(labels + ["invalid"]))
-                add_labels(number, invalid_labels)
+            # invalid/profane 分类：胡言乱语/模型问题/无关/侮辱性内容 → 打标签 + 回复 + 关闭
+            if category in ("invalid", "profane"):
+                close_labels = list(set(labels + ["invalid"]))
+                add_labels(number, close_labels)
                 if reply:
                     header = (
                         f"> 🤖 **AI Issue Bot** · 自动分类回复\n"
@@ -556,12 +606,12 @@ def on_issue_opened(payload):
                         f"\n\n---\n\n"
                         f"| 🏷️ 分类 | 📝 摘要 |\n"
                         f"|:---:|---|\n"
-                        f"| `invalid` | {summary} |\n"
+                        f"| `{category}` | {summary} |\n"
                     )
                     comment_issue(number, header + reply + table)
                 if issue_cfg.get("auto_close_invalid", True):
                     close_issue(number, reason="not_planned")
-                    print(f"  🔒 Issue #{number} closed as invalid (not_planned)")
+                    print(f"  🔒 Issue #{number} closed as {category} (not_planned)")
                     return
                 else:
                     print(f"  ⏭️ auto_close_invalid disabled, leaving #{number} open")
