@@ -2036,7 +2036,9 @@
         "addPrefix": "加入前缀",
         "addSuffix": "加入后缀",
         "disclaimer": "疑似簇基于前缀/后缀关系推断，可能存在误报（如 gpt-4o 与 gpt-4o-mini）。加入前请审查。"
-      }
+      },
+      "clearAll": "删除全部",
+      "clearAllConfirm": "确定删除全部归一化规则？此操作不可恢复。"
     },
     "webauthn": {
       "title": "Passkey(WebAuthn)",

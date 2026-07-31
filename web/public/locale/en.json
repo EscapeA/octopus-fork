@@ -2080,7 +2080,9 @@
         "addPrefix": "Add as prefix",
         "addSuffix": "Add as suffix",
         "disclaimer": "Suspected clusters are inferred by prefix/suffix relationships and may include false positives (e.g. gpt-4o vs gpt-4o-mini). Review before adding."
-      }
+      },
+      "clearAll": "Clear all",
+      "clearAllConfirm": "Clear all normalization rules? This cannot be undone."
     },
     "webauthn": {
       "title": "Passkey (WebAuthn)",

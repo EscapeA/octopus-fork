@@ -2036,7 +2036,9 @@
         "addPrefix": "加入為前綴",
         "addSuffix": "加入為後綴",
         "disclaimer": "疑似群集是依前綴/後綴關係推斷，可能誤報（如 gpt-4o 與 gpt-4o-mini）。加入前請先審查。"
-      }
+      },
+      "clearAll": "刪除全部",
+      "clearAllConfirm": "確定刪除全部歸一化規則？此操作不可復原。"
     },
     "webauthn": {
       "title": "Passkey(WebAuthn)",

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Wand2, Save, Loader2, Plus, X, Search, CheckCircle2, AlertCircle, Download, Check, ClipboardCopy } from 'lucide-react';
+import { Wand2, Save, Loader2, Plus, X, Search, CheckCircle2, AlertCircle, Download, Check, ClipboardCopy, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -228,12 +228,14 @@ function RuleList({
     items,
     onAdd,
     onRemove,
+    onClearAll,
     addPlaceholder,
     emptyHint,
 }: {
     items: string[];
     onAdd: (value: string) => void;
     onRemove: (index: number) => void;
+    onClearAll: () => void;
     addPlaceholder: string;
     emptyHint: string;
 }) {
@@ -245,6 +247,12 @@ function RuleList({
         if (!v) return;
         onAdd(v);
         setDraft('');
+    };
+
+    const handleClearAll = () => {
+        if (items.length === 0) return;
+        if (!window.confirm(t('normalize.clearAllConfirm'))) return;
+        onClearAll();
     };
 
     return (
@@ -274,6 +282,19 @@ function RuleList({
                     {t('normalize.add')}
                 </Button>
             </div>
+
+            {items.length > 0 && (
+                <div className="flex items-center justify-end">
+                    <button
+                        type="button"
+                        onClick={handleClearAll}
+                        className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    >
+                        <Trash2 className="size-3" />
+                        {t('normalize.clearAll')}
+                    </button>
+                </div>
+            )}
 
             {items.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
@@ -554,6 +575,7 @@ export function SettingNormalize() {
                     items={routerPrefixes}
                     onAdd={handleAddPrefix}
                     onRemove={handleRemovePrefix}
+                    onClearAll={() => setRouterPrefixes([])}
                     addPlaceholder={t('normalize.routerPrefixes.placeholder')}
                     emptyHint={t('normalize.routerPrefixes.empty')}
                 />
@@ -570,6 +592,7 @@ export function SettingNormalize() {
                     items={functionalSuffixes}
                     onAdd={handleAddSuffix}
                     onRemove={handleRemoveSuffix}
+                    onClearAll={() => setFunctionalSuffixes([])}
                     addPlaceholder={t('normalize.functionalSuffixes.placeholder')}
                     emptyHint={t('normalize.functionalSuffixes.empty')}
                 />
@@ -582,6 +605,20 @@ export function SettingNormalize() {
                     <Badge variant="secondary" className="text-xs">{explicitMappings.length}</Badge>
                 </div>
                 <p className="text-xs leading-5 text-muted-foreground">{t('normalize.explicitMappings.hint')}</p>
+                {explicitMappings.length > 0 && (
+                    <div className="flex items-center justify-end">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (window.confirm(t('normalize.clearAllConfirm'))) setExplicitMappings([]);
+                            }}
+                            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                        >
+                            <Trash2 className="size-3" />
+                            {t('normalize.clearAll')}
+                        </button>
+                    </div>
+                )}
                 {explicitMappings.length > 0 ? (
                     <div className="max-h-56 space-y-1 overflow-y-auto">
                         {explicitMappings.map((m, index) => (
