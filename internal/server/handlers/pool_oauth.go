@@ -20,16 +20,17 @@ import (
 	"github.com/lingyuins/octopus/internal/pkg/oauth"
 	"github.com/lingyuins/octopus/internal/pkg/openai"
 	"github.com/lingyuins/octopus/internal/pkg/xai"
+	"github.com/lingyuins/octopus/internal/server/middleware"
 	"github.com/lingyuins/octopus/internal/server/router"
 	"github.com/lingyuins/octopus/internal/utils/log"
 )
 
 // OAuth 回调端点不挂 Auth middleware：回调阶段用 state/session 校验。
-// initiate 阶段需要登录态（由调用方在前端鉴权后请求），这里仍要求 Auth 以保护 initiate。
+// initiate 阶段需要登录态：前端先通过管理 API（带 JWT）发起，这里挂 Auth 保护。
 func init() {
 	router.NewGroupRouter("/api/v1/pool/oauth").
 		AddRoute(
-			router.NewRoute("/initiate", http.MethodGet).Handle(oauthInitiate),
+			router.NewRoute("/initiate", http.MethodGet).Use(middleware.Auth()).Handle(oauthInitiate),
 		).
 		AddRoute(
 			router.NewRoute("/callback", http.MethodGet).Handle(oauthCallback),
@@ -209,7 +210,7 @@ func oauthCallback(c *gin.Context) {
 	platform := c.Query("platform")
 
 	if code == "" || state == "" {
-		oauthRedirectResult(c, false, "missing code or state")
+		oauthRedirectResult(c, false, 0, "missing code or state")
 		return
 	}
 
@@ -228,13 +229,13 @@ func oauthCallback(c *gin.Context) {
 	case model.PoolPlatformGrok:
 		poolID, credJSON, expiresAt, err = handleGrokCallback(c.Request.Context(), sessionID, state, code)
 	default:
-		oauthRedirectResult(c, false, "unsupported platform: "+platform)
+		oauthRedirectResult(c, false, 0, "unsupported platform: "+platform)
 		return
 	}
 
 	if err != nil {
 		log.Warnf("oauth callback %s failed: %v", platform, err)
-		oauthRedirectResult(c, false, err.Error())
+		oauthRedirectResult(c, false, 0, err.Error())
 		return
 	}
 
@@ -250,10 +251,10 @@ func oauthCallback(c *gin.Context) {
 		TokenExpiresAt: expiresAt,
 	}
 	if err := pool.CreateAccount(&acct); err != nil {
-		oauthRedirectResult(c, false, "create account failed: "+err.Error())
+		oauthRedirectResult(c, false, poolID, "create account failed: "+err.Error())
 		return
 	}
-	oauthRedirectResult(c, true, strconv.Itoa(acct.ID))
+	oauthRedirectResult(c, true, poolID, strconv.Itoa(acct.ID))
 }
 
 // handleAnthropicCallback 处理 Anthropic OAuth 回调：校验 session，code exchange。
@@ -453,8 +454,8 @@ func base64URLDecode(s string) ([]byte, error) {
 	return base64.StdEncoding.DecodeString(s)
 }
 
-// oauthRedirectResult 302 回前端 /pool?oauth=success|error。
-func oauthRedirectResult(c *gin.Context, success bool, msg string) {
+// oauthRedirectResult 302 回前端 /pool?oauth=success|error&pool_id=N&msg=...。
+func oauthRedirectResult(c *gin.Context, success bool, poolID int, msg string) {
 	base := strings.TrimRight(strings.TrimSpace(conf.AppConfig.Server.ExternalURL), "/")
 	if base == "" {
 		// 回退到请求 Host。
@@ -468,6 +469,6 @@ func oauthRedirectResult(c *gin.Context, success bool, msg string) {
 	if !success {
 		status = "error"
 	}
-	location := fmt.Sprintf("%s/pool?oauth=%s&msg=%s", base, status, url.QueryEscape(msg))
+	location := fmt.Sprintf("%s/pool?oauth=%s&pool_id=%d&msg=%s", base, status, poolID, url.QueryEscape(msg))
 	c.Redirect(http.StatusFound, location)
 }
