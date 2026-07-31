@@ -123,3 +123,47 @@ func TestContainsWholeWord(t *testing.T) {
 		}
 	}
 }
+
+// TestGetLLMPriceFromUpstream 验证同步价格查询：只查外部同步 + 托底价格源，
+// 不查数据库；外部命中用外部价，未命中回落托底（presets_manual）价，均未命中返回 nil。
+func TestGetLLMPriceFromUpstream(t *testing.T) {
+	// 模拟外部价格文件同步后的 map：外部条目覆盖了 gpt-4o，deepseek-v4-flash
+	// 未被外部覆盖（保留 presets_manual.go 托底价）。
+	prices := map[string]model.LLMPrice{
+		"gpt-4o":            {Input: 5, Output: 15, CacheRead: 2.5, CacheWrite: 0},
+		"gpt-4o-mini":       {Input: 0.15, Output: 0.6, CacheRead: 0.08, CacheWrite: 0},
+		"claude-3-5-sonnet": {Input: 3, Output: 15, CacheRead: 0.3, CacheWrite: 3.75},
+	}
+	restore := setPricesForTest(prices)
+	t.Cleanup(restore)
+
+	cases := []struct {
+		name      string
+		modelName string
+		wantInput float64
+		wantNil   bool
+	}{
+		{"exact upstream hit", "gpt-4o", 5, false},
+		{"exact upstream hit mixed case", "GPT-4O", 5, false},
+		{"provider prefix fallback", "openai/gpt-4o", 5, false},
+		{"whole-word fallback", "my-gpt-4o-mini", 0.15, false},
+		{"no match", "totally-unknown-model", 0, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := GetLLMPriceFromUpstream(tc.modelName)
+			if tc.wantNil {
+				if got != nil {
+					t.Fatalf("GetLLMPriceFromUpstream(%q) = %+v, want nil", tc.modelName, got)
+				}
+				return
+			}
+			if got == nil {
+				t.Fatalf("GetLLMPriceFromUpstream(%q) = nil, want Input %v", tc.modelName, tc.wantInput)
+			}
+			if got.Input != tc.wantInput {
+				t.Fatalf("GetLLMPriceFromUpstream(%q) Input = %v, want %v", tc.modelName, got.Input, tc.wantInput)
+			}
+		})
+	}
+}
