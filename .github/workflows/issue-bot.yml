@@ -9,7 +9,7 @@
 #
 # 需要在 repo Settings → Secrets 中添加：
 #   OCTOPUS_API_KEY  — Octopus 网关 chat 权限 API Key
-#   OCTOPUS_BASE_URL — Octopus 网关地址（如 https://api.lyux.space）
+#   OCTOPUS_BASE_URL — Octopus 网关地址（如 https://your-gateway.example.com）
 #
 # 配置文件：.github/issue-bot-config.yml
 
