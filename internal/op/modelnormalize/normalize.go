@@ -2,6 +2,7 @@ package modelnormalize
 
 import (
 	"encoding/json"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -34,6 +35,9 @@ type Rules struct {
 	RouterPrefixes     []string
 	FunctionalSuffixes []string
 	ExplicitMappings   []ExplicitMapping
+	// explicitByKey 预处理缓存：dotDashKey(normalizeToBase(variant)) → canonical。
+	// 同一 key 多条映射只保留第一条，自动消解用户的双向/冲突映射（存量数据也生效）。
+	explicitByKey map[string]string
 }
 
 var rulesCache struct {
@@ -42,6 +46,10 @@ var rulesCache struct {
 	rules Rules
 	ready bool
 }
+
+// suffixRegexCache 缓存编译后的正则后缀（pattern → *regexp.Regexp），
+// 避免每次匹配都重新编译（模型广场 2886 个模型名 × 数十条正则后缀）。
+var suffixRegexCache sync.Map
 
 func Normalize(name string) string {
 	return NormalizeWithRules(name, CurrentRules())
@@ -72,76 +80,155 @@ func NormalizeWithRules(name string, rules Rules) string {
 		return ""
 	}
 
-	// 显式映射：匹配分三档——
-	//  1. 精确全名（[官B]claude-opus-4-6-thinking 这类带渠道前缀的完整变体）；
-	//  2. 输入剥离路径+路由前缀后的基础名（dmxapi-claude-opus-4-6 → claude-opus-4-6）；
-	//  3. 映射 variant 也完整规范化（剥路径+前缀+后缀）后与输入规范化名比较，
-	//     让 [官B]claude-opus-4-6-thinking 能命中 dmxapi-claude-opus-4-6-thinking
-	//     （用户按前缀枚举映射，渠道侧却是任意前缀/无前缀，档 1/2 会漏）。
-	lowerTrimmed := strings.ToLower(trimmed)
-	base := strings.ToLower(stripPathAndRouterPrefix(trimmed, rules))
-	normInput := normalizeToBase(trimmed, rules)
-	for _, mapping := range rules.ExplicitMappings {
-		variant := strings.ToLower(strings.TrimSpace(mapping.Variant))
-		canonical := strings.ToLower(strings.TrimSpace(mapping.Canonical))
-		if variant == "" || canonical == "" {
-			continue
+	// 显式映射：输入先完整规范化（剥路径+前缀+后缀）为基础名，再按
+	// dotDashKey（-/. 统一、小写）查映射。同一 key 多条映射只取第一条，
+	// 自动消解用户的双向/冲突映射（如 claude-opus-4-6 ↔ claude-opus-4.6），
+	// 使同一模型不同命名归一到同一个 canonical。映射带任意渠道前缀/路径
+	// 均与裸名变体互相命中。
+	if len(rules.ExplicitMappings) > 0 {
+		keyMap := rules.explicitByKey
+		if keyMap == nil {
+			keyMap = buildExplicitByKey(rules.ExplicitMappings, rules)
 		}
-		if variant == lowerTrimmed || variant == base {
-			return canonical
-		}
-		if normVariant := normalizeToBase(mapping.Variant, rules); normVariant != "" && normVariant == normInput {
+		base := normalizeToBase(trimmed, rules)
+		if canonical, ok := keyMap[dotDashKey(base)]; ok {
 			return canonical
 		}
 	}
 
 	result := stripPathAndRouterPrefix(trimmed, rules)
+	result = stripFunctionalSuffixes(result, rules)
+	return strings.ToLower(result)
+}
 
-	for changed := true; changed; {
-		changed = false
-		currentLower := strings.ToLower(result)
-		for _, suffix := range activeFunctionalSuffixes(rules) {
-			suffix = strings.TrimSpace(suffix)
-			if suffix == "" {
-				continue
-			}
-			s := strings.ToLower(suffix)
-			if strings.HasSuffix(currentLower, s) && len(result) > len(s) {
-				result = result[:len(result)-len(s)]
-				changed = true
-				break
-			}
+// dotDashKey 把 - 和 . 统一为 . 并小写，用于显式映射的等价匹配与冲突检测。
+// claude-opus-4-6 与 claude-opus-4.6 得到相同 key（同一模型两种命名），
+// 而 gemini-2-5-pro 与 gemini-25-pro 得到不同 key（不同模型，不误并）。
+func dotDashKey(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	return strings.ReplaceAll(s, "-", ".")
+}
+
+// buildExplicitByKey 预处理显式映射：key = dotDashKey(normalizeToBase(variant))，
+// value = canonical（小写）。同一 key 只保留第一条（按用户配置顺序），
+// 运行时据此自动忽略反向/冲突映射。
+func buildExplicitByKey(mappings []ExplicitMapping, rules Rules) map[string]string {
+	m := make(map[string]string, len(mappings))
+	for _, mapping := range mappings {
+		key := dotDashKey(normalizeToBase(mapping.Variant, rules))
+		canonical := strings.ToLower(strings.TrimSpace(mapping.Canonical))
+		if key == "" || canonical == "" {
+			continue
+		}
+		if _, exists := m[key]; !exists {
+			m[key] = canonical
 		}
 	}
-
-	return strings.ToLower(result)
+	return m
 }
 
 // normalizeToBase 完整规范化：剥路径 + 路由前缀 + 功能性后缀，返回小写基础名。
-// 供显式映射的「规范化匹配」档使用（variant 与输入都规范化后再比较）。
 func normalizeToBase(name string, rules Rules) string {
 	result := stripPathAndRouterPrefix(name, rules)
+	result = stripFunctionalSuffixes(result, rules)
+	return strings.ToLower(result)
+}
+
+// stripFunctionalSuffixes 循环剥离功能性后缀。
+// 每个后缀的匹配候选：
+//  1. 字面原样（如 -cc 匹配结尾 -cc）；
+//  2. -: 开头 → : 形式（-:free 匹配结尾 :free）；
+//  3. -( 开头 → ( 形式（-(free) 匹配结尾 (free)）；
+//  4. 含正则元字符（\d \w { } * + ? |）→ 编译为正则并锚定结尾
+//     （-\d{8} 匹配 -20250514 这类日期后缀）。
+func stripFunctionalSuffixes(name string, rules Rules) string {
+	result := name
 	for changed := true; changed; {
 		changed = false
-		currentLower := strings.ToLower(result)
+		lower := strings.ToLower(result)
 		for _, suffix := range activeFunctionalSuffixes(rules) {
 			suffix = strings.TrimSpace(suffix)
 			if suffix == "" {
 				continue
 			}
-			s := strings.ToLower(suffix)
-			if strings.HasSuffix(currentLower, s) && len(result) > len(s) {
-				result = result[:len(result)-len(s)]
+			if n, ok := matchSuffixCandidate(lower, suffix); ok && len(result) > n {
+				result = result[:len(result)-n]
 				changed = true
 				break
 			}
 		}
 	}
-	return strings.ToLower(result)
+	return result
+}
+
+// matchSuffixCandidate 尝试字面变体与正则变体，返回匹配的字符数。
+func matchSuffixCandidate(lower, suffix string) (int, bool) {
+	// 字面候选：原样、-: → :、-( → (。
+	for _, cand := range literalSuffixCandidates(suffix) {
+		if strings.HasSuffix(lower, cand) && len(lower) > len(cand) {
+			return len(cand), true
+		}
+	}
+	// 正则候选：仅当含正则元字符，避免把 (free) 这类字面当作分组。
+	if isRegexSuffix(suffix) {
+		for _, cand := range regexSuffixCandidates(suffix) {
+			re := getSuffixRegex(cand)
+			if re == nil {
+				continue
+			}
+			if loc := re.FindStringIndex(lower); loc != nil {
+				return len(lower) - loc[0], true
+			}
+		}
+	}
+	return 0, false
+}
+
+// getSuffixRegex 返回锚定结尾的正则（带编译缓存）。
+func getSuffixRegex(pattern string) *regexp.Regexp {
+	if v, ok := suffixRegexCache.Load(pattern); ok {
+		return v.(*regexp.Regexp)
+	}
+	re, err := regexp.Compile(pattern + "$")
+	if err != nil {
+		return nil
+	}
+	actual, _ := suffixRegexCache.LoadOrStore(pattern, re)
+	return actual.(*regexp.Regexp)
+}
+
+// literalSuffixCandidates 生成字面后缀候选：原样、-: 前缀 → :、-( 前缀 → (。
+func literalSuffixCandidates(suffix string) []string {
+	cands := []string{suffix}
+	if strings.HasPrefix(suffix, "-:") {
+		cands = append(cands, ":"+suffix[2:])
+	}
+	if strings.HasPrefix(suffix, "-(") {
+		cands = append(cands, "("+suffix[2:])
+	}
+	return cands
+}
+
+// regexSuffixCandidates 生成正则后缀候选：原样、-@ 开头 → @ 变体
+// （-@\w+ → @\w+，覆盖 claude-3-haiku@20240307 这类无连字符 @ 变体）。
+// 其余正则（如 -\d{8}）只按原样匹配，避免变体 \d{8} 误剥 @20240307 这类无 - 前缀的日期。
+func regexSuffixCandidates(suffix string) []string {
+	cands := []string{suffix}
+	if strings.HasPrefix(suffix, "-@") {
+		cands = append(cands, suffix[1:])
+	}
+	return cands
+}
+
+// isRegexSuffix 判断后缀是否为「显式正则」：含 \d \w { } * + ? | 之一。
+// 排除 ( ) [ ] - 等常见字面字符，避免 -(free) 被误当分组。
+func isRegexSuffix(suffix string) bool {
+	return strings.ContainsAny(suffix, `\d\w{}*+?|`)
 }
 
 // stripPathAndRouterPrefix 剥离路径前缀（最后一个 / 之后）与路由前缀，返回中间名。
-// 显式映射的基础名匹配与主流程共用此剥离逻辑。
+// 前缀匹配支持「去尾 - 变体」：用户常把 [官B]- 写成带连字符，但渠道模型名是
+// [官B]claude-opus-4-6（[官B] 后无连字符），原样匹配不上；去尾 - 变体覆盖该写法差异。
 func stripPathAndRouterPrefix(name string, rules Rules) string {
 	result := name
 	if slashIndex := strings.LastIndex(result, "/"); slashIndex >= 0 {
@@ -154,9 +241,20 @@ func stripPathAndRouterPrefix(name string, rules Rules) string {
 		if prefix == "" {
 			continue
 		}
+		// 原样匹配（dmxapi-kimi-k2.5 → dmxapi-）。
 		if strings.HasPrefix(lower, strings.ToLower(prefix)) {
 			result = result[len(prefix):]
 			break
+		}
+		// 去尾 - 变体（[官B]- → [官B] 匹配 [官B]claude-opus-4-6）。
+		if strings.HasSuffix(prefix, "-") {
+			base := strings.TrimSuffix(prefix, "-")
+			if base != "" && strings.HasPrefix(lower, strings.ToLower(base)) {
+				result = result[len(base):]
+				// 若原名字带 -（dmxapi-kimi → 剥 dmxapi 剩 -kimi），去掉。
+				result = strings.TrimLeft(result, "-")
+				break
+			}
 		}
 	}
 	return result

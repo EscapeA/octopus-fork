@@ -66,3 +66,41 @@ test('normalizeModelName explicit mapping does not over-match other models', () 
     // 基础名（非 256k 变体）走内置规则，保持独立。
     assert.equal(normalizeModelName('dmxapi-kimi-k2.5'), 'kimi-k2.5');
 });
+
+test('normalizeModelName resolves bidirectional conflicting mappings (first wins)', () => {
+    // claude-opus-4-6 → 4.6 与 claude-opus-4.6 → 4-6 互斥，同 key 取第一条，
+    // 同一模型两种命名归一到同一 canonical。
+    setNormalizeRules({
+        routerPrefixes: ['dmxapi-', '[官B]-'],
+        explicitMappings: [
+            { variant: 'claude-opus-4-6', canonical: 'claude-opus-4.6' },
+            { variant: 'claude-opus-4.6', canonical: 'claude-opus-4-6' },
+        ],
+    });
+    assert.equal(normalizeModelName('claude-opus-4-6'), 'claude-opus-4.6');
+    assert.equal(normalizeModelName('claude-opus-4.6'), 'claude-opus-4.6');
+    // 带渠道前缀/路径的变体也命中同一条映射。
+    assert.equal(normalizeModelName('[官B]claude-opus-4-6'), 'claude-opus-4.6');
+    assert.equal(normalizeModelName('anthropic/claude-opus-4.6'), 'claude-opus-4.6');
+});
+
+test('normalizeModelName strips colon and paren free suffixes', () => {
+    // -:free → :free、-(free) → (free) 变体。
+    setNormalizeRules({ functionalSuffixes: ['-cc', '-:free', '-(free)', '-@\\w+'] });
+    assert.equal(normalizeModelName('deepseek/deepseek-r1:free'), 'deepseek-r1');
+    assert.equal(normalizeModelName('deepseek/deepseek-r1(free)'), 'deepseek-r1');
+    assert.equal(normalizeModelName('claude-3-haiku@20240307'), 'claude-3-haiku');
+});
+
+test('normalizeModelName strips regex date suffix', () => {
+    setNormalizeRules({ functionalSuffixes: ['-\\d{8}', '-cc'] });
+    assert.equal(normalizeModelName('claude-opus-4-20250514'), 'claude-opus-4');
+    assert.equal(normalizeModelName('claude-3-7-sonnet-20250219'), 'claude-3-7-sonnet');
+});
+
+test('normalizeModelName strips bracket prefix written with trailing dash', () => {
+    // 用户配置 [官B]-，但渠道名是 [官B]claude-...（无连字符），去尾 - 变体覆盖。
+    setNormalizeRules({ routerPrefixes: ['dmxapi-', '[官B]-'] });
+    assert.equal(normalizeModelName('[官B]claude-opus-4-6'), 'claude-opus-4-6');
+    assert.equal(normalizeModelName('dmxapi-kimi-k2.5'), 'kimi-k2.5');
+});
