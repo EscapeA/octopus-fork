@@ -144,10 +144,11 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
     const isSenseNovaPlan = selectedCategory === 'sensenova_plan';
     const isCodexPlan = selectedCategory === 'codex';
     const supportsForwardApiKey = isConsoleTokenPlan && !isMiMoPlan;
+    // 商汤日日新账号密码模式：apiKey 可留空，改填账号密码
+    const useAccountLogin = isSenseNovaPlan && senseNovaAuthMode === 'account';
 
     const handleAdd = useCallback(async () => {
         if (!selectedCategory) return;
-        const useAccountLogin = isSenseNovaPlan && senseNovaAuthMode === 'account';
         if (useAccountLogin) {
             if (!loginUsername.trim() || !loginPassword.trim()) {
                 toast.error(t('plan.senseNovaAccountMissing') || '请填写登录账号和密码');
@@ -199,7 +200,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
             const msg = e instanceof Error ? e.message : '添加失败';
             toast.error(msg);
         }
-    }, [selectedCategory, apiKey, forwardApiKey, supportsForwardApiKey, customName, addMutation, isCodexPlan, proxyMode, proxyConfigId, tProxy, isZhipuTeam, teamOrgId, teamProjectId, t, refreshInterval, isSenseNovaPlan, senseNovaAuthMode, loginUsername, loginPassword]);
+    }, [selectedCategory, apiKey, forwardApiKey, supportsForwardApiKey, customName, addMutation, isCodexPlan, proxyMode, proxyConfigId, tProxy, isZhipuTeam, teamOrgId, teamProjectId, t, refreshInterval, useAccountLogin, loginUsername, loginPassword]);
 
     const handleRefresh = useCallback(async (id: number) => {
         try {
@@ -495,7 +496,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                             <Button
                                 className="w-full rounded-xl"
                                 onClick={handleAdd}
-                                disabled={!selectedCategory || !apiKey.trim() || addMutation.isPending}
+                                disabled={!selectedCategory || (useAccountLogin ? (!loginUsername.trim() || !loginPassword.trim()) : !apiKey.trim()) || addMutation.isPending}
                             >
                                 {addMutation.isPending ? (
                                     <>
@@ -978,10 +979,10 @@ function EditCredentialsDialog({
     const supportsForwardApiKey = isConsoleTokenPlan && !isMiMoPlan;
 
     const catInfo = categories.find(c => c.category === category);
+    // 商汤日日新账号密码模式：apiKey 可留空，改填账号密码
+    const useAccountLogin = category === 'sensenova_plan' && senseNovaAuthMode === 'account';
 
     const handleSubmit = async () => {
-        const isSenseNova = category === 'sensenova_plan';
-        const useAccountLogin = isSenseNova && senseNovaAuthMode === 'account';
         if (useAccountLogin) {
             if (!loginUsername.trim() || !loginPassword.trim()) {
                 toast.error(t('plan.senseNovaAccountMissing') || '请填写登录账号和密码');
@@ -1163,7 +1164,7 @@ function EditCredentialsDialog({
                     <Button
                         className="w-full rounded-xl"
                         onClick={handleSubmit}
-                        disabled={!apiKey.trim() || updateMutation.isPending}
+                        disabled={(useAccountLogin ? (!loginUsername.trim() || !loginPassword.trim()) : !apiKey.trim()) || updateMutation.isPending}
                     >
                         {updateMutation.isPending ? (
                             <>
