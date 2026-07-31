@@ -3,6 +3,7 @@ package planprovider
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -67,19 +68,24 @@ type deepseekSessionEntry struct {
 
 var deepseekSessionCache sync.Map // providerID(int) → *deepseekSessionEntry
 
-// deepseekPlatformLogin 手机号+密码登录 DeepSeek 控制台。
+// deepseekPlatformLogin 账号+密码登录 DeepSeek 控制台。
 //
-// 请求体对齐 HAR 抓包：email 留空、mobile 手机号、password 密码、
-// area_code +86、os web。浏览器会带 device_id（加密风控指纹，服务端无法
-// 生成）；此处先尝试不带 device_id 登录——若服务端强制风控导致失败，
-// 会返回明确错误提示，届时再考虑补充。
-func deepseekPlatformLogin(ctx context.Context, mobile, password string) (string, error) {
+// 请求体对齐 HAR 抓包：email/mobile 二选一（含 @ 视为邮箱，否则手机号）、
+// password、area_code +86、os web。服务端强制要求 device_id 字段（Pydantic
+// 校验存在性），但**不校验真实性**——实测随机 UUID 即可通过（不需要浏览器
+// 生成的加密风控指纹），因此纯后端登录可行。
+func deepseekPlatformLogin(ctx context.Context, username, password string) (string, error) {
+	email, mobile := "", username
+	if strings.Contains(username, "@") {
+		email, mobile = username, ""
+	}
 	body, err := json.Marshal(map[string]string{
-		"email":     "",
+		"email":     email,
 		"mobile":    mobile,
 		"password":  password,
 		"area_code": "+86",
 		"os":        "web",
+		"device_id": randomUUID(),
 	})
 	if err != nil {
 		return "", fmt.Errorf("deepseek_login: marshal login body: %w", err)
@@ -176,14 +182,15 @@ type deepseekUsageResult struct {
 
 // queryDeepSeekUsage 查询官方 usage 并聚合累计/今日 token 与请求数。
 //
-// 累计窗口取 30 天（与平台控制台默认一致；HAR 抓包亦为 30 天窗口），
+// 累计窗口取 30 天（与平台控制台默认一致；HAR 抓包亦为 30 天窗口）。
+// 注意：start/end 必须对齐 UTC 零点（HH:00 对齐会返回 INVALID_PARAM），
 // 今日 = 本地时区今天 0 点之后的 bucket。
 func queryDeepSeekUsage(ctx context.Context, token string, now time.Time) (*deepseekUsageResult, error) {
-	tz := int64(0)
-	_, offsetSec := now.Zone()
-	tz = int64(offsetSec) / 3600
-	end := now.Unix()
+	// 对齐 UTC 零点（实测服务端要求，HAR 抓包亦为 UTC 零点）。
+	utcNow := now.UTC()
+	end := time.Date(utcNow.Year(), utcNow.Month(), utcNow.Day(), 0, 0, 0, 0, time.UTC).Unix()
 	start := end - 30*24*3600
+	tz := int64(0)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, deepseekPlatformUsageURL, nil)
 	if err != nil {
@@ -197,6 +204,12 @@ func queryDeepSeekUsage(ctx context.Context, token string, now time.Time) (*deep
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("User-Agent", deepseekChromeUA)
 	req.Header.Set("Referer", "https://platform.deepseek.com/usage")
+	// x-client-* 头对齐 HAR 抓包（部分接口可能校验 bundle 标识）。
+	req.Header.Set("x-client-bundle-id", "com.deepseek.chat")
+	req.Header.Set("x-client-locale", "zh_CN")
+	req.Header.Set("x-client-platform", "web")
+	req.Header.Set("x-client-timezone-offset", "28800")
+	req.Header.Set("x-client-version", "1.0.0")
 
 	resp, err := (&http.Client{Timeout: requestTimeout}).Do(req)
 	if err != nil {
@@ -292,4 +305,17 @@ func queryDeepSeekOfficialUsage(ctx context.Context, provider *model.PlanProvide
 // logDeepSeekUsageErr 记录官方 usage 查询失败（供 ListProviders 调用，避免日志刷屏）。
 func logDeepSeekUsageErr(providerID int, err error) {
 	log.Warnf("deepseek provider %d: official usage query failed, fallback to local stats: %v", providerID, err)
+}
+
+// randomUUID 生成随机 UUID v4（用作 DeepSeek 登录的 device_id）。
+// 服务端只校验字段存在，不校验真实性，随机值即可。
+func randomUUID() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		// 熵源失败时回退时间戳伪 UUID（登录仍可继续）。
+		return fmt.Sprintf("%d-%d", time.Now().UnixNano(), time.Now().UnixMilli())
+	}
+	b[6] = (b[6] & 0x0f) | 0x40 // version 4
+	b[8] = (b[8] & 0x3f) | 0x80 // variant 10
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }

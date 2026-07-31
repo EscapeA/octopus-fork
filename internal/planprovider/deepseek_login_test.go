@@ -103,13 +103,16 @@ func extractJSONField(raw, field string) string {
 
 // TestDeepSeekPlatformLogin 验证登录请求体与 token 解析。
 func TestDeepSeekPlatformLogin(t *testing.T) {
-	var gotMobile, gotPassword string
+	var gotMobile, gotEmail, gotPassword, gotDeviceID string
 	_, _ = withDeepSeekPlatformServers(t,
 		func(w http.ResponseWriter, r *http.Request) {
 			body := make([]byte, 512)
 			n, _ := r.Body.Read(body)
-			gotMobile = extractJSONField(string(body[:n]), "mobile")
-			gotPassword = extractJSONField(string(body[:n]), "password")
+			raw := string(body[:n])
+			gotMobile = extractJSONField(raw, "mobile")
+			gotEmail = extractJSONField(raw, "email")
+			gotPassword = extractJSONField(raw, "password")
+			gotDeviceID = extractJSONField(raw, "device_id")
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(`{"code":0,"msg":"","data":{"biz_code":0,"biz_msg":"","biz_data":{"token":"test-token-123"}}}`))
 		},
@@ -118,6 +121,7 @@ func TestDeepSeekPlatformLogin(t *testing.T) {
 		},
 	)
 
+	// 手机号模式：mobile 填充、email 留空
 	token, err := deepseekPlatformLogin(context.Background(), "13800138000", "secret-pass")
 	if err != nil {
 		t.Fatalf("deepseekPlatformLogin() error = %v", err)
@@ -128,8 +132,43 @@ func TestDeepSeekPlatformLogin(t *testing.T) {
 	if gotMobile != "13800138000" {
 		t.Fatalf("mobile = %q, want 13800138000", gotMobile)
 	}
+	if gotEmail != "" {
+		t.Fatalf("email = %q, want empty for mobile login", gotEmail)
+	}
 	if gotPassword != "secret-pass" {
 		t.Fatalf("password = %q, want secret-pass", gotPassword)
+	}
+	if gotDeviceID == "" {
+		t.Fatal("device_id = empty, want random UUID (server requires non-empty)")
+	}
+}
+
+// TestDeepSeekPlatformLoginEmail 验证邮箱模式：email 填充、mobile 留空。
+func TestDeepSeekPlatformLoginEmail(t *testing.T) {
+	var gotMobile, gotEmail string
+	_, _ = withDeepSeekPlatformServers(t,
+		func(w http.ResponseWriter, r *http.Request) {
+			body := make([]byte, 512)
+			n, _ := r.Body.Read(body)
+			raw := string(body[:n])
+			gotMobile = extractJSONField(raw, "mobile")
+			gotEmail = extractJSONField(raw, "email")
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"code":0,"msg":"","data":{"biz_code":0,"biz_msg":"","biz_data":{"token":"test-token-123"}}}`))
+		},
+		func(w http.ResponseWriter, r *http.Request) {
+			t.Fatal("usage should not be called")
+		},
+	)
+
+	if _, err := deepseekPlatformLogin(context.Background(), "mincur@qq.com", "secret-pass"); err != nil {
+		t.Fatalf("deepseekPlatformLogin(email) error = %v", err)
+	}
+	if gotEmail != "mincur@qq.com" {
+		t.Fatalf("email = %q, want mincur@qq.com", gotEmail)
+	}
+	if gotMobile != "" {
+		t.Fatalf("mobile = %q, want empty for email login", gotMobile)
 	}
 }
 
