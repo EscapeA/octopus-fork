@@ -217,7 +217,16 @@
       "volcengineAuthModeCookie": "Cookie + CSRF Token",
       "volcengineAuthModeAKSK": "AK/SK（AccessKey 签名）",
       "sysTotalTokens": "累计 Token",
-      "sysTodayTokens": "今日 Token"
+      "sysTodayTokens": "今日 Token",
+      "deepSeekAccountLabel": "控制台账号（可选，用于官方用量统计）",
+      "deepSeekAccountPlaceholder": "platform.deepseek.com 登录手机号",
+      "deepSeekPasswordPlaceholder": "控制台登录密码",
+      "deepSeekAccountHint": "配置后系统自动登录控制台，把卡片统计切换为官方 token 用量（覆盖账号下所有 API key 的调用，比本地转发统计更准确）。账号密码 AES 加密存储；不填则继续使用本地统计。",
+      "sysStatsOfficial": "官方用量",
+      "sysStatsLocal": "本地统计",
+      "deepSeekApiKeyMissing": {
+        "deepSeekApiKeyMissing": "请填写 API Key（用于余额查询，控制台账号为可选）"
+      }
     },
     "title": "远程站点",
     "addSite": "添加站点",

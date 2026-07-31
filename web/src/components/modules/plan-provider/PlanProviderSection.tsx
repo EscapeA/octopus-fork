@@ -909,9 +909,16 @@ function ProviderCard({
             {/* DeepSeek 专属：通过额度渠道转发的系统内调用统计 */}
             {provider.category === DEEPSEEK_PLAN_CATEGORY && provider.channel_stats && (
                 <div className="mt-2 rounded-lg bg-muted/50 p-2.5">
-                    <p className="text-xs text-muted-foreground mb-1.5">
-                        {t('plan.sysStats') || 'DeepSeek 额度调用统计'}
-                    </p>
+                    <div className="flex items-center justify-between mb-1.5">
+                        <p className="text-xs text-muted-foreground">
+                            {t('plan.sysStats') || 'DeepSeek 额度调用统计'}
+                        </p>
+                        <span className="text-[10px] text-muted-foreground/70">
+                            {provider.channel_stats.source === 'official'
+                                ? (t('plan.sysStatsOfficial') || '官方用量')
+                                : (t('plan.sysStatsLocal') || '本地统计')}
+                        </span>
+                    </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         <div>
                             <p className="text-[11px] text-muted-foreground">{t('plan.sysTotalRequests') || '累计调用'}</p>
@@ -1009,6 +1016,7 @@ function EditCredentialsDialog({
     const isZhipuTeam = category === 'zhipu_team';
     const isMiMoPlan = category === 'mimo_plan';
     const isCodexPlan = category === 'codex';
+    const isDeepSeek = category === 'deepseek';
     const supportsForwardApiKey = isConsoleTokenPlan && !isMiMoPlan;
 
     const catInfo = categories.find(c => c.category === category);
@@ -1022,6 +1030,11 @@ function EditCredentialsDialog({
                 return;
             }
         } else if (!apiKey.trim()) {
+            // DeepSeek 账号密码是附加数据源，API key 必须保留（余额查询用）
+            if (isDeepSeek) {
+                toast.error(t('plan.deepSeekApiKeyMissing') || '请填写 API Key（用于余额查询，控制台账号为可选）');
+                return;
+            }
             return;
         }
         try {
@@ -1033,7 +1046,11 @@ function EditCredentialsDialog({
                 team_project_id: isZhipuTeam ? teamProjectId.trim() : undefined,
                 ...(useAccountLogin
                     ? { login_username: loginUsername.trim(), login_password: loginPassword.trim() }
-                    : {}),
+                    : isDeepSeek && loginUsername.trim() && loginPassword.trim()
+                        ? { login_username: loginUsername.trim(), login_password: loginPassword.trim() }
+                        // DeepSeek 密码留空视为"不修改账号密码"：不回传 login 字段，
+                        // 后端保留原配置（仅当用户显式清空用户名时才清除）。
+                        : {}),
             });
             toast.success(t('plan.credentialsUpdated') || '凭据已更新');
             onOpenChange(false);
@@ -1146,6 +1163,28 @@ function EditCredentialsDialog({
                                                     ? (t('plan.sensenovaTokenHint') || 'Token 有效期约 3 小时，过期后需重新获取。')
                                                     : (t('plan.oasisTokenHint') || 'Oasis-Token 有效期约 30 分钟，过期后需重新获取。')}
                             </p>
+                        )}
+                        {isDeepSeek && (
+                            <div className="space-y-2 pt-2 border-t border-border/40">
+                                <label className="text-sm font-medium">
+                                    {t('plan.deepSeekAccountLabel') || '控制台账号（可选，用于官方用量统计）'}
+                                </label>
+                                <Input
+                                    type="text"
+                                    placeholder={t('plan.deepSeekAccountPlaceholder') || 'platform.deepseek.com 登录手机号'}
+                                    value={loginUsername}
+                                    onChange={(e) => setLoginUsername(e.target.value)}
+                                />
+                                <Input
+                                    type="password"
+                                    placeholder={t('plan.deepSeekPasswordPlaceholder') || '控制台登录密码'}
+                                    value={loginPassword}
+                                    onChange={(e) => setLoginPassword(e.target.value)}
+                                />
+                                <p className="text-[11px] leading-tight text-muted-foreground">
+                                    {t('plan.deepSeekAccountHint') || '配置后系统自动登录控制台，把卡片统计切换为官方 token 用量（覆盖账号下所有 API key 的调用，比本地转发统计更准确）。账号密码 AES 加密存储；不填则继续使用本地统计。'}
+                                </p>
+                            </div>
                         )}
                         {isCodexPlan && (
                             <p className="text-[11px] leading-tight text-amber-500">

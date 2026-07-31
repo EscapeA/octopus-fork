@@ -287,6 +287,8 @@ type PlanChannelStats struct {
 	TotalTokens   int64 `json:"total_tokens"`   // 累计 token 使用量（输入+输出）
 	TodayRequests int64 `json:"today_requests"` // 今日调用量
 	TodayTokens   int64 `json:"today_tokens"`   // 今日 token 使用量
+	// Source 数据来源：official（DeepSeek 控制台官方 usage）| local（本地 relay stats）
+	Source string `json:"source,omitempty"`
 }
 
 // PlanProviderListItem 列表响应

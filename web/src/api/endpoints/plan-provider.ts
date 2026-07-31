@@ -17,6 +17,7 @@ export interface PlanChannelStats {
     total_tokens: number;
     today_requests: number;
     today_tokens: number;
+    source?: 'official' | 'local';
 }
 
 export interface PlanProvider {

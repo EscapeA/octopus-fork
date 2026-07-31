@@ -78,8 +78,9 @@ type addPlanProviderRequest struct {
 	// 智谱团队版（zhipu_team）专用：组织 ID / 项目 ID，其他厂商忽略。
 	TeamOrganizationID string `json:"team_organization_id,omitempty"`
 	TeamProjectID      string `json:"team_project_id,omitempty"`
-	// 账号密码自动登录（sensenova_plan 专用，可选）：配置后系统自动登录并续期
-	// 控制台 Bearer Token，无需每 3 小时手动更换；此时 api_key 可留空。
+	// 账号密码自动登录（sensenova_plan / deepseek 专用，可选）：
+	// sensenova 配置后系统自动登录并续期控制台 Bearer Token（api_key 可留空）；
+	// deepseek 配置后用于查询官方 usage（api_key 仍必填，用于余额查询）。
 	LoginUsername string `json:"login_username,omitempty"`
 	LoginPassword string `json:"login_password,omitempty"`
 }

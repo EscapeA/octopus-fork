@@ -217,7 +217,16 @@
       "volcengineAuthModeCookie": "Cookie + CSRF Token",
       "volcengineAuthModeAKSK": "AK/SK (AccessKey signing)",
       "sysTotalTokens": "Total Tokens",
-      "sysTodayTokens": "Today Tokens"
+      "sysTodayTokens": "Today Tokens",
+      "deepSeekAccountLabel": "Console account (optional, for official usage stats)",
+      "deepSeekAccountPlaceholder": "platform.deepseek.com login phone number",
+      "deepSeekPasswordPlaceholder": "Console login password",
+      "deepSeekAccountHint": "When configured, the system auto-logs in and switches card stats to official token usage (covers all API keys under the account, more accurate than local relay stats). Credentials are AES-encrypted; leave blank to keep local stats.",
+      "sysStatsOfficial": "Official usage",
+      "sysStatsLocal": "Local stats",
+      "deepSeekApiKeyMissing": {
+        "deepSeekApiKeyMissing": "API Key is required (for balance query; console account is optional)"
+      }
     },
     "title": "Remote Sites",
     "addSite": "Add Site",

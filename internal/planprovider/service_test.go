@@ -625,7 +625,7 @@ func TestQueryPlanChannelStatsTodayDate(t *testing.T) {
 		t.Fatalf("create daily stats: %v", err)
 	}
 
-	got := queryPlanChannelStats(context.Background(), 42)
+	got := queryPlanChannelStats(context.Background(), nil, 42)
 	if got == nil {
 		t.Fatal("queryPlanChannelStats() = nil")
 	}
