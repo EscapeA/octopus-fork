@@ -214,7 +214,10 @@
       "senseNovaAccountHint": "The system automatically logs in and renews the console Token (~3h validity) — no manual refresh needed. Credentials are AES-encrypted and only used for auto-login.",
       "senseNovaAccountMissing": "Please fill in the login account and password",
       "senseNovaLoginConfiguredHint": "Account auto-login is enabled ({username}). Re-enter the password to switch accounts.",
-      "senseNovaAutoLoginBadge": "Auto-login"
+      "senseNovaAutoLoginBadge": "Auto-login",
+      "volcengineAuthModeLabel": "Credential Mode",
+      "volcengineAuthModeCookie": "Cookie + CSRF Token",
+      "volcengineAuthModeAKSK": "AK/SK (AccessKey signing)"
     },
     "title": "Remote Sites",
     "addSite": "Add Site",

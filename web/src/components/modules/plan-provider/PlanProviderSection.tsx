@@ -110,6 +110,8 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
     const [forwardApiKey, setForwardApiKey] = useState('');
     const [customName, setCustomName] = useState('');
     const [mimoAuthMode, setMimoAuthMode] = useState<'passToken' | 'serviceToken'>('serviceToken');
+    // 火山方舟 Agent Plan 凭据方式：Cookie+CSRF / AK/SK（两个条目合并为一个厂商）
+    const [volcengineAuthMode, setVolcengineAuthMode] = useState<'cookie' | 'aksk'>('cookie');
     // 商汤日日新凭据方式：Bearer Token（手动） / 账号密码（自动登录续期）
     const [senseNovaAuthMode, setSenseNovaAuthMode] = useState<'token' | 'account'>('token');
     const [loginUsername, setLoginUsername] = useState('');
@@ -138,7 +140,9 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
     }, [compactView]);
     const isConsoleTokenPlan = selectedCategory === 'stepfun_plan' || selectedCategory === 'sensenova_plan' || selectedCategory === 'mimo_plan' || selectedCategory === 'bailian_plan' || selectedCategory === 'volcengine_plan' || selectedCategory === 'volcengine_plan_ak';
     const isVolcenginePlan = selectedCategory === 'volcengine_plan';
-    const isVolcengineAKSK = selectedCategory === 'volcengine_plan_ak';
+    // AK/SK 条目从厂商下拉隐藏，由凭据方式切换决定实际提交的 category
+    const isVolcengineAKSK = isVolcenginePlan && volcengineAuthMode === 'aksk';
+    const visibleCategories = categories.filter((c) => c.category !== 'volcengine_plan_ak');
     const isZhipuTeam = selectedCategory === 'zhipu_team';
     const isMiMoPlan = selectedCategory === 'mimo_plan';
     const isSenseNovaPlan = selectedCategory === 'sensenova_plan';
@@ -167,7 +171,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
         }
         try {
             await addMutation.mutateAsync({
-                category: selectedCategory,
+                category: isVolcengineAKSK ? 'volcengine_plan_ak' : selectedCategory,
                 ...(useAccountLogin
                     ? { api_key: '', login_username: loginUsername.trim(), login_password: loginPassword.trim() }
                     : { api_key: apiKey.trim() }),
@@ -188,6 +192,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
             setForwardApiKey('');
             setCustomName('');
             setMimoAuthMode('serviceToken');
+            setVolcengineAuthMode('cookie');
             setSenseNovaAuthMode('token');
             setLoginUsername('');
             setLoginPassword('');
@@ -200,7 +205,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
             const msg = e instanceof Error ? e.message : '添加失败';
             toast.error(msg);
         }
-    }, [selectedCategory, apiKey, forwardApiKey, supportsForwardApiKey, customName, addMutation, isCodexPlan, proxyMode, proxyConfigId, tProxy, isZhipuTeam, teamOrgId, teamProjectId, t, refreshInterval, useAccountLogin, loginUsername, loginPassword]);
+    }, [selectedCategory, apiKey, forwardApiKey, supportsForwardApiKey, customName, addMutation, isCodexPlan, proxyMode, proxyConfigId, tProxy, isZhipuTeam, teamOrgId, teamProjectId, t, refreshInterval, useAccountLogin, loginUsername, loginPassword, isVolcengineAKSK]);
 
     const handleRefresh = useCallback(async (id: number) => {
         try {
@@ -227,6 +232,10 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
     }, []);
 
     const selectedInfo = categories.find(c => c.category === selectedCategory);
+    // 火山方舟合并展示：切到 AK/SK 模式时描述换成 AK/SK 条目的说明
+    const selectedInfoDesc = isVolcengineAKSK
+        ? (categories.find(c => c.category === 'volcengine_plan_ak')?.description ?? selectedInfo?.description ?? '')
+        : (selectedInfo?.description ?? '');
 
     return (
         <div className="space-y-4">
@@ -245,7 +254,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                             <span className="hidden sm:inline">{compactView ? '详细' : '极简'}</span>
                         </Button>
                     )}
-                    <Dialog open={addOpen} onOpenChange={(open) => { setAddOpen(open); if (!open) { setMimoAuthMode('serviceToken'); setSenseNovaAuthMode('token'); setApiKey(''); setLoginUsername(''); setLoginPassword(''); } }}>
+                    <Dialog open={addOpen} onOpenChange={(open) => { setAddOpen(open); if (!open) { setMimoAuthMode('serviceToken'); setVolcengineAuthMode('cookie'); setSenseNovaAuthMode('token'); setApiKey(''); setLoginUsername(''); setLoginPassword(''); } }}>
                         <DialogTrigger asChild>
                             <Button size="sm" className="rounded-xl gap-1.5">
                                 <Plus className="size-4" />
@@ -267,7 +276,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                         <SelectValue placeholder={t('plan.selectProvider') || '选择厂商'} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {categories.map((cat) => (
+                                        {visibleCategories.map((cat) => (
                                             <SelectItem key={cat.category} value={cat.category}>
                                                 {cat.name}
                                             </SelectItem>
@@ -276,7 +285,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                 </Select>
                                 {selectedInfo && (
                                     <p className="text-xs text-muted-foreground">
-                                        {selectedInfo.description}
+                                        {selectedInfoDesc}
                                         {selectedInfo.help_url && (
                                             <a
                                                 href={selectedInfo.help_url}
@@ -305,6 +314,22 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                             <SelectContent>
                                                 <SelectItem value="token">Bearer Token（3 小时过期，需手动更换）</SelectItem>
                                                 <SelectItem value="account">{t('plan.senseNovaAuthModeAccount') || '账号密码（自动登录续期）'}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
+                                {isVolcenginePlan && (
+                                    <div className="space-y-1">
+                                        <label className="text-sm font-medium">
+                                            {t('plan.volcengineAuthModeLabel') || '凭据方式'}
+                                        </label>
+                                        <Select value={volcengineAuthMode} onValueChange={(v: string) => { setVolcengineAuthMode(v as 'cookie' | 'aksk'); setApiKey(''); }}>
+                                            <SelectTrigger className="h-9 text-sm">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="cookie">{t('plan.volcengineAuthModeCookie') || 'Cookie + CSRF Token'}</SelectItem>
+                                                <SelectItem value="aksk">{t('plan.volcengineAuthModeAKSK') || 'AK/SK（AccessKey 签名）'}</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -364,10 +389,10 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                         : isCodexPlan
                                             ? (t('plan.codexOAuthPlaceholder') || '粘贴 OAuth JSON 凭据（含 access_token 和 account_id）')
                                             : isConsoleTokenPlan
-                                                ? (isVolcenginePlan
-                                                    ? (t('plan.volcengineCredentialPlaceholder') || 'Cookie值|||x-csrf-token值（从控制台请求头复制，用竖线分隔）')
-                                                    : isVolcengineAKSK
-                                                        ? (t('plan.volcengineAKSKPlaceholder') || 'AccessKey ID|||Secret Access Key（火山控制面 OpenAPI 签名用，与推理 Key 不同）')
+                                                ? (isVolcengineAKSK
+                                                    ? (t('plan.volcengineAKSKPlaceholder') || 'AccessKey ID|||Secret Access Key（火山控制面 OpenAPI 签名用，与推理 Key 不同）')
+                                                    : isVolcenginePlan
+                                                        ? (t('plan.volcengineCredentialPlaceholder') || 'Cookie值|||x-csrf-token值（从控制台请求头复制，用竖线分隔）')
                                                         : selectedInfo?.category === 'sensenova_plan'
                                                             ? (t('plan.sensenovaTokenPlaceholder') || '粘贴控制台 Bearer Token 值')
                                                             : selectedInfo?.category === 'bailian_plan'
@@ -390,10 +415,10 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                 )}
                                 {isConsoleTokenPlan && !isMiMoPlan && !(isSenseNovaPlan && senseNovaAuthMode === 'account') && (
                                     <p className="text-[11px] leading-tight text-amber-500">
-                                        {isVolcenginePlan
-                                            ? (t('plan.volcengineCredentialHint') || '登录 console.volcengine.com/ark → F12 → Network → 任意 plan 接口，复制完整 Cookie 请求头和 x-csrf-token 请求头，用 ||| 连接。会话过期后需重新获取。')
-                                            : isVolcengineAKSK
-                                                ? (t('plan.volcengineAKSKHint') || '在 console.volcengine.com/iam → 密钥管理 创建 AccessKey ID 与 Secret（与推理 API Key 是两套凭据），用 ||| 连接。系统通过控制面 OpenAPI 签名查询，先查 Agent Plan，无订阅再查 Coding Plan。')
+                                        {isVolcengineAKSK
+                                            ? (t('plan.volcengineAKSKHint') || '在 console.volcengine.com/iam → 密钥管理 创建 AccessKey ID 与 Secret（与推理 API Key 是两套凭据），用 ||| 连接。系统通过控制面 OpenAPI 签名查询，先查 Agent Plan，无订阅再查 Coding Plan。')
+                                            : isVolcenginePlan
+                                                ? (t('plan.volcengineCredentialHint') || '登录 console.volcengine.com/ark → F12 → Network → 任意 plan 接口，复制完整 Cookie 请求头和 x-csrf-token 请求头，用 ||| 连接。会话过期后需重新获取。')
                                                 : selectedInfo?.category === 'bailian_plan'
                                                     ? (t('plan.bailianTokenHint') || '需登录 bailian.console.aliyun.com 控制台，按 F12 打开开发者工具 → Network（网络）→ 刷新页面，点击任意请求，从请求头（Request Headers）复制完整 Cookie 值。会话过期后需重新获取。')
                                                     : selectedInfo?.category === 'sensenova_plan'

@@ -214,7 +214,10 @@
       "senseNovaAccountHint": "系統自動完成登入並續期控制台 Token（約 3 小時有效期），全程無需手動更換。帳號密碼 AES 加密儲存，僅用於自動登入。",
       "senseNovaAccountMissing": "請填寫登入帳號和密碼",
       "senseNovaLoginConfiguredHint": "目前已啟用帳號密碼自動登入（{username}）。重新填寫密碼即可更換帳號。",
-      "senseNovaAutoLoginBadge": "自動登入"
+      "senseNovaAutoLoginBadge": "自動登入",
+      "volcengineAuthModeLabel": "憑據方式",
+      "volcengineAuthModeCookie": "Cookie + CSRF Token",
+      "volcengineAuthModeAKSK": "AK/SK（AccessKey 簽名）"
     },
     "title": "遠端站點",
     "addSite": "新增站點",
