@@ -224,9 +224,7 @@
       "deepSeekAccountHint": "設定後系統自動登入控制台，把卡片統計切換為官方 token 用量（涵蓋帳號下所有 API key 的呼叫，比本地轉發統計更準確）。帳號密碼 AES 加密儲存；不填則繼續使用本地統計。",
       "sysStatsOfficial": "官方用量",
       "sysStatsLocal": "本地統計",
-      "deepSeekApiKeyMissing": {
-        "deepSeekApiKeyMissing": "請填寫 API Key（用於餘額查詢，控制台帳號為可選）"
-      }
+      "deepSeekApiKeyMissing": "請填寫 API Key（用於餘額查詢，控制台帳號為可選）"
     },
     "title": "遠端站點",
     "addSite": "新增站點",
@@ -2813,9 +2811,7 @@
         "allSources": "全部來源",
         "backend": "後端",
         "frontend": "前端",
-        "allLevels": {
-          "allLevels": "全部級別"
-        }
+        "allLevels": "全部級別"
       },
       "context": {
         "request": "請求",
