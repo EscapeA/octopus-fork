@@ -6,6 +6,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
@@ -16,6 +17,7 @@ import (
 	"io"
 	"math/big"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"strings"
 	"sync"
@@ -109,7 +111,13 @@ func senseNovaOIDCLogin(ctx context.Context, username, password string) (*senseN
 	sum := sha256.Sum256([]byte(codeVerifier))
 	codeChallenge := base64.RawURLEncoding.EncodeToString(sum[:])
 
-	client := &http.Client{Timeout: requestTimeout}
+	// 登录页会下发含 CSRF 值的 session cookie，授权码回跳（login_verifier →
+	// consent → code）必须携带它，否则报 "No CSRF value available in the
+	// session cookie"。用 cookie jar 自动保存/按域发送。
+	client := &http.Client{
+		Timeout: requestTimeout,
+		Jar:     mustNewCookieJar(),
+	}
 	// 2. 打开授权页（跟随重定向到登录页，解析 login_challenge）
 	authURL := fmt.Sprintf("%s?response_type=code&client_id=%s&code_challenge_method=S256&code_challenge=%s&redirect_uri=%s&scope=%s&state=%s&lang=zh-CN",
 		senseNovaOAuthAuthURL, senseNovaClientID, url.QueryEscape(codeChallenge),
@@ -174,8 +182,20 @@ func senseNovaOIDCLogin(ctx context.Context, username, password string) (*senseN
 		return nil, fmt.Errorf("sensenova_login: read login response: %w", err)
 	}
 	if loginResp.StatusCode < 200 || loginResp.StatusCode >= 300 {
-		// 不把响应体原文拼进错误（可能含敏感信息），仅提示状态码。
-		return nil, fmt.Errorf("sensenova_login: nova/login http %d（账号或密码错误，或账号被风控）", loginResp.StatusCode)
+		// 透出服务端错误详情（如 "Wrong password"），仅取 message 字段、限长，
+		// 不包含 token 等敏感信息。
+		detail := ""
+		var errResp struct {
+			Message string `json:"message"`
+		}
+		if json.Unmarshal(loginRespBody, &errResp) == nil && errResp.Message != "" {
+			msg := strings.TrimSpace(errResp.Message)
+			if len(msg) > 200 {
+				msg = msg[:200]
+			}
+			detail = ": " + msg
+		}
+		return nil, fmt.Errorf("sensenova_login: nova/login http %d%s（账号或密码错误，或账号被风控）", loginResp.StatusCode, detail)
 	}
 	var loginResult struct {
 		Redirect string `json:"redirect"`
@@ -212,6 +232,15 @@ func senseNovaOIDCLogin(ctx context.Context, username, password string) (*senseN
 
 	// 7. 用授权码换 token
 	return senseNovaExchangeCode(ctx, client, code, codeVerifier, state)
+}
+
+// mustNewCookieJar 创建 cookie jar；失败时 panic（正常环境不会失败）。
+func mustNewCookieJar() http.CookieJar {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		panic(fmt.Sprintf("sensenova_login: create cookie jar: %v", err))
+	}
+	return jar
 }
 
 // senseNovaExchangeCode 用授权码换取 access_token / refresh_token。
@@ -374,7 +403,8 @@ func senseNovaFetchJWKS(ctx context.Context, client *http.Client) (*rsa.PublicKe
 }
 
 // senseNovaJWEEncrypt 构造 JWE compact 序列化（alg=RSA-OAEP, enc=A256GCM）。
-// 与前端 jose 库行为一致：CEK 为 32 字节随机值，用 RSA-OAEP(SHA-256) 加密；
+// 与前端 jose 库行为一致：CEK 为 32 字节随机值，用 RSA-OAEP(SHA-1) 加密
+// （RFC 7518 规定 alg "RSA-OAEP" 使用 SHA-1，"RSA-OAEP-256" 才是 SHA-256）；
 // 明文用 AES-256-GCM 加密，AAD 为 base64url(protected header)。
 // 输出格式：b64url(header).b64url(encryptedCEK).b64url(iv).b64url(ciphertext).b64url(tag)
 func senseNovaJWEEncrypt(pub *rsa.PublicKey, plaintext string) (string, error) {
@@ -386,8 +416,8 @@ func senseNovaJWEEncrypt(pub *rsa.PublicKey, plaintext string) (string, error) {
 	if _, err := rand.Read(cek); err != nil {
 		return "", err
 	}
-	// 用 RSA-OAEP(SHA-256) 加密 CEK
-	encCEK, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, pub, cek, nil)
+	// 用 RSA-OAEP(SHA-1) 加密 CEK（RFC 7518 alg=RSA-OAEP → SHA-1）
+	encCEK, err := rsa.EncryptOAEP(sha1.New(), rand.Reader, pub, cek, nil)
 	if err != nil {
 		return "", err
 	}

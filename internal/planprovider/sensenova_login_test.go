@@ -6,7 +6,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
+	"crypto/sha1"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -45,7 +45,7 @@ func jweDecryptRaw(priv *rsa.PrivateKey, compact string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	cek, err := rsa.DecryptOAEP(sha256.New(), rand.Reader, priv, encCEK, nil)
+	cek, err := rsa.DecryptOAEP(sha1.New(), rand.Reader, priv, encCEK, nil)
 	if err != nil {
 		return "", err
 	}
