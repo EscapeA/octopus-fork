@@ -21,6 +21,8 @@ import { REFETCH_INTERVAL_CONFIG } from '@/api/constants';
 import { CONTENT_MAP } from '@/route';
 import { parseNavOrder, parseNavVisible } from '@/components/modules/navbar';
 import { useSubTabStore, parseSubTabOrder, parseSubTabVisible, type ModuleId } from '@/components/modules/navbar/sub-tab-store';
+import { initErrorReporting } from '@/lib/error-report';
+import { AppErrorBoundary } from '@/components/common/AppErrorBoundary';
 import { apiClient } from '@/api/client';
 import { logger } from '@/lib/logger';
 import { cn } from '@/lib/utils';
@@ -164,6 +166,11 @@ export function AppContainer() {
     const [bootstrapComplete, setBootstrapComplete] = useState(false);
     const bootstrapStartedRef = useRef(false);
     const warmedRoutesRef = useRef<Set<NavItem>>(new Set());
+
+    // 挂载全局错误监听（JS 错误 / 未处理 Promise），捕获后上报后端错误日志。
+    useEffect(() => {
+        initErrorReporting();
+    }, []);
 
     // 首屏最早的 server-rendered loader：一旦客户端开始渲染，就淡出移除
     useEffect(() => {
@@ -542,7 +549,9 @@ export function AppContainer() {
                     </div>
                 </header>
                 <div className="h-full min-h-0 flex-1 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
-                    <ContentLoader activeRoute={activeItem} />
+                    <AppErrorBoundary>
+                        <ContentLoader activeRoute={activeItem} />
+                    </AppErrorBoundary>
                 </div>
             </main>
             <ProxyPoolDialog />

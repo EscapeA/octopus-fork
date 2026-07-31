@@ -2789,6 +2789,32 @@
       },
       "reasoningChars": "思考",
       "reasoningCharsUnit": "字"
+    },
+    "view": {
+      "relay": "转发日志",
+      "error": "错误日志"
+    },
+    "errorLog": {
+      "title": "错误日志",
+      "clear": "清空",
+      "clearConfirm": "确定清空全部错误日志？此操作不可恢复。",
+      "empty": "暂无错误日志",
+      "loadMore": "加载更多",
+      "filter": {
+        "allSources": "全部来源",
+        "backend": "后端",
+        "frontend": "前端",
+        "allLevels": {
+          "allLevels": "全部级别"
+        }
+      },
+      "context": {
+        "request": "请求",
+        "pageUrl": "页面",
+        "route": "路由",
+        "clientIp": "客户端 IP",
+        "version": "版本"
+      }
     }
   },
   "channel": {

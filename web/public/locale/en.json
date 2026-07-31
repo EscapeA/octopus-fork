@@ -2833,6 +2833,32 @@
       },
       "reasoningChars": "Reasoning",
       "reasoningCharsUnit": " chars"
+    },
+    "view": {
+      "relay": "Relay Logs",
+      "error": "Error Logs"
+    },
+    "errorLog": {
+      "title": "Error Logs",
+      "clear": "Clear",
+      "clearConfirm": "Clear all error logs? This cannot be undone.",
+      "empty": "No error logs yet",
+      "loadMore": "Load more",
+      "filter": {
+        "allSources": "All sources",
+        "backend": "Backend",
+        "frontend": "Frontend",
+        "allLevels": {
+          "allLevels": "All levels"
+        }
+      },
+      "context": {
+        "request": "Request",
+        "pageUrl": "Page",
+        "route": "Route",
+        "clientIp": "Client IP",
+        "version": "Version"
+      }
     }
   },
   "channel": {
