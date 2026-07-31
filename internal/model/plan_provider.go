@@ -239,8 +239,14 @@ type PlanProvider struct {
 	// 请求头 bigmodel-organization / bigmodel-project，与 API Key 三者配对。
 	TeamOrganizationID string `json:"team_organization_id" gorm:"default:''"`
 	TeamProjectID      string `json:"team_project_id" gorm:"default:''"`
-	BaseURL            string `json:"base_url" gorm:"not null"`
-	ChannelID          int    `json:"channel_id" gorm:"not null;default:0;index"`
+	// LoginUsername / LoginPasswordEnc 仅 sensenova_plan 使用（可选）：
+	// 配置商汤控制台账号密码后，系统自动完成 OIDC 登录并续期控制台 Bearer Token，
+	// 无需每 3 小时手动更换 Token（APIKey 字段保存当前有效的 access_token）。
+	LoginUsername    string `json:"login_username" gorm:"default:''"`
+	LoginPasswordEnc string `json:"-" gorm:"default:''"` // AES 加密的登录密码，不回传前端
+	RefreshTokenEnc  string `json:"-" gorm:"default:''"` // AES 加密的 OIDC refresh_token，不回传前端
+	BaseURL          string `json:"base_url" gorm:"not null"`
+	ChannelID        int    `json:"channel_id" gorm:"not null;default:0;index"`
 	// 代理配置：目前仅 Codex 类厂商（chatgpt.com 国内不可直连）使用，
 	// 与 Channel/Site 的代理模型一致；其他厂商默认 direct。
 	ProxyMode     ProxyUsageMode `json:"proxy_mode" gorm:"type:varchar(16);not null;default:'direct'"`
@@ -289,6 +295,8 @@ type PlanProviderListItem struct {
 	Models         string `json:"models"`       // 从 Channel 继承的模型
 	ChannelName    string `json:"channel_name"` // 关联渠道名称
 	ChannelEnabled bool   `json:"channel_enabled"`
+	// LoginConfigured 是否已配置账号密码自动登录（sensenova_plan 等支持账号登录的厂商）
+	LoginConfigured bool `json:"login_configured"`
 	// BalanceDelta 上次刷新到本次刷新之间的余额减少额（balance 类，充值导致的负值按 0）
 	BalanceDelta float64 `json:"balance_delta"`
 	// QuotaUsedDelta 上次刷新到本次刷新之间已用额度的增量（tokenplan 类，周期重置导致的负值按 0）

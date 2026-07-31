@@ -204,7 +204,17 @@
       "updateFailed": "更新失败",
       "update": "更新并查询",
       "forwardApiKeyPlaceholderOptional": "留空保持不变，填写则更新转发渠道 key",
-      "forwardApiKeyEditHint": "留空表示不更换转发凭据；填写新值将同步更新关联渠道的 key。"
+      "forwardApiKeyEditHint": "留空表示不更换转发凭据；填写新值将同步更新关联渠道的 key。",
+      "senseNovaAuthModeLabel": "凭据方式",
+      "senseNovaAuthModeAccount": "账号密码（自动登录续期）",
+      "senseNovaUsernameLabel": "登录账号",
+      "senseNovaUsernamePlaceholder": "platform.sensenova.cn 控制台登录账号（手机号/用户名）",
+      "senseNovaPasswordLabel": "登录密码",
+      "senseNovaPasswordPlaceholder": "控制台登录密码",
+      "senseNovaAccountHint": "系统自动完成登录并续期控制台 Token（约 3 小时有效期），全程无需手动更换。账号密码 AES 加密存储，仅用于自动登录。",
+      "senseNovaAccountMissing": "请填写登录账号和密码",
+      "senseNovaLoginConfiguredHint": "当前已启用账号密码自动登录（{username}）。重新填写密码即可更换账号。",
+      "senseNovaAutoLoginBadge": "自动登录"
     },
     "title": "远程站点",
     "addSite": "添加站点",

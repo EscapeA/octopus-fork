@@ -12,6 +12,7 @@ import (
 	"github.com/lingyuins/octopus/internal/op"
 	stats "github.com/lingyuins/octopus/internal/op/stats"
 	"github.com/lingyuins/octopus/internal/transformer/outbound"
+	"github.com/lingyuins/octopus/internal/utils/crypto"
 	"github.com/lingyuins/octopus/internal/utils/log"
 )
 
@@ -113,6 +114,7 @@ func ListProviders(ctx context.Context, providerType model.PlanProviderType) ([]
 		item := model.PlanProviderListItem{PlanProvider: p}
 		item.APIKey = ""
 		item.ForwardAPIKey = ""
+		item.LoginConfigured = p.LoginUsername != "" && p.LoginPasswordEnc != ""
 		// 本次与上次检测之间的消费增量：
 		// balance 类 = 上次余额 − 本次余额（充值导致的负值按 0）；
 		// tokenplan 类 = 本次已用 − 上次已用（周期重置导致的负值按 0）。
@@ -169,7 +171,11 @@ func queryPlanChannelStats(ctx context.Context, channelID int) *model.PlanChanne
 // proxyMode / proxyConfigID 仅 Codex 类生效（chatgpt.com 国内不可直连）：
 // 同时作用于用量查询链路与自动创建的转发渠道；其他厂商强制 direct。
 // refreshIntervalMin 自动刷新间隔（分钟），0 表示跟随全局默认设置。
-func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKey, forwardAPIKey, customName string, refreshIntervalMin int, proxyMode model.ProxyUsageMode, proxyConfigID *int, teamOrgID, teamProjectID string) (*model.PlanProvider, error) {
+//
+// loginUsername / loginPassword 仅 sensenova_plan 使用（可选）：
+// 配置商汤控制台账号密码后，系统自动完成 OIDC 登录获取控制台 Bearer Token 并自动续期，
+// 无需手动更换每 3 小时过期的 Token；此时 apiKey 可留空（登录成功后会写入 access_token）。
+func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKey, forwardAPIKey, customName string, refreshIntervalMin int, proxyMode model.ProxyUsageMode, proxyConfigID *int, teamOrgID, teamProjectID, loginUsername, loginPassword string) (*model.PlanProvider, error) {
 	info := getCategoryInfo(category)
 	if info == nil {
 		return nil, fmt.Errorf("unknown plan provider category: %s", category)
@@ -197,8 +203,38 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 	}
 
 	apiKey = strings.TrimSpace(apiKey)
-	if apiKey == "" {
-		return nil, fmt.Errorf("API key is required")
+	loginUsername = strings.TrimSpace(loginUsername)
+	loginPassword = strings.TrimSpace(loginPassword)
+	// 账号密码自动登录目前仅 sensenova_plan 支持。
+	if loginUsername != "" && category != model.PlanProviderSenseNovaPlan {
+		return nil, fmt.Errorf("account login is only supported for sensenova_plan")
+	}
+	if loginUsername != "" && loginPassword == "" {
+		return nil, fmt.Errorf("login password is required")
+	}
+	if apiKey == "" && loginUsername == "" {
+		return nil, fmt.Errorf("API key or login credentials is required")
+	}
+
+	// 账号密码模式：先完成 OIDC 登录，用拿到的 access_token 作为主凭据，
+	// 并保存加密的 refresh_token 供后续自动续期。
+	var loginPasswordEnc, refreshTokenEnc string
+	if loginUsername != "" {
+		enc, err := crypto.Encrypt(loginPassword)
+		if err != nil {
+			return nil, fmt.Errorf("encrypt login password: %w", err)
+		}
+		loginPasswordEnc = enc
+		sess, err := senseNovaOIDCLogin(ctx, loginUsername, loginPassword)
+		if err != nil {
+			return nil, fmt.Errorf("sensenova login: %w", err)
+		}
+		apiKey = sess.accessToken
+		if sess.refreshToken != "" {
+			if enc, err := crypto.Encrypt(sess.refreshToken); err == nil {
+				refreshTokenEnc = enc
+			}
+		}
 	}
 
 	teamOrgID = strings.TrimSpace(teamOrgID)
@@ -343,6 +379,9 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 		ForwardAPIKey:      forwardAPIKey,
 		TeamOrganizationID: teamOrgID,
 		TeamProjectID:      teamProjectID,
+		LoginUsername:      loginUsername,
+		LoginPasswordEnc:   loginPasswordEnc,
+		RefreshTokenEnc:    refreshTokenEnc,
 		BaseURL:            info.BaseURL,
 		ChannelID:          channelID,
 		ProxyMode:          proxyMode,
@@ -417,6 +456,13 @@ func RefreshProvider(ctx context.Context, id int) (*model.PlanProvider, error) {
 		provider.BalanceUsed = result.BalanceUsed
 		provider.TotalUsed += max(0, lastBalance-provider.Balance)
 	} else {
+		// 商汤日日新：若配置了账号密码，先确保控制台 access_token 有效
+		// （过期则自动 refresh_token 续期或重新登录），再查套餐用量。
+		if provider.Category == model.PlanProviderSenseNovaPlan && provider.LoginUsername != "" {
+			if _, err := ensureSenseNovaSession(ctx, &provider); err != nil {
+				return nil, fmt.Errorf("refresh sensenova session: %w", err)
+			}
+		}
 		lastQuotaUsed := provider.QuotaUsed
 		result, err := QueryTokenPlan(ctx, provider.Category, provider.APIKey, provider.BaseURL, provider.ProxyMode, provider.ProxyConfigID, provider.TeamOrganizationID, provider.TeamProjectID)
 		if err != nil {
@@ -456,12 +502,15 @@ func RefreshProvider(ctx context.Context, id int) (*model.PlanProvider, error) {
 // 需要用户重新从控制台获取凭据并替换，而非删除重建（删除会连带删掉关联的转发渠道与 channel keys 状态）。
 //
 // 行为：
-//   - newAPIKey 必填，trim 后非空；
+//   - newAPIKey 与 loginUsername 至少填一个（sensenova_plan 支持账号密码模式）：
+//     账号密码模式下 newAPIKey 可留空，系统自动登录拿 access_token 作为主凭据。
+//   - 填了 loginUsername（仅 sensenova_plan）：保存账号密码，并保存加密 refresh_token 自动续期；
+//     不填则清空账号密码模式（切回纯 Bearer Token）。
 //   - newForwardAPIKey 仅控制台 token plan 类生效（normalizePlanForwardAPIKey 会清空其他类），传空串表示"清空转发凭据"。
 //   - 用新凭据立即查询一次用量并更新 quota/balance 字段（等价于一次 RefreshProvider）。
 //   - forward_api_key 变更且关联渠道存在时，同步更新渠道里匹配旧 forward 值的那把 key；
 //     若原本没有渠道（旧 forward 为空）而本次填了新 forward，则新建/复用渠道（逻辑同 AddProvider）。
-func UpdateProviderCredentials(ctx context.Context, id int, newAPIKey, newForwardAPIKey string, newTeamOrgID, newTeamProjectID string) (*model.PlanProvider, error) {
+func UpdateProviderCredentials(ctx context.Context, id int, newAPIKey, newForwardAPIKey string, newTeamOrgID, newTeamProjectID, loginUsername, loginPassword string) (*model.PlanProvider, error) {
 	var provider model.PlanProvider
 	if err := db.GetDB().WithContext(ctx).First(&provider, id).Error; err != nil {
 		return nil, fmt.Errorf("find plan provider: %w", err)
@@ -473,9 +522,45 @@ func UpdateProviderCredentials(ctx context.Context, id int, newAPIKey, newForwar
 	}
 
 	newAPIKey = strings.TrimSpace(newAPIKey)
-	if newAPIKey == "" {
-		return nil, fmt.Errorf("API key is required")
+	loginUsername = strings.TrimSpace(loginUsername)
+	loginPassword = strings.TrimSpace(loginPassword)
+	if newAPIKey == "" && loginUsername == "" {
+		return nil, fmt.Errorf("API key or login credentials is required")
 	}
+	if loginUsername != "" && provider.Category != model.PlanProviderSenseNovaPlan {
+		return nil, fmt.Errorf("account login is only supported for sensenova_plan")
+	}
+	if loginUsername != "" && loginPassword == "" {
+		return nil, fmt.Errorf("login password is required")
+	}
+
+	// 账号密码模式：登录获取新 token 作为主凭据，并更新登录凭据字段。
+	// 未填账号密码：清空账号密码模式（切回纯 Bearer Token）。
+	if loginUsername != "" {
+		loginPasswordEnc, err := crypto.Encrypt(loginPassword)
+		if err != nil {
+			return nil, fmt.Errorf("encrypt login password: %w", err)
+		}
+		sess, err := senseNovaOIDCLogin(ctx, loginUsername, loginPassword)
+		if err != nil {
+			return nil, fmt.Errorf("sensenova login: %w", err)
+		}
+		newAPIKey = sess.accessToken
+		provider.LoginUsername = loginUsername
+		provider.LoginPasswordEnc = loginPasswordEnc
+		provider.RefreshTokenEnc = ""
+		if sess.refreshToken != "" {
+			if enc, err := crypto.Encrypt(sess.refreshToken); err == nil {
+				provider.RefreshTokenEnc = enc
+			}
+		}
+	} else {
+		provider.LoginUsername = ""
+		provider.LoginPasswordEnc = ""
+		provider.RefreshTokenEnc = ""
+	}
+	clearSenseNovaSession(id)
+
 	newForwardAPIKey = normalizePlanForwardAPIKey(provider.Category, strings.TrimSpace(newForwardAPIKey))
 	newTeamOrgID = strings.TrimSpace(newTeamOrgID)
 	newTeamProjectID = strings.TrimSpace(newTeamProjectID)
@@ -649,6 +734,7 @@ func updatePlanForwardChannelKey(ctx context.Context, provider *model.PlanProvid
 // 若 provider 删除成功而 channel 删除失败：provider 已不存在，留下一个 channel 孤儿，
 // 用户可在渠道管理页手动删除；这比反过来（provider 指向不存在的 channel）更易恢复。
 func DeleteProvider(ctx context.Context, id int) error {
+	clearSenseNovaSession(id)
 	var provider model.PlanProvider
 	if err := db.GetDB().WithContext(ctx).First(&provider, id).Error; err != nil {
 		return fmt.Errorf("find plan provider: %w", err)

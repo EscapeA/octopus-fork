@@ -28,6 +28,8 @@ export interface PlanProvider {
     forward_api_key: string;
     team_organization_id: string;
     team_project_id: string;
+    login_username: string;
+    login_configured: boolean;
     base_url: string;
     channel_id: number;
     balance: number;
@@ -101,6 +103,10 @@ export function useAddPlanProvider() {
             // 智谱团队版专用：组织 ID / 项目 ID
             team_organization_id?: string;
             team_project_id?: string;
+            // 商汤日日新账号密码自动登录（sensenova_plan 专用）：
+            // 填了则系统自动登录/续期控制台 Token，api_key 可留空。
+            login_username?: string;
+            login_password?: string;
             proxy_mode?: ProxyMode;
             proxy_config_id?: number | null;
         }) => apiClient.post('/api/v1/plan-provider/add', data),
@@ -130,11 +136,17 @@ export function useUpdatePlanProviderCredentials() {
             forward_api_key?: string;
             team_organization_id?: string;
             team_project_id?: string;
+            // 商汤日日新账号密码自动登录（sensenova_plan 专用）：
+            // 填了则切换为账号密码模式并自动登录；不填则清除账号密码模式。
+            login_username?: string;
+            login_password?: string;
         }) => apiClient.put(`/api/v1/plan-provider/credentials/${data.id}`, {
             api_key: data.api_key,
             forward_api_key: data.forward_api_key,
             team_organization_id: data.team_organization_id,
             team_project_id: data.team_project_id,
+            login_username: data.login_username,
+            login_password: data.login_password,
         }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['plan-provider'] });

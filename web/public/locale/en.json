@@ -204,7 +204,17 @@
       "updateFailed": "Update failed",
       "update": "Update & Query",
       "forwardApiKeyPlaceholderOptional": "Leave blank to keep unchanged, or enter a new forwarding key",
-      "forwardApiKeyEditHint": "Leave blank to keep the forwarding credential unchanged; entering a new value will sync-update the associated channel key."
+      "forwardApiKeyEditHint": "Leave blank to keep the forwarding credential unchanged; entering a new value will sync-update the associated channel key.",
+      "senseNovaAuthModeLabel": "Credential Mode",
+      "senseNovaAuthModeAccount": "Account & Password (auto-login)",
+      "senseNovaUsernameLabel": "Login Account",
+      "senseNovaUsernamePlaceholder": "platform.sensenova.cn console login account (phone/username)",
+      "senseNovaPasswordLabel": "Login Password",
+      "senseNovaPasswordPlaceholder": "Console login password",
+      "senseNovaAccountHint": "The system automatically logs in and renews the console Token (~3h validity) — no manual refresh needed. Credentials are AES-encrypted and only used for auto-login.",
+      "senseNovaAccountMissing": "Please fill in the login account and password",
+      "senseNovaLoginConfiguredHint": "Account auto-login is enabled ({username}). Re-enter the password to switch accounts.",
+      "senseNovaAutoLoginBadge": "Auto-login"
     },
     "title": "Remote Sites",
     "addSite": "Add Site",

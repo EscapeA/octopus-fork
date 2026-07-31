@@ -89,7 +89,7 @@ func TestUpdateProviderCredentials_VolcengineNewAPIKeyRefreshesUsage(t *testing.
 		QuotaUsed:     1,
 	})
 
-	updated, err := UpdateProviderCredentials(context.Background(), provider.ID, newAPIKey, forwardKey, "", "")
+	updated, err := UpdateProviderCredentials(context.Background(), provider.ID, newAPIKey, forwardKey, "", "", "", "")
 	if err != nil {
 		t.Fatalf("UpdateProviderCredentials() error = %v", err)
 	}
@@ -148,7 +148,7 @@ func TestUpdateProviderCredentials_BalanceClearsForwardAPIKey(t *testing.T) {
 		Balance:       0,
 	})
 
-	updated, err := UpdateProviderCredentials(context.Background(), provider.ID, newAPIKey, "ignored-forward", "", "")
+	updated, err := UpdateProviderCredentials(context.Background(), provider.ID, newAPIKey, "ignored-forward", "", "", "", "")
 	if err != nil {
 		t.Fatalf("UpdateProviderCredentials() error = %v", err)
 	}
@@ -179,7 +179,7 @@ func TestUpdateProviderCredentials_EmptyAPIKeyErrors(t *testing.T) {
 		BaseURL:      "https://console.volcengine.com",
 	})
 
-	if _, err := UpdateProviderCredentials(context.Background(), provider.ID, "   ", "", "", ""); err == nil {
+	if _, err := UpdateProviderCredentials(context.Background(), provider.ID, "   ", "", "", "", "", ""); err == nil {
 		t.Fatal("空 apiKey 应报错")
 	}
 }
@@ -187,7 +187,7 @@ func TestUpdateProviderCredentials_EmptyAPIKeyErrors(t *testing.T) {
 // TestUpdateProviderCredentials_NotFound 验证不存在的 ID 报错。
 func TestUpdateProviderCredentials_NotFound(t *testing.T) {
 	setupPlanProviderDB(t)
-	if _, err := UpdateProviderCredentials(context.Background(), 99999, "k", "", "", ""); err == nil {
+	if _, err := UpdateProviderCredentials(context.Background(), 99999, "k", "", "", "", "", ""); err == nil {
 		t.Fatal("不存在的 provider 应报错")
 	}
 }
@@ -207,7 +207,7 @@ func TestAddProviderDeepSeekUsesFetchedModels(t *testing.T) {
 	}
 	t.Cleanup(func() { planFetchModels = orig })
 
-	provider, err := AddProvider(context.Background(), model.PlanProviderDeepSeek, "sk-test-deepseek", "", "", 0, model.ProxyUsageModeDirect, nil, "", "")
+	provider, err := AddProvider(context.Background(), model.PlanProviderDeepSeek, "sk-test-deepseek", "", "", 0, model.ProxyUsageModeDirect, nil, "", "", "", "")
 	if err != nil {
 		t.Fatalf("AddProvider() error = %v", err)
 	}
@@ -235,7 +235,7 @@ func TestAddProviderDeepSeekFallsBackToDefaultModels(t *testing.T) {
 	}
 	t.Cleanup(func() { planFetchModels = orig })
 
-	provider, err := AddProvider(context.Background(), model.PlanProviderDeepSeek, "sk-test-deepseek", "", "", 0, model.ProxyUsageModeDirect, nil, "", "")
+	provider, err := AddProvider(context.Background(), model.PlanProviderDeepSeek, "sk-test-deepseek", "", "", 0, model.ProxyUsageModeDirect, nil, "", "", "", "")
 	if err != nil {
 		t.Fatalf("AddProvider() error = %v", err)
 	}
@@ -433,7 +433,7 @@ func TestAddProviderStoresRefreshInterval(t *testing.T) {
 	setupPlanProviderDB(t)
 	withDeepSeekBalanceServer(t, "100")
 
-	provider, err := AddProvider(context.Background(), model.PlanProviderDeepSeek, "sk-test-deepseek", "", "", 15, model.ProxyUsageModeDirect, nil, "", "")
+	provider, err := AddProvider(context.Background(), model.PlanProviderDeepSeek, "sk-test-deepseek", "", "", 15, model.ProxyUsageModeDirect, nil, "", "", "", "")
 	if err != nil {
 		t.Fatalf("AddProvider() error = %v", err)
 	}
@@ -445,7 +445,7 @@ func TestAddProviderStoresRefreshInterval(t *testing.T) {
 	}
 
 	// 负值应报错
-	if _, err := AddProvider(context.Background(), model.PlanProviderDeepSeek, "sk-test-deepseek", "", "", -1, model.ProxyUsageModeDirect, nil, "", ""); err == nil {
+	if _, err := AddProvider(context.Background(), model.PlanProviderDeepSeek, "sk-test-deepseek", "", "", -1, model.ProxyUsageModeDirect, nil, "", "", "", ""); err == nil {
 		t.Error("negative refresh interval should error")
 	}
 }
@@ -513,7 +513,7 @@ func TestUpdateProviderCredentialsAccumulatesTotalUsed(t *testing.T) {
 		TotalUsed:    50,
 	})
 
-	updated, err := UpdateProviderCredentials(context.Background(), provider.ID, "sk-new", "", "", "")
+	updated, err := UpdateProviderCredentials(context.Background(), provider.ID, "sk-new", "", "", "", "", "")
 	if err != nil {
 		t.Fatalf("UpdateProviderCredentials() error = %v", err)
 	}
@@ -682,7 +682,7 @@ func TestUpdateProviderCredentials_VolcengineNewForwardKeySyncsChannelKey(t *tes
 		ChannelID:     ch.ID,
 	})
 
-	if _, err := UpdateProviderCredentials(context.Background(), provider.ID, oldAPIKey, newForward, "", ""); err != nil {
+	if _, err := UpdateProviderCredentials(context.Background(), provider.ID, oldAPIKey, newForward, "", "", "", ""); err != nil {
 		t.Fatalf("UpdateProviderCredentials() error = %v", err)
 	}
 
