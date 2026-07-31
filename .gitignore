@@ -23,6 +23,8 @@ CLAUDE.md
 .tmp/
 .uploads/
 .playwright-cli/
+__pycache__/
+tmp/
 *-load.yaml
 opencode.json
 octopus.exe
