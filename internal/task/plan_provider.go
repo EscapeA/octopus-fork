@@ -30,6 +30,11 @@ func planProviderDue(p model.PlanProvider, globalIntervalMin int, now time.Time)
 func PlanProviderAutoRefreshTask() {
 	ctx := context.Background()
 
+	// 存量 DeepSeek 渠道模型迁移（幂等，迁移后不再触发）
+	if _, err := planprovider.MigrateLegacyDeepSeekChannels(ctx); err != nil {
+		log.Warnf("plan provider auto refresh: migrate legacy deepseek channels failed: %v", err)
+	}
+
 	globalMin, err := setting.GetInt(model.SettingKeyPlanProviderRefreshInterval)
 	if err != nil || globalMin < 1 {
 		globalMin = 30

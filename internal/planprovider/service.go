@@ -51,6 +51,53 @@ func resolvePlanChannelModels(ctx context.Context, category model.PlanProviderCa
 	return normalized
 }
 
+// legacyDeepSeekDefaultModels 旧版 DeepSeek 额度监控自动创建渠道时的默认模型列表
+// （官方已弃用）。仅当渠道模型列表规范化后与此完全一致时，才判定为旧版自动创建的渠道。
+var legacyDeepSeekDefaultModels = []string{"deepseek-chat", "deepseek-reasoner"}
+
+// MigrateLegacyDeepSeekChannels 幂等迁移：把旧版自动创建的 DeepSeek 额度渠道
+// （模型列表恰为弃用的 deepseek-chat,deepseek-reasoner）更新为当前默认模型
+// （deepseek-v4-flash,deepseek-v4-pro）。只匹配与旧默认完全一致的渠道，
+// 不触碰用户手动配置过模型列表的渠道。返回迁移数量。
+func MigrateLegacyDeepSeekChannels(ctx context.Context) (int, error) {
+	var providers []model.PlanProvider
+	if err := db.GetDB().WithContext(ctx).
+		Where("category = ? AND channel_id > 0", model.PlanProviderDeepSeek).
+		Find(&providers).Error; err != nil {
+		return 0, fmt.Errorf("list deepseek plan providers: %w", err)
+	}
+
+	old := normalizeModelList(strings.Join(legacyDeepSeekDefaultModels, ","))
+	info := getCategoryInfo(model.PlanProviderDeepSeek)
+	if info == nil {
+		return 0, fmt.Errorf("deepseek category info not found")
+	}
+
+	migrated := 0
+	for _, p := range providers {
+		ch, err := op.ChannelGet(p.ChannelID, ctx)
+		if err != nil || ch == nil {
+			continue
+		}
+		if normalizeModelList(ch.Model) != old {
+			continue
+		}
+		updateReq := &model.ChannelUpdateRequest{
+			ID:    ch.ID,
+			Model: &info.Models,
+		}
+		if _, err := op.ChannelUpdate(updateReq, ctx); err != nil {
+			log.Warnf("planprovider: migrate legacy deepseek channel %d models failed: %v", ch.ID, err)
+			continue
+		}
+		migrated++
+	}
+	if migrated > 0 {
+		log.Infof("planprovider: migrated %d legacy deepseek channel(s) to default models %q", migrated, info.Models)
+	}
+	return migrated, nil
+}
+
 // ListProviders 列出所有 Plan Provider
 func ListProviders(ctx context.Context, providerType model.PlanProviderType) ([]model.PlanProviderListItem, error) {
 	var providers []model.PlanProvider

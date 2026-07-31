@@ -525,6 +525,91 @@ func TestUpdateProviderCredentialsAccumulatesTotalUsed(t *testing.T) {
 	}
 }
 
+// TestMigrateLegacyDeepSeekChannels 验证：模型列表恰为旧默认（deepseek-chat,deepseek-reasoner）
+// 的 DeepSeek 额度渠道被迁移为 v4 默认；用户自定义模型的渠道不被触碰；幂等。
+func TestMigrateLegacyDeepSeekChannels(t *testing.T) {
+	setupPlanProviderDB(t)
+
+	// Plan 分组
+	group := &model.ChannelGroup{Name: "Plan"}
+	if err := db.GetDB().Create(group).Error; err != nil {
+		t.Fatalf("create plan group: %v", err)
+	}
+
+	mkChannel := func(name, models string) *model.Channel {
+		ch := &model.Channel{
+			Name:    name,
+			GroupID: group.ID,
+			Type:    outbound.OutboundTypeOpenAIChat,
+			Enabled: true,
+			BaseUrls: []model.BaseUrl{
+				{URL: "https://api.deepseek.com/v1", Delay: 0},
+			},
+			Keys:      []model.ChannelKey{{Enabled: true, ChannelKey: "sk-test"}},
+			Model:     models,
+			AutoSync:  false,
+			AutoGroup: model.AutoGroupTypeNone,
+		}
+		if err := op.ChannelCreate(ch, context.Background()); err != nil {
+			t.Fatalf("create channel %s: %v", name, err)
+		}
+		return ch
+	}
+
+	legacyCh := mkChannel("[DeepSeek] legacy", "deepseek-chat,deepseek-reasoner")
+	customCh := mkChannel("[DeepSeek] custom", "deepseek-v4-pro,my-custom-model")
+
+	createProviderRow(t, &model.PlanProvider{
+		Name:         "DeepSeek legacy",
+		Category:     model.PlanProviderDeepSeek,
+		ProviderType: model.PlanProviderTypeBalance,
+		APIKey:       "sk-1",
+		BaseURL:      "https://api.deepseek.com/v1",
+		ChannelID:    legacyCh.ID,
+	})
+	createProviderRow(t, &model.PlanProvider{
+		Name:         "DeepSeek custom",
+		Category:     model.PlanProviderDeepSeek,
+		ProviderType: model.PlanProviderTypeBalance,
+		APIKey:       "sk-2",
+		BaseURL:      "https://api.deepseek.com/v1",
+		ChannelID:    customCh.ID,
+	})
+
+	migrated, err := MigrateLegacyDeepSeekChannels(context.Background())
+	if err != nil {
+		t.Fatalf("MigrateLegacyDeepSeekChannels() error = %v", err)
+	}
+	if migrated != 1 {
+		t.Errorf("migrated = %d, want 1", migrated)
+	}
+
+	var legacyAfter model.Channel
+	if err := db.GetDB().First(&legacyAfter, legacyCh.ID).Error; err != nil {
+		t.Fatalf("load legacy channel: %v", err)
+	}
+	if normalizeModelList(legacyAfter.Model) != "deepseek-v4-flash,deepseek-v4-pro" {
+		t.Errorf("legacy channel Model = %q, want v4 default", legacyAfter.Model)
+	}
+
+	var customAfter model.Channel
+	if err := db.GetDB().First(&customAfter, customCh.ID).Error; err != nil {
+		t.Fatalf("load custom channel: %v", err)
+	}
+	if customAfter.Model != "deepseek-v4-pro,my-custom-model" {
+		t.Errorf("custom channel Model = %q, want unchanged", customAfter.Model)
+	}
+
+	// 幂等：再次运行不再迁移
+	migrated, err = MigrateLegacyDeepSeekChannels(context.Background())
+	if err != nil {
+		t.Fatalf("MigrateLegacyDeepSeekChannels() second error = %v", err)
+	}
+	if migrated != 0 {
+		t.Errorf("second migrated = %d, want 0 (幂等)", migrated)
+	}
+}
+
 // TestQueryPlanChannelStatsTodayDate 验证：今日统计使用与写入端一致的日期格式
 // （YYYYMMDD + stats 时区），仅匹配今日行，不串入历史行。
 func TestQueryPlanChannelStatsTodayDate(t *testing.T) {
