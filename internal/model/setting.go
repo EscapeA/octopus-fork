@@ -202,10 +202,10 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyResponseFilterErrorMessage, Value: "The response contains blocked keywords and has been intercepted."},
 		{Key: SettingKeyLogLevel, Value: "info"},
 		{Key: SettingKeyLogExcludedGroups, Value: "[]"},
-		{Key: SettingKeyModelNormalizeRouterPrefixes, Value: "[]"},         // 默认无自定义路由前缀，回退到前端内置默认
-		{Key: SettingKeyModelNormalizeFunctionalSuffixes, Value: "[]"},     // 默认无自定义功能后缀，回退到前端内置默认
-		{Key: SettingKeyModelNormalizeExplicitMappings, Value: "[]"},       // 默认无显式变体→基准名映射
-		{Key: SettingKeyModelNormalizeMarketDedupeDefault, Value: "false"}, // 默认不在模型广场自动开启归一化去重
+		{Key: SettingKeyModelNormalizeRouterPrefixes, Value: "[]"},        // 默认无自定义路由前缀，回退到前端内置默认
+		{Key: SettingKeyModelNormalizeFunctionalSuffixes, Value: "[]"},    // 默认无自定义功能后缀，回退到前端内置默认
+		{Key: SettingKeyModelNormalizeExplicitMappings, Value: "[]"},      // 默认无显式变体→基准名映射
+		{Key: SettingKeyModelNormalizeMarketDedupeDefault, Value: "true"}, // 模型广场默认开启归一化去重
 		{Key: SettingKeyWebAuthnRPID, Value: ""},
 		{Key: SettingKeyWebAuthnRPName, Value: "Octopus"},
 		{Key: SettingKeyWebAuthnOrigins, Value: ""},
