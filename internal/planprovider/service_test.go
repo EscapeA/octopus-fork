@@ -618,8 +618,8 @@ func TestQueryPlanChannelStatsTodayDate(t *testing.T) {
 	today := stats.Now().Format("20060102")
 	yesterday := time.Now().AddDate(0, 0, -1).Format("20060102")
 	rows := []model.StatsDailyChannel{
-		{Date: today, ChannelID: 42, StatsMetrics: model.StatsMetrics{RequestSuccess: 7, RequestFailed: 1, InputCost: 1.5, OutputCost: 2.5}},
-		{Date: yesterday, ChannelID: 42, StatsMetrics: model.StatsMetrics{RequestSuccess: 99, RequestFailed: 1, InputCost: 10, OutputCost: 20}},
+		{Date: today, ChannelID: 42, StatsMetrics: model.StatsMetrics{RequestSuccess: 7, RequestFailed: 1, InputToken: 1000, OutputToken: 2000}},
+		{Date: yesterday, ChannelID: 42, StatsMetrics: model.StatsMetrics{RequestSuccess: 99, RequestFailed: 1, InputToken: 10000, OutputToken: 20000}},
 	}
 	if err := db.GetDB().Create(&rows).Error; err != nil {
 		t.Fatalf("create daily stats: %v", err)
@@ -632,8 +632,8 @@ func TestQueryPlanChannelStatsTodayDate(t *testing.T) {
 	if got.TodayRequests != 8 {
 		t.Errorf("TodayRequests = %d, want 8 (仅今日行)", got.TodayRequests)
 	}
-	if got.TodayCost != 4 {
-		t.Errorf("TodayCost = %v, want 4", got.TodayCost)
+	if got.TodayTokens != 3000 {
+		t.Errorf("TodayTokens = %d, want 3000 (仅今日行 token 合计)", got.TodayTokens)
 	}
 	if got.TotalRequests != 0 {
 		t.Errorf("TotalRequests = %d, want 0 (未写 stats_channel 累计表)", got.TotalRequests)

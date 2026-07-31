@@ -283,10 +283,10 @@ type PlanProvider struct {
 
 // PlanChannelStats 额度监控渠道的系统内调用统计（来自 relay stats）
 type PlanChannelStats struct {
-	TotalRequests int64   `json:"total_requests"` // 累计调用量（成功+失败）
-	TotalCost     float64 `json:"total_cost"`     // 累计花费（输入+输出成本）
-	TodayRequests int64   `json:"today_requests"` // 今日调用量
-	TodayCost     float64 `json:"today_cost"`     // 今日花费
+	TotalRequests int64 `json:"total_requests"` // 累计调用量（成功+失败）
+	TotalTokens   int64 `json:"total_tokens"`   // 累计 token 使用量（输入+输出）
+	TodayRequests int64 `json:"today_requests"` // 今日调用量
+	TodayTokens   int64 `json:"today_tokens"`   // 今日 token 使用量
 }
 
 // PlanProviderListItem 列表响应

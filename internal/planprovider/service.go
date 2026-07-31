@@ -150,13 +150,13 @@ func queryPlanChannelStats(ctx context.Context, channelID int) *model.PlanChanne
 	var total model.StatsChannel
 	if err := db.GetDB().WithContext(ctx).Where("channel_id = ?", channelID).First(&total).Error; err == nil {
 		chStats.TotalRequests = total.RequestSuccess + total.RequestFailed
-		chStats.TotalCost = total.InputCost + total.OutputCost
+		chStats.TotalTokens = total.InputToken + total.OutputToken
 	}
 	today := stats.Now().Format("20060102")
 	var daily model.StatsDailyChannel
 	if err := db.GetDB().WithContext(ctx).Where("date = ? AND channel_id = ?", today, channelID).First(&daily).Error; err == nil {
 		chStats.TodayRequests = daily.RequestSuccess + daily.RequestFailed
-		chStats.TodayCost = daily.InputCost + daily.OutputCost
+		chStats.TodayTokens = daily.InputToken + daily.OutputToken
 	}
 	return chStats
 }

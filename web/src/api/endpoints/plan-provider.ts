@@ -14,9 +14,9 @@ export interface PlanProviderCategoryInfo {
 
 export interface PlanChannelStats {
     total_requests: number;
-    total_cost: number;
+    total_tokens: number;
     today_requests: number;
-    today_cost: number;
+    today_tokens: number;
 }
 
 export interface PlanProvider {

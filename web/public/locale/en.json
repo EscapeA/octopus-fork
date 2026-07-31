@@ -167,9 +167,7 @@
       "deltaSpent": "Spent since last check",
       "sysStats": "DeepSeek quota usage stats",
       "sysTotalRequests": "Total requests",
-      "sysTotalCost": "Total cost",
       "sysTodayRequests": "Today requests",
-      "sysTodayCost": "Today cost",
       "forwardApiKeyLabel": "API Key (Optional)",
       "forwardApiKeyPlaceholder": "sk- API Key for forwarding",
       "forwardApiKeyHint": "When provided, a forwarding channel will be created or reused. Channels with the same models are merged. Leave empty to monitor quota only.",
@@ -217,7 +215,9 @@
       "senseNovaAutoLoginBadge": "Auto-login",
       "volcengineAuthModeLabel": "Credential Mode",
       "volcengineAuthModeCookie": "Cookie + CSRF Token",
-      "volcengineAuthModeAKSK": "AK/SK (AccessKey signing)"
+      "volcengineAuthModeAKSK": "AK/SK (AccessKey signing)",
+      "sysTotalTokens": "Total Tokens",
+      "sysTodayTokens": "Today Tokens"
     },
     "title": "Remote Sites",
     "addSite": "Add Site",

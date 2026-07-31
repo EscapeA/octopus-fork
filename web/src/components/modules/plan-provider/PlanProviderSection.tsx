@@ -585,6 +585,14 @@ const formatBalance = (val: number) => {
     return val.toLocaleString(undefined, { maximumFractionDigits: 2 });
 };
 
+// formatTokens 格式化 token 使用量（万/亿中文单位，与 Analytics 页 formatCount 口径一致）。
+const formatTokens = (val: number) => {
+    if (!val) return '0';
+    if (val >= 100_000_000) return `${(val / 100_000_000).toFixed(2)}亿`;
+    if (val >= 10_000) return `${(val / 10_000).toFixed(2)}万`;
+    return val.toLocaleString();
+};
+
 const formatTime = (val: string | null) => {
     if (!val) return '';
     try {
@@ -910,16 +918,16 @@ function ProviderCard({
                             <p className="text-sm font-semibold tabular-nums">{provider.channel_stats.total_requests}</p>
                         </div>
                         <div>
-                            <p className="text-[11px] text-muted-foreground">{t('plan.sysTotalCost') || '累计花费'}</p>
-                            <p className="text-sm font-semibold tabular-nums">{formatBalance(provider.channel_stats.total_cost)}</p>
+                            <p className="text-[11px] text-muted-foreground">{t('plan.sysTotalTokens') || '累计 Token'}</p>
+                            <p className="text-sm font-semibold tabular-nums">{formatTokens(provider.channel_stats.total_tokens)}</p>
                         </div>
                         <div>
                             <p className="text-[11px] text-muted-foreground">{t('plan.sysTodayRequests') || '今日调用'}</p>
                             <p className="text-sm font-semibold tabular-nums">{provider.channel_stats.today_requests}</p>
                         </div>
                         <div>
-                            <p className="text-[11px] text-muted-foreground">{t('plan.sysTodayCost') || '今日花费'}</p>
-                            <p className="text-sm font-semibold tabular-nums">{formatBalance(provider.channel_stats.today_cost)}</p>
+                            <p className="text-[11px] text-muted-foreground">{t('plan.sysTodayTokens') || '今日 Token'}</p>
+                            <p className="text-sm font-semibold tabular-nums">{formatTokens(provider.channel_stats.today_tokens)}</p>
                         </div>
                     </div>
                 </div>

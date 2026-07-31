@@ -167,9 +167,7 @@
       "deltaSpent": "上次檢測後消耗",
       "sysStats": "DeepSeek 額度調用統計",
       "sysTotalRequests": "累計調用",
-      "sysTotalCost": "累計花費",
       "sysTodayRequests": "今日調用",
-      "sysTodayCost": "今日花費",
       "forwardApiKeyLabel": "API Key（可選）",
       "forwardApiKeyPlaceholder": "sk- 開頭的 API Key，用於轉發",
       "forwardApiKeyHint": "填寫後將自動建立或復用轉發渠道，模型相同的合併為同一渠道。留空則僅監控套餐額度。",
@@ -217,7 +215,9 @@
       "senseNovaAutoLoginBadge": "自動登入",
       "volcengineAuthModeLabel": "憑據方式",
       "volcengineAuthModeCookie": "Cookie + CSRF Token",
-      "volcengineAuthModeAKSK": "AK/SK（AccessKey 簽名）"
+      "volcengineAuthModeAKSK": "AK/SK（AccessKey 簽名）",
+      "sysTotalTokens": "累計 Token",
+      "sysTodayTokens": "今日 Token"
     },
     "title": "遠端站點",
     "addSite": "新增站點",
