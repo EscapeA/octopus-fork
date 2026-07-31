@@ -72,31 +72,19 @@ func NormalizeWithRules(name string, rules Rules) string {
 		return ""
 	}
 
+	// 显式映射：先精确匹配完整名，再匹配「剥离路径 + 路由前缀后的基础名」，
+	// 覆盖 dmxapi-kimi-k2.5-256k / provider/xxx 这类带前缀/路径的渠道变体。
 	lowerTrimmed := strings.ToLower(trimmed)
+	base := strings.ToLower(stripPathAndRouterPrefix(trimmed, rules))
 	for _, mapping := range rules.ExplicitMappings {
 		variant := strings.ToLower(strings.TrimSpace(mapping.Variant))
 		canonical := strings.ToLower(strings.TrimSpace(mapping.Canonical))
-		if variant != "" && canonical != "" && variant == lowerTrimmed {
+		if variant != "" && canonical != "" && (variant == lowerTrimmed || variant == base) {
 			return canonical
 		}
 	}
 
-	result := trimmed
-	if slashIndex := strings.LastIndex(result, "/"); slashIndex >= 0 {
-		result = result[slashIndex+1:]
-	}
-
-	lower := strings.ToLower(result)
-	for _, prefix := range activeRouterPrefixes(rules) {
-		prefix = strings.TrimSpace(prefix)
-		if prefix == "" {
-			continue
-		}
-		if strings.HasPrefix(lower, strings.ToLower(prefix)) {
-			result = result[len(prefix):]
-			break
-		}
-	}
+	result := stripPathAndRouterPrefix(trimmed, rules)
 
 	for changed := true; changed; {
 		changed = false
@@ -116,6 +104,28 @@ func NormalizeWithRules(name string, rules Rules) string {
 	}
 
 	return strings.ToLower(result)
+}
+
+// stripPathAndRouterPrefix 剥离路径前缀（最后一个 / 之后）与路由前缀，返回中间名。
+// 显式映射的基础名匹配与主流程共用此剥离逻辑。
+func stripPathAndRouterPrefix(name string, rules Rules) string {
+	result := name
+	if slashIndex := strings.LastIndex(result, "/"); slashIndex >= 0 {
+		result = result[slashIndex+1:]
+	}
+
+	lower := strings.ToLower(result)
+	for _, prefix := range activeRouterPrefixes(rules) {
+		prefix = strings.TrimSpace(prefix)
+		if prefix == "" {
+			continue
+		}
+		if strings.HasPrefix(lower, strings.ToLower(prefix)) {
+			result = result[len(prefix):]
+			break
+		}
+	}
+	return result
 }
 
 func loadRules() Rules {

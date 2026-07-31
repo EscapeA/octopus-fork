@@ -179,39 +179,26 @@ export function normalizeModelName(name: string): string {
     if (!name) return '';
     const trimmed = name.trim();
 
-    // 0. 显式映射优先：AI 离线分析产出的点对点映射（变体→基准名），
-    //    命中即直接返回（小写）。匹配对原始名大小写不敏感。
+    // 0. 显式映射优先：AI 离线分析产出的点对点映射（变体→基准名）。
+    //    先精确匹配完整名，再匹配「剥离路径 + 路由前缀后的基础名」，
+    //    覆盖 dmxapi-kimi-k2.5-256k / provider/xxx 这类带前缀/路径的渠道变体。
+    //    匹配对原始名大小写不敏感。
     const explicit = getActiveExplicitMappings();
     if (explicit.length > 0) {
         const lowerTrimmed = trimmed.toLowerCase();
+        const base = stripPathAndRouterPrefix(trimmed).toLowerCase();
         for (const m of explicit) {
-            if (m.variant.toLowerCase() === lowerTrimmed) {
+            const v = m.variant.toLowerCase();
+            if (v === lowerTrimmed || v === base) {
                 return m.canonical.toLowerCase();
             }
         }
     }
 
-    let result = trimmed;
-
-    const routerPrefixes = getActiveRouterPrefixes();
-    const functionalSuffixes = getActiveFunctionalSuffixes();
-
-    // 1. 剥离路径前缀：取最后一个 `/` 之后的部分。
-    const slashIndex = result.lastIndexOf('/');
-    if (slashIndex >= 0) {
-        result = result.slice(slashIndex + 1);
-    }
-
-    // 2. 剥离已知的路由商前缀（大小写不敏感）。
-    const lower = result.toLowerCase();
-    for (const prefix of routerPrefixes) {
-        if (lower.startsWith(prefix.toLowerCase())) {
-            result = result.slice(prefix.length);
-            break;
-        }
-    }
+    let result = stripPathAndRouterPrefix(trimmed);
 
     // 3. 剥离已知的功能性后缀（大小写不敏感，循环处理叠加后缀）。
+    const functionalSuffixes = getActiveFunctionalSuffixes();
     let changed = true;
     while (changed) {
         changed = false;
@@ -228,4 +215,26 @@ export function normalizeModelName(name: string): string {
 
     // 4. 规范化为小写，便于聚合。
     return result.toLowerCase();
+}
+
+// stripPathAndRouterPrefix 剥离路径前缀（最后一个 / 之后）与路由前缀，返回中间名。
+// 显式映射的基础名匹配与主流程共用此剥离逻辑。
+function stripPathAndRouterPrefix(name: string): string {
+    let result = name;
+
+    // 1. 剥离路径前缀：取最后一个 `/` 之后的部分。
+    const slashIndex = result.lastIndexOf('/');
+    if (slashIndex >= 0) {
+        result = result.slice(slashIndex + 1);
+    }
+
+    // 2. 剥离已知的路由商前缀（大小写不敏感）。
+    const lower = result.toLowerCase();
+    for (const prefix of getActiveRouterPrefixes()) {
+        if (lower.startsWith(prefix.toLowerCase())) {
+            result = result.slice(prefix.length);
+            break;
+        }
+    }
+    return result;
 }

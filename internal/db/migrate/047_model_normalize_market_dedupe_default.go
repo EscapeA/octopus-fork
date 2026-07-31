@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func init() {
@@ -25,7 +26,10 @@ func migrateModelNormalizeMarketDedupeDefault(db *gorm.DB) error {
 	if !db.Migrator().HasTable("settings") {
 		return nil
 	}
+	// 用 clause.Column 让 gorm 按方言自动 quote 列名（MySQL 反引号 / Postgres 双引号），
+	// 避免 `key` 在 Postgres 下因反引号非法导致迁移失败、设置不翻转。
 	return db.Table("settings").
-		Where("`key` = ? AND `value` = ?", "model_normalize_market_dedupe_default", "false").
+		Where(clause.Eq{Column: clause.Column{Name: "key"}, Value: "model_normalize_market_dedupe_default"}).
+		Where(clause.Eq{Column: clause.Column{Name: "value"}, Value: "false"}).
 		Update("value", "true").Error
 }
