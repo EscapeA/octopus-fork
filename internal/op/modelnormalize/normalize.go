@@ -261,11 +261,16 @@ func stripPathAndRouterPrefix(name string, rules Rules) string {
 }
 
 func loadRules() Rules {
-	return Rules{
+	rules := Rules{
 		RouterPrefixes:     loadStringArray(model.SettingKeyModelNormalizeRouterPrefixes),
 		FunctionalSuffixes: loadStringArray(model.SettingKeyModelNormalizeFunctionalSuffixes),
 		ExplicitMappings:   loadExplicitMappings(model.SettingKeyModelNormalizeExplicitMappings),
 	}
+	// 预构建显式映射索引：NormalizeWithRules 是市场热路径（每模型名调用一次），
+	// 若每次调用都 buildExplicitByKey（O(映射数)），模型名上万 × 映射上百时
+	// 单次市场聚合可达秒级，是网关 504 的候选成因。此处缓存刷新时构建一次。
+	rules.explicitByKey = buildExplicitByKey(rules.ExplicitMappings, rules)
+	return rules
 }
 
 func activeRouterPrefixes(rules Rules) []string {
