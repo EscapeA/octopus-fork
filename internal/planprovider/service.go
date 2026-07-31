@@ -359,7 +359,7 @@ func RefreshProvider(ctx context.Context, id int) (*model.PlanProvider, error) {
 
 	if provider.ProviderType == model.PlanProviderTypeBalance {
 		// 快照旧余额：本次刷新后 LastBalance 表示"上次检测时的余额"，
-		// 与最新 Balance 的差值即两次检测之间的消费。
+		// 与最新 Balance 的差值即两次检测之间的消费；差额累加进累计已用额度。
 		lastBalance := provider.Balance
 		result, err := QueryBalance(ctx, provider.Category, provider.APIKey, provider.BaseURL)
 		if err != nil {
@@ -368,6 +368,7 @@ func RefreshProvider(ctx context.Context, id int) (*model.PlanProvider, error) {
 		provider.LastBalance = lastBalance
 		provider.Balance = result.Balance
 		provider.BalanceUsed = result.BalanceUsed
+		provider.TotalUsed += max(0, lastBalance-provider.Balance)
 	} else {
 		lastQuotaUsed := provider.QuotaUsed
 		result, err := QueryTokenPlan(ctx, provider.Category, provider.APIKey, provider.BaseURL, provider.ProxyMode, provider.ProxyConfigID, provider.TeamOrganizationID, provider.TeamProjectID)
@@ -449,7 +450,8 @@ func UpdateProviderCredentials(ctx context.Context, id int, newAPIKey, newForwar
 	provider.TeamProjectID = newTeamProjectID
 
 	if provider.ProviderType == model.PlanProviderTypeBalance {
-		// 换凭据后立即查询用量，等价于一次刷新：同样保存旧值快照，保证增量对比连续。
+		// 换凭据后立即查询用量，等价于一次刷新：同样保存旧值快照，保证增量对比连续，
+		// 并把差额累加进累计已用额度。
 		lastBalance := provider.Balance
 		result, err := QueryBalance(ctx, provider.Category, provider.APIKey, provider.BaseURL)
 		if err != nil {
@@ -458,6 +460,7 @@ func UpdateProviderCredentials(ctx context.Context, id int, newAPIKey, newForwar
 		provider.LastBalance = lastBalance
 		provider.Balance = result.Balance
 		provider.BalanceUsed = result.BalanceUsed
+		provider.TotalUsed += max(0, lastBalance-provider.Balance)
 	} else {
 		lastQuotaUsed := provider.QuotaUsed
 		result, err := QueryTokenPlan(ctx, provider.Category, provider.APIKey, provider.BaseURL, provider.ProxyMode, provider.ProxyConfigID, provider.TeamOrganizationID, provider.TeamProjectID)

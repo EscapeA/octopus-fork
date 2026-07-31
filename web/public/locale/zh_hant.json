@@ -138,6 +138,7 @@
       "delete": "刪除",
       "balanceAvailable": "可用餘額",
       "balanceUsed": "已用額度",
+      "totalUsed": "累計已用",
       "tierFiveHour": "近5小時用量",
       "tierWeekly": "近一週用量",
       "tierMonthly": "近一月用量",

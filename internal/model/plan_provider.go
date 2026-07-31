@@ -263,12 +263,16 @@ type PlanProvider struct {
 	RefreshIntervalMin int `json:"refresh_interval_min" gorm:"not null;default:0"`
 	// LastBalance / LastQuotaUsed 上次刷新时的快照，用于计算本次与上次检测之间的消费增量
 	// （balance 类用 LastBalance，tokenplan 类用 LastQuotaUsed）。
-	LastBalance   float64    `json:"last_balance" gorm:"default:0"`
-	LastQuotaUsed float64    `json:"last_quota_used" gorm:"default:0"`
-	Status        string     `json:"status" gorm:"type:varchar(32);not null;default:'active'"`
-	LastRefresh   *time.Time `json:"last_refresh"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
+	LastBalance   float64 `json:"last_balance" gorm:"default:0"`
+	LastQuotaUsed float64 `json:"last_quota_used" gorm:"default:0"`
+	// TotalUsed 累计已用额度（balance 类）：从启用记账起，每次检测的消费增量
+	// （max(0, 上次余额 − 本次余额)）逐次累加。DeepSeek 等接口不提供已用量的厂商
+	// 用它补足"已用额度"展示；充值导致的负增量不累加。
+	TotalUsed   float64    `json:"total_used" gorm:"default:0"`
+	Status      string     `json:"status" gorm:"type:varchar(32);not null;default:'active'"`
+	LastRefresh *time.Time `json:"last_refresh"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 // PlanChannelStats 额度监控渠道的系统内调用统计（来自 relay stats）

@@ -731,10 +731,12 @@ function ProviderCard({
                     </div>
                     <div className="rounded-lg bg-muted/50 p-2.5">
                         <p className="text-xs text-muted-foreground mb-1">
-                            {t('plan.balanceUsed') || '已用额度'}
+                            {provider.balance_used > 0
+                                ? (t('plan.balanceUsed') || '已用额度')
+                                : (t('plan.totalUsed') || '累计已用')}
                         </p>
                         <p className="text-lg font-bold tabular-nums text-muted-foreground">
-                            {formatBalance(provider.balance_used)}
+                            {formatBalance(provider.balance_used > 0 ? provider.balance_used : provider.total_used)}
                         </p>
                     </div>
                 </div>

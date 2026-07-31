@@ -450,6 +450,81 @@ func TestAddProviderStoresRefreshInterval(t *testing.T) {
 	}
 }
 
+// TestRefreshProviderTotalUsedAccumulates 验证：累计已用额度逐次累加消费增量，
+// 充值导致的负增量不累加（也不减少累计值）。
+func TestRefreshProviderTotalUsedAccumulates(t *testing.T) {
+	setupPlanProviderDB(t)
+	withDeepSeekBalanceServer(t, "100")
+
+	provider := createProviderRow(t, &model.PlanProvider{
+		Name:         "DeepSeek monitor",
+		Category:     model.PlanProviderDeepSeek,
+		ProviderType: model.PlanProviderTypeBalance,
+		APIKey:       "sk-test-deepseek",
+		BaseURL:      "https://api.deepseek.com/v1",
+		Balance:      200,
+		LastBalance:  200,
+	})
+
+	// 第一次刷新：消费 100（200 → 100），累计 100
+	withDeepSeekBalanceServer(t, "100")
+	refreshed, err := RefreshProvider(context.Background(), provider.ID)
+	if err != nil {
+		t.Fatalf("RefreshProvider() error = %v", err)
+	}
+	if refreshed.TotalUsed != 100 {
+		t.Errorf("TotalUsed = %v, want 100 (200→100)", refreshed.TotalUsed)
+	}
+
+	// 第二次刷新：充值 400（100 → 500），负增量不累加
+	withDeepSeekBalanceServer(t, "500")
+	refreshed, err = RefreshProvider(context.Background(), provider.ID)
+	if err != nil {
+		t.Fatalf("RefreshProvider() second error = %v", err)
+	}
+	if refreshed.TotalUsed != 100 {
+		t.Errorf("TotalUsed = %v, want 100 (充值段不累加)", refreshed.TotalUsed)
+	}
+
+	// 第三次刷新：消费 300（500 → 200），累计 400
+	withDeepSeekBalanceServer(t, "200")
+	refreshed, err = RefreshProvider(context.Background(), provider.ID)
+	if err != nil {
+		t.Fatalf("RefreshProvider() third error = %v", err)
+	}
+	if refreshed.TotalUsed != 400 {
+		t.Errorf("TotalUsed = %v, want 400 (100+300)", refreshed.TotalUsed)
+	}
+}
+
+// TestUpdateProviderCredentialsAccumulatesTotalUsed 验证：换凭据（等价刷新）也累加累计已用。
+func TestUpdateProviderCredentialsAccumulatesTotalUsed(t *testing.T) {
+	setupPlanProviderDB(t)
+	withDeepSeekBalanceServer(t, "80")
+
+	provider := createProviderRow(t, &model.PlanProvider{
+		Name:         "DeepSeek monitor",
+		Category:     model.PlanProviderDeepSeek,
+		ProviderType: model.PlanProviderTypeBalance,
+		APIKey:       "sk-old",
+		BaseURL:      "https://api.deepseek.com/v1",
+		Balance:      100,
+		LastBalance:  100,
+		TotalUsed:    50,
+	})
+
+	updated, err := UpdateProviderCredentials(context.Background(), provider.ID, "sk-new", "", "", "")
+	if err != nil {
+		t.Fatalf("UpdateProviderCredentials() error = %v", err)
+	}
+	if updated.Balance != 80 {
+		t.Errorf("Balance = %v, want 80", updated.Balance)
+	}
+	if updated.TotalUsed != 70 {
+		t.Errorf("TotalUsed = %v, want 70 (50 + 20)", updated.TotalUsed)
+	}
+}
+
 // TestQueryPlanChannelStatsTodayDate 验证：今日统计使用与写入端一致的日期格式
 // （YYYYMMDD + stats 时区），仅匹配今日行，不串入历史行。
 func TestQueryPlanChannelStatsTodayDate(t *testing.T) {
