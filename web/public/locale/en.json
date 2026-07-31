@@ -2000,6 +2000,7 @@
       "description": "Rules to merge model name variants (e.g. dmxapi-kimi-k2.5, kimi-k2.5-cc) into a base name (kimi-k2.5) for aggregation and dedup. Used only for display, does not rewrite requests.",
       "saved": "Normalization rules saved",
       "saveFailed": "Failed to save normalization rules",
+      "conflict": "Conflicting explicit mappings ({{count}} groups): the same normalized variant maps to different canonical names, dedup will fail. Fix before saving. Examples: {{first}}",
       "saving": "Saving...",
       "save": "Save",
       "duplicate": "Rule already exists",

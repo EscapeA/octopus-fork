@@ -72,14 +72,25 @@ func NormalizeWithRules(name string, rules Rules) string {
 		return ""
 	}
 
-	// 显式映射：先精确匹配完整名，再匹配「剥离路径 + 路由前缀后的基础名」，
-	// 覆盖 dmxapi-kimi-k2.5-256k / provider/xxx 这类带前缀/路径的渠道变体。
+	// 显式映射：匹配分三档——
+	//  1. 精确全名（[官B]claude-opus-4-6-thinking 这类带渠道前缀的完整变体）；
+	//  2. 输入剥离路径+路由前缀后的基础名（dmxapi-claude-opus-4-6 → claude-opus-4-6）；
+	//  3. 映射 variant 也完整规范化（剥路径+前缀+后缀）后与输入规范化名比较，
+	//     让 [官B]claude-opus-4-6-thinking 能命中 dmxapi-claude-opus-4-6-thinking
+	//     （用户按前缀枚举映射，渠道侧却是任意前缀/无前缀，档 1/2 会漏）。
 	lowerTrimmed := strings.ToLower(trimmed)
 	base := strings.ToLower(stripPathAndRouterPrefix(trimmed, rules))
+	normInput := normalizeToBase(trimmed, rules)
 	for _, mapping := range rules.ExplicitMappings {
 		variant := strings.ToLower(strings.TrimSpace(mapping.Variant))
 		canonical := strings.ToLower(strings.TrimSpace(mapping.Canonical))
-		if variant != "" && canonical != "" && (variant == lowerTrimmed || variant == base) {
+		if variant == "" || canonical == "" {
+			continue
+		}
+		if variant == lowerTrimmed || variant == base {
+			return canonical
+		}
+		if normVariant := normalizeToBase(mapping.Variant, rules); normVariant != "" && normVariant == normInput {
 			return canonical
 		}
 	}
@@ -103,6 +114,29 @@ func NormalizeWithRules(name string, rules Rules) string {
 		}
 	}
 
+	return strings.ToLower(result)
+}
+
+// normalizeToBase 完整规范化：剥路径 + 路由前缀 + 功能性后缀，返回小写基础名。
+// 供显式映射的「规范化匹配」档使用（variant 与输入都规范化后再比较）。
+func normalizeToBase(name string, rules Rules) string {
+	result := stripPathAndRouterPrefix(name, rules)
+	for changed := true; changed; {
+		changed = false
+		currentLower := strings.ToLower(result)
+		for _, suffix := range activeFunctionalSuffixes(rules) {
+			suffix = strings.TrimSpace(suffix)
+			if suffix == "" {
+				continue
+			}
+			s := strings.ToLower(suffix)
+			if strings.HasSuffix(currentLower, s) && len(result) > len(s) {
+				result = result[:len(result)-len(s)]
+				changed = true
+				break
+			}
+		}
+	}
 	return strings.ToLower(result)
 }
 

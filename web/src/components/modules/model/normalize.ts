@@ -180,16 +180,23 @@ export function normalizeModelName(name: string): string {
     const trimmed = name.trim();
 
     // 0. 显式映射优先：AI 离线分析产出的点对点映射（变体→基准名）。
-    //    先精确匹配完整名，再匹配「剥离路径 + 路由前缀后的基础名」，
-    //    覆盖 dmxapi-kimi-k2.5-256k / provider/xxx 这类带前缀/路径的渠道变体。
-    //    匹配对原始名大小写不敏感。
+    //    匹配分三档——精确全名（[官B]claude-opus-4-6-thinking 这类带渠道前缀的
+    //    完整变体）；输入剥离路径+路由前缀后的基础名；映射 variant 也完整规范化
+    //    （剥路径+前缀+后缀）后与输入规范化名比较，让 [官B]claude-opus-4-6-thinking
+    //    能命中 dmxapi-claude-opus-4-6-thinking（用户按前缀枚举映射，渠道侧却是
+    //    任意前缀/无前缀，前两档会漏）。匹配对原始名大小写不敏感。
     const explicit = getActiveExplicitMappings();
     if (explicit.length > 0) {
         const lowerTrimmed = trimmed.toLowerCase();
         const base = stripPathAndRouterPrefix(trimmed).toLowerCase();
+        const normInput = normalizeToBase(trimmed);
         for (const m of explicit) {
             const v = m.variant.toLowerCase();
             if (v === lowerTrimmed || v === base) {
+                return m.canonical.toLowerCase();
+            }
+            const normVariant = normalizeToBase(m.variant);
+            if (normVariant && normVariant === normInput) {
                 return m.canonical.toLowerCase();
             }
         }
@@ -214,6 +221,28 @@ export function normalizeModelName(name: string): string {
     }
 
     // 4. 规范化为小写，便于聚合。
+    return result.toLowerCase();
+}
+
+// normalizeToBase 完整规范化：剥路径 + 路由前缀 + 功能性后缀，返回小写基础名。
+// 供显式映射的「规范化匹配」档使用（variant 与输入都规范化后再比较），
+// 也供设置页保存时检测冲突映射。
+export function normalizeToBase(name: string): string {
+    let result = stripPathAndRouterPrefix(name);
+    const functionalSuffixes = getActiveFunctionalSuffixes();
+    let changed = true;
+    while (changed) {
+        changed = false;
+        const currentLower = result.toLowerCase();
+        for (const suffix of functionalSuffixes) {
+            const s = suffix.toLowerCase();
+            if (currentLower.endsWith(s) && result.length > s.length) {
+                result = result.slice(0, -s.length);
+                changed = true;
+                break;
+            }
+        }
+    }
     return result.toLowerCase();
 }
 

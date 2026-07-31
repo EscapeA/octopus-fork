@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { SettingKey, useSetSetting, useSettingList } from '@/api/endpoints/setting';
 import { useModelChannelList, type LLMChannel } from '@/api/endpoints/model';
 import { toast } from '@/components/common/Toast';
-import { setNormalizeRules, type ExplicitMapping } from '@/components/modules/model/normalize';
+import { setNormalizeRules, normalizeToBase, type ExplicitMapping } from '@/components/modules/model/normalize';
 import { writeClipboardText } from '@/lib/clipboard';
 import { cn } from '@/lib/utils';
 
@@ -348,6 +348,31 @@ export function SettingNormalize() {
     const handleRemoveSuffix = (index: number) => setFunctionalSuffixes((prev) => prev.filter((_, i) => i !== index));
 
     const handleSave = async () => {
+        // 先注入编辑态规则（含显式映射），用于下方冲突检测与分析。
+        setNormalizeRules({ routerPrefixes, functionalSuffixes, explicitMappings });
+
+        // 冲突检测：规范化后相同的变体不得映射到不同基准名（如
+        // claude-opus-4-6→claude-opus-4.6 与 claude-opus-4.6→claude-opus-4-6 互斥），
+        // 否则同一模型会归一到不同名，去重失效。
+        const normToCanonical = new Map<string, string>();
+        const conflicts: string[] = [];
+        for (const m of explicitMappings) {
+            const key = normalizeToBase(m.variant);
+            if (!key) continue;
+            const canon = m.canonical.toLowerCase().trim();
+            const existing = normToCanonical.get(key);
+            if (existing !== undefined && existing !== canon) {
+                conflicts.push(`${m.variant} → ${m.canonical}`);
+            } else {
+                normToCanonical.set(key, canon);
+            }
+        }
+        if (conflicts.length > 0) {
+            setSaving(false);
+            toast.error(t('normalize.conflict', { count: conflicts.length, first: conflicts.slice(0, 3).join('、') }));
+            return;
+        }
+
         setSaving(true);
         try {
             await setSetting.mutateAsync({ key: SettingKey.ModelNormalizeRouterPrefixes, value: JSON.stringify(routerPrefixes) });
