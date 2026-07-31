@@ -70,6 +70,8 @@ type addPlanProviderRequest struct {
 	APIKey        string                     `json:"api_key"`
 	ForwardAPIKey string                     `json:"forward_api_key,omitempty"`
 	Name          string                     `json:"name"`
+	// RefreshIntervalMin 自动刷新间隔（分钟），0 = 跟随全局默认。
+	RefreshIntervalMin int `json:"refresh_interval_min,omitempty"`
 	// 代理配置：目前仅 Codex 类生效（chatgpt.com 国内不可直连）。
 	ProxyMode     model.ProxyUsageMode `json:"proxy_mode,omitempty"`
 	ProxyConfigID *int                 `json:"proxy_config_id,omitempty"`
@@ -85,7 +87,7 @@ func addPlanProvider(c *gin.Context) {
 		return
 	}
 
-	provider, err := planprovider.AddProvider(c.Request.Context(), req.Category, req.APIKey, req.ForwardAPIKey, req.Name, req.ProxyMode, req.ProxyConfigID, req.TeamOrganizationID, req.TeamProjectID)
+	provider, err := planprovider.AddProvider(c.Request.Context(), req.Category, req.APIKey, req.ForwardAPIKey, req.Name, req.RefreshIntervalMin, req.ProxyMode, req.ProxyConfigID, req.TeamOrganizationID, req.TeamProjectID)
 	if err != nil {
 		resp.Error(c, http.StatusInternalServerError, err.Error())
 		return

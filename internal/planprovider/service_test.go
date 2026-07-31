@@ -13,6 +13,7 @@ import (
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op"
 	"github.com/lingyuins/octopus/internal/op/channel"
+	stats "github.com/lingyuins/octopus/internal/op/stats"
 	"github.com/lingyuins/octopus/internal/transformer/outbound"
 )
 
@@ -110,6 +111,10 @@ func TestUpdateProviderCredentials_VolcengineNewAPIKeyRefreshesUsage(t *testing.
 	if updated.QuotaUsed != 35210.3625 {
 		t.Errorf("QuotaUsed = %v, want 35210.3625", updated.QuotaUsed)
 	}
+	// 换凭据等价于一次刷新：旧已用量应存入快照，保证增量对比连续
+	if updated.LastQuotaUsed != 1 {
+		t.Errorf("LastQuotaUsed = %v, want 1 (旧 QuotaUsed 快照)", updated.LastQuotaUsed)
+	}
 
 	// DB 持久化校验
 	var stored model.PlanProvider
@@ -202,7 +207,7 @@ func TestAddProviderDeepSeekUsesFetchedModels(t *testing.T) {
 	}
 	t.Cleanup(func() { planFetchModels = orig })
 
-	provider, err := AddProvider(context.Background(), model.PlanProviderDeepSeek, "sk-test-deepseek", "", "", model.ProxyUsageModeDirect, nil, "", "")
+	provider, err := AddProvider(context.Background(), model.PlanProviderDeepSeek, "sk-test-deepseek", "", "", 0, model.ProxyUsageModeDirect, nil, "", "")
 	if err != nil {
 		t.Fatalf("AddProvider() error = %v", err)
 	}
@@ -230,7 +235,7 @@ func TestAddProviderDeepSeekFallsBackToDefaultModels(t *testing.T) {
 	}
 	t.Cleanup(func() { planFetchModels = orig })
 
-	provider, err := AddProvider(context.Background(), model.PlanProviderDeepSeek, "sk-test-deepseek", "", "", model.ProxyUsageModeDirect, nil, "", "")
+	provider, err := AddProvider(context.Background(), model.PlanProviderDeepSeek, "sk-test-deepseek", "", "", 0, model.ProxyUsageModeDirect, nil, "", "")
 	if err != nil {
 		t.Fatalf("AddProvider() error = %v", err)
 	}
@@ -261,6 +266,217 @@ func TestResolvePlanChannelModelsSkipsCodex(t *testing.T) {
 	}
 	if called {
 		t.Error("codex should not trigger model fetch")
+	}
+}
+
+// TestRefreshProviderBalanceSnapshot 验证：balance 类刷新时旧余额被存入 LastBalance，
+// 两次检测之间的增量 = 上次余额 − 本次余额。
+func TestRefreshProviderBalanceSnapshot(t *testing.T) {
+	setupPlanProviderDB(t)
+	gotKey := withDeepSeekBalanceServer(t, "100")
+
+	provider := createProviderRow(t, &model.PlanProvider{
+		Name:         "DeepSeek monitor",
+		Category:     model.PlanProviderDeepSeek,
+		ProviderType: model.PlanProviderTypeBalance,
+		APIKey:       "sk-test-deepseek",
+		BaseURL:      "https://api.deepseek.com/v1",
+		Balance:      120, // 首次快照后的余额
+		LastBalance:  120, // 首次添加时建立的快照
+	})
+
+	refreshed, err := RefreshProvider(context.Background(), provider.ID)
+	if err != nil {
+		t.Fatalf("RefreshProvider() error = %v", err)
+	}
+	if refreshed.LastBalance != 120 {
+		t.Errorf("LastBalance = %v, want 120 (上次检测时的余额)", refreshed.LastBalance)
+	}
+	if refreshed.Balance != 100 {
+		t.Errorf("Balance = %v, want 100", refreshed.Balance)
+	}
+	if *gotKey == "" {
+		t.Error("balance query should carry Authorization header")
+	}
+
+	// 再刷新一次：上次快照滚动为 100
+	withDeepSeekBalanceServer(t, "80")
+	refreshed, err = RefreshProvider(context.Background(), provider.ID)
+	if err != nil {
+		t.Fatalf("RefreshProvider() second error = %v", err)
+	}
+	if refreshed.LastBalance != 100 {
+		t.Errorf("LastBalance = %v, want 100", refreshed.LastBalance)
+	}
+	if refreshed.Balance != 80 {
+		t.Errorf("Balance = %v, want 80", refreshed.Balance)
+	}
+}
+
+// TestRefreshProviderTokenPlanSnapshot 验证：tokenplan 类刷新时旧已用量被存入 LastQuotaUsed。
+func TestRefreshProviderTokenPlanSnapshot(t *testing.T) {
+	setupPlanProviderDB(t)
+	withVolcenginePlanServer(t)
+
+	provider := createProviderRow(t, &model.PlanProvider{
+		Name:          "Volcengine monitor",
+		Category:      model.PlanProviderVolcenginePlan,
+		ProviderType:  model.PlanProviderTypeTokenPlan,
+		APIKey:        "sessionid=abc|||csrf-def",
+		ForwardAPIKey: "ark-forward-secret",
+		BaseURL:       "https://console.volcengine.com",
+		QuotaUsed:     10,
+		LastQuotaUsed: 10,
+	})
+
+	refreshed, err := RefreshProvider(context.Background(), provider.ID)
+	if err != nil {
+		t.Fatalf("RefreshProvider() error = %v", err)
+	}
+	if refreshed.LastQuotaUsed != 10 {
+		t.Errorf("LastQuotaUsed = %v, want 10", refreshed.LastQuotaUsed)
+	}
+	if refreshed.QuotaUsed != 35210.3625 {
+		t.Errorf("QuotaUsed = %v, want 35210.3625 (mock 返回值)", refreshed.QuotaUsed)
+	}
+}
+
+// TestListProvidersDeltas 验证：列表响应中的增量字段——balance 类为余额减少额，
+// tokenplan 类为已用量增量；充值/周期重置导致的负值按 0 处理。
+func TestListProvidersDeltas(t *testing.T) {
+	setupPlanProviderDB(t)
+
+	// balance 类：正常消耗 20
+	createProviderRow(t, &model.PlanProvider{
+		Name:         "DeepSeek spent",
+		Category:     model.PlanProviderDeepSeek,
+		ProviderType: model.PlanProviderTypeBalance,
+		APIKey:       "sk-1",
+		BaseURL:      "https://api.deepseek.com/v1",
+		Balance:      80,
+		LastBalance:  100,
+	})
+	// balance 类：充值导致余额增加 → delta 按 0
+	createProviderRow(t, &model.PlanProvider{
+		Name:         "DeepSeek topped-up",
+		Category:     model.PlanProviderDeepSeek,
+		ProviderType: model.PlanProviderTypeBalance,
+		APIKey:       "sk-2",
+		BaseURL:      "https://api.deepseek.com/v1",
+		Balance:      150,
+		LastBalance:  100,
+	})
+	// tokenplan 类：已用增加 500
+	createProviderRow(t, &model.PlanProvider{
+		Name:          "Volcengine used",
+		Category:      model.PlanProviderVolcenginePlan,
+		ProviderType:  model.PlanProviderTypeTokenPlan,
+		APIKey:        "session=1",
+		BaseURL:       "https://console.volcengine.com",
+		QuotaUsed:     1000,
+		LastQuotaUsed: 500,
+	})
+	// tokenplan 类：周期重置（已用减少）→ delta 按 0
+	createProviderRow(t, &model.PlanProvider{
+		Name:          "Volcengine reset",
+		Category:      model.PlanProviderVolcenginePlan,
+		ProviderType:  model.PlanProviderTypeTokenPlan,
+		APIKey:        "session=2",
+		BaseURL:       "https://console.volcengine.com",
+		QuotaUsed:     50,
+		LastQuotaUsed: 1000,
+	})
+
+	items, err := ListProviders(context.Background(), model.PlanProviderTypeBalance)
+	if err != nil {
+		t.Fatalf("ListProviders(balance) error = %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("balance providers = %d, want 2", len(items))
+	}
+	for _, item := range items {
+		switch item.Name {
+		case "DeepSeek spent":
+			if item.BalanceDelta != 20 {
+				t.Errorf("spent BalanceDelta = %v, want 20", item.BalanceDelta)
+			}
+		case "DeepSeek topped-up":
+			if item.BalanceDelta != 0 {
+				t.Errorf("topped-up BalanceDelta = %v, want 0 (充值负值按 0)", item.BalanceDelta)
+			}
+		}
+	}
+
+	tokenItems, err := ListProviders(context.Background(), model.PlanProviderTypeTokenPlan)
+	if err != nil {
+		t.Fatalf("ListProviders(tokenplan) error = %v", err)
+	}
+	if len(tokenItems) != 2 {
+		t.Fatalf("tokenplan providers = %d, want 2", len(tokenItems))
+	}
+	for _, item := range tokenItems {
+		switch item.Name {
+		case "Volcengine used":
+			if item.QuotaUsedDelta != 500 {
+				t.Errorf("used QuotaUsedDelta = %v, want 500", item.QuotaUsedDelta)
+			}
+		case "Volcengine reset":
+			if item.QuotaUsedDelta != 0 {
+				t.Errorf("reset QuotaUsedDelta = %v, want 0 (周期重置负值按 0)", item.QuotaUsedDelta)
+			}
+		}
+	}
+}
+
+// TestAddProviderStoresRefreshInterval 验证：refreshIntervalMin 参数被持久化。
+func TestAddProviderStoresRefreshInterval(t *testing.T) {
+	setupPlanProviderDB(t)
+	withDeepSeekBalanceServer(t, "100")
+
+	provider, err := AddProvider(context.Background(), model.PlanProviderDeepSeek, "sk-test-deepseek", "", "", 15, model.ProxyUsageModeDirect, nil, "", "")
+	if err != nil {
+		t.Fatalf("AddProvider() error = %v", err)
+	}
+	if provider.RefreshIntervalMin != 15 {
+		t.Errorf("RefreshIntervalMin = %d, want 15", provider.RefreshIntervalMin)
+	}
+	if provider.LastBalance != provider.Balance {
+		t.Errorf("LastBalance = %v, want = Balance %v (首次添加快照)", provider.LastBalance, provider.Balance)
+	}
+
+	// 负值应报错
+	if _, err := AddProvider(context.Background(), model.PlanProviderDeepSeek, "sk-test-deepseek", "", "", -1, model.ProxyUsageModeDirect, nil, "", ""); err == nil {
+		t.Error("negative refresh interval should error")
+	}
+}
+
+// TestQueryPlanChannelStatsTodayDate 验证：今日统计使用与写入端一致的日期格式
+// （YYYYMMDD + stats 时区），仅匹配今日行，不串入历史行。
+func TestQueryPlanChannelStatsTodayDate(t *testing.T) {
+	setupPlanProviderDB(t)
+
+	today := stats.Now().Format("20060102")
+	yesterday := time.Now().AddDate(0, 0, -1).Format("20060102")
+	rows := []model.StatsDailyChannel{
+		{Date: today, ChannelID: 42, StatsMetrics: model.StatsMetrics{RequestSuccess: 7, RequestFailed: 1, InputCost: 1.5, OutputCost: 2.5}},
+		{Date: yesterday, ChannelID: 42, StatsMetrics: model.StatsMetrics{RequestSuccess: 99, RequestFailed: 1, InputCost: 10, OutputCost: 20}},
+	}
+	if err := db.GetDB().Create(&rows).Error; err != nil {
+		t.Fatalf("create daily stats: %v", err)
+	}
+
+	got := queryPlanChannelStats(context.Background(), 42)
+	if got == nil {
+		t.Fatal("queryPlanChannelStats() = nil")
+	}
+	if got.TodayRequests != 8 {
+		t.Errorf("TodayRequests = %d, want 8 (仅今日行)", got.TodayRequests)
+	}
+	if got.TodayCost != 4 {
+		t.Errorf("TodayCost = %v, want 4", got.TodayCost)
+	}
+	if got.TotalRequests != 0 {
+		t.Errorf("TotalRequests = %d, want 0 (未写 stats_channel 累计表)", got.TotalRequests)
 	}
 }
 

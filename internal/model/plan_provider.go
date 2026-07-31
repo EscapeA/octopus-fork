@@ -258,10 +258,25 @@ type PlanProvider struct {
 	FiveHourTotal   float64    `json:"five_hour_total" gorm:"default:0"`
 	FiveHourUsed    float64    `json:"five_hour_used" gorm:"default:0"`
 	FiveHourResetAt *time.Time `json:"five_hour_reset_at"`
-	Status          string     `json:"status" gorm:"type:varchar(32);not null;default:'active'"`
-	LastRefresh     *time.Time `json:"last_refresh"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	// RefreshIntervalMin 自动刷新间隔（分钟），0 表示跟随全局默认设置
+	// SettingKeyPlanProviderRefreshInterval。
+	RefreshIntervalMin int `json:"refresh_interval_min" gorm:"not null;default:0"`
+	// LastBalance / LastQuotaUsed 上次刷新时的快照，用于计算本次与上次检测之间的消费增量
+	// （balance 类用 LastBalance，tokenplan 类用 LastQuotaUsed）。
+	LastBalance   float64    `json:"last_balance" gorm:"default:0"`
+	LastQuotaUsed float64    `json:"last_quota_used" gorm:"default:0"`
+	Status        string     `json:"status" gorm:"type:varchar(32);not null;default:'active'"`
+	LastRefresh   *time.Time `json:"last_refresh"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+}
+
+// PlanChannelStats 额度监控渠道的系统内调用统计（来自 relay stats）
+type PlanChannelStats struct {
+	TotalRequests int64   `json:"total_requests"` // 累计调用量（成功+失败）
+	TotalCost     float64 `json:"total_cost"`     // 累计花费（输入+输出成本）
+	TodayRequests int64   `json:"today_requests"` // 今日调用量
+	TodayCost     float64 `json:"today_cost"`     // 今日花费
 }
 
 // PlanProviderListItem 列表响应
@@ -270,4 +285,10 @@ type PlanProviderListItem struct {
 	Models         string `json:"models"`       // 从 Channel 继承的模型
 	ChannelName    string `json:"channel_name"` // 关联渠道名称
 	ChannelEnabled bool   `json:"channel_enabled"`
+	// BalanceDelta 上次刷新到本次刷新之间的余额减少额（balance 类，充值导致的负值按 0）
+	BalanceDelta float64 `json:"balance_delta"`
+	// QuotaUsedDelta 上次刷新到本次刷新之间已用额度的增量（tokenplan 类，周期重置导致的负值按 0）
+	QuotaUsedDelta float64 `json:"quota_used_delta"`
+	// ChannelStats 关联渠道的系统内调用统计（nil 表示无关联渠道）
+	ChannelStats *PlanChannelStats `json:"channel_stats,omitempty"`
 }

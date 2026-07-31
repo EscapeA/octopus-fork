@@ -42,6 +42,10 @@ import {
 } from '@/api/endpoints/plan-provider';
 import { ProxySelector } from '@/components/modules/proxy-pool/ProxySelector';
 import type { ProxyMode } from '@/api/endpoints/proxy-pool';
+import { useSettingList, SettingKey } from '@/api/endpoints/setting';
+
+// 与后端 model.PlanProviderDeepSeek 对应的类别标识（DeepSeek 专属统计展示）
+const DEEPSEEK_PLAN_CATEGORY = 'deepseek';
 
 // --- Balance Section ---
 
@@ -112,6 +116,11 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
     // 代理配置（仅 Codex 类展示/提交，chatgpt.com 国内不可直连）
     const [proxyMode, setProxyMode] = useState<ProxyMode>('direct');
     const [proxyConfigId, setProxyConfigId] = useState<number | null>(null);
+    // 自动刷新间隔（分钟），0 = 跟随全局默认
+    const [refreshInterval, setRefreshInterval] = useState(0);
+    // 全局默认刷新间隔（来自设置），用于展示"跟随全局（N 分钟）"
+    const { data: settings } = useSettingList();
+    const globalRefreshMin = Number(settings?.find((s) => s.key === SettingKey.PlanProviderRefreshInterval)?.value) || 30;
     
     // Compact view state with localStorage persistence
     const [compactView, setCompactView] = useState(() => {
@@ -147,6 +156,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                 api_key: apiKey.trim(),
                 forward_api_key: supportsForwardApiKey && forwardApiKey.trim() ? forwardApiKey.trim() : undefined,
                 name: customName.trim() || undefined,
+                refresh_interval_min: refreshInterval,
                 ...(isZhipuTeam
                     ? { team_organization_id: teamOrgId.trim(), team_project_id: teamProjectId.trim() }
                     : {}),
@@ -165,11 +175,12 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
             setTeamProjectId('');
             setProxyMode('direct');
             setProxyConfigId(null);
+            setRefreshInterval(0);
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : '添加失败';
             toast.error(msg);
         }
-    }, [selectedCategory, apiKey, forwardApiKey, supportsForwardApiKey, customName, addMutation, isCodexPlan, proxyMode, proxyConfigId, tProxy, isZhipuTeam, teamOrgId, teamProjectId, t]);
+    }, [selectedCategory, apiKey, forwardApiKey, supportsForwardApiKey, customName, addMutation, isCodexPlan, proxyMode, proxyConfigId, tProxy, isZhipuTeam, teamOrgId, teamProjectId, t, refreshInterval]);
 
     const handleRefresh = useCallback(async (id: number) => {
         try {
@@ -392,6 +403,33 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                     value={customName}
                                     onChange={(e) => setCustomName(e.target.value)}
                                 />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">
+                                    {t('plan.refreshInterval') || '自动刷新间隔'}
+                                </label>
+                                <Select
+                                    value={String(refreshInterval)}
+                                    onValueChange={(v) => setRefreshInterval(Number(v))}
+                                >
+                                    <SelectTrigger className="h-9 text-sm">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="0">
+                                            {t('plan.refreshFollowGlobal')?.replace('{minutes}', String(globalRefreshMin)) || `跟随全局（${globalRefreshMin} 分钟）`}
+                                        </SelectItem>
+                                        {[10, 15, 30, 60, 120, 360, 1440].map((m) => (
+                                            <SelectItem key={m} value={String(m)}>
+                                                {t('plan.refreshEvery')?.replace('{minutes}', String(m)) || `每 ${m} 分钟`}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground">
+                                    {t('plan.refreshIntervalHint') || '按此间隔自动查询额度；全局默认可在 Hub 自动化面板调整'}
+                                </p>
                             </div>
 
                             <Button
@@ -736,6 +774,61 @@ function ProviderCard({
                             className={idx === tiers.length - 1 && tiers.length % 2 === 1 ? 'sm:col-span-2' : undefined}
                         />
                     ))}
+                </div>
+            )}
+
+            {/* 自动刷新间隔 */}
+            <div className="mt-2 flex items-center gap-1 flex-wrap text-[11px] text-muted-foreground">
+                <span>
+                    {t('plan.refreshIntervalShort') || '自动刷新'}：
+                    {provider.refresh_interval_min > 0
+                        ? (t('plan.refreshEvery')?.replace('{minutes}', String(provider.refresh_interval_min)) || `每 ${provider.refresh_interval_min} 分钟`)
+                        : (t('plan.refreshFollowGlobalShort') || '跟随全局')}
+                </span>
+            </div>
+
+            {/* 本次与上次检测之间的消费增量 */}
+            {isBalance && provider.balance_delta > 0 && (
+                <div className="mt-2 rounded-lg bg-muted/50 p-2.5 flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">{t('plan.deltaSpent') || '上次检测后消耗'}</p>
+                    <p className="text-sm font-semibold tabular-nums text-destructive">
+                        -{formatBalance(provider.balance_delta)}
+                    </p>
+                </div>
+            )}
+            {!isBalance && provider.quota_used_delta > 0 && (
+                <div className="mt-2 rounded-lg bg-muted/50 p-2.5 flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">{t('plan.deltaSpent') || '上次检测后消耗'}</p>
+                    <p className="text-sm font-semibold tabular-nums text-destructive">
+                        +{formatBalance(provider.quota_used_delta)}
+                    </p>
+                </div>
+            )}
+
+            {/* DeepSeek 专属：通过额度渠道转发的系统内调用统计 */}
+            {provider.category === DEEPSEEK_PLAN_CATEGORY && provider.channel_stats && (
+                <div className="mt-2 rounded-lg bg-muted/50 p-2.5">
+                    <p className="text-xs text-muted-foreground mb-1.5">
+                        {t('plan.sysStats') || 'DeepSeek 额度调用统计'}
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <div>
+                            <p className="text-[11px] text-muted-foreground">{t('plan.sysTotalRequests') || '累计调用'}</p>
+                            <p className="text-sm font-semibold tabular-nums">{provider.channel_stats.total_requests}</p>
+                        </div>
+                        <div>
+                            <p className="text-[11px] text-muted-foreground">{t('plan.sysTotalCost') || '累计花费'}</p>
+                            <p className="text-sm font-semibold tabular-nums">{formatBalance(provider.channel_stats.total_cost)}</p>
+                        </div>
+                        <div>
+                            <p className="text-[11px] text-muted-foreground">{t('plan.sysTodayRequests') || '今日调用'}</p>
+                            <p className="text-sm font-semibold tabular-nums">{provider.channel_stats.today_requests}</p>
+                        </div>
+                        <div>
+                            <p className="text-[11px] text-muted-foreground">{t('plan.sysTodayCost') || '今日花费'}</p>
+                            <p className="text-sm font-semibold tabular-nums">{formatBalance(provider.channel_stats.today_cost)}</p>
+                        </div>
+                    </div>
                 </div>
             )}
 

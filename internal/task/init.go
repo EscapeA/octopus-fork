@@ -237,4 +237,7 @@ func Init() {
 		poolHealthCheckMin = 30
 	}
 	Register(string(model.SettingKeyPoolHealthCheckInterval), time.Duration(poolHealthCheckMin)*time.Minute, false, poolhealthcheck.Run)
+
+	// 额度监控自动刷新：tick 固定 1 分钟，任务内部按单个覆盖/全局默认间隔到点刷新。
+	Register(TaskPlanProviderAutoRefresh, 1*time.Minute, false, PlanProviderAutoRefreshTask)
 }

@@ -12,6 +12,13 @@ export interface PlanProviderCategoryInfo {
     help_url: string;
 }
 
+export interface PlanChannelStats {
+    total_requests: number;
+    total_cost: number;
+    today_requests: number;
+    today_cost: number;
+}
+
 export interface PlanProvider {
     id: number;
     name: string;
@@ -34,6 +41,10 @@ export interface PlanProvider {
     five_hour_total: number;
     five_hour_used: number;
     five_hour_reset_at: string | null;
+    refresh_interval_min: number;
+    balance_delta: number;
+    quota_used_delta: number;
+    channel_stats?: PlanChannelStats | null;
     status: string;
     last_refresh: string | null;
     channel_name: string;
@@ -83,6 +94,8 @@ export function useAddPlanProvider() {
             api_key: string;
             forward_api_key?: string;
             name?: string;
+            // 自动刷新间隔（分钟），0 = 跟随全局默认
+            refresh_interval_min?: number;
             // 代理配置：目前仅 Codex 类生效（chatgpt.com 国内不可直连）
             // 智谱团队版专用：组织 ID / 项目 ID
             team_organization_id?: string;

@@ -10,6 +10,7 @@ import (
 	"github.com/lingyuins/octopus/internal/helper"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op"
+	stats "github.com/lingyuins/octopus/internal/op/stats"
 	"github.com/lingyuins/octopus/internal/transformer/outbound"
 	"github.com/lingyuins/octopus/internal/utils/log"
 )
@@ -65,6 +66,14 @@ func ListProviders(ctx context.Context, providerType model.PlanProviderType) ([]
 		item := model.PlanProviderListItem{PlanProvider: p}
 		item.APIKey = ""
 		item.ForwardAPIKey = ""
+		// 本次与上次检测之间的消费增量：
+		// balance 类 = 上次余额 − 本次余额（充值导致的负值按 0）；
+		// tokenplan 类 = 本次已用 − 上次已用（周期重置导致的负值按 0）。
+		if p.ProviderType == model.PlanProviderTypeBalance {
+			item.BalanceDelta = max(0, p.LastBalance-p.Balance)
+		} else {
+			item.QuotaUsedDelta = max(0, p.QuotaUsed-p.LastQuotaUsed)
+		}
 		if p.ChannelID > 0 {
 			channel, err := op.ChannelGet(p.ChannelID, ctx)
 			if err == nil {
@@ -72,10 +81,35 @@ func ListProviders(ctx context.Context, providerType model.PlanProviderType) ([]
 				item.ChannelName = channel.Name
 				item.ChannelEnabled = channel.Enabled
 			}
+			// 仅 DeepSeek 类统计渠道调用（前端只在 DeepSeek 卡片展示，避免无谓查询）
+			if p.Category == model.PlanProviderDeepSeek {
+				item.ChannelStats = queryPlanChannelStats(ctx, p.ChannelID)
+			}
 		}
 		result = append(result, item)
 	}
 	return result, nil
+}
+
+// queryPlanChannelStats 查询额度监控关联渠道的系统内调用统计（累计 + 今日），
+// 数据来自 relay stats 落库表，与 Analytics 页口径一致。
+func queryPlanChannelStats(ctx context.Context, channelID int) *model.PlanChannelStats {
+	if channelID <= 0 {
+		return nil
+	}
+	chStats := &model.PlanChannelStats{}
+	var total model.StatsChannel
+	if err := db.GetDB().WithContext(ctx).Where("channel_id = ?", channelID).First(&total).Error; err == nil {
+		chStats.TotalRequests = total.RequestSuccess + total.RequestFailed
+		chStats.TotalCost = total.InputCost + total.OutputCost
+	}
+	today := stats.Now().Format("20060102")
+	var daily model.StatsDailyChannel
+	if err := db.GetDB().WithContext(ctx).Where("date = ? AND channel_id = ?", today, channelID).First(&daily).Error; err == nil {
+		chStats.TodayRequests = daily.RequestSuccess + daily.RequestFailed
+		chStats.TodayCost = daily.InputCost + daily.OutputCost
+	}
+	return chStats
 }
 
 // AddProvider 添加 Plan Provider：查询额度 → （可选）创建/复用 Channel 并归入渠道 Plan 分组
@@ -87,10 +121,14 @@ func ListProviders(ctx context.Context, providerType model.PlanProviderType) ([]
 //
 // proxyMode / proxyConfigID 仅 Codex 类生效（chatgpt.com 国内不可直连）：
 // 同时作用于用量查询链路与自动创建的转发渠道；其他厂商强制 direct。
-func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKey, forwardAPIKey, customName string, proxyMode model.ProxyUsageMode, proxyConfigID *int, teamOrgID, teamProjectID string) (*model.PlanProvider, error) {
+// refreshIntervalMin 自动刷新间隔（分钟），0 表示跟随全局默认设置。
+func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKey, forwardAPIKey, customName string, refreshIntervalMin int, proxyMode model.ProxyUsageMode, proxyConfigID *int, teamOrgID, teamProjectID string) (*model.PlanProvider, error) {
 	info := getCategoryInfo(category)
 	if info == nil {
 		return nil, fmt.Errorf("unknown plan provider category: %s", category)
+	}
+	if refreshIntervalMin < 0 {
+		return nil, fmt.Errorf("refresh interval must be greater than or equal to 0")
 	}
 
 	// 代理配置仅 Codex 类采纳；其他厂商防御性强制 direct。
@@ -262,14 +300,18 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 		ChannelID:          channelID,
 		ProxyMode:          proxyMode,
 		ProxyConfigID:      proxyConfigID,
-		Balance:            balance,
-		BalanceUsed:        balanceUsed,
-		QuotaTotal:         quotaTotal,
-		QuotaUsed:          quotaUsed,
-		WeeklyTotal:        weeklyTotal,
-		WeeklyUsed:         weeklyUsed,
-		FiveHourTotal:      fiveHourTotal,
-		FiveHourUsed:       fiveHourUsed,
+		RefreshIntervalMin: refreshIntervalMin,
+		// 首次添加即建立快照：本次与上次检测之间暂无增量（delta 为 0）
+		LastBalance:   balance,
+		LastQuotaUsed: quotaUsed,
+		Balance:       balance,
+		BalanceUsed:   balanceUsed,
+		QuotaTotal:    quotaTotal,
+		QuotaUsed:     quotaUsed,
+		WeeklyTotal:   weeklyTotal,
+		WeeklyUsed:    weeklyUsed,
+		FiveHourTotal: fiveHourTotal,
+		FiveHourUsed:  fiveHourUsed,
 	}
 
 	if quotaResetAt != nil {
@@ -316,17 +358,23 @@ func RefreshProvider(ctx context.Context, id int) (*model.PlanProvider, error) {
 	}
 
 	if provider.ProviderType == model.PlanProviderTypeBalance {
+		// 快照旧余额：本次刷新后 LastBalance 表示"上次检测时的余额"，
+		// 与最新 Balance 的差值即两次检测之间的消费。
+		lastBalance := provider.Balance
 		result, err := QueryBalance(ctx, provider.Category, provider.APIKey, provider.BaseURL)
 		if err != nil {
 			return nil, fmt.Errorf("refresh balance: %w", err)
 		}
+		provider.LastBalance = lastBalance
 		provider.Balance = result.Balance
 		provider.BalanceUsed = result.BalanceUsed
 	} else {
+		lastQuotaUsed := provider.QuotaUsed
 		result, err := QueryTokenPlan(ctx, provider.Category, provider.APIKey, provider.BaseURL, provider.ProxyMode, provider.ProxyConfigID, provider.TeamOrganizationID, provider.TeamProjectID)
 		if err != nil {
 			return nil, fmt.Errorf("refresh tokenplan: %w", err)
 		}
+		provider.LastQuotaUsed = lastQuotaUsed
 		provider.QuotaTotal = result.QuotaTotal
 		provider.QuotaUsed = result.QuotaUsed
 		if result.QuotaResetAt != nil {
@@ -401,17 +449,22 @@ func UpdateProviderCredentials(ctx context.Context, id int, newAPIKey, newForwar
 	provider.TeamProjectID = newTeamProjectID
 
 	if provider.ProviderType == model.PlanProviderTypeBalance {
+		// 换凭据后立即查询用量，等价于一次刷新：同样保存旧值快照，保证增量对比连续。
+		lastBalance := provider.Balance
 		result, err := QueryBalance(ctx, provider.Category, provider.APIKey, provider.BaseURL)
 		if err != nil {
 			return nil, fmt.Errorf("query balance: %w", err)
 		}
+		provider.LastBalance = lastBalance
 		provider.Balance = result.Balance
 		provider.BalanceUsed = result.BalanceUsed
 	} else {
+		lastQuotaUsed := provider.QuotaUsed
 		result, err := QueryTokenPlan(ctx, provider.Category, provider.APIKey, provider.BaseURL, provider.ProxyMode, provider.ProxyConfigID, provider.TeamOrganizationID, provider.TeamProjectID)
 		if err != nil {
 			return nil, fmt.Errorf("query tokenplan: %w", err)
 		}
+		provider.LastQuotaUsed = lastQuotaUsed
 		provider.QuotaTotal = result.QuotaTotal
 		provider.QuotaUsed = result.QuotaUsed
 		if result.QuotaResetAt != nil {
