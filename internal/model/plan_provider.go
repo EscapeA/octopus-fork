@@ -59,7 +59,7 @@ var PlanProviderCategories = []PlanProviderCategoryInfo{
 		Name:        "DeepSeek",
 		Type:        PlanProviderTypeBalance,
 		BaseURL:     "https://api.deepseek.com/v1",
-		Models:      "deepseek-chat,deepseek-reasoner",
+		Models:      "deepseek-v4-flash,deepseek-v4-pro",
 		Description: "DeepSeek 官方 API 余额查询",
 		HelpURL:     "https://platform.deepseek.com/api_keys",
 	},

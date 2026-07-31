@@ -2,6 +2,7 @@ package planprovider
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -183,6 +184,83 @@ func TestUpdateProviderCredentials_NotFound(t *testing.T) {
 	setupPlanProviderDB(t)
 	if _, err := UpdateProviderCredentials(context.Background(), 99999, "k", "", "", ""); err == nil {
 		t.Fatal("不存在的 provider 应报错")
+	}
+}
+
+// TestAddProviderDeepSeekUsesFetchedModels 验证：添加 DeepSeek 额度监控时，
+// 自动创建的渠道模型列表来自上游拉取的最新模型，而非硬编码默认值。
+func TestAddProviderDeepSeekUsesFetchedModels(t *testing.T) {
+	setupPlanProviderDB(t)
+	withDeepSeekBalanceServer(t, "123.45")
+
+	orig := planFetchModels
+	planFetchModels = func(ctx context.Context, channelType outbound.OutboundType, baseURL, apiKey string) ([]string, error) {
+		if channelType != outbound.OutboundTypeOpenAIChat {
+			t.Errorf("fetch channel type = %q, want %q", channelType, outbound.OutboundTypeOpenAIChat)
+		}
+		return []string{"deepseek-reasoner", "deepseek-chat", "deepseek-v4-pro"}, nil
+	}
+	t.Cleanup(func() { planFetchModels = orig })
+
+	provider, err := AddProvider(context.Background(), model.PlanProviderDeepSeek, "sk-test-deepseek", "", "", model.ProxyUsageModeDirect, nil, "", "")
+	if err != nil {
+		t.Fatalf("AddProvider() error = %v", err)
+	}
+	if provider.ChannelID <= 0 {
+		t.Fatal("provider.ChannelID = 0, want created channel")
+	}
+	var ch model.Channel
+	if err := db.GetDB().First(&ch, provider.ChannelID).Error; err != nil {
+		t.Fatalf("load channel: %v", err)
+	}
+	want := normalizeModelList("deepseek-reasoner,deepseek-chat,deepseek-v4-pro")
+	if normalizeModelList(ch.Model) != want {
+		t.Errorf("channel.Model = %q, want %q (应来自上游拉取)", ch.Model, want)
+	}
+}
+
+// TestAddProviderDeepSeekFallsBackToDefaultModels 验证：上游拉取失败时回退硬编码默认列表。
+func TestAddProviderDeepSeekFallsBackToDefaultModels(t *testing.T) {
+	setupPlanProviderDB(t)
+	withDeepSeekBalanceServer(t, "123.45")
+
+	orig := planFetchModels
+	planFetchModels = func(ctx context.Context, channelType outbound.OutboundType, baseURL, apiKey string) ([]string, error) {
+		return nil, fmt.Errorf("upstream /models unavailable")
+	}
+	t.Cleanup(func() { planFetchModels = orig })
+
+	provider, err := AddProvider(context.Background(), model.PlanProviderDeepSeek, "sk-test-deepseek", "", "", model.ProxyUsageModeDirect, nil, "", "")
+	if err != nil {
+		t.Fatalf("AddProvider() error = %v", err)
+	}
+	var ch model.Channel
+	if err := db.GetDB().First(&ch, provider.ChannelID).Error; err != nil {
+		t.Fatalf("load channel: %v", err)
+	}
+	want := normalizeModelList("deepseek-v4-flash,deepseek-v4-pro")
+	if normalizeModelList(ch.Model) != want {
+		t.Errorf("channel.Model = %q, want fallback %q", ch.Model, "deepseek-v4-flash,deepseek-v4-pro")
+	}
+}
+
+// TestResolvePlanChannelModelsSkipsCodex 验证：Codex 跳过上游拉取（OAuth JSON 无法作 Bearer），
+// 直接返回默认列表且不发起请求。
+func TestResolvePlanChannelModelsSkipsCodex(t *testing.T) {
+	called := false
+	orig := planFetchModels
+	planFetchModels = func(ctx context.Context, channelType outbound.OutboundType, baseURL, apiKey string) ([]string, error) {
+		called = true
+		return nil, nil
+	}
+	t.Cleanup(func() { planFetchModels = orig })
+
+	got := resolvePlanChannelModels(context.Background(), model.PlanProviderCodex, outbound.OutboundTypeCodex, "https://chatgpt.com", "oauth-json", "gpt-5")
+	if got != "gpt-5" {
+		t.Errorf("resolvePlanChannelModels(codex) = %q, want %q", got, "gpt-5")
+	}
+	if called {
+		t.Error("codex should not trigger model fetch")
 	}
 }
 

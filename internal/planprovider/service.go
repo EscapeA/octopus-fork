@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lingyuins/octopus/internal/db"
+	"github.com/lingyuins/octopus/internal/helper"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op"
 	"github.com/lingyuins/octopus/internal/transformer/outbound"
@@ -14,6 +15,40 @@ import (
 )
 
 const planChannelGroupName = "Plan"
+
+// planFetchModels 拉取渠道最新模型列表的可注入函数（测试时替换）。
+var planFetchModels = func(ctx context.Context, channelType outbound.OutboundType, baseURL, apiKey string) ([]string, error) {
+	request := model.Channel{
+		Type: channelType,
+		BaseUrls: []model.BaseUrl{
+			{URL: baseURL, Delay: 0},
+		},
+		Keys: []model.ChannelKey{
+			{Enabled: true, ChannelKey: apiKey},
+		},
+	}
+	return helper.FetchModelsShortTimeout(ctx, request)
+}
+
+// resolvePlanChannelModels 解析创建渠道用的模型列表：
+// 优先从上游拉取最新模型（Codex 除外——其凭据是 OAuth JSON，无法作为 Bearer 请求 /models），
+// 拉取失败或结果为空时回退到厂商默认列表。
+func resolvePlanChannelModels(ctx context.Context, category model.PlanProviderCategory, channelType outbound.OutboundType, baseURL, apiKey, fallback string) string {
+	if category == model.PlanProviderCodex {
+		return fallback
+	}
+	fetched, err := planFetchModels(ctx, channelType, baseURL, apiKey)
+	if err != nil {
+		log.Warnf("plan provider %s: fetch models from %s failed, fallback to default models: %v", category, baseURL, err)
+		return fallback
+	}
+	normalized := normalizeModelList(strings.Join(fetched, ","))
+	if normalized == "" {
+		log.Warnf("plan provider %s: fetch models from %s returned empty, fallback to default models", category, baseURL)
+		return fallback
+	}
+	return normalized
+}
 
 // ListProviders 列出所有 Plan Provider
 func ListProviders(ctx context.Context, providerType model.PlanProviderType) ([]model.PlanProviderListItem, error) {
@@ -150,7 +185,6 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 		// 控制台 token plan 类用各自的转发 API 地址 + forwardAPIKey；
 		// Codex 用 info.BaseURL + apiKey（OAuth JSON），channel type 为 Codex。
 		channelBaseURL := info.BaseURL
-		channelModel := info.Models
 		channelKey := apiKey
 		channelName := fmt.Sprintf("[%s] %s", info.Name, name)
 		if customName != "" {
@@ -166,6 +200,9 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 			channelType = outbound.OutboundTypeCodex
 			channelKey = apiKey // OAuth JSON, same as monitoring credential
 		}
+
+		// 默认使用厂商内置模型列表；优先尝试从上游拉取最新模型，失败时回退。
+		channelModel := resolvePlanChannelModels(ctx, category, channelType, channelBaseURL, channelKey, info.Models)
 
 		// 查找可复用的已有渠道（同 category + 接入点 + 模型相同的渠道）
 		reuseChannelID := findReusablePlanChannel(ctx, category, channelBaseURL, channelModel)
