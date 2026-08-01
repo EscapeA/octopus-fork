@@ -1386,6 +1386,9 @@
       "minPriority": "最小优先级（默认 -9999 关闭）",
       "minPriorityHint": "优先级低于该值的账号被调度跳过。"
     },
+    "proxyPool": {
+      "title": "代理池"
+    },
     "circuitBreaker": {
       "title": "熔断器配置",
       "threshold": {
@@ -3237,6 +3240,7 @@
       "testUrl": "测试目标 URL",
       "testSuccess": "测试通过——HTTP {statusCode}，{durationMs}ms",
       "testFailed": "测试失败",
+      "schemeHint": "{scheme} 代理示例：{example}",
       "formTitleCreate": "创建代理",
       "formTitleEdit": "编辑代理",
       "formDescription": "填写代理信息并保存。",

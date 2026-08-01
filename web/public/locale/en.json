@@ -1430,6 +1430,9 @@
       "minPriority": "Min priority (default -9999 = off)",
       "minPriorityHint": "Accounts with lower priority are skipped by the scheduler."
     },
+    "proxyPool": {
+      "title": "Proxy Pool"
+    },
     "circuitBreaker": {
       "title": "Circuit Breaker",
       "threshold": {
@@ -3281,6 +3284,7 @@
       "testUrl": "Test Target URL",
       "testSuccess": "Test passed — HTTP {statusCode} in {durationMs}ms",
       "testFailed": "Test failed",
+      "schemeHint": "{scheme} proxy example: {example}",
       "formTitleCreate": "Create Proxy",
       "formTitleEdit": "Edit Proxy",
       "formDescription": "Fill in proxy details below and save.",
