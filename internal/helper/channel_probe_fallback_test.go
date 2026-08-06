@@ -133,3 +133,36 @@ func TestTestChannel_ConnectivitySuccessNoFallback(t *testing.T) {
 		t.Fatalf("result message = %q, want 'ok'", summary.Results[0].Message)
 	}
 }
+
+// TestPerformChannelModelFallback_OpenAIResponseFallsBackToChat 验证 issue #187：
+// channel type=OpenAIResponse(1) 但上游只支持 /v1/chat/completions 时，
+// performChannelModelFallback 通过 ResolveAttemptTypes 回退到 OpenAIChat adapter 成功。
+func TestPerformChannelModelFallback_OpenAIResponseFallsBackToChat(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/chat/completions":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"chatcmpl-1","object":"chat.completion","created":1,"model":"gpt-4o-mini","choices":[{"index":0,"message":{"role":"assistant","content":"hi"},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`))
+		case "/v1/responses":
+			http.Error(w, `{"error":{"message":"not found"}}`, http.StatusNotFound)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	channel := &appmodel.Channel{
+		Type:     outbound.OutboundTypeOpenAIResponse,
+		BaseUrls: []appmodel.BaseUrl{{URL: server.URL}},
+		Keys:     []appmodel.ChannelKey{{ChannelKey: "sk-test"}},
+		Model:    "gpt-4o-mini",
+	}
+
+	statusCode, _, _, err := performChannelModelFallback(context.Background(), channel, server.URL, "sk-test")
+	if err != nil {
+		t.Fatalf("performChannelModelFallback() error = %v", err)
+	}
+	if statusCode != http.StatusOK {
+		t.Fatalf("performChannelModelFallback() status = %d, want 200", statusCode)
+	}
+}

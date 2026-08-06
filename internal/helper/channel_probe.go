@@ -216,8 +216,7 @@ func performChannelModelFallback(ctx context.Context, channel *appmodel.Channel,
 		return 0, "", nil, fmt.Errorf("no model configured for channel")
 	}
 
-	outAdapter := outbound.Get(channel.Type)
-	if outAdapter == nil {
+	if outbound.Get(channel.Type) == nil {
 		return 0, "", nil, fmt.Errorf("unsupported channel type: %d", channel.Type)
 	}
 
@@ -231,7 +230,26 @@ func performChannelModelFallback(ctx context.Context, channel *appmodel.Channel,
 	cloned.BaseUrls = []appmodel.BaseUrl{{URL: baseURL}}
 	cloned.Keys = []appmodel.ChannelKey{{ChannelKey: apiKey}}
 
-	return sendGroupProbeRequest(ctx, outAdapter, &cloned, apiKey, appmodel.EndpointTypeAll, modelName)
+	// 与 group probe 一致，对 OpenAI 类型渠道走 adapter 回退（issue #187）：
+	// 先尝试 Chat Completions，失败再回退 Responses API。
+	probeReqForResolve, _ := buildGroupProbeRequest(appmodel.EndpointTypeAll, modelName)
+	adapterTypes := outbound.ResolveAttemptTypes(channel.Type, probeReqForResolve, "")
+	var lastErr error
+	for _, adapterType := range adapterTypes {
+		adapter := outbound.Get(adapterType)
+		if adapter == nil {
+			continue
+		}
+		statusCode, responseText, internalResp, err := sendGroupProbeRequest(ctx, adapter, &cloned, apiKey, appmodel.EndpointTypeAll, modelName)
+		if err == nil {
+			return statusCode, responseText, internalResp, nil
+		}
+		lastErr = err
+	}
+	if lastErr != nil {
+		return 0, "", nil, lastErr
+	}
+	return 0, "", nil, fmt.Errorf("no adapter available for channel type: %d", channel.Type)
 }
 
 func maskSecret(secret string) string {
