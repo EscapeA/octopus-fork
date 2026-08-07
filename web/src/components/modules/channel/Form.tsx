@@ -589,12 +589,12 @@ export function TemplatePickerSelect({
             >
                 <SelectValue placeholder={t('template.selectPlaceholder')} />
             </SelectTrigger>
-            <SelectContent className="max-h-80 rounded-lg">
+            <SelectContent className="max-h-80 min-w-0 rounded-lg" style={{ width: 'var(--radix-select-trigger-width)' }}>
                 {channelTemplates.map((template) => (
                     <SelectItem key={template.key} className="rounded-xl py-2.5" value={template.key}>
-                        <span className="flex items-center justify-between gap-2 whitespace-nowrap">
-                            <span className="font-medium">{template.name}</span>
-                            <span className="text-xs text-muted-foreground">{t(template.descriptionKey)}</span>
+                        <span className="flex min-w-0 items-center gap-2">
+                            <span className="shrink-0 font-medium">{template.name}</span>
+                            <span className="truncate text-xs text-muted-foreground">{t(template.descriptionKey)}</span>
                         </span>
                     </SelectItem>
                 ))}
