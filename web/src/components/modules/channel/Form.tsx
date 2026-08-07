@@ -1612,9 +1612,7 @@ export function ChannelForm({
                     </AccordionContent>
                 </AccordionItem>
             </Accordion>
-            </div>
-
-            <section className={`${sectionClassName} mt-4 flex shrink-0 flex-col gap-4 border-t border-border/20 pt-4`}>
+            <section className={`${sectionClassName} flex flex-col gap-4`}>
                 <label className="flex items-center gap-2 cursor-pointer">
                     <Switch
                         checked={formData.enabled}
@@ -1705,6 +1703,7 @@ export function ChannelForm({
                     </div>
                 </div>
             </section>
+            </div>
 
             <div className={`shrink-0 flex flex-col gap-3 pt-4 ${onCancel ? 'sm:flex-row' : ''}`}>
                 {onCancel && cancelText && (
