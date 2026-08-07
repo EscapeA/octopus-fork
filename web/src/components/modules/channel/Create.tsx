@@ -16,15 +16,18 @@ import { useTranslations } from 'next-intl';
 import {
     ChannelForm,
     TemplatePickerGrid,
+    TemplatePickerSelect,
     createDefaultRequestRewriteFormData,
     getEffectiveRequestRewriteFormData,
     type ChannelFormData,
 } from './Form';
 import { channelTemplates } from './templates';
 import { DEFAULT_CHANNEL_TYPE } from './type-options';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export function CreateDialogContent() {
     const { setIsOpen } = useMorphingDialog();
+    const isMobile = useIsMobile();
     const createChannel = useCreateChannel();
     const [showPresetPicker, setShowPresetPicker] = useState(true);
     const [formData, setFormData] = useState<ChannelFormData>({
@@ -212,7 +215,11 @@ export function CreateDialogContent() {
                                 </div>
                                 <p className="text-xs leading-5 text-muted-foreground">{tForm('template.pickerHint')}</p>
                             </div>
-                            <TemplatePickerGrid onApplyTemplate={handleApplyTemplate} />
+                            {isMobile ? (
+                                <TemplatePickerSelect onApplyTemplate={handleApplyTemplate} />
+                            ) : (
+                                <TemplatePickerGrid onApplyTemplate={handleApplyTemplate} />
+                            )}
                         </div>
                     </motion.div>
                 ) : (
