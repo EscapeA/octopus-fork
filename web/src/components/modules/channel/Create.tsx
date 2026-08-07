@@ -159,7 +159,7 @@ export function CreateDialogContent() {
                         </div>
                         <h2 className="text-xl font-semibold tracking-tight text-card-foreground md:text-2xl">{t('dialogTitle')}</h2>
                     </div>
-                    {showPresetPicker ? (
+                    {!isMobile && showPresetPicker ? (
                         <Button
                             type="button"
                             variant="outline"
@@ -187,7 +187,7 @@ export function CreateDialogContent() {
             </MorphingDialogTitle>
             <MorphingDialogDescription disableLayoutAnimation className="relative flex-1 min-h-0 overflow-hidden px-4 py-4 md:px-6 md:py-5">
                 <AnimatePresence mode="wait" initial={false}>
-                {showPresetPicker ? (
+                {!isMobile && showPresetPicker ? (
                     <motion.div
                         key="preset-picker"
                         initial={{ opacity: 0, scale: 0.98, y: 6 }}
@@ -239,7 +239,7 @@ export function CreateDialogContent() {
                             submitText={t('submit')}
                             pendingText={t('submitting')}
                             idPrefix="new-channel"
-                            showTemplatePicker={false}
+                            showTemplatePicker={isMobile}
                             onShowTemplatePicker={() => setShowPresetPicker(true)}
                         />
                     </motion.div>
