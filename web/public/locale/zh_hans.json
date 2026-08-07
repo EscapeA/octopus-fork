@@ -3068,6 +3068,7 @@
         "open": "使用预设",
         "skip": "跳过预设",
         "pickerHint": "可以先选择一个内置供应商快速预填；如果你的上游不在列表里，跳过后手动配置即可。",
+        "selectPlaceholder": "选择内置供应商模板…",
         "options": {
           "openai": {
             "description": "OpenAI Chat 官方接口"

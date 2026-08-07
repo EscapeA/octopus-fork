@@ -3068,6 +3068,7 @@
         "open": "使用預設",
         "skip": "跳過預設",
         "pickerHint": "可以先選擇一個內建供應商快速預填；如果你的上游不在列表裡，跳過後手動設定即可。",
+        "selectPlaceholder": "選擇內建供應商範本…",
         "options": {
           "openai": {
             "description": "OpenAI Chat 官方介面"

@@ -3112,6 +3112,7 @@
         "open": "Use template",
         "skip": "Skip templates",
         "pickerHint": "Choose a built-in provider to prefill the form. If your upstream is not listed, skip this step and configure it manually.",
+        "selectPlaceholder": "Select a provider template…",
         "options": {
           "openai": {
             "description": "OpenAI Chat official API"
