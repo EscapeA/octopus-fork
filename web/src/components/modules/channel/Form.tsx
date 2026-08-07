@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/morphing-dialog';
 import { toast } from '@/components/common/Toast';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, X, Plus, FlaskConical, CheckCircle2, AlertTriangle, Trash2, Sparkles, Orbit, Layers3, KeyRound, Cable, Search, Check, ListFilter, ChevronRight } from 'lucide-react';
@@ -562,6 +563,46 @@ export function TemplatePickerGrid({
     );
 }
 
+/**
+ * 移动端高密度版模板选择器：下拉 Select 替代卡片网格，
+ * 选择即应用，触发区显示当前已选模板名。
+ */
+export function TemplatePickerSelect({
+    onApplyTemplate,
+}: {
+    onApplyTemplate: (templateKey: string) => void;
+}) {
+    const t = useTranslations('channel.form');
+    const [selected, setSelected] = useState('');
+
+    return (
+        <Select
+            value={selected}
+            onValueChange={(value) => {
+                setSelected(value);
+                onApplyTemplate(value);
+            }}
+        >
+            <SelectTrigger
+                id="channel-template-select"
+                className="w-full rounded-lg border border-border px-4 py-2 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+                <SelectValue placeholder={t('template.selectPlaceholder')} />
+            </SelectTrigger>
+            <SelectContent className="max-h-80 rounded-lg">
+                {channelTemplates.map((template) => (
+                    <SelectItem key={template.key} className="rounded-xl py-2.5" value={template.key}>
+                        <span className="flex items-center justify-between gap-2 whitespace-nowrap">
+                            <span className="font-medium">{template.name}</span>
+                            <span className="text-xs text-muted-foreground">{t(template.descriptionKey)}</span>
+                        </span>
+                    </SelectItem>
+                ))}
+            </SelectContent>
+        </Select>
+    );
+}
+
 export function ChannelForm({
     formData,
     onFormDataChange,
@@ -576,6 +617,7 @@ export function ChannelForm({
     onShowTemplatePicker,
 }: ChannelFormProps) {
     const t = useTranslations('channel.form');
+    const isMobile = useIsMobile();
     const { data: settings } = useSettingList();
     const { data: channelGroups = [] } = useChannelGroupList();
     const { data: notifChannels = [] } = useAlertNotifChannelList();
@@ -894,9 +936,11 @@ export function ChannelForm({
             {showTemplatePicker ? (
                 <section className={sectionClassName}>
                     <SectionHeader icon={Sparkles} title={t('template.label')} hint={t('template.hint')} />
-                    <TemplatePickerGrid
-                        onApplyTemplate={handleApplyTemplate}
-                    />
+                    {isMobile ? (
+                        <TemplatePickerSelect onApplyTemplate={handleApplyTemplate} />
+                    ) : (
+                        <TemplatePickerGrid onApplyTemplate={handleApplyTemplate} />
+                    )}
                 </section>
             ) : (
                 <div className="flex justify-end">
