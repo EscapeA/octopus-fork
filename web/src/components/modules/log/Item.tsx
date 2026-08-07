@@ -9,7 +9,7 @@ import { githubDarkTheme } from '@uiw/react-json-view/githubDark';
 import { githubLightTheme } from '@uiw/react-json-view/githubLight';
 import { useTheme } from 'next-themes';
 import { type RelayLog, type ChannelAttempt, useLogDetail } from '@/api/endpoints/log';
-import { getModelIcon } from '@/lib/model-icons';
+import { getModelIcon, resolveBrandColor } from '@/lib/model-icons';
 import { Badge } from '@/components/ui/badge';
 import { cn, formatCount, formatMoney } from '@/lib/utils';
 import { formatUnixSeconds } from '@/lib/time';
@@ -139,6 +139,8 @@ interface RetryBadgeWithTooltipProps {
 
 function RetryBadgeWithTooltip({ channelName, brandColor, attempts, channelNameById }: RetryBadgeWithTooltipProps) {
     const t = useTranslations('log.card');
+    const { resolvedTheme } = useTheme();
+    const badgeColor = resolveBrandColor(brandColor, resolvedTheme === 'dark');
 
     return (
         <Tooltip>
@@ -146,7 +148,7 @@ function RetryBadgeWithTooltip({ channelName, brandColor, attempts, channelNameB
                 <Badge
                     variant="secondary"
                     className="shrink-0 text-xs px-1.5 py-0.5 cursor-help font-medium"
-                    style={{ backgroundColor: `${brandColor}15`, color: brandColor }}
+                    style={{ backgroundColor: `${badgeColor}15`, color: badgeColor }}
                 >
                     <RotateCw className="size-3 mr-1 opacity-80" />
                     {channelName}
@@ -304,6 +306,10 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
         () => getModelIcon(displayFields.actualModelName),
         [displayFields.actualModelName]
     );
+    // 深色模式下黑/深色系品牌色（Grok/Kimi/Replicate/MiniMax/Yi 等）直接用作
+    // Badge 文字会「黑字+透明黑底」看不清，按主题解析为可读颜色（issue: 日志深色模式对比度）
+    const { resolvedTheme } = useTheme();
+    const badgeColor = resolveBrandColor(brandColor, resolvedTheme === 'dark');
     const requestAPIKeyName = displayFields.requestAPIKeyName;
 	const clientIP = log.client_ip || '';
     const cacheReadTokens = displayFields.cacheReadTokens;
@@ -409,7 +415,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                     <Badge
                                         variant="secondary"
                                         className="max-w-full shrink-0 text-xs px-1.5 py-0"
-                                        style={{ backgroundColor: `${brandColor}15`, color: brandColor }}
+                                        style={{ backgroundColor: `${badgeColor}15`, color: badgeColor }}
                                         title={displayEndpointType}
                                     >
                                         <span className="block max-w-[10rem] truncate">{displayEndpointType}</span>
@@ -429,7 +435,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                             <Badge
                                                 variant="secondary"
                                                 className="max-w-full shrink-0 text-xs px-1.5 py-0"
-                                                style={{ backgroundColor: `${brandColor}15`, color: brandColor }}
+                                                style={{ backgroundColor: `${badgeColor}15`, color: badgeColor }}
                                                 title={displayChannelName}
                                             >
                                                 <span className="block max-w-[18rem] truncate">{displayChannelName}</span>
@@ -448,7 +454,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                             </div>
                             <div className="grid grid-cols-2 md:grid-cols-7 gap-x-4 gap-y-1.5 text-xs tabular-nums text-muted-foreground">
                                 <div className="flex items-center gap-1.5">
-                                    <Clock className="size-3.5 shrink-0" style={{ color: brandColor }} />
+                                    <Clock className="size-3.5 shrink-0" style={{ color: badgeColor }} />
                                     <span>{formatTime(log.time)}</span>
                                 </div>
                                 {vis.apiKeyName && requestAPIKeyName && (
@@ -565,7 +571,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                 <Badge
                                     variant="secondary"
                                     className="max-w-full shrink-0 text-xs px-1.5 py-0"
-                                    style={{ backgroundColor: `${brandColor}15`, color: brandColor }}
+                                    style={{ backgroundColor: `${badgeColor}15`, color: badgeColor }}
                                     title={displayEndpointType}
                                 >
                                     <span className="block max-w-[10rem] truncate">{displayEndpointType}</span>
@@ -585,7 +591,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                         <Badge
                                             variant="secondary"
                                             className="max-w-full text-xs px-1.5 py-0"
-                                            style={{ backgroundColor: `${brandColor}15`, color: brandColor }}
+                                            style={{ backgroundColor: `${badgeColor}15`, color: badgeColor }}
                                             title={displayChannelName}
                                         >
                                             <span className="block max-w-[18rem] truncate">{displayChannelName}</span>
@@ -817,7 +823,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                         <div className="shrink-0 border-t border-border/50 pt-3 text-xs text-muted-foreground">
                             <div className="flex flex-wrap items-center gap-3 md:gap-4">
                             <div className="flex items-center gap-1.5">
-                                <Clock className="size-3.5" style={{ color: brandColor }} />
+                                <Clock className="size-3.5" style={{ color: badgeColor }} />
                                 <span className="tabular-nums">{formatTime(log.time)}</span>
                             </div>
                             {vis.apiKeyName && requestAPIKeyName && (
