@@ -1273,7 +1273,8 @@
       "signals": {
         "requests": "Today's Calls",
         "successRate": "Today's Success Rate",
-        "cost": "Today's Spend"
+        "cost": "Today's Spend",
+        "cacheReadTokens": "Today's Cache Reuse"
       },
       "metrics": {
         "avgWait": "Average Response Time",

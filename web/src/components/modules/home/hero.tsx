@@ -1,9 +1,10 @@
 'use client';
 
 import { motion } from 'motion/react';
-import { Activity, DollarSign, ShieldCheck, Waves } from 'lucide-react';
+import { Activity, DollarSign, HardDrive, ShieldCheck, Waves } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useStatsToday } from '@/api/endpoints/stats';
+import { useOpsCacheStatus, type OpsProviderPromptCacheTrendPoint } from '@/api/endpoints/ops';
 import { useHomeStatsRefreshMs } from './store';
 import { StatsRefreshControls } from './refresh-controls';
 import { AnimatedNumber } from '@/components/common/AnimatedNumber';
@@ -14,6 +15,7 @@ export function HomeHero() {
     const t = useTranslations('home.hero');
     const statsRefreshMs = useHomeStatsRefreshMs();
     const { data: statsToday } = useStatsToday({ refetchIntervalMs: statsRefreshMs });
+    const { data: cacheStatus } = useOpsCacheStatus();
 
     const requestCount = (statsToday?.request_success ?? 0) + (statsToday?.request_failed ?? 0);
     const successCount = statsToday?.request_success ?? 0;
@@ -21,6 +23,14 @@ export function HomeHero() {
     const totalWaitTime = statsToday?.wait_time ?? 0;
     const successRate = requestCount > 0 ? (successCount / requestCount) * 100 : 0;
     const avgWait = requestCount > 0 ? totalWaitTime / requestCount : 0;
+
+    // 今日缓存复用 Tokens：对 provider prompt cache 的 24h 趋势点求和（timestamp >= 本地时区今日 0 点）。
+    // trend 按 UTC 整点对齐（后端 opsHourlyWindowStart），+8 时区下今日 0 点恰为整点边界，过滤无污染。
+    const cacheTrend = cacheStatus?.provider_prompt_cache?.trend ?? ([] as OpsProviderPromptCacheTrendPoint[]);
+    const todayCacheReadTokens = cacheTrend
+        .filter((point) => point.timestamp >= Math.floor(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime() / 1000))
+        .reduce((sum, point) => sum + (point.cache_read_tokens ?? 0), 0);
+    const todayCacheRead = formatCount(todayCacheReadTokens);
 
     const signals = [
         {
@@ -46,6 +56,14 @@ export function HomeHero() {
             unit: formatMoney(totalCost).formatted.unit,
             icon: DollarSign,
             accent: 'bg-amber-500/10 text-amber-700',
+        },
+        {
+            key: 'cacheReadTokens',
+            label: t('signals.cacheReadTokens'),
+            value: todayCacheRead.formatted.value,
+            unit: todayCacheRead.formatted.unit,
+            icon: HardDrive,
+            accent: 'bg-sky-500/10 text-sky-700',
         },
     ];
 
@@ -124,11 +142,11 @@ export function HomeHero() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-3">
-                    {signals.map((signal, index) => (
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4">
+                    {signals.map((signal) => (
                         <article
                             key={signal.key}
-                            className={`group rounded-lg border border-border bg-card p-3 sm:p-4 transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-border/80 ${index === 0 ? 'col-span-2 sm:col-span-1' : ''}`}
+                            className="group rounded-lg border border-border bg-card p-3 sm:p-4 transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-border/80"
                         >
                             <div className="flex items-start justify-between gap-3">
                                 <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${signal.accent}`}>

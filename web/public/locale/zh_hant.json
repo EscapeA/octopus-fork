@@ -1229,7 +1229,8 @@
       "signals": {
         "requests": "今日呼叫",
         "successRate": "今日成功率",
-        "cost": "今日花費"
+        "cost": "今日花費",
+        "cacheReadTokens": "今日快取復用"
       },
       "metrics": {
         "avgWait": "平均回應時延",
