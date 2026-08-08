@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'motion/react';
-import { Activity, DollarSign, HardDrive, Timer, Waves } from 'lucide-react';
+import { Waves } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useStatsToday } from '@/api/endpoints/stats';
 import { useOpsCacheStatus, type OpsProviderPromptCacheTrendPoint } from '@/api/endpoints/ops';
@@ -38,29 +38,23 @@ export function HomeHero() {
     const cacheRead = formatCount(todayCacheReadTokens).formatted;
     const tokens = formatCount(totalTokens).formatted;
 
-    // 2 列 × 2 行：第一行普通指标（平均响应时延 / 今日花费），第二行复合卡（今日调用 / 今日缓存率）。
+    // 2 列 × 2 行：第一行普通指标（平均响应时延 / 今日花费），第二行复合卡（今日调用 / 今日Token使用）。
     const cards = [
         {
             key: 'avgWait',
             label: t('metrics.avgWait'),
             value: formatTime(avgWait).formatted.value,
             unit: formatTime(avgWait).formatted.unit,
-            icon: Timer,
-            accent: 'bg-violet-500/10 text-violet-700',
         },
         {
             key: 'cost',
             label: t('signals.cost'),
             value: formatMoney(totalCost).formatted.value,
             unit: formatMoney(totalCost).formatted.unit,
-            icon: DollarSign,
-            accent: 'bg-amber-500/10 text-amber-700',
         },
         {
             key: 'calls',
             label: t('signals.requests'),
-            icon: Activity,
-            accent: 'bg-emerald-500/10 text-emerald-700',
             isComposite: true,
             mainValue: callsSuccess.value,
             mainUnit: callsSuccess.unit,
@@ -72,8 +66,6 @@ export function HomeHero() {
         {
             key: 'cacheRate',
             label: t('signals.cacheRate'),
-            icon: HardDrive,
-            accent: 'bg-sky-500/10 text-sky-700',
             isComposite: true,
             mainValue: cacheRead.value,
             mainUnit: cacheRead.unit,
@@ -119,16 +111,12 @@ export function HomeHero() {
                     {cards.map((card) => (
                         <article
                             key={card.key}
-                            className="group rounded-lg border border-border bg-card p-3 sm:p-4 transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-border/80"
+                            className="group rounded-lg border border-border bg-card px-3 py-2.5 transition-colors duration-200 hover:border-border/80 hover:bg-muted/30 sm:px-4 sm:py-3"
                         >
-                            <div className="flex items-start justify-between gap-3">
-                                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${card.accent}`}>
-                                    <card.icon className="h-[1.125rem] w-[1.125rem]" strokeWidth={1.5} />
-                                </div>
-                            </div>
-                            <div className="mt-5 text-xs text-muted-foreground">{card.label}</div>
+                            <div className="mb-2 h-1 w-10 rounded-full bg-primary/20 transition-all duration-300 group-hover:w-14 group-hover:bg-primary/30" />
+                            <div className="text-xs font-medium text-muted-foreground">{card.label}</div>
                             {card.isComposite ? (
-                                <div className="mt-2 space-y-1">
+                                <div className="mt-1 space-y-0.5">
                                     <div className="flex items-baseline gap-1.5">
                                         <span className="text-xl font-semibold tracking-tight sm:text-2xl">
                                             <AnimatedNumber value={card.mainValue} />
@@ -143,8 +131,8 @@ export function HomeHero() {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="mt-2 flex items-baseline gap-1">
-                                    <span className="text-2xl font-semibold tracking-tight">
+                                <div className="mt-1 flex items-baseline gap-1">
+                                    <span className="text-xl font-semibold tracking-tight sm:text-2xl">
                                         <AnimatedNumber value={card.value} />
                                     </span>
                                     {card.unit ? <span className="text-sm text-muted-foreground">{card.unit}</span> : null}

@@ -1276,7 +1276,7 @@
         "cost": "Today's Spend",
         "cacheReadTokens": "Today's Cache Reuse",
         "successRateShort": "Success Rate",
-        "cacheRate": "Today's Cache Rate",
+        "cacheRate": "Today's Token Usage",
         "cacheRateShort": "Cache Rate"
       },
       "metrics": {
