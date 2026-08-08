@@ -1275,7 +1275,9 @@
         "successRate": "Today's Success Rate",
         "cost": "Today's Spend",
         "cacheReadTokens": "Today's Cache Reuse",
-        "successRateShort": "Success Rate"
+        "successRateShort": "Success Rate",
+        "cacheRate": "Today's Cache Rate",
+        "cacheRateShort": "Cache Rate"
       },
       "metrics": {
         "avgWait": "Average Response Time",

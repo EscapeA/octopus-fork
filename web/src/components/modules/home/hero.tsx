@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'motion/react';
-import { Activity, Coins, DollarSign, HardDrive, Receipt, Timer, Waves } from 'lucide-react';
+import { Activity, DollarSign, HardDrive, Timer, Waves } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useStatsToday } from '@/api/endpoints/stats';
 import { useOpsCacheStatus, type OpsProviderPromptCacheTrendPoint } from '@/api/endpoints/ops';
@@ -20,6 +20,7 @@ export function HomeHero() {
     const requestCount = (statsToday?.request_success ?? 0) + (statsToday?.request_failed ?? 0);
     const successCount = statsToday?.request_success ?? 0;
     const totalCost = (statsToday?.input_cost ?? 0) + (statsToday?.output_cost ?? 0);
+    const totalTokens = (statsToday?.input_token ?? 0) + (statsToday?.output_token ?? 0);
     const totalWaitTime = statsToday?.wait_time ?? 0;
     const successRate = requestCount > 0 ? (successCount / requestCount) * 100 : 0;
     const avgWait = requestCount > 0 ? totalWaitTime / requestCount : 0;
@@ -30,12 +31,14 @@ export function HomeHero() {
     const todayCacheReadTokens = cacheTrend
         .filter((point) => point.timestamp >= Math.floor(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime() / 1000))
         .reduce((sum, point) => sum + (point.cache_read_tokens ?? 0), 0);
-    const todayCacheRead = formatCount(todayCacheReadTokens);
+    const cacheRate = totalTokens > 0 ? (todayCacheReadTokens / totalTokens) * 100 : 0;
 
-    // 统一 2 列网格卡片：metrics 与 signals 混合排列。
-    // 调用类三指标（成功调用/今日调用/今日成功率）合并为一张复合卡：成功值 / 总数 + 成功率。
     const callsSuccess = formatCount(successCount).formatted;
     const callsTotal = formatCount(requestCount).formatted;
+    const cacheRead = formatCount(todayCacheReadTokens).formatted;
+    const tokens = formatCount(totalTokens).formatted;
+
+    // 2 列 × 2 行：第一行普通指标（平均响应时延 / 今日花费），第二行复合卡（今日调用 / 今日缓存率）。
     const cards = [
         {
             key: 'avgWait',
@@ -46,48 +49,38 @@ export function HomeHero() {
             accent: 'bg-violet-500/10 text-violet-700',
         },
         {
-            key: 'calls',
-            label: t('signals.requests'),
-            icon: Activity,
-            accent: 'bg-emerald-500/10 text-emerald-700',
-            isSummary: true,
-            successValue: callsSuccess.value,
-            successUnit: callsSuccess.unit,
-            totalValue: callsTotal.value,
-            totalUnit: callsTotal.unit,
-            rate: successRate.toFixed(2),
-        },
-        {
-            key: 'tokens',
-            label: t('metrics.tokens'),
-            value: formatCount((statsToday?.input_token ?? 0) + (statsToday?.output_token ?? 0)).formatted.value,
-            unit: formatCount((statsToday?.input_token ?? 0) + (statsToday?.output_token ?? 0)).formatted.unit,
-            icon: Coins,
-            accent: 'bg-indigo-500/10 text-indigo-700',
-        },
-        {
-            key: 'cacheReadTokens',
-            label: t('signals.cacheReadTokens'),
-            value: todayCacheRead.formatted.value,
-            unit: todayCacheRead.formatted.unit,
-            icon: HardDrive,
-            accent: 'bg-sky-500/10 text-sky-700',
-        },
-        {
-            key: 'costPerReq',
-            label: t('metrics.costPerRequest'),
-            value: formatMoney(requestCount > 0 ? totalCost / requestCount : 0).formatted.value,
-            unit: formatMoney(requestCount > 0 ? totalCost / requestCount : 0).formatted.unit,
-            icon: Receipt,
-            accent: 'bg-rose-500/10 text-rose-700',
-        },
-        {
             key: 'cost',
             label: t('signals.cost'),
             value: formatMoney(totalCost).formatted.value,
             unit: formatMoney(totalCost).formatted.unit,
             icon: DollarSign,
             accent: 'bg-amber-500/10 text-amber-700',
+        },
+        {
+            key: 'calls',
+            label: t('signals.requests'),
+            icon: Activity,
+            accent: 'bg-emerald-500/10 text-emerald-700',
+            isComposite: true,
+            mainValue: callsSuccess.value,
+            mainUnit: callsSuccess.unit,
+            dividerValue: callsTotal.value,
+            dividerUnit: callsTotal.unit,
+            rate: successRate.toFixed(2),
+            rateLabel: t('signals.successRateShort'),
+        },
+        {
+            key: 'cacheRate',
+            label: t('signals.cacheRate'),
+            icon: HardDrive,
+            accent: 'bg-sky-500/10 text-sky-700',
+            isComposite: true,
+            mainValue: cacheRead.value,
+            mainUnit: cacheRead.unit,
+            dividerValue: tokens.value,
+            dividerUnit: tokens.unit,
+            rate: cacheRate.toFixed(2),
+            rateLabel: t('signals.cacheRateShort'),
         },
     ];
 
@@ -134,19 +127,19 @@ export function HomeHero() {
                                 </div>
                             </div>
                             <div className="mt-5 text-xs text-muted-foreground">{card.label}</div>
-                            {card.isSummary ? (
+                            {card.isComposite ? (
                                 <div className="mt-2 space-y-1">
                                     <div className="flex items-baseline gap-1.5">
                                         <span className="text-xl font-semibold tracking-tight sm:text-2xl">
-                                            <AnimatedNumber value={card.successValue} />
-                                            {card.successUnit ? <span className="text-sm text-muted-foreground">{card.successUnit}</span> : null}
+                                            <AnimatedNumber value={card.mainValue} />
+                                            {card.mainUnit ? <span className="text-sm text-muted-foreground">{card.mainUnit}</span> : null}
                                         </span>
                                         <span className="text-sm text-muted-foreground">
-                                            / {card.totalValue}{card.totalUnit}
+                                            / {card.dividerValue}{card.dividerUnit}
                                         </span>
                                     </div>
                                     <div className="text-xs text-muted-foreground">
-                                        {t('signals.successRateShort')} {card.rate}%
+                                        {card.rateLabel} {card.rate}%
                                     </div>
                                 </div>
                             ) : (

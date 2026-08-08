@@ -1231,7 +1231,9 @@
         "successRate": "今日成功率",
         "cost": "今日花費",
         "cacheReadTokens": "今日快取復用",
-        "successRateShort": "成功率"
+        "successRateShort": "成功率",
+        "cacheRate": "今日快取率",
+        "cacheRateShort": "快取率"
       },
       "metrics": {
         "avgWait": "平均回應時延",
