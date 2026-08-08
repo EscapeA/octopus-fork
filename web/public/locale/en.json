@@ -1499,7 +1499,7 @@
       },
       "maxTotalAttempts": {
         "label": "Max total attempts",
-        "hint": "Caps real forwarded attempts across all candidate channels for one request. Skipped (cooldown) and circuit-broken attempts do not count. 0 means unlimited.",
+        "hint": "Caps the total decision records (forwards, cooldown skips, and circuit-break skips) across all candidate channels for one request, preventing relay_logs from exploding when every channel is unavailable. 0 falls back to the built-in default (~64).",
         "placeholder": "Enter max total attempts"
       },
       "rateLimitHold": {
