@@ -1229,7 +1229,11 @@
       "signals": {
         "requests": "今日调用",
         "successRate": "今日成功率",
-        "cost": "今日花费"
+        "cost": "今日花费",
+        "cacheReadTokens": "今日缓存复用",
+        "successRateShort": "成功率",
+        "cacheRate": "今日Token使用",
+        "cacheRateShort": "缓存率"
       },
       "metrics": {
         "avgWait": "平均响应时延",
