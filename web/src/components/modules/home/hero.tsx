@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'motion/react';
-import { Activity, CheckCircle2, Coins, DollarSign, HardDrive, Receipt, ShieldCheck, Timer, Waves } from 'lucide-react';
+import { Activity, Coins, DollarSign, HardDrive, Receipt, Timer, Waves } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useStatsToday } from '@/api/endpoints/stats';
 import { useOpsCacheStatus, type OpsProviderPromptCacheTrendPoint } from '@/api/endpoints/ops';
@@ -32,7 +32,10 @@ export function HomeHero() {
         .reduce((sum, point) => sum + (point.cache_read_tokens ?? 0), 0);
     const todayCacheRead = formatCount(todayCacheReadTokens);
 
-    // 统一 2 列 × 4 行卡片网格：metrics 与 signals 混合排列
+    // 统一 2 列网格卡片：metrics 与 signals 混合排列。
+    // 调用类三指标（成功调用/今日调用/今日成功率）合并为一张复合卡：成功值 / 总数 + 成功率。
+    const callsSuccess = formatCount(successCount).formatted;
+    const callsTotal = formatCount(requestCount).formatted;
     const cards = [
         {
             key: 'avgWait',
@@ -43,12 +46,16 @@ export function HomeHero() {
             accent: 'bg-violet-500/10 text-violet-700',
         },
         {
-            key: 'successful',
-            label: t('metrics.successful'),
-            value: formatCount(successCount).formatted.value,
-            unit: formatCount(successCount).formatted.unit,
-            icon: CheckCircle2,
-            accent: 'bg-teal-500/10 text-teal-700',
+            key: 'calls',
+            label: t('signals.requests'),
+            icon: Activity,
+            accent: 'bg-emerald-500/10 text-emerald-700',
+            isSummary: true,
+            successValue: callsSuccess.value,
+            successUnit: callsSuccess.unit,
+            totalValue: callsTotal.value,
+            totalUnit: callsTotal.unit,
+            rate: successRate.toFixed(2),
         },
         {
             key: 'tokens',
@@ -65,22 +72,6 @@ export function HomeHero() {
             unit: todayCacheRead.formatted.unit,
             icon: HardDrive,
             accent: 'bg-sky-500/10 text-sky-700',
-        },
-        {
-            key: 'requests',
-            label: t('signals.requests'),
-            value: formatCount(requestCount).formatted.value,
-            unit: formatCount(requestCount).formatted.unit,
-            icon: Activity,
-            accent: 'bg-emerald-500/10 text-emerald-700',
-        },
-        {
-            key: 'successRate',
-            label: t('signals.successRate'),
-            value: successRate.toFixed(2),
-            unit: '%',
-            icon: ShieldCheck,
-            accent: 'bg-primary/10 text-primary',
         },
         {
             key: 'costPerReq',
@@ -143,12 +134,29 @@ export function HomeHero() {
                                 </div>
                             </div>
                             <div className="mt-5 text-xs text-muted-foreground">{card.label}</div>
-                            <div className="mt-2 flex items-baseline gap-1">
-                                <span className="text-2xl font-semibold tracking-tight">
-                                    <AnimatedNumber value={card.value} />
-                                </span>
-                                {card.unit ? <span className="text-sm text-muted-foreground">{card.unit}</span> : null}
-                            </div>
+                            {card.isSummary ? (
+                                <div className="mt-2 space-y-1">
+                                    <div className="flex items-baseline gap-1.5">
+                                        <span className="text-xl font-semibold tracking-tight sm:text-2xl">
+                                            <AnimatedNumber value={card.successValue} />
+                                            {card.successUnit ? <span className="text-sm text-muted-foreground">{card.successUnit}</span> : null}
+                                        </span>
+                                        <span className="text-sm text-muted-foreground">
+                                            / {card.totalValue}{card.totalUnit}
+                                        </span>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        {t('signals.successRateShort')} {card.rate}%
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="mt-2 flex items-baseline gap-1">
+                                    <span className="text-2xl font-semibold tracking-tight">
+                                        <AnimatedNumber value={card.value} />
+                                    </span>
+                                    {card.unit ? <span className="text-sm text-muted-foreground">{card.unit}</span> : null}
+                                </div>
+                            )}
                         </article>
                     ))}
                 </div>

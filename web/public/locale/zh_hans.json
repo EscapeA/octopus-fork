@@ -1230,7 +1230,8 @@
         "requests": "今日调用",
         "successRate": "今日成功率",
         "cost": "今日花费",
-        "cacheReadTokens": "今日缓存复用"
+        "cacheReadTokens": "今日缓存复用",
+        "successRateShort": "成功率"
       },
       "metrics": {
         "avgWait": "平均响应时延",

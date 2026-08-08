@@ -1274,7 +1274,8 @@
         "requests": "Today's Calls",
         "successRate": "Today's Success Rate",
         "cost": "Today's Spend",
-        "cacheReadTokens": "Today's Cache Reuse"
+        "cacheReadTokens": "Today's Cache Reuse",
+        "successRateShort": "Success Rate"
       },
       "metrics": {
         "avgWait": "Average Response Time",
