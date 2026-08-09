@@ -60,6 +60,9 @@ func TestQueryTokenRhythmBalance(t *testing.T) {
 	if got.Currency != "CNY" {
 		t.Errorf("Currency = %q, want CNY", got.Currency)
 	}
+	if got.TotalTokens != 350732048+1107942 {
+		t.Errorf("TotalTokens = %d, want %d", got.TotalTokens, 350732048+1107942)
+	}
 }
 
 // 缺少有效 Cookie 时应报错
