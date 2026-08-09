@@ -829,7 +829,7 @@ function ProviderCard({
 
             {/* Balance / TokenPlan Info */}
             {isBalance ? (
-                <div className="grid grid-cols-2 gap-3">
+                <div className={`grid gap-3 ${provider.total_tokens > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
                     <div className="rounded-lg bg-muted/50 p-2.5">
                         <p className="text-xs text-muted-foreground mb-1">
                             {t('plan.balanceAvailable') || '可用余额'}
@@ -848,6 +848,16 @@ function ProviderCard({
                             {formatBalance(provider.balance_used > 0 ? provider.balance_used : provider.total_used)}
                         </p>
                     </div>
+                    {provider.total_tokens > 0 && (
+                        <div className="rounded-lg bg-muted/50 p-2.5">
+                            <p className="text-xs text-muted-foreground mb-1">
+                                {t('plan.totalTokens') || '历史 Token'}
+                            </p>
+                            <p className="text-lg font-bold tabular-nums text-muted-foreground">
+                                {formatTokens(provider.total_tokens)}
+                            </p>
+                        </div>
+                    )}
                 </div>
             ) : compact ? (
                 <div className="flex items-center gap-4 flex-wrap text-xs">
