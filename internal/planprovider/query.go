@@ -118,6 +118,8 @@ func QueryBalance(ctx context.Context, category model.PlanProviderCategory, apiK
 		return queryNovitaBalance(ctx, apiKey)
 	case model.PlanProviderOpenAI:
 		return queryOpenAIBalance(ctx, apiKey)
+	case model.PlanProviderTokenRhythm:
+		return queryTokenRhythmBalance(ctx, apiKey)
 	default:
 		return nil, fmt.Errorf("unsupported balance provider: %s", category)
 	}
@@ -1165,6 +1167,90 @@ func queryOpenAIBalance(ctx context.Context, apiKey string) (*BalanceResult, err
 		BalanceUsed: resp.TotalUsedUSD,
 		Currency:    "USD",
 	}, nil
+}
+
+// --- 基元律动 TokenRhythm (tokenrhythm.studio) ---
+//
+// 渠道供应商额度监控，浏览器 Cookie 鉴权（与 MiMo 类似，非 API Key）：
+//   - 鉴权：Cookie 头携带 tr_session / tr_csrf / tr_ref_device（从浏览器 F12 复制）
+//   - 端点：GET https://tokenrhythm.studio/api/usage-summary
+//   - 响应 data 字段：balanceCny（账户余额）、costCny（累计总成本）、
+//     inputTokens/outputTokens（全部 Token 用量）、calls/successCalls（调用统计）
+//
+// 纯监控，不创建转发渠道（无独立 API Key 可供渠道使用）。
+var tokenRhythmUsageSummaryURL = "https://tokenrhythm.studio/api/usage-summary"
+
+func queryTokenRhythmBalance(ctx context.Context, cookie string) (*BalanceResult, error) {
+	if cookie == "" {
+		return nil, fmt.Errorf("tokenrhythm: cookie 不能为空")
+	}
+	if !strings.Contains(cookie, "tr_session=") && !strings.Contains(cookie, "tr_csrf=") {
+		return nil, fmt.Errorf("tokenrhythm: Cookie 缺少有效的鉴权字段，需包含 tr_session= 或 tr_csrf=")
+	}
+
+	body, err := doTokenRhythmGet(ctx, tokenRhythmUsageSummaryURL, cookie)
+	if err != nil {
+		return nil, fmt.Errorf("tokenrhythm: query usage-summary: %w", err)
+	}
+
+	var resp struct {
+		Code int `json:"code"`
+		Data struct {
+			Calls        int64   `json:"calls"`
+			SuccessCalls int64   `json:"successCalls"`
+			ErrorCalls   int64   `json:"errorCalls"`
+			InputTokens  int64   `json:"inputTokens"`
+			OutputTokens int64   `json:"outputTokens"`
+			CostCny      float64 `json:"costCny"`
+			BalanceCny   float64 `json:"balanceCny"`
+			Currency     string  `json:"currency"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("tokenrhythm: parse response: %w", err)
+	}
+	if resp.Code != 0 {
+		return nil, fmt.Errorf("tokenrhythm: API error code=%d", resp.Code)
+	}
+
+	currency := resp.Data.Currency
+	if currency == "" {
+		currency = "CNY"
+	}
+
+	return &BalanceResult{
+		Balance:     resp.Data.BalanceCny,
+		BalanceUsed: resp.Data.CostCny,
+		Currency:    currency,
+	}, nil
+}
+
+// doTokenRhythmGet 执行基元律动的 GET 请求，使用 Cookie 鉴权（带浏览器 UA）。
+func doTokenRhythmGet(ctx context.Context, url, cookie string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Cookie", cookie)
+	req.Header.Set("Accept", "application/json, text/plain, */*")
+	req.Header.Set("Referer", "https://tokenrhythm.studio/account/account")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36")
+
+	client := &http.Client{Timeout: requestTimeout}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("http request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("http status %d: %s", resp.StatusCode, string(body))
+	}
+	return body, nil
 }
 
 // --- ChatGPT Codex 套餐 (WHAM API) ---
