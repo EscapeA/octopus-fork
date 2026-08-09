@@ -74,6 +74,9 @@ type BalanceResult struct {
 	Balance     float64 `json:"balance"`
 	BalanceUsed float64 `json:"balance_used"`
 	Currency    string  `json:"currency"`
+	// TotalTokens 历史累计 Token 用量（输入+输出）。仅部分厂商提供
+	// （如基元律动 TokenRhythm 的 usage-summary），其他厂商为 0。
+	TotalTokens int64 `json:"total_tokens"`
 }
 
 // TokenPlanResult TokenPlan 查询结果
@@ -1229,6 +1232,7 @@ func queryTokenRhythmBalance(ctx context.Context, cookie string) (*BalanceResult
 		Balance:     resp.Data.BalanceCny,
 		BalanceUsed: resp.Data.CostCny,
 		Currency:    currency,
+		TotalTokens: resp.Data.InputTokens + resp.Data.OutputTokens,
 	}, nil
 }
 
