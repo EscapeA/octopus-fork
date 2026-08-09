@@ -138,6 +138,7 @@
       "delete": "删除",
       "balanceAvailable": "可用余额",
       "balanceUsed": "已用额度",
+      "totalTokens": "历史 Token",
       "totalUsed": "累计已用",
       "tierFiveHour": "近5小时用量",
       "tierWeekly": "近一周用量",
