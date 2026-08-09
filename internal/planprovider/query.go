@@ -1177,6 +1177,13 @@ func queryOpenAIBalance(ctx context.Context, apiKey string) (*BalanceResult, err
 //   - 响应 data 字段：balanceCny（账户余额）、costCny（累计总成本）、
 //     inputTokens/outputTokens（全部 Token 用量）、calls/successCalls（调用统计）
 //
+// ⚠️ 口径确认（2026-08-09 实测）：usage-summary 本身就是「全部/累计」数据，
+// 不受网页「当天/全部」切换影响（网页切换走的是 /api/usage/panel?range=today|all，
+// usage-summary 带 range 参数结果不变，服务端忽略）。已验证：
+// costCny + balanceCny = 赠送总额（68.00 精确吻合），即 costCny 为全生命周期累计成本。
+//
+// tr_session Cookie 有效期约 29 天（Max-Age=2505001s），每次请求自动续期。
+//
 // 纯监控，不创建转发渠道（无独立 API Key 可供渠道使用）。
 var tokenRhythmUsageSummaryURL = "https://tokenrhythm.studio/api/usage-summary"
 
