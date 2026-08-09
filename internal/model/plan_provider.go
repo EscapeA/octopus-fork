@@ -263,6 +263,9 @@ type PlanProvider struct {
 	ProxyConfigID *int           `json:"proxy_config_id"`
 	Balance       float64        `json:"balance" gorm:"default:0"`
 	BalanceUsed   float64        `json:"balance_used" gorm:"default:0"`
+	// TotalTokens 历史累计 Token 用量（输入+输出）。仅部分 balance 类厂商
+	// （如基元律动 tokenrhythm）提供，其他厂商为 0。
+	TotalTokens int64 `json:"total_tokens" gorm:"default:0"`
 	// TokenPlan 专用
 	QuotaTotal    float64    `json:"quota_total" gorm:"default:0"`
 	QuotaUsed     float64    `json:"quota_used" gorm:"default:0"`
