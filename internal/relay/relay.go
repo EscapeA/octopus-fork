@@ -927,6 +927,7 @@ func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http
 	strategy := getReasoningBufferStrategy(ra.group)
 	shouldBuffer := (strategy == "buffer") // buffer=暂存; immediate=立即发送
 	var reasoningBuffer [][]byte           // 暂存仅含 reasoning 的 chunk，待可见内容到达后 flush
+	var reasoningBufferBytes int           // reasoningBuffer 累计字节数，用于软上限判定（见 maxReasoningBufferBytes）
 	clientDone := ra.clientCtx.Done()
 	clientDisconnected := false
 	clientDisconnectLogged := false
@@ -1037,6 +1038,9 @@ func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http
 				if ra.streamSession != nil {
 					ra.streamSession.Finish(nil)
 					log.Infof("stream end")
+					// 流结束显式释放 reasoningBuffer（虽随函数返回被 GC，但提前释放降低峰值持续时间）。
+					reasoningBuffer = nil
+					reasoningBufferBytes = 0
 					// 空输出检测（issue #106/#155）：整个流式响应没有产生任何可见内容。
 					// buffer 策略：reasoning-only chunk 被暂存到 reasoningBuffer，未写入客户端（Written()=false），
 					// 可以安全重试。immediate 策略：reasoning 已发送，不可重试（只记录日志）。
@@ -1070,6 +1074,7 @@ func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http
 					if len(reasoningBuffer) > 0 {
 						writeReasoningBuffer(ra, reasoningBuffer, &clientDisconnected, markClientDisconnected, logClientDisconnected)
 						reasoningBuffer = nil
+						reasoningBufferBytes = 0
 					}
 					if ra.streamSession != nil {
 						errPayload, _ := jsonAPI.Marshal(map[string]any{
@@ -1114,7 +1119,15 @@ func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http
 			// buffer 策略：暂存到 buffer，待可见内容到达后统一 flush（安全重试但 CF 可能超时）
 			// immediate 策略：立即发送所有 chunks（实时体验但空输出不可重试）
 			if shouldBuffer && !chunkHasVisible && !hasVisibleContent {
+				// 软上限：累计字节超过 maxReasoningBufferBytes 时丢弃当前 buffer，避免
+				// 长 reasoning-only 流内存无界增长。丢弃而非 flush 以保持空输出重试安全性
+				// （hasVisibleContent 保持 false，仍可重试）。8 MiB reasoning-only 已属异常。
+				if reasoningBufferBytes >= maxReasoningBufferBytes {
+					reasoningBuffer = nil
+					reasoningBufferBytes = 0
+				}
 				reasoningBuffer = append(reasoningBuffer, data)
+				reasoningBufferBytes += len(data)
 				continue
 			}
 
@@ -1122,6 +1135,7 @@ func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http
 			if len(reasoningBuffer) > 0 {
 				writeReasoningBuffer(ra, reasoningBuffer, &clientDisconnected, markClientDisconnected, logClientDisconnected)
 				reasoningBuffer = nil
+				reasoningBufferBytes = 0
 			}
 			hasVisibleContent = true
 
