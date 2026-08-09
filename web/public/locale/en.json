@@ -138,6 +138,7 @@
       "delete": "Delete",
       "balanceAvailable": "Available Balance",
       "balanceUsed": "Used",
+      "totalTokens": "Total Tokens",
       "totalUsed": "Total Used",
       "tierFiveHour": "Last 5 Hours Usage",
       "tierWeekly": "Last Week Usage",
