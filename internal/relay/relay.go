@@ -937,6 +937,10 @@ func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http
 		}
 		clientDisconnected = true
 		clientDone = nil
+		// 启动断连宽限计时。带 stream session 时循环会继续读上游（以支持断线
+		// 重连重放），这段时间里会话既不是 done、也无法被驱逐，其缓冲会一直占
+		// 着内存。宽限期到后由下面的 clientGoneTicker 强制收尾（issue #196）。
+		ra.streamSession.MarkClientGone()
 	}
 	logClientDisconnected := func() {
 		if !clientDisconnected || clientDisconnectLogged {
@@ -1000,6 +1004,16 @@ func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http
 	heartbeatTicker := time.NewTicker(conf.SSEHeartbeatInterval)
 	defer heartbeatTicker.Stop()
 
+	// 客户端断连后的宽限期检查。仅在存在 stream session 时有意义：没有 session
+	// 的请求在客户端断连时会直接返回。周期远小于宽限期，保证及时收尾。
+	var clientGoneTicker *time.Ticker
+	var clientGoneC <-chan time.Time
+	if ra.streamSession != nil {
+		clientGoneTicker = time.NewTicker(relayStreamClientGoneCheckInterval)
+		clientGoneC = clientGoneTicker.C
+		defer clientGoneTicker.Stop()
+	}
+
 	for {
 		select {
 		case <-clientDone:
@@ -1008,6 +1022,30 @@ func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http
 				return errClientDisconnected
 			}
 			markClientDisconnected()
+		case <-clientGoneC:
+			// 客户端已断连且上游在宽限期内仍未结束：强制结束会话并停止读取上游，
+			// 避免断连会话的 replay 缓冲长期占用内存（issue #196 的 OOM 主因）。
+			if !clientDisconnected {
+				continue
+			}
+			// 重连的读取者接入时 Subscribe 会清掉宽限计时；它再次离开后这里负责
+			// 重新起表。原请求的 clientCtx 早已 Done，无法再次触发 clientDone 分支，
+			// 因此以「当前是否有订阅者」作为客户端是否在读的判据。
+			if ra.streamSession.HasSubscribers() {
+				continue
+			}
+			ra.streamSession.MarkClientGone()
+			if !ra.streamSession.ClientGoneGraceExceeded() {
+				continue
+			}
+			logClientDisconnected()
+			log.Warnf("client gone and upstream still streaming after %s, closing stream session to release buffer",
+				relayStreamClientGoneGrace)
+			if err := response.Body.Close(); err != nil {
+				log.Warnf("failed to close response body on client-gone grace timeout: %v", err)
+			}
+			ra.streamSession.Finish(errRelayStreamClientGone)
+			return errClientDisconnected
 		case <-firstTokenC:
 			logClientDisconnected()
 			log.Warnf("first token timeout (%ds), switching channel", ra.firstTokenTimeOutSec)
