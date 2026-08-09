@@ -324,7 +324,9 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 
 	// 2. 渠道创建/复用
 	var channelID int
-	needCreateChannel := info.Type == model.PlanProviderTypeBalance ||
+	// balance 类默认自动创建转发渠道；tokenrhythm（基元律动）例外：
+	// 纯监控（Cookie 鉴权，无独立 API Key），不创建转发渠道。
+	needCreateChannel := (info.Type == model.PlanProviderTypeBalance && category != model.PlanProviderTokenRhythm) ||
 		(isConsoleTokenPlanCategory(category) && forwardAPIKey != "") ||
 		category == model.PlanProviderCodex
 	if needCreateChannel {
