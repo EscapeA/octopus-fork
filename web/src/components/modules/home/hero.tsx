@@ -28,6 +28,16 @@ function metricFontClass(width: number): string {
     return 'text-sm sm:text-base';
 }
 
+// 中国化模式大数量级整数化：794.25万 → 794万。大跨度展示不需要两位小数
+// 精度，整数化后保留单位、大幅缩短宽度（794万 / 978万），窄卡片不再挤。
+// k/m/b 模式（unit 为 M/K/B）与原始数值（unit 为空）保持原样。
+function chinaIntValue(value: string, unit: string): string {
+    if ((unit === '万' || unit === '亿') && value.includes('.')) {
+        return String(Math.round(parseFloat(value)));
+    }
+    return value;
+}
+
 export function HomeHero() {
     const t = useTranslations('home.hero');
     const statsRefreshMs = useHomeStatsRefreshMs();
@@ -50,10 +60,16 @@ export function HomeHero() {
         .reduce((sum, point) => sum + (point.cache_read_tokens ?? 0), 0);
     const cacheRate = totalTokens > 0 ? (todayCacheReadTokens / totalTokens) * 100 : 0;
 
-    const callsSuccess = formatCount(successCount).formatted;
-    const callsTotal = formatCount(requestCount).formatted;
-    const cacheRead = formatCount(todayCacheReadTokens).formatted;
-    const tokens = formatCount(totalTokens).formatted;
+    // 复合卡数值中国化整数化（794.25万 → 794万），单位保留；k/m/b 模式原样。
+    const fmtCount = (n?: number) => {
+        const f = formatCount(n).formatted;
+        return { value: chinaIntValue(f.value, f.unit), unit: f.unit };
+    };
+
+    const callsSuccess = fmtCount(successCount);
+    const callsTotal = fmtCount(requestCount);
+    const cacheRead = fmtCount(todayCacheReadTokens);
+    const tokens = fmtCount(totalTokens);
 
     // 2 列 × 2 行：第一行普通指标（平均响应时延 / 今日花费），第二行复合卡（今日调用 / 今日Token使用）。
     const cards = [
@@ -140,9 +156,7 @@ export function HomeHero() {
                                             {card.mainUnit ? <span className="text-sm text-muted-foreground">{card.mainUnit}</span> : null}
                                         </span>
                                         <span className="text-sm text-muted-foreground whitespace-nowrap">
-                                            / {card.dividerValue}
-                                            {/* 同一量纲（单位相同）时 divider 省略重复单位：794.25万 / 978.77，省宽度防换行 */}
-                                            {card.dividerUnit && card.dividerUnit !== card.mainUnit ? card.dividerUnit : null}
+                                            / {card.dividerValue}{card.dividerUnit}
                                         </span>
                                     </div>
                                     <div className="text-xs text-muted-foreground">
