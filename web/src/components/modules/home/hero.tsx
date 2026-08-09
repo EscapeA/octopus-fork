@@ -135,12 +135,14 @@ export function HomeHero() {
                             {card.isComposite ? (
                                 <div className="mt-1 space-y-0.5">
                                     <div className="flex items-baseline gap-1.5 min-w-0">
-                                        <span className={`${metricFontClass(visualWidthOf(card.mainValue, card.mainUnit))} font-semibold tracking-tight`}>
+                                        <span className={`${metricFontClass(visualWidthOf(card.mainValue, card.mainUnit))} font-semibold tracking-tight whitespace-nowrap`}>
                                             <AnimatedNumber value={card.mainValue} />
                                             {card.mainUnit ? <span className="text-sm text-muted-foreground">{card.mainUnit}</span> : null}
                                         </span>
-                                        <span className="text-sm text-muted-foreground">
-                                            / {card.dividerValue}{card.dividerUnit}
+                                        <span className="text-sm text-muted-foreground whitespace-nowrap">
+                                            / {card.dividerValue}
+                                            {/* 同一量纲（单位相同）时 divider 省略重复单位：794.25万 / 978.77，省宽度防换行 */}
+                                            {card.dividerUnit && card.dividerUnit !== card.mainUnit ? card.dividerUnit : null}
                                         </span>
                                     </div>
                                     <div className="text-xs text-muted-foreground">
