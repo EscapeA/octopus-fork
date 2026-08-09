@@ -23,6 +23,7 @@ const (
 	PlanProvider302AI       PlanProviderCategory = "302ai"
 	PlanProviderNovita      PlanProviderCategory = "novita"
 	PlanProviderOpenAI      PlanProviderCategory = "openai"
+	PlanProviderTokenRhythm PlanProviderCategory = "tokenrhythm"
 
 	// TokenPlan 类厂商
 	PlanProviderMiniMax        PlanProviderCategory = "minimax"
@@ -125,6 +126,15 @@ var PlanProviderCategories = []PlanProviderCategoryInfo{
 		Models:      "gpt-4.1,gpt-4.1-mini,gpt-4o,gpt-4o-mini,o3,o4-mini",
 		Description: "OpenAI 余额查询（部分账户可用 /v1/balances 接口）",
 		HelpURL:     "https://platform.openai.com/api-keys",
+	},
+	{
+		Category:    PlanProviderTokenRhythm,
+		Name:        "基元律动 (TokenRhythm)",
+		Type:        PlanProviderTypeBalance,
+		BaseURL:     "https://tokenrhythm.studio",
+		Models:      "*",
+		Description: "基元律动 TokenRhythm 渠道额度监控（浏览器 Cookie 鉴权）：账户余额、累计总成本、全部 Token 用量。纯监控不创建转发渠道。",
+		HelpURL:     "https://tokenrhythm.studio/account/account",
 	},
 	{
 		Category:    PlanProviderMiniMax,
