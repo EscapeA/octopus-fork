@@ -1190,6 +1190,32 @@ func queryOpenAIBalance(ctx context.Context, apiKey string) (*BalanceResult, err
 // 纯监控，不创建转发渠道（无独立 API Key 可供渠道使用）。
 var tokenRhythmUsageSummaryURL = "https://tokenrhythm.studio/api/usage-summary"
 
+// flexibleFloat64 兼容 API 返回数字或字符串两种格式的金额字段。
+// tokenrhythm.studio 的 usage-summary 金额字段（costCny/balanceCny 等）曾为
+// 数字（14.75376696），2026-08-16 起改为字符串（"44.36027476"）。
+// json.Number 只接受数字字面量，遇到字符串仍会报错，故自定义 UnmarshalJSON：
+// 引号包裹的数字剥掉引号后 ParseFloat，null/空串按 0 处理。
+type flexibleFloat64 float64
+
+func (f *flexibleFloat64) UnmarshalJSON(b []byte) error {
+	s := strings.TrimSpace(string(b))
+	if s == "null" || s == "" {
+		*f = 0
+		return nil
+	}
+	s = strings.Trim(s, `"`)
+	if s == "" {
+		*f = 0
+		return nil
+	}
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return err
+	}
+	*f = flexibleFloat64(v)
+	return nil
+}
+
 func queryTokenRhythmBalance(ctx context.Context, cookie string) (*BalanceResult, error) {
 	if cookie == "" {
 		return nil, fmt.Errorf("tokenrhythm: cookie 不能为空")
@@ -1206,14 +1232,14 @@ func queryTokenRhythmBalance(ctx context.Context, cookie string) (*BalanceResult
 	var resp struct {
 		Code int `json:"code"`
 		Data struct {
-			Calls        int64   `json:"calls"`
-			SuccessCalls int64   `json:"successCalls"`
-			ErrorCalls   int64   `json:"errorCalls"`
-			InputTokens  int64   `json:"inputTokens"`
-			OutputTokens int64   `json:"outputTokens"`
-			CostCny      float64 `json:"costCny"`
-			BalanceCny   float64 `json:"balanceCny"`
-			Currency     string  `json:"currency"`
+			Calls        int64            `json:"calls"`
+			SuccessCalls int64            `json:"successCalls"`
+			ErrorCalls   int64            `json:"errorCalls"`
+			InputTokens  int64            `json:"inputTokens"`
+			OutputTokens int64            `json:"outputTokens"`
+			CostCny      flexibleFloat64  `json:"costCny"`
+			BalanceCny   flexibleFloat64  `json:"balanceCny"`
+			Currency     string           `json:"currency"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(body, &resp); err != nil {
@@ -1229,8 +1255,8 @@ func queryTokenRhythmBalance(ctx context.Context, cookie string) (*BalanceResult
 	}
 
 	return &BalanceResult{
-		Balance:     resp.Data.BalanceCny,
-		BalanceUsed: resp.Data.CostCny,
+		Balance:     float64(resp.Data.BalanceCny),
+		BalanceUsed: float64(resp.Data.CostCny),
 		Currency:    currency,
 		TotalTokens: resp.Data.InputTokens + resp.Data.OutputTokens,
 	}, nil
