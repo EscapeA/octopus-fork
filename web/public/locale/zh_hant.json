@@ -3155,6 +3155,8 @@
       "remark": "備註",
       "priority": "優先級",
       "priorityHint": "數字越大越優先",
+      "supportedModels": "支援的模型（可選）",
+      "supportedModelsHint": "逗號分隔，限定此 key 僅用於這些模型。留空表示不限制。",
       "typeMiMoChat": "MiMo Chat",
       "typeCloudflare": "Cloudflare",
       "keySelectionStrategy": "Key 策略",

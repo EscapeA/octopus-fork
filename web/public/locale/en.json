@@ -3199,6 +3199,8 @@
       "remark": "Remark",
       "priority": "Priority",
       "priorityHint": "Higher numbers are used first",
+      "supportedModels": "Supported models (optional)",
+      "supportedModelsHint": "Comma-separated. Limits this key to only these models. Leave empty for no restriction.",
       "typeMiMoChat": "MiMo Chat",
       "typeCloudflare": "Cloudflare",
       "keySelectionStrategy": "Key Strategy",
