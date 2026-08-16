@@ -1961,7 +1961,9 @@
         "viewStats": "Stats",
         "edit": "Edit",
         "delete": "Delete",
-        "deleteConfirm": "Delete this key?"
+        "deleteConfirm": "Delete this key?",
+        "legacyHashed": "Plaintext unrecoverable — regenerate this key",
+        "legacyHashedHint": "This key was hashed in a prior version; its plaintext can no longer be recovered. Authentication still works, but you can't copy the value. Please delete and recreate it."
       },
       "actions": {
         "viewStats": "View stats",
