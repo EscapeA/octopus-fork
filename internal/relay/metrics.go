@@ -78,7 +78,7 @@ func (m *RelayMetrics) SetInternalResponse(resp *transformerModel.InternalLLMRes
 	m.Stats.InputToken = usage.PromptTokens
 	m.Stats.OutputToken = usage.CompletionTokens
 
-	modelPrice := price.GetLLMPrice(actualModel)
+	modelPrice := price.EffectiveLLMPrice(actualModel, m.StartTime)
 	if modelPrice == nil {
 		return
 	}
