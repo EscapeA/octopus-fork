@@ -18,6 +18,8 @@ export interface LLMPrice {
  */
 export interface LLMInfo extends LLMPrice {
     name: string;
+    price_manual?: boolean;      // 价格是否手动设置（同步刷新时保留）
+    billing_schedule?: string;   // 峰谷计费标识（"deepseek_v4" 或空，只读展示用）
 }
 
 /**

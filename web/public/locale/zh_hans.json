@@ -2658,7 +2658,9 @@
       "averageLatency": "平均延迟",
       "successRate": "成功率",
       "expand": "展开详情",
-      "collapse": "收起详情"
+      "collapse": "收起详情",
+      "billingWindowBadge": "峰谷 · 空闲×0.5",
+      "billingWindowHint": "DeepSeek 峰谷计费：高峰 9–12 / 14–18，其余时段减半"
     },
     "detail": {
       "pricing": "价格信息",
@@ -2680,7 +2682,8 @@
       "cacheRead": "缓存读取",
       "cacheWrite": "缓存写入",
       "save": "保存",
-      "priceHint": "价格单位：美元 / 百万 tokens"
+      "priceHint": "价格单位：美元 / 百万 tokens",
+      "peakBillingHint": "以上为高峰价，北京 9–12 / 14–18 按此计费，其余时段减半。"
     },
     "capabilities": {
       "title": "模型能力",

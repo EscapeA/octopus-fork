@@ -165,6 +165,12 @@ func listLLM(c *gin.Context) {
 		resp.InternalError(c)
 		return
 	}
+	// 只读填充峰谷计费标识（不入库），供前端模型列表展示徽章。
+	for i := range models {
+		if price.DeepSeekFamily(models[i].Name) != "" {
+			models[i].BillingSchedule = "deepseek_v4"
+		}
+	}
 	resp.Success(c, models)
 }
 

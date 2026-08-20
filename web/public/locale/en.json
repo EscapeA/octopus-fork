@@ -2702,7 +2702,9 @@
       "averageLatency": "Average Latency",
       "successRate": "Success Rate",
       "expand": "Expand details",
-      "collapse": "Collapse details"
+      "collapse": "Collapse details",
+      "billingWindowBadge": "Peak/Off-peak ×0.5",
+      "billingWindowHint": "DeepSeek peak/off-peak billing: peak 9–12 / 14–18, otherwise half"
     },
     "detail": {
       "pricing": "Pricing",
@@ -2724,7 +2726,8 @@
       "cacheRead": "Cache Read",
       "cacheWrite": "Cache Write",
       "save": "Save",
-      "priceHint": "Price unit: USD / 1M tokens"
+      "priceHint": "Price unit: USD / 1M tokens",
+      "peakBillingHint": "Above are PEAK prices. Off-peak (9–12 / 14–18 outside) is charged at half."
     },
     "capabilities": {
       "title": "Model Capabilities",
