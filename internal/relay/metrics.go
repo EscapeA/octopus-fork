@@ -299,6 +299,7 @@ func (m *RelayMetrics) saveLog(ctx context.Context, err error, duration time.Dur
 		ChannelId:        channelID,
 		ActualModelName:  actualModel,
 		UseTime:          int(duration.Milliseconds()),
+		BillingWindow:    price.BillingWindow(actualModel, m.StartTime),
 		Attempts:         attempts,
 		TotalAttempts:    totalAttempts,
 	}

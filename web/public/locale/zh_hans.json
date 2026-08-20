@@ -2844,7 +2844,11 @@
       },
       "reasoningChars": "思考",
       "reasoningCharsUnit": "字",
-      "reasoningTokensUnit": "字"
+
+      "reasoningTokensUnit": "字",
+      "billingWindowPeak": "高峰",
+      "billingWindowOffPeak": "空闲",
+      "billingWindowHint": "DeepSeek 峰谷计费：高峰 9–12 / 14–18，其余减半"
     },
     "view": {
       "relay": "转发日志",

@@ -2888,7 +2888,11 @@
       },
       "reasoningChars": "Reasoning",
       "reasoningCharsUnit": " chars",
-      "reasoningTokensUnit": " tokens"
+
+      "reasoningTokensUnit": " tokens",
+      "billingWindowPeak": "Peak",
+      "billingWindowOffPeak": "Off-peak",
+      "billingWindowHint": "DeepSeek peak/off-peak billing"
     },
     "view": {
       "relay": "Relay Logs",
