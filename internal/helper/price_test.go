@@ -126,12 +126,14 @@ func TestLLMPriceRefreshExistingModels_FallbackToPresetThenZero(t *testing.T) {
 		t.Fatalf("LLMPriceRefreshExistingModels() error = %v", err)
 	}
 
-	// 托底命中：deepseek-v4-flash 应被写入 presets_manual.go 中的价格。
+	// 托底命中：deepseek-v4-flash 应被写入 presets_manual.go 中的高峰预设价。
 	got, err := llm.Get("deepseek-v4-flash")
 	if err != nil {
 		t.Fatalf("llm.Get(deepseek-v4-flash) error = %v", err)
 	}
-	want := model.LLMPrice{Input: 0.14, Output: 0.28, CacheRead: 0.0028, CacheWrite: 0}
+	want := model.LLMPrice{
+		Input: 3.0 / 7.15, Output: 9.0 / 7.15, CacheRead: 0.10 / 7.15, CacheWrite: 0,
+	}
 	if got != want {
 		t.Fatalf("deepseek-v4-flash price = %+v, want preset %+v", got, want)
 	}

@@ -152,3 +152,49 @@ func TestEffectiveLLMPrice(t *testing.T) {
 func floatEqual(a, b float64) bool {
 	return math.Abs(a-b) < 1e-12
 }
+
+// TestOverlayDeepSeekPeakPresets 验证价格同步（models.dev 旧平价覆盖后）
+// overlay 会把 flash/pro 回盖成高峰预设。
+func TestOverlayDeepSeekPeakPresets(t *testing.T) {
+	// 模拟同步后 map 被旧平价覆盖
+	prices := map[string]model.LLMPrice{
+		"deepseek-v4-flash": {Input: 0.14, Output: 0.28, CacheRead: 0.0028, CacheWrite: 0},
+		"deepseek-v4-pro":   {Input: 0.42, Output: 0.84, CacheRead: 0.0035, CacheWrite: 0},
+		"gpt-4o":            {Input: 5, Output: 15, CacheRead: 2.5, CacheWrite: 0},
+	}
+	restore := setPricesForTest(prices)
+	t.Cleanup(restore)
+
+	overlayDeepSeekPeakPresets()
+
+	want := model.LLMPrice{
+		Input: 3.0 / deepSeekCNYPerUSD, Output: 9.0 / deepSeekCNYPerUSD,
+		CacheRead: 0.10 / deepSeekCNYPerUSD, CacheWrite: 0,
+	}
+	got := llmPrice["deepseek-v4-flash"]
+	if !floatEqual(got.Input, want.Input) || !floatEqual(got.Output, want.Output) ||
+		!floatEqual(got.CacheRead, want.CacheRead) || !floatEqual(got.CacheWrite, want.CacheWrite) {
+		t.Fatalf("flash after overlay = %+v, want %+v", got, want)
+	}
+	// 非白名单模型不受影响
+	if g := llmPrice["gpt-4o"]; g.Input != 5 {
+		t.Fatalf("gpt-4o changed after overlay: %+v", g)
+	}
+}
+
+// TestPeakPresetPrice 验证白名单高峰预设取值。
+func TestPeakPresetPrice(t *testing.T) {
+	flash := PeakPresetPrice("deepseek-v4-flash")
+	if flash == nil || !floatEqual(flash.Input, 3.0/deepSeekCNYPerUSD) {
+		t.Fatalf("PeakPresetPrice(flash) = %+v", flash)
+	}
+	if p := PeakPresetPrice("deepseek-v4-pro"); p == nil || !floatEqual(p.Output, 27.0/deepSeekCNYPerUSD) {
+		t.Fatalf("PeakPresetPrice(pro) = %+v", p)
+	}
+	if p := PeakPresetPrice("deepseek/deepseek-v4-flash"); p != nil {
+		t.Fatalf("PeakPresetPrice(deepseek/deepseek-v4-flash) = %+v, want nil (仅精确键)", p)
+	}
+	if p := PeakPresetPrice("gpt-4o"); p != nil {
+		t.Fatalf("PeakPresetPrice(gpt-4o) = %+v, want nil", p)
+	}
+}

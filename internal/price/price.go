@@ -91,6 +91,9 @@ func UpdateLLMPrice(ctx context.Context) error {
 		}
 	}
 	llmPriceLock.Unlock()
+	// 外部同步源（models.dev）只有单一价，DeepSeek v4 的峰谷目录必须回盖
+	// 高峰预设，否则 EffectiveLLMPrice 的 0.5 缩放基准仍是旧平价。
+	overlayDeepSeekPeakPresets()
 	lastUpdateTimeMu.Lock()
 	lastUpdateTime = time.Now()
 	lastUpdateTimeMu.Unlock()
