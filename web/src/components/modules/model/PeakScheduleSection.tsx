@@ -306,7 +306,7 @@ export function PeakScheduleSection() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? t('edit') : t('add')}</DialogTitle>
             <DialogDescription>{t('description')}</DialogDescription>
