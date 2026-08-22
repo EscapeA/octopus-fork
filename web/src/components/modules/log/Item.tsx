@@ -64,7 +64,8 @@ function formatDuration(ms: number): string {
     return `${(ms / 1000).toFixed(2)}s`;
 }
 
-/** Format tokens-per-second for display. */
+/** Format tokens-per-second for display.
+ * timeMs 为生成耗时（总耗时-首字），非流式 ftut=0 时退化为总耗时。 */
 function formatTPS(tokens: number, timeMs: number): string {
     if (tokens <= 0 || timeMs <= 0) return '- tk/s';
     const seconds = timeMs / 1000;
@@ -482,7 +483,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                 {vis.tps && (
                                     <div className="flex items-center gap-1.5">
                                         <Gauge className="size-3.5 shrink-0 text-lime-500" />
-                                        <span>{t('tps')} {formatTPS(log.output_tokens, log.use_time)}</span>
+                                        <span>{t('tps')} {formatTPS(log.output_tokens, log.use_time - log.ftut)}</span>
                                     </div>
                                 )}
                                 {vis.cacheHitRate && cacheReadTokens > 0 && (
@@ -863,7 +864,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                             {vis.tps && (
                                 <div className="flex items-center gap-1.5">
                                     <Gauge className="size-3.5 text-lime-500" />
-                                    <span>{t('tps')}: {formatTPS(log.output_tokens, log.use_time)}</span>
+                                    <span>{t('tps')}: {formatTPS(log.output_tokens, log.use_time - log.ftut)}</span>
                                 </div>
                             )}
                             {vis.cacheHitRate && cacheReadTokens > 0 && (
