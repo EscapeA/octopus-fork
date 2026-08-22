@@ -53,9 +53,9 @@ func getPriceScheduleByName(name string) (model.ModelPriceSchedule, error) {
 	return row, err
 }
 
-// SeedPriceSchedules 在表为空时插入默认峰谷规则（DeepSeek v4 官方高峰价，
-// 与旧版 presets_manual.go 硬编码同值），保证升级后计费行为平滑过渡；
-// 之后完全由前端管理（可改可删）。表非空则跳过。
+// SeedPriceSchedules 在表为空时插入默认峰谷规则（DeepSeek 官方美元价，
+// 见 https://api-docs.deepseek.com/quick_start/pricing 峰谷定价），
+// 保证升级后计费行为平滑过渡；之后完全由前端管理（可改可删）。表非空则跳过。
 func SeedPriceSchedules(ctx context.Context) error {
 	var count int64
 	if err := db.GetDB().WithContext(ctx).Model(&model.ModelPriceSchedule{}).Count(&count).Error; err != nil {
@@ -64,14 +64,15 @@ func SeedPriceSchedules(ctx context.Context) error {
 	if count > 0 {
 		return nil
 	}
-	// CNY → USD 换算与旧版一致（7.15）。窗口默认 09:00-12:00 / 14:00-18:00。
-	const cnyPerUSD = 7.15
+	// 官方美元价（USD/1M tokens，PEAK）：flash $0.44/$1.32/$0.014，
+	// pro $1.32/$3.96/$0.044；官方 OFF-PEAK 恰为 PEAK × 0.5。
+	// 窗口默认 09:00-12:00 / 14:00-18:00（北京时间）。
 	seed := []model.ModelPriceSchedule{
 		{
 			Name:         "deepseek-v4-flash",
 			RuleType:     string(model.ModelPriceCategoryRulePrefix),
 			RuleValue:    "deepseek-v4-flash",
-			LLMPrice:     model.LLMPrice{Input: 3.0 / cnyPerUSD, Output: 9.0 / cnyPerUSD, CacheRead: 0.10 / cnyPerUSD},
+			LLMPrice:     model.LLMPrice{Input: 0.44, Output: 1.32, CacheRead: 0.014},
 			OffPeakMul:   0.5,
 			Window1Start: 540, Window1End: 720,
 			Window2Start: 840, Window2End: 1080,
@@ -82,7 +83,7 @@ func SeedPriceSchedules(ctx context.Context) error {
 			Name:         "deepseek-v4-pro",
 			RuleType:     string(model.ModelPriceCategoryRulePrefix),
 			RuleValue:    "deepseek-v4-pro",
-			LLMPrice:     model.LLMPrice{Input: 9.0 / cnyPerUSD, Output: 27.0 / cnyPerUSD, CacheRead: 0.30 / cnyPerUSD},
+			LLMPrice:     model.LLMPrice{Input: 1.32, Output: 3.96, CacheRead: 0.044},
 			OffPeakMul:   0.5,
 			Window1Start: 540, Window1End: 720,
 			Window2Start: 840, Window2End: 1080,

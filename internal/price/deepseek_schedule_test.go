@@ -77,12 +77,12 @@ func TestSeedPriceSchedules(t *testing.T) {
 		flash.Window2Start != 840 || flash.Window2End != 1080 {
 		t.Fatalf("flash windows/mul = %+v", flash)
 	}
-	if !floatEqual(flash.Input, 3.0/7.15) || !floatEqual(flash.Output, 9.0/7.15) ||
-		!floatEqual(flash.CacheRead, 0.10/7.15) {
+	if !floatEqual(flash.Input, 0.44) || !floatEqual(flash.Output, 1.32) ||
+		!floatEqual(flash.CacheRead, 0.014) {
 		t.Fatalf("flash peak price = %+v", flash.LLMPrice)
 	}
-	if !floatEqual(pro.Input, 9.0/7.15) || !floatEqual(pro.Output, 27.0/7.15) ||
-		!floatEqual(pro.CacheRead, 0.30/7.15) {
+	if !floatEqual(pro.Input, 1.32) || !floatEqual(pro.Output, 3.96) ||
+		!floatEqual(pro.CacheRead, 0.044) {
 		t.Fatalf("pro peak price = %+v", pro.LLMPrice)
 	}
 }
@@ -164,11 +164,11 @@ func TestEffectiveLLMPrice(t *testing.T) {
 
 	// 命中默认规则：高峰 10:00 → 规则高峰价；空闲 13:00 → 高峰价 × 0.5。
 	peak := EffectiveLLMPrice("deepseek-v4-flash", mustTime(t, 10, 0, 0))
-	if peak == nil || !floatEqual(peak.Input, 3.0/7.15) || !floatEqual(peak.Output, 9.0/7.15) {
+	if peak == nil || !floatEqual(peak.Input, 0.44) || !floatEqual(peak.Output, 1.32) {
 		t.Fatalf("peak EffectiveLLMPrice = %+v", peak)
 	}
 	off := EffectiveLLMPrice("deepseek-v4-flash", mustTime(t, 13, 0, 0))
-	if off == nil || !floatEqual(off.Input, 0.5*3.0/7.15) || !floatEqual(off.Output, 0.5*9.0/7.15) {
+	if off == nil || !floatEqual(off.Input, 0.5*0.44) || !floatEqual(off.Output, 0.5*1.32) {
 		t.Fatalf("offpeak EffectiveLLMPrice = %+v", off)
 	}
 
