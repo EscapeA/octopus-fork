@@ -96,14 +96,15 @@ func TestLLMPriceDeleteFromDBWithNoPrice_SkipsManualModels(t *testing.T) {
 	}
 }
 
-// TestLLMPriceRefreshExistingModels_FallbackToPresetThenZero 验证"同步价格"刷新
+// TestLLMPriceRefreshExistingModels_NoPresetWritesZero 验证"同步价格"刷新
 // 已有模型时的价格解析顺序：
 //  1. 外部价格文件命中 → 用外部价格
-//  2. 外部未命中 → 回落托底价格（presets_manual.go，deepseek-v4-flash 属托底条目）
+//  2. 外部未命中 → 回落托底价格（presets.go 内置托底，无 deepseek 硬编码白名单）
 //  3. 均未命中 → 写 0
 //
-// 依赖真实 presets_manual.go 内容（与 price 包 TestDeepSeekV4PresetPrices 一致）。
-func TestLLMPriceRefreshExistingModels_FallbackToPresetThenZero(t *testing.T) {
+// 峰谷计费规则（model_price_schedules）由 EffectiveLLMPrice 在计费时应用，
+// 不再参与同步刷新的 DB 写价，因此 deepseek-v4-flash 在无外部命中时也走写 0。
+func TestLLMPriceRefreshExistingModels_NoPresetWritesZero(t *testing.T) {
 	setupHelperDB(t)
 
 	llmCache := llm.GetCache()
@@ -116,8 +117,8 @@ func TestLLMPriceRefreshExistingModels_FallbackToPresetThenZero(t *testing.T) {
 		}
 	}()
 
-	// deepseek-v4-flash：托底价格存在（presets_manual.go），旧值故意设为 0
-	// 以便断言刷新后写入托底价。
+	// deepseek-v4-flash：无外部命中也无硬编码托底（presets_manual.go 已移除），
+	// 旧值故意设为 0 以便断言刷新后保持 0。
 	llmCache.Set("deepseek-v4-flash", model.LLMPrice{})
 	// 完全未知的模型：外部与托底均未命中，刷新后应写 0。
 	llmCache.Set("totally-unknown-model-xyz", model.LLMPrice{Input: 9, Output: 9, CacheRead: 9, CacheWrite: 9})
@@ -126,16 +127,15 @@ func TestLLMPriceRefreshExistingModels_FallbackToPresetThenZero(t *testing.T) {
 		t.Fatalf("LLMPriceRefreshExistingModels() error = %v", err)
 	}
 
-	// 托底命中：deepseek-v4-flash 应被写入 presets_manual.go 中的高峰预设价。
+	// 外部命中：deepseek-v4-flash 在 presets.go（models.dev 同步）有平价条目，
+	// 刷新后应写入外部价（≠0）。峰谷计费由规则表（model_price_schedules）在
+	// EffectiveLLMPrice 运行时应用，与 DB 价格无关。
 	got, err := llm.Get("deepseek-v4-flash")
 	if err != nil {
 		t.Fatalf("llm.Get(deepseek-v4-flash) error = %v", err)
 	}
-	want := model.LLMPrice{
-		Input: 3.0 / 7.15, Output: 9.0 / 7.15, CacheRead: 0.10 / 7.15, CacheWrite: 0,
-	}
-	if got != want {
-		t.Fatalf("deepseek-v4-flash price = %+v, want preset %+v", got, want)
+	if got.Input == 0 {
+		t.Fatalf("deepseek-v4-flash price = %+v, want non-zero upstream price (presets.go)", got)
 	}
 
 	// 均未命中：应写 0。

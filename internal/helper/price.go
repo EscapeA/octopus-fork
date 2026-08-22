@@ -100,23 +100,6 @@ func LLMPriceRefreshExistingModels(ctx context.Context) error {
 		if _, ok := manualSet[existing.Name]; ok {
 			continue
 		}
-		// DeepSeek v4 白名单：外部同步源（models.dev）只有单一价（旧平价），
-		// 若与高峰预设不一致，强制回盖高峰预设——即使同步源命中也不采用其旧平价。
-		if price.DeepSeekFamily(existing.Name) != "" {
-			peakPrice := price.PeakPresetPrice(existing.Name)
-			if peakPrice != nil {
-				if existing.Input != peakPrice.Input ||
-					existing.Output != peakPrice.Output ||
-					existing.CacheRead != peakPrice.CacheRead ||
-					existing.CacheWrite != peakPrice.CacheWrite {
-					updates = append(updates, model.LLMInfo{
-						Name:     existing.Name,
-						LLMPrice: *peakPrice,
-					})
-				}
-			}
-			continue
-		}
 		// 仅从同步价格源（外部价格文件 + 托底价格）查找，跳过 DB 旧值，
 		// 确保"同步价格"真正生效：外部命中用外部价，未命中回落托底价。
 		modelPrice := price.GetLLMPriceFromUpstream(existing.Name)

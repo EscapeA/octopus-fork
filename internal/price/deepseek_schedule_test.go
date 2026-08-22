@@ -1,11 +1,13 @@
 package price
 
 import (
-	"math"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
+	"github.com/lingyuins/octopus/internal/op/llm"
 )
 
 // shanghaiLoc 与 deepSeekLocation 使用相同固定偏移构造，避免依赖系统 tzdata。
@@ -16,41 +18,77 @@ func mustTime(t *testing.T, h, m, s int) time.Time {
 	return time.Date(2026, 8, 17, h, m, s, 0, shanghaiLoc)
 }
 
-func TestDeepSeekFamily(t *testing.T) {
-	cases := []struct {
-		name      string
-		modelName string
-		want      string
-	}{
-		{"exact flash", "deepseek-v4-flash", "flash"},
-		{"flash variant", "deepseek-v4-flash-0731", "flash"},
-		{"deepseek prefix pro", "deepseek/deepseek-v4-pro", "pro"},
-		{"deepseek-ai prefix flash", "deepseek-ai/deepseek-v4-flash-0731", "flash"},
-		{"deepseek prefix flash free", "deepseek/deepseek-v4-flash:free", "flash"},
-		{"uppercase", "DEEPSEEK-V4-FLASH", "flash"},
-
-		// 中转商前缀必须排除
-		{"olm prefix rejected", "olm/deepseek-v4-pro", ""},
-		{"vova prefix rejected", "vova/deepseek-v4-flash", ""},
-		{"opc prefix rejected", "opc/deepseek-v4-flash-free", ""},
-		{"other provider prefix rejected", "openai/deepseek-v4-flash", ""},
-
-		// 非 v4 模型
-		{"deepseek-chat rejected", "deepseek-chat", ""},
-		{"gpt-4o rejected", "gpt-4o", ""},
-		{"empty rejected", "", ""},
+// initScheduleTestDB 建独立测试库并 seed 默认峰谷规则（与启动 seed 同源）。
+func initScheduleTestDB(t *testing.T) {
+	t.Helper()
+	dsn := filepath.Join(t.TempDir(), "test.db")
+	if err := db.InitDB("sqlite", dsn, false); err != nil {
+		t.Fatalf("InitDB failed: %v", err)
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := DeepSeekFamily(tc.modelName)
-			if got != tc.want {
-				t.Fatalf("DeepSeekFamily(%q) = %q, want %q", tc.modelName, got, tc.want)
-			}
-		})
+	t.Cleanup(func() { _ = db.Close() })
+	ctx := t.Context()
+	if err := llm.SeedPriceSchedules(ctx); err != nil {
+		t.Fatalf("SeedPriceSchedules: %v", err)
+	}
+	if err := llm.RefreshPriceScheduleCache(ctx); err != nil {
+		t.Fatalf("RefreshPriceScheduleCache: %v", err)
+	}
+}
+
+// TestSeedPriceSchedules 验证 seed 幂等性与默认规则内容（DeepSeek 官方高峰价）。
+func TestSeedPriceSchedules(t *testing.T) {
+	initScheduleTestDB(t)
+	ctx := t.Context()
+
+	rows, err := llm.ListPriceSchedules(ctx)
+	if err != nil {
+		t.Fatalf("ListPriceSchedules: %v", err)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("seeded rows = %d, want 2", len(rows))
+	}
+
+	// 再次 seed 应跳过（幂等）
+	if err := llm.SeedPriceSchedules(ctx); err != nil {
+		t.Fatalf("second SeedPriceSchedules: %v", err)
+	}
+	rows, _ = llm.ListPriceSchedules(ctx)
+	if len(rows) != 2 {
+		t.Fatalf("after re-seed rows = %d, want 2", len(rows))
+	}
+
+	// 规则内容：prefix deepseek-v4-flash / deepseek-v4-pro，倍率 0.5，默认窗口
+	var flash, pro *model.ModelPriceSchedule
+	for i := range rows {
+		switch rows[i].Name {
+		case "deepseek-v4-flash":
+			flash = &rows[i]
+		case "deepseek-v4-pro":
+			pro = &rows[i]
+		}
+	}
+	if flash == nil || pro == nil {
+		t.Fatalf("missing seeded rules: %+v", rows)
+	}
+	if flash.RuleType != string(model.ModelPriceCategoryRulePrefix) || flash.RuleValue != "deepseek-v4-flash" {
+		t.Fatalf("flash rule = %s/%s", flash.RuleType, flash.RuleValue)
+	}
+	if flash.OffPeakMul != 0.5 || flash.Window1Start != 540 || flash.Window1End != 720 ||
+		flash.Window2Start != 840 || flash.Window2End != 1080 {
+		t.Fatalf("flash windows/mul = %+v", flash)
+	}
+	if !floatEqual(flash.Input, 3.0/7.15) || !floatEqual(flash.Output, 9.0/7.15) ||
+		!floatEqual(flash.CacheRead, 0.10/7.15) {
+		t.Fatalf("flash peak price = %+v", flash.LLMPrice)
+	}
+	if !floatEqual(pro.Input, 9.0/7.15) || !floatEqual(pro.Output, 27.0/7.15) ||
+		!floatEqual(pro.CacheRead, 0.30/7.15) {
+		t.Fatalf("pro peak price = %+v", pro.LLMPrice)
 	}
 }
 
 func TestBillingWindow(t *testing.T) {
+	initScheduleTestDB(t)
 	// 高峰窗口 [09:00,12:00) ∪ [14:00,18:00)（北京），其余空闲。
 	peak := []time.Time{
 		mustTime(t, 9, 0, 0),
@@ -81,6 +119,7 @@ func TestBillingWindow(t *testing.T) {
 }
 
 func TestBillingWindowUTCInput(t *testing.T) {
+	initScheduleTestDB(t)
 	// UTC 输入：01:00Z = 北京 09:00 → 高峰；04:00Z = 北京 12:00 → 空闲。
 	cases := []struct {
 		name string
@@ -99,11 +138,13 @@ func TestBillingWindowUTCInput(t *testing.T) {
 	}
 }
 
-func TestBillingWindowNonDeepSeek(t *testing.T) {
+// TestBillingWindowNoRule 未命中任何启用规则 → None（默认规则不覆盖非 v4 与中转商前缀）。
+func TestBillingWindowNoRule(t *testing.T) {
+	initScheduleTestDB(t)
 	if got := BillingWindow("gpt-4o", mustTime(t, 10, 0, 0)); got != BillingWindowNone {
 		t.Fatalf("BillingWindow(gpt-4o) = %q, want %q", got, BillingWindowNone)
 	}
-	// 中转商前缀模型不套时段
+	// 默认规则是 prefix，中转商前缀 olm/deepseek-v4-pro 不命中（除非用户配 contains）
 	if got := BillingWindow("olm/deepseek-v4-pro", mustTime(t, 10, 0, 0)); got != BillingWindowNone {
 		t.Fatalf("BillingWindow(olm/deepseek-v4-pro) = %q, want %q", got, BillingWindowNone)
 	}
@@ -119,29 +160,27 @@ func TestScaleLLMPrice(t *testing.T) {
 }
 
 func TestEffectiveLLMPrice(t *testing.T) {
-	// 用 setPricesForTest 替换 map，避免依赖 DB/预设实际值。
-	prices := map[string]model.LLMPrice{
-		"deepseek-v4-flash": {Input: 1, Output: 2, CacheRead: 0.1, CacheWrite: 0},
-		"gpt-4o":            {Input: 5, Output: 15, CacheRead: 0, CacheWrite: 0},
-	}
-	restore := setPricesForTest(prices)
-	t.Cleanup(restore)
+	initScheduleTestDB(t)
 
-	// 高峰 10:00 → 原价
+	// 命中默认规则：高峰 10:00 → 规则高峰价；空闲 13:00 → 高峰价 × 0.5。
 	peak := EffectiveLLMPrice("deepseek-v4-flash", mustTime(t, 10, 0, 0))
-	if peak == nil || peak.Input != 1 || peak.Output != 2 || peak.CacheRead != 0.1 {
-		t.Fatalf("peak EffectiveLLMPrice = %+v, want {1 2 0.1 0}", peak)
+	if peak == nil || !floatEqual(peak.Input, 3.0/7.15) || !floatEqual(peak.Output, 9.0/7.15) {
+		t.Fatalf("peak EffectiveLLMPrice = %+v", peak)
 	}
-	// 空闲 13:00 → 一半
 	off := EffectiveLLMPrice("deepseek-v4-flash", mustTime(t, 13, 0, 0))
-	if off == nil || off.Input != 0.5 || off.Output != 1 || off.CacheRead != 0.05 || off.CacheWrite != 0 {
-		t.Fatalf("offpeak EffectiveLLMPrice = %+v, want {0.5 1 0.05 0}", off)
+	if off == nil || !floatEqual(off.Input, 0.5*3.0/7.15) || !floatEqual(off.Output, 0.5*9.0/7.15) {
+		t.Fatalf("offpeak EffectiveLLMPrice = %+v", off)
 	}
-	// 非 DeepSeek 两个时刻相同
+
+	// 未命中规则：走 GetLLMPrice（注入 llmPrice 验证不缩放）。
+	restore := setPricesForTest(map[string]model.LLMPrice{
+		"gpt-4o": {Input: 5, Output: 15, CacheRead: 0, CacheWrite: 0},
+	})
+	t.Cleanup(restore)
 	a := EffectiveLLMPrice("gpt-4o", mustTime(t, 10, 0, 0))
 	b := EffectiveLLMPrice("gpt-4o", mustTime(t, 13, 0, 0))
-	if a == nil || b == nil || !floatEqual(a.Input, b.Input) {
-		t.Fatalf("gpt-4o prices differ across windows: %+v vs %+v", a, b)
+	if a == nil || b == nil || !floatEqual(a.Input, b.Input) || !floatEqual(a.Input, 5) {
+		t.Fatalf("gpt-4o prices differ/incorrect across windows: %+v vs %+v", a, b)
 	}
 	// 未知模型 → nil
 	if got := EffectiveLLMPrice("totally-unknown", mustTime(t, 10, 0, 0)); got != nil {
@@ -149,52 +188,61 @@ func TestEffectiveLLMPrice(t *testing.T) {
 	}
 }
 
+// TestCustomScheduleRule 前端自定义规则覆盖默认规则：改窗口/倍率/价格立即生效。
+func TestCustomScheduleRule(t *testing.T) {
+	initScheduleTestDB(t)
+	ctx := t.Context()
+
+	rows, err := llm.ListPriceSchedules(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	flashID := rows[0].ID
+
+	// 更新默认 flash 规则：倍率 0.25，单窗口 20:00-22:00，改高峰价。
+	updated, err := llm.UpdatePriceSchedule(model.ModelPriceSchedule{
+		ID:        flashID,
+		Name:      "deepseek-v4-flash",
+		RuleType:  string(model.ModelPriceCategoryRulePrefix),
+		RuleValue: "deepseek-v4-flash",
+		LLMPrice:  model.LLMPrice{Input: 2, Output: 6, CacheRead: 0.2},
+		OffPeakMul:   0.25,
+		Window1Start: 20 * 60, Window1End: 22 * 60,
+		SortOrder: 1,
+		Enabled:   true,
+	}, ctx)
+	if err != nil {
+		t.Fatalf("UpdatePriceSchedule: %v", err)
+	}
+	if !floatEqual(updated.Input, 2) {
+		t.Fatalf("updated price = %+v", updated.LLMPrice)
+	}
+
+	// 新窗口外（10:00）→ 空闲，价 = 2×0.25
+	off := EffectiveLLMPrice("deepseek-v4-flash", mustTime(t, 10, 0, 0))
+	if off == nil || !floatEqual(off.Input, 0.5) {
+		t.Fatalf("custom window offpeak = %+v, want Input 0.5", off)
+	}
+	// 新窗口内（21:00）→ 高峰，价 = 2
+	peak := EffectiveLLMPrice("deepseek-v4-flash", mustTime(t, 21, 0, 0))
+	if peak == nil || !floatEqual(peak.Input, 2) {
+		t.Fatalf("custom window peak = %+v, want Input 2", peak)
+	}
+	// 禁用后不再命中
+	updated.Enabled = false
+	if _, err := llm.UpdatePriceSchedule(updated, ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got := BillingWindow("deepseek-v4-flash", mustTime(t, 21, 0, 0)); got != BillingWindowNone {
+		t.Fatalf("disabled rule still matches: %q", got)
+	}
+}
+
 func floatEqual(a, b float64) bool {
-	return math.Abs(a-b) < 1e-12
-}
-
-// TestOverlayDeepSeekPeakPresets 验证价格同步（models.dev 旧平价覆盖后）
-// overlay 会把 flash/pro 回盖成高峰预设。
-func TestOverlayDeepSeekPeakPresets(t *testing.T) {
-	// 模拟同步后 map 被旧平价覆盖
-	prices := map[string]model.LLMPrice{
-		"deepseek-v4-flash": {Input: 0.14, Output: 0.28, CacheRead: 0.0028, CacheWrite: 0},
-		"deepseek-v4-pro":   {Input: 0.42, Output: 0.84, CacheRead: 0.0035, CacheWrite: 0},
-		"gpt-4o":            {Input: 5, Output: 15, CacheRead: 2.5, CacheWrite: 0},
+	const eps = 1e-9
+	d := a - b
+	if d < 0 {
+		d = -d
 	}
-	restore := setPricesForTest(prices)
-	t.Cleanup(restore)
-
-	overlayDeepSeekPeakPresets()
-
-	want := model.LLMPrice{
-		Input: 3.0 / deepSeekCNYPerUSD, Output: 9.0 / deepSeekCNYPerUSD,
-		CacheRead: 0.10 / deepSeekCNYPerUSD, CacheWrite: 0,
-	}
-	got := llmPrice["deepseek-v4-flash"]
-	if !floatEqual(got.Input, want.Input) || !floatEqual(got.Output, want.Output) ||
-		!floatEqual(got.CacheRead, want.CacheRead) || !floatEqual(got.CacheWrite, want.CacheWrite) {
-		t.Fatalf("flash after overlay = %+v, want %+v", got, want)
-	}
-	// 非白名单模型不受影响
-	if g := llmPrice["gpt-4o"]; g.Input != 5 {
-		t.Fatalf("gpt-4o changed after overlay: %+v", g)
-	}
-}
-
-// TestPeakPresetPrice 验证白名单高峰预设取值。
-func TestPeakPresetPrice(t *testing.T) {
-	flash := PeakPresetPrice("deepseek-v4-flash")
-	if flash == nil || !floatEqual(flash.Input, 3.0/deepSeekCNYPerUSD) {
-		t.Fatalf("PeakPresetPrice(flash) = %+v", flash)
-	}
-	if p := PeakPresetPrice("deepseek-v4-pro"); p == nil || !floatEqual(p.Output, 27.0/deepSeekCNYPerUSD) {
-		t.Fatalf("PeakPresetPrice(pro) = %+v", p)
-	}
-	if p := PeakPresetPrice("deepseek/deepseek-v4-flash"); p != nil {
-		t.Fatalf("PeakPresetPrice(deepseek/deepseek-v4-flash) = %+v, want nil (仅精确键)", p)
-	}
-	if p := PeakPresetPrice("gpt-4o"); p != nil {
-		t.Fatalf("PeakPresetPrice(gpt-4o) = %+v, want nil", p)
-	}
+	return d < eps
 }

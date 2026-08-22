@@ -1,7 +1,6 @@
 package price
 
 import (
-	"math"
 	"testing"
 
 	"github.com/lingyuins/octopus/internal/model"
@@ -71,47 +70,6 @@ func TestMatchFallbackPrice(t *testing.T) {
 					tc.modelName, got.Input, prices[tc.want].Input, tc.want)
 			}
 		})
-	}
-}
-
-// TestDeepSeekV4PresetPrices 验证手工维护的 deepseek-v4 系列价格预设
-// （presets_manual.go）存在且四值正确（2026-08-17 起为官方高峰价），
-// 并验证 provider/ 前缀回落可命中。
-func TestDeepSeekV4PresetPrices(t *testing.T) {
-	llmPriceLock.RLock()
-	defer llmPriceLock.RUnlock()
-
-	cases := []struct {
-		model string
-		want  model.LLMPrice
-	}{
-		{"deepseek-v4-flash", model.LLMPrice{
-			Input: 3.0 / deepSeekCNYPerUSD, Output: 9.0 / deepSeekCNYPerUSD,
-			CacheRead: 0.10 / deepSeekCNYPerUSD, CacheWrite: 0,
-		}},
-		{"deepseek-v4-pro", model.LLMPrice{
-			Input: 9.0 / deepSeekCNYPerUSD, Output: 27.0 / deepSeekCNYPerUSD,
-			CacheRead: 0.30 / deepSeekCNYPerUSD, CacheWrite: 0,
-		}},
-	}
-	for _, tc := range cases {
-		p, ok := llmPrice[tc.model]
-		if !ok {
-			t.Fatalf("llmPrice[%q] missing, want %+v", tc.model, tc.want)
-		}
-		// 用 InDelta 校验，避免浮点除法手抄四舍五入再分叉
-		if math.Abs(p.Input-tc.want.Input) > 1e-9 ||
-			math.Abs(p.Output-tc.want.Output) > 1e-9 ||
-			math.Abs(p.CacheRead-tc.want.CacheRead) > 1e-9 ||
-			math.Abs(p.CacheWrite-tc.want.CacheWrite) > 1e-9 {
-			t.Errorf("llmPrice[%q] = %+v, want %+v", tc.model, p, tc.want)
-		}
-		// provider/ 前缀形式应能经 matchFallbackPrice 命中
-		got := matchFallbackPrice("deepseek/" + tc.model)
-		if got == nil || got.Input != tc.want.Input {
-			t.Errorf("matchFallbackPrice(\"deepseek/%s\") = %+v, want Input %v",
-				tc.model, got, tc.want.Input)
-		}
 	}
 }
 
