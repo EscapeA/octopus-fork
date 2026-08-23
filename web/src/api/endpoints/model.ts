@@ -409,6 +409,7 @@ export function useDeletePriceCategory() {
 /**
  * 峰谷计费规则（按时段缩放定价）。LLMPrice 为高峰价（USD/1M），
  * 空闲价 = 高峰价 × off_peak_mul；窗口为北京时间分钟（0-1440）。
+ * weekend_off_peak = true 时，北京时间周六/周日全天按空闲价计费。
  */
 export interface ModelPriceSchedule extends LLMPrice {
     id: number;
@@ -416,6 +417,7 @@ export interface ModelPriceSchedule extends LLMPrice {
     rule_type: 'exact' | 'prefix' | 'contains' | string;
     rule_value: string;
     off_peak_mul: number;
+    weekend_off_peak: boolean;
     window1_start: number;
     window1_end: number;
     window2_start: number;

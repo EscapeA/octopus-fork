@@ -69,6 +69,7 @@ interface FormState {
   cache_read: string
   cache_write: string
   off_peak_mul: string
+  weekend_off_peak: boolean
   w1_start: string
   w1_end: string
   w2_start: string
@@ -86,6 +87,7 @@ const EMPTY_FORM: FormState = {
   cache_read: '',
   cache_write: '',
   off_peak_mul: '0.5',
+  weekend_off_peak: true,
   w1_start: '09:00',
   w1_end: '12:00',
   w2_start: '14:00',
@@ -138,6 +140,7 @@ export function PeakScheduleSection() {
       cache_read: formatPrice(s.cache_read),
       cache_write: formatPrice(s.cache_write),
       off_peak_mul: String(s.off_peak_mul ?? 0.5),
+      weekend_off_peak: s.weekend_off_peak,
       w1_start: minutesToHHMM(s.window1_start),
       w1_end: minutesToHHMM(s.window1_end),
       w2_start: minutesToHHMM(s.window2_start),
@@ -167,6 +170,7 @@ export function PeakScheduleSection() {
       cache_read: parsePrice(form.cache_read),
       cache_write: parsePrice(form.cache_write),
       off_peak_mul: parsePrice(form.off_peak_mul),
+      weekend_off_peak: form.weekend_off_peak,
       window1_start: hhmmToMinutes(form.w1_start),
       window1_end: hhmmToMinutes(form.w1_end),
       window2_start: hhmmToMinutes(form.w2_start),
@@ -268,7 +272,14 @@ export function PeakScheduleSection() {
                     <TableCell className="text-right font-mono text-sm">{s.cache_read}</TableCell>
                     <TableCell className="text-right font-mono text-sm">{s.cache_write}</TableCell>
                     <TableCell className="text-right font-mono text-sm">×{s.off_peak_mul}</TableCell>
-                    <TableCell className="whitespace-nowrap font-mono text-xs">{windowLabel(s, t)}</TableCell>
+                    <TableCell className="whitespace-nowrap font-mono text-xs">
+                      {windowLabel(s, t)}
+                      {s.weekend_off_peak && (
+                        <Badge variant="outline" className="ml-1.5 border-sky-400/50 text-sky-500 dark:text-sky-400">
+                          {t('weekendOffPeakBadge')}
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">{s.sort_order}</TableCell>
                     <TableCell>
                       {s.enabled ? (
@@ -482,13 +493,26 @@ export function PeakScheduleSection() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Switch
-                id="ps-enabled"
-                checked={form.enabled}
-                onCheckedChange={(checked) => setForm({ ...form, enabled: checked })}
-              />
-              <Label htmlFor="ps-enabled">{t('enabled')}</Label>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="ps-weekend-off-peak"
+                  checked={form.weekend_off_peak}
+                  onCheckedChange={(checked) => setForm({ ...form, weekend_off_peak: checked })}
+                />
+                <Label htmlFor="ps-weekend-off-peak">
+                  {t('weekendOffPeak')}
+                  <Hint text={t('weekendOffPeakHint')} />
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="ps-enabled"
+                  checked={form.enabled}
+                  onCheckedChange={(checked) => setForm({ ...form, enabled: checked })}
+                />
+                <Label htmlFor="ps-enabled">{t('enabled')}</Label>
+              </div>
             </div>
           </div>
 

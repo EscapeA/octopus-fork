@@ -77,6 +77,9 @@ func TestSeedPriceSchedules(t *testing.T) {
 		flash.Window2Start != 840 || flash.Window2End != 1080 {
 		t.Fatalf("flash windows/mul = %+v", flash)
 	}
+	if !flash.WeekendOffPeak {
+		t.Fatalf("flash weekend_off_peak = false, want true (official rule since 2026-08-23)")
+	}
 	if !floatEqual(flash.Input, 0.44) || !floatEqual(flash.Output, 1.32) ||
 		!floatEqual(flash.CacheRead, 0.014) {
 		t.Fatalf("flash peak price = %+v", flash.LLMPrice)
@@ -147,6 +150,54 @@ func TestBillingWindowNoRule(t *testing.T) {
 	// 默认规则是 prefix，中转商前缀 olm/deepseek-v4-pro 不命中（除非用户配 contains）
 	if got := BillingWindow("olm/deepseek-v4-pro", mustTime(t, 10, 0, 0)); got != BillingWindowNone {
 		t.Fatalf("BillingWindow(olm/deepseek-v4-pro) = %q, want %q", got, BillingWindowNone)
+	}
+}
+
+// TestBillingWindowWeekend 周末（周六/周日，北京时间）全天按空闲价：
+// 即使落在原高峰窗口内也按 offpeak 计费（官方 2026-08-23 起规则）。
+func TestBillingWindowWeekend(t *testing.T) {
+	initScheduleTestDB(t)
+	// 2026-08-22 周六 / 2026-08-23 周日（北京时区）
+	weekend := []time.Time{
+		time.Date(2026, 8, 22, 10, 0, 0, 0, shanghaiLoc), // 周六 10:00（原高峰）
+		time.Date(2026, 8, 22, 0, 0, 0, 0, shanghaiLoc),  // 周六 00:00
+		time.Date(2026, 8, 22, 12, 0, 0, 0, shanghaiLoc), // 周六 12:00（原空闲）
+		time.Date(2026, 8, 23, 15, 0, 0, 0, shanghaiLoc), // 周日 15:00（原高峰）
+		time.Date(2026, 8, 23, 23, 59, 59, 0, shanghaiLoc),
+	}
+	for _, at := range weekend {
+		if got := BillingWindow("deepseek-v4-flash", at); got != BillingWindowOffPeak {
+			t.Errorf("BillingWindow(%v) = %q, want %q", at, got, BillingWindowOffPeak)
+		}
+	}
+	// 工作日（周一 2026-08-17）高峰时段仍为高峰
+	if got := BillingWindow("deepseek-v4-flash", mustTime(t, 10, 0, 0)); got != BillingWindowPeak {
+		t.Fatalf("Monday 10:00 = %q, want %q", got, BillingWindowPeak)
+	}
+	// 周末有效价 = 高峰 × 0.5（周六 10:00 原高峰价 0.44 → 0.22）
+	eff := EffectiveLLMPrice("deepseek-v4-flash", weekend[0])
+	if eff == nil || !floatEqual(eff.Input, 0.22) || !floatEqual(eff.Output, 0.66) {
+		t.Fatalf("weekend EffectiveLLMPrice = %+v, want Input 0.22 Output 0.66", eff)
+	}
+}
+
+// TestBillingWindowWeekendDisabled 关闭 WeekendOffPeak 后，周末回到按窗口判断。
+func TestBillingWindowWeekendDisabled(t *testing.T) {
+	initScheduleTestDB(t)
+	ctx := t.Context()
+	rows, err := llm.ListPriceSchedules(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	flash := rows[0]
+	flash.WeekendOffPeak = false
+	if _, err := llm.UpdatePriceSchedule(flash, ctx); err != nil {
+		t.Fatal(err)
+	}
+	// 周六 10:00 回到高峰窗口
+	at := time.Date(2026, 8, 22, 10, 0, 0, 0, shanghaiLoc)
+	if got := BillingWindow("deepseek-v4-flash", at); got != BillingWindowPeak {
+		t.Fatalf("weekend-off-peak disabled: BillingWindow = %q, want %q", got, BillingWindowPeak)
 	}
 }
 

@@ -18,6 +18,9 @@ type ModelPriceSchedule struct {
 	LLMPrice
 	// OffPeakMul 空闲倍率：空闲价 = 高峰价 × OffPeakMul（官方 DeepSeek 为 0.5）。
 	OffPeakMul float64 `json:"off_peak_mul" gorm:"not null;default:0.5"`
+	// WeekendOffPeak 周末全天按空闲价：北京时间周六/周日不区分高峰时段，
+	// 统一按 OffPeakMul 缩放（DeepSeek 官方 2026-08-23 起规则）。
+	WeekendOffPeak bool `json:"weekend_off_peak" gorm:"not null;default:false"`
 	// 高峰窗口（北京时间，自 00:00 起的分钟数，半开区间 [start, end)）。
 	// start == end（或 start > end）视为无效窗口，跳过；两窗口都无效时该规则全天空闲。
 	// 默认 09:00-12:00 与 14:00-18:00。

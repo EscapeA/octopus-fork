@@ -44,12 +44,19 @@ func inWindow(minutes, start, end int) bool {
 // BillingWindow 返回模型 modelName 在时刻 at 所属的计费窗口。
 // 规则驱动：命中启用的峰谷规则（llm.PriceScheduleMatch）按规则的北京窗口
 // 判定高峰/空闲；未命中返回 ""。窗口分钟按北京时间换算（模型名大小写不敏感）。
+// 规则开启 WeekendOffPeak 时，北京时间周六/周日全天按空闲计费（官方
+// 2026-08-23 起 DeepSeek 周末不再区分峰谷，统一低谷价）。
 func BillingWindow(modelName string, at time.Time) string {
 	sched := llm.PriceScheduleMatch(strings.ToLower(modelName))
 	if sched == nil {
 		return BillingWindowNone
 	}
 	local := at.In(deepSeekLocation())
+	if sched.WeekendOffPeak {
+		if wd := local.Weekday(); wd == time.Saturday || wd == time.Sunday {
+			return BillingWindowOffPeak
+		}
+	}
 	mins := local.Hour()*60 + local.Minute()
 	if inWindow(mins, sched.Window1Start, sched.Window1End) ||
 		inWindow(mins, sched.Window2Start, sched.Window2End) {

@@ -2704,7 +2704,7 @@
       "expand": "Expand details",
       "collapse": "Collapse details",
       "billingWindowBadge": "Peak/Off-peak ×0.5",
-      "billingWindowHint": "DeepSeek peak/off-peak billing: peak 9–12 / 14–18, otherwise half"
+      "billingWindowHint": "DeepSeek peak billing: weekday peaks 9–12 / 14–18, off-peak half price; weekends all-day off-peak"
     },
     "detail": {
       "pricing": "Pricing",
@@ -2818,6 +2818,9 @@
       "window2Start": "Window 2 Start",
       "window2End": "Window 2 End",
       "noWindow": "All-day off-peak",
+      "weekendOffPeak": "Weekend off-peak",
+      "weekendOffPeakHint": "Beijing-time Saturday & Sunday are billed at off-peak price all day, no peak windows (official since 2026-08-23).",
+      "weekendOffPeakBadge": "Weekend off-peak",
       "sortOrder": "Priority",
       "sortOrderHint": "Lower matches first.",
       "enabled": "Enabled",

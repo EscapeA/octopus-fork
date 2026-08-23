@@ -66,26 +66,29 @@ func SeedPriceSchedules(ctx context.Context) error {
 	}
 	// 官方美元价（USD/1M tokens，PEAK）：flash $0.44/$1.32/$0.014，
 	// pro $1.32/$3.96/$0.044；官方 OFF-PEAK 恰为 PEAK × 0.5。
-	// 窗口默认 09:00-12:00 / 14:00-18:00（北京时间）。
+	// 窗口默认 09:00-12:00 / 14:00-18:00（北京时间）；2026-08-23 起
+	// 周末（周六/周日）全天不再区分峰谷，统一按空闲价。
 	seed := []model.ModelPriceSchedule{
 		{
-			Name:         "deepseek-v4-flash",
-			RuleType:     string(model.ModelPriceCategoryRulePrefix),
-			RuleValue:    "deepseek-v4-flash",
-			LLMPrice:     model.LLMPrice{Input: 0.44, Output: 1.32, CacheRead: 0.014},
-			OffPeakMul:   0.5,
-			Window1Start: 540, Window1End: 720,
+			Name:           "deepseek-v4-flash",
+			RuleType:       string(model.ModelPriceCategoryRulePrefix),
+			RuleValue:      "deepseek-v4-flash",
+			LLMPrice:       model.LLMPrice{Input: 0.44, Output: 1.32, CacheRead: 0.014},
+			OffPeakMul:     0.5,
+			WeekendOffPeak: true,
+			Window1Start:   540, Window1End: 720,
 			Window2Start: 840, Window2End: 1080,
 			SortOrder: 1,
 			Enabled:   true,
 		},
 		{
-			Name:         "deepseek-v4-pro",
-			RuleType:     string(model.ModelPriceCategoryRulePrefix),
-			RuleValue:    "deepseek-v4-pro",
-			LLMPrice:     model.LLMPrice{Input: 1.32, Output: 3.96, CacheRead: 0.044},
-			OffPeakMul:   0.5,
-			Window1Start: 540, Window1End: 720,
+			Name:           "deepseek-v4-pro",
+			RuleType:       string(model.ModelPriceCategoryRulePrefix),
+			RuleValue:      "deepseek-v4-pro",
+			LLMPrice:       model.LLMPrice{Input: 1.32, Output: 3.96, CacheRead: 0.044},
+			OffPeakMul:     0.5,
+			WeekendOffPeak: true,
+			Window1Start:   540, Window1End: 720,
 			Window2Start: 840, Window2End: 1080,
 			SortOrder: 2,
 			Enabled:   true,

@@ -2660,7 +2660,7 @@
       "expand": "展开详情",
       "collapse": "收起详情",
       "billingWindowBadge": "峰谷 · 空闲×0.5",
-      "billingWindowHint": "DeepSeek 峰谷计费：高峰 9–12 / 14–18，其余时段减半"
+      "billingWindowHint": "DeepSeek 峰谷计费：工作日高峰 9–12 / 14–18，其余时段减半；周末全天按空闲价"
     },
     "detail": {
       "pricing": "价格信息",
@@ -2774,6 +2774,9 @@
       "window2Start": "时段2 开始",
       "window2End": "时段2 结束",
       "noWindow": "全天空闲",
+      "weekendOffPeak": "周末全天按空闲价",
+      "weekendOffPeakHint": "北京时间周六、周日全天统一按空闲价计费，不再区分高峰时段（DeepSeek 官方 2026-08-23 起）。",
+      "weekendOffPeakBadge": "周末空闲",
       "sortOrder": "优先级",
       "sortOrderHint": "数值越小越先匹配。",
       "enabled": "启用",
@@ -2895,7 +2898,7 @@
       "reasoningTokensUnit": "字",
       "billingWindowPeak": "高峰",
       "billingWindowOffPeak": "空闲",
-      "billingWindowHint": "DeepSeek 峰谷计费：高峰 9–12 / 14–18，其余减半"
+      "billingWindowHint": "DeepSeek 峰谷计费：工作日高峰 9–12 / 14–18，空闲减半；周末全天按空闲价"
     },
     "view": {
       "relay": "转发日志",
