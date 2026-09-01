@@ -1018,6 +1018,14 @@ func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http
 			case <-ctx.Done():
 				return
 			}
+			// OpenAI 兼容 SSE 的流结束标志：收到 [DONE] 即代表上游流已结束。
+			// 部分上游（如 B.AI/chat.b.ai）发完 [DONE] 后保持连接不关闭，octopus
+			// 若继续等 EOF 会一直阻塞，最终由客户端正常断开触发 clientDone 被误判
+			// 为失败（进而 key 冷却/熔断，误伤健康渠道）。收到 [DONE] 后主动结束
+			// 读取（defer close(results) 让主循环走正常结束路径）。
+			if strings.TrimSpace(ev.Data) == "[DONE]" {
+				return
+			}
 		}
 	}()
 
@@ -1055,6 +1063,14 @@ func (ra *relayAttempt) handleStreamResponse(ctx context.Context, response *http
 		select {
 		case <-clientDone:
 			if ra.streamSession == nil {
+				// 客户端断开。若已向客户端写出可见内容，视为正常完成——
+				// 客户端已拿到完整输出并主动关闭连接（或上游发完 [DONE] 后
+				// 保持连接不关闭，octopus 等不到 EOF），不应记为失败，否则会
+				// 触发 key 冷却/熔断，误伤健康渠道。
+				if hasVisibleContent {
+					log.Infof("client disconnected after visible content, treating as completed")
+					return nil
+				}
 				log.Infof("client disconnected, stopping stream")
 				return errClientDisconnected
 			}
