@@ -1739,18 +1739,21 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 					handlePoolAuthError(poolAccount, poolCredType, result.Decision.Code)
 				}
 
+				// Client disconnected — stop all retries immediately without
+				// recording failure hints, circuit-breaker failures, or attempting
+				// further channels. The client chose to stop, not the channel.
+				// 必须先于熔断记录：client disconnected 的 Decision.Scope 为 ScopeAbortAll，
+				// 若先执行熔断记录会把正常流结束误记为连续失败，触发误熔断（issue 修复）。
+				if errors.Is(result.Err, errClientDisconnected) {
+					req.metrics.Save(false, result.Err, currentAttempts)
+					return nil, result.Err
+				}
+
 				// 熔断器和 Auto 策略：在所有 adapter 类型（如 Responses→Chat）均失败后才记录，
 				// 避免 Response adapter 降级到 Chat 的过程中误触发熔断。
 				if channel.PoolID == 0 && (result.Decision.Scope == ScopeNextChannel || result.Decision.Scope == ScopeAbortAll) {
 					balancer.RecordFailure(channel.ID, usedKey.ID, resolvedModelName)
 					balancer.RecordAutoFailure(channel.ID, resolvedModelName)
-				}
-
-				// Client disconnected — stop all retries immediately without
-				// recording failure hints or attempting further channels.
-				if errors.Is(result.Err, errClientDisconnected) {
-					req.metrics.Save(false, result.Err, currentAttempts)
-					return nil, result.Err
 				}
 
 				// hold 路径：本轮 429 会立刻再试同一渠道，不写 failure hint / 不记 failedKey，
