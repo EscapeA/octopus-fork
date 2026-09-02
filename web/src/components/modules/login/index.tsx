@@ -51,7 +51,7 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
         await loginMutation.mutateAsync({
           username: username.trim(),
           password,
-          expire: 1440,
+          expire: 43200, // = 30 天（硬上限 maxJWTExpiryMinutes=43200，tailnet-only 访问无公网暴露）
         })
       } else {
         await apiKeyLoginMutation.mutateAsync(apiKey)
