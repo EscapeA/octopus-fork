@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, RefreshCw, Trash2, Key, LayoutList, ExternalLink, Loader2 } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, Key, LayoutList, ExternalLink, Loader2, ChevronDown } from 'lucide-react';
 import { useCallback, useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -652,8 +652,10 @@ const poolDateLabel = (val: string | null) => {
 };
 
 // SenseNova 专属积分池卡片（官方新版额度面板样式）
-// 每池一张卡：本周余额大字 + 5h 窗口进度条 + 周额度 + 活动固定积分
-function SenseNovaPoolCard({ pool }: { pool: TokenPlanPool }) {
+// 每池一张卡：默认折叠为单行摘要（池名 + 本周余额），点击展开完整详情
+// 深色模式：活动固定积分等浅色块均提供 dark: 变体
+function SenseNovaPoolCard({ pool, defaultOpen = false }: { pool: TokenPlanPool; defaultOpen?: boolean }) {
+    const [open, setOpen] = useState(defaultOpen);
     const isDefault = pool.pool_type === 'default';
     // 主题色：default 紫色系 / dedicated 橙色系（与官方面板一致）
     const dotColor = isDefault ? 'bg-[#5b5bd6]' : 'bg-[#f0663f]';
@@ -669,96 +671,118 @@ function SenseNovaPoolCard({ pool }: { pool: TokenPlanPool }) {
     const showGrant = pool.grant_balance > 0 || pool.nearest_grant_expiry != null;
 
     return (
-        <div className="rounded-xl border border-border bg-card p-4">
-            {/* 头部：池名 + 可用范围 */}
-            <div className="flex items-center justify-between gap-2 mb-3">
-                <div className="flex items-center gap-1.5 min-w-0">
+        <div className="rounded-xl border border-border bg-card">
+            {/* 折叠头：点击展开/收起，收起时右侧显示本周余额摘要 */}
+            <button
+                type="button"
+                onClick={() => setOpen((v) => !v)}
+                className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/20"
+            >
+                <span className="flex items-center gap-1.5 min-w-0">
                     <span className={`size-2 shrink-0 rounded-full ${dotColor}`} />
-                    <h4 className="font-semibold text-sm truncate">{pool.name}</h4>
-                </div>
-                <span className="text-[11px] text-muted-foreground shrink-0 truncate">{badgeText}</span>
-            </div>
-
-            {/* 本周余额（主数字） */}
-            <div className="mb-3">
-                <p className="text-[11px] text-muted-foreground mb-0.5">周期刷新 · 本周余额</p>
-                <p className="text-2xl font-bold leading-tight tabular-nums">{formatPoolNumber(pool.seven_day_remaining)}</p>
-            </div>
-
-            {/* 5h 窗口 */}
-            <div className="rounded-lg bg-muted/50 p-2.5 mb-2">
-                <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs text-muted-foreground">5h 窗口可用</span>
-                    {pool.five_hour_reset_at && (
-                        <span className="text-[11px] text-muted-foreground tabular-nums">
-                            5h窗口重置:{poolResetLabel(pool.five_hour_reset_at)}
-                        </span>
+                    <span className="font-semibold text-sm truncate">{pool.name}</span>
+                    <span className="hidden sm:inline text-[11px] text-muted-foreground truncate">{badgeText}</span>
+                </span>
+                <span className="flex items-center gap-2 shrink-0">
+                    {!open && (
+                        <span className="text-sm font-bold tabular-nums">{formatPoolNumber(pool.seven_day_remaining)}</span>
                     )}
-                </div>
-                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                        className={`h-full rounded-full ${barColor} transition-all`}
-                        style={{ width: `${fivePct}%` }}
+                    <ChevronDown
+                        className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
                     />
-                </div>
-                <div className="flex items-center justify-between mt-1.5 text-[11px] text-muted-foreground tabular-nums">
-                    <span>
-                        {formatPoolNumber(pool.five_hour_remaining)} / {formatPoolNumber(pool.five_hour_limit)}
-                    </span>
-                    <span>{fivePct.toFixed(1)}%</span>
-                </div>
-            </div>
+                </span>
+            </button>
 
-            {/* 周额度 + 下次重置 */}
-            <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-lg bg-muted/50 p-2.5">
-                    <p className="text-[11px] text-muted-foreground mb-0.5">周额度</p>
-                    <p className="text-sm font-semibold tabular-nums">{formatPoolNumber(pool.seven_day_limit)}</p>
-                </div>
-                <div className="rounded-lg bg-muted/50 p-2.5">
-                    <p className="text-[11px] text-muted-foreground mb-0.5">下次重置</p>
-                    <p className="text-sm font-semibold tabular-nums">{poolResetLabel(pool.seven_day_reset_at)}</p>
-                </div>
-            </div>
-
-            {/* 活动固定积分 */}
-            {showGrant && (
-                <div className={`mt-2 rounded-lg p-2.5 ${isDefault ? 'bg-[#f2f3ff]' : 'bg-[#fff4e9]'}`}>
-                    <div className="flex items-center gap-1.5 mb-2">
-                        <span className={`size-1.5 shrink-0 rounded-full ${dotColor}`} />
-                        <p className="text-xs font-semibold">活动固定积分</p>
+            {/* 展开详情 */}
+            {open && (
+                <div className="px-4 pb-4 pt-0.5">
+                    {/* 可用范围（移动端折叠头隐藏时在此补上） */}
+                    <div className="flex items-center justify-between gap-2 mb-2 sm:hidden">
+                        <span className="text-[11px] text-muted-foreground truncate">{badgeText}</span>
                     </div>
+
+                    {/* 本周余额（主数字） */}
+                    <div className="mb-3">
+                        <p className="text-[11px] text-muted-foreground mb-0.5">周期刷新 · 本周余额</p>
+                        <p className="text-2xl font-bold leading-tight tabular-nums">{formatPoolNumber(pool.seven_day_remaining)}</p>
+                    </div>
+
+                    {/* 5h 窗口 */}
+                    <div className="rounded-lg bg-muted/50 p-2.5 mb-2">
+                        <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-xs text-muted-foreground">5h 窗口可用</span>
+                            {pool.five_hour_reset_at && (
+                                <span className="text-[11px] text-muted-foreground tabular-nums">
+                                    5h窗口重置:{poolResetLabel(pool.five_hour_reset_at)}
+                                </span>
+                            )}
+                        </div>
+                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                            <div
+                                className={`h-full rounded-full ${barColor} transition-all`}
+                                style={{ width: `${fivePct}%` }}
+                            />
+                        </div>
+                        <div className="flex items-center justify-between mt-1.5 text-[11px] text-muted-foreground tabular-nums">
+                            <span>
+                                {formatPoolNumber(pool.five_hour_remaining)} / {formatPoolNumber(pool.five_hour_limit)}
+                            </span>
+                            <span>{fivePct.toFixed(1)}%</span>
+                        </div>
+                    </div>
+
+                    {/* 周额度 + 下次重置 */}
                     <div className="grid grid-cols-2 gap-2">
-                        <div>
-                            <p className="text-[11px] text-muted-foreground">总量余额</p>
-                            <p className="text-lg font-bold leading-none tabular-nums mt-1">{formatPoolNumber(pool.grant_balance)}</p>
+                        <div className="rounded-lg bg-muted/50 p-2.5">
+                            <p className="text-[11px] text-muted-foreground mb-0.5">周额度</p>
+                            <p className="text-sm font-semibold tabular-nums">{formatPoolNumber(pool.seven_day_limit)}</p>
                         </div>
-                        <div className="border-l border-border pl-2">
-                            <div className="flex flex-wrap items-center gap-1">
-                                <p className="text-[11px] text-muted-foreground">最近一次到期</p>
-                                {pool.nearest_grant_expiry && (
-                                    <span className="inline-flex rounded bg-[#fff4d6] px-1.5 py-0.5 text-[11px] font-medium text-[#c47a1a] tabular-nums">
-                                        {poolDateLabel(pool.nearest_grant_expiry)}
-                                    </span>
-                                )}
-                            </div>
-                            <p className="text-lg font-bold leading-none tabular-nums mt-1 text-[#4f56d8]">
-                                {formatPoolNumber(pool.nearest_grant_expiring_balance)}
-                            </p>
+                        <div className="rounded-lg bg-muted/50 p-2.5">
+                            <p className="text-[11px] text-muted-foreground mb-0.5">下次重置</p>
+                            <p className="text-sm font-semibold tabular-nums">{poolResetLabel(pool.seven_day_reset_at)}</p>
                         </div>
                     </div>
+
+                    {/* 活动固定积分（深色模式适配：浅色底 → 深紫/深橙调） */}
+                    {showGrant && (
+                        <div className={`mt-2 rounded-lg p-2.5 ${isDefault ? 'bg-[#f2f3ff] dark:bg-[#2b2b52]' : 'bg-[#fff4e9] dark:bg-[#3a2b1f]'}`}>
+                            <div className="flex items-center gap-1.5 mb-2">
+                                <span className={`size-1.5 shrink-0 rounded-full ${dotColor}`} />
+                                <p className="text-xs font-semibold">活动固定积分</p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <p className="text-[11px] text-muted-foreground">总量余额</p>
+                                    <p className="text-lg font-bold leading-none tabular-nums mt-1">{formatPoolNumber(pool.grant_balance)}</p>
+                                </div>
+                                <div className="border-l border-border pl-2">
+                                    <div className="flex flex-wrap items-center gap-1">
+                                        <p className="text-[11px] text-muted-foreground">最近一次到期</p>
+                                        {pool.nearest_grant_expiry && (
+                                            <span className="inline-flex rounded bg-[#fff4d6] dark:bg-[#3d3517] px-1.5 py-0.5 text-[11px] font-medium text-[#c47a1a] dark:text-[#e8b45a] tabular-nums">
+                                                {poolDateLabel(pool.nearest_grant_expiry)}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-lg font-bold leading-none tabular-nums mt-1 text-[#4f56d8] dark:text-[#9da3ff]">
+                                        {formatPoolNumber(pool.nearest_grant_expiring_balance)}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
     );
 }
 
-// SenseNova 分池卡片容器：provider 级包裹，多池竖排
+// SenseNova 分池卡片容器：provider 级包裹，多池竖排；default 池默认展开，其余折叠
 function SenseNovaPoolCards({ pools }: { pools: TokenPlanPool[] }) {
     return (
         <div className="grid grid-cols-1 gap-2">
             {pools.map((pool) => (
-                <SenseNovaPoolCard key={pool.id} pool={pool} />
+                <SenseNovaPoolCard key={pool.id} pool={pool} defaultOpen={pool.pool_type === 'default'} />
             ))}
         </div>
     );
