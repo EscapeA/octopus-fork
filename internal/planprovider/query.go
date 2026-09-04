@@ -90,6 +90,8 @@ type TokenPlanResult struct {
 	FiveHourResetAt *time.Time `json:"five_hour_reset_at"`
 	// 各模型明细
 	Models []TokenPlanModelUsage `json:"models,omitempty"`
+	// Pools 分池明细（仅 sensenova_plan 新版 pool-usage 接口返回）
+	Pools []model.TokenPlanPoolUsage `json:"pools,omitempty"`
 }
 
 // TokenPlanModelUsage 单个模型用量
@@ -742,6 +744,7 @@ func querySenseNovaPlanTokenPlan(ctx context.Context, token string) (*TokenPlanR
 			ID         string           `json:"id"`
 			Name       string           `json:"name"`
 			PoolType   string           `json:"pool_type"`
+			ModelIDs   []string         `json:"model_ids"`
 			Window5H   *senseNovaWindow `json:"window_5h"`
 			Window7D   *senseNovaWindow `json:"window_7d"`
 			GrantBalance            string `json:"grant_balance"`
@@ -773,24 +776,42 @@ func querySenseNovaPlanTokenPlan(ctx context.Context, token string) (*TokenPlanR
 	var fiveReset, weeklyReset *time.Time
 	var nearestExpiry *time.Time
 	for _, p := range data.Pools {
+		pool := model.TokenPlanPoolUsage{
+			ID:       p.ID,
+			Name:     p.Name,
+			PoolType: p.PoolType,
+			ModelIDs: p.ModelIDs,
+		}
 		if p.Window5H != nil {
-			result.FiveHourTotal += parseF(p.Window5H.Limit)
-			result.FiveHourUsed += parseF(p.Window5H.Used)
-			if r := parseReset(p.Window5H.ResetAt); r != nil && (fiveReset == nil || r.After(*fiveReset)) {
+			pool.FiveHourLimit = parseF(p.Window5H.Limit)
+			pool.FiveHourUsed = parseF(p.Window5H.Used)
+			pool.FiveHourRemain = parseF(p.Window5H.Remaining)
+			pool.FiveHourResetAt = parseReset(p.Window5H.ResetAt)
+			result.FiveHourTotal += pool.FiveHourLimit
+			result.FiveHourUsed += pool.FiveHourUsed
+			if r := pool.FiveHourResetAt; r != nil && (fiveReset == nil || r.After(*fiveReset)) {
 				fiveReset = r
 			}
 		}
 		if p.Window7D != nil {
-			result.WeeklyTotal += parseF(p.Window7D.Limit)
-			result.WeeklyUsed += parseF(p.Window7D.Used)
-			if r := parseReset(p.Window7D.ResetAt); r != nil && (weeklyReset == nil || r.After(*weeklyReset)) {
+			pool.SevenDayLimit = parseF(p.Window7D.Limit)
+			pool.SevenDayUsed = parseF(p.Window7D.Used)
+			pool.SevenDayRemain = parseF(p.Window7D.Remaining)
+			pool.SevenDayResetAt = parseReset(p.Window7D.ResetAt)
+			result.WeeklyTotal += pool.SevenDayLimit
+			result.WeeklyUsed += pool.SevenDayUsed
+			if r := pool.SevenDayResetAt; r != nil && (weeklyReset == nil || r.After(*weeklyReset)) {
 				weeklyReset = r
 			}
 		}
-		result.QuotaTotal += parseF(p.GrantBalance)
-		if r := parseReset(p.NearestGrantExpiry); r != nil && (nearestExpiry == nil || r.Before(*nearestExpiry)) {
+		pool.GrantBalance = parseF(p.GrantBalance)
+		pool.NearestGrantExpiry = parseReset(p.NearestGrantExpiry)
+		pool.NearestGrantExpiringBal = parseF(p.NearestGrantExpiringBal)
+		result.QuotaTotal += pool.GrantBalance
+		if r := pool.NearestGrantExpiry; r != nil && (nearestExpiry == nil || r.Before(*nearestExpiry)) {
 			nearestExpiry = r
 		}
+		result.Pools = append(result.Pools, pool)
 	}
 	result.FiveHourResetAt = fiveReset
 	result.WeeklyResetAt = weeklyReset

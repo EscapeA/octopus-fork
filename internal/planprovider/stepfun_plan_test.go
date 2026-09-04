@@ -266,6 +266,36 @@ func TestQuerySenseNovaPlanTokenPlan_Success(t *testing.T) {
 	if result.QuotaResetAt == nil || result.QuotaResetAt.Unix() != 1791025200 {
 		t.Errorf("QuotaResetAt = %v, want 1791025200", result.QuotaResetAt)
 	}
+	// 分池明细：2 池
+	if len(result.Pools) != 2 {
+		t.Fatalf("Pools len = %d, want 2", len(result.Pools))
+	}
+	p0 := result.Pools[0]
+	if p0.ID != "pool_default" || p0.Name != "通用积分池" || p0.PoolType != "default" {
+		t.Errorf("pool[0] = %+v, want default 通用积分池", p0)
+	}
+	if p0.SevenDayLimit != 600000 || p0.SevenDayUsed != 354.84768 || p0.SevenDayRemain != 599645.15232 {
+		t.Errorf("pool[0] SevenDay = %+v", p0)
+	}
+	if p0.FiveHourLimit != 60000 || p0.FiveHourRemain != 60000 {
+		t.Errorf("pool[0] FiveHour = %+v", p0)
+	}
+	if p0.GrantBalance != 1908.9024 || p0.NearestGrantExpiringBal != 0.602 {
+		t.Errorf("pool[0] grant = %+v", p0)
+	}
+	if p0.NearestGrantExpiry == nil || p0.NearestGrantExpiry.Unix() != 1791025200 {
+		t.Errorf("pool[0] NearestGrantExpiry = %v, want 1791025200", p0.NearestGrantExpiry)
+	}
+	if len(p0.ModelIDs) != 2 || p0.ModelIDs[0] != "deepseek-v4-flash" {
+		t.Errorf("pool[0] ModelIDs = %v", p0.ModelIDs)
+	}
+	p1 := result.Pools[1]
+	if p1.PoolType != "dedicated" || p1.Name != "Flash-Lite积分池" {
+		t.Errorf("pool[1] = %+v, want dedicated Flash-Lite积分池", p1)
+	}
+	if p1.GrantBalance != 0 || p1.NearestGrantExpiry != nil {
+		t.Errorf("pool[1] grant = %+v, want 0/nil", p1)
+	}
 }
 
 func TestQuerySenseNovaPlanTokenPlan_EmptyToken(t *testing.T) {
