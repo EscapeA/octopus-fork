@@ -65,3 +65,40 @@ func TestPrepareInternalRequestForOutbound_IsScopedPerChannelAttempt(t *testing.
 		t.Fatalf("plain transformer metadata = %#v, want chat endpoint type", plain.TransformerMetadata)
 	}
 }
+
+func TestApplyParamOverride_ReasoningEffort(t *testing.T) {
+	effort := `{"reasoning_effort":"xhigh"}`
+
+	// 客户端未设置 → 应被覆盖应用
+	req := &transmodel.InternalLLMRequest{Model: "sensenova-6.8-flash-lite"}
+	applyParamOverride(&appmodel.Channel{ID: 65, ParamOverride: &effort}, req)
+	if req.ReasoningEffort != "xhigh" {
+		t.Fatalf("ReasoningEffort = %q, want %q", req.ReasoningEffort, "xhigh")
+	}
+
+	// 客户端已设置 → 客户端优先，不得被覆盖
+	clientReq := &transmodel.InternalLLMRequest{Model: "m", ReasoningEffort: "medium"}
+	applyParamOverride(&appmodel.Channel{ID: 65, ParamOverride: &effort}, clientReq)
+	if clientReq.ReasoningEffort != "medium" {
+		t.Fatalf("ReasoningEffort = %q, want client value %q preserved", clientReq.ReasoningEffort, "medium")
+	}
+
+	// 非字符串值 → 静默丢弃，不 panic
+	bad := `{"reasoning_effort":123}`
+	numReq := &transmodel.InternalLLMRequest{Model: "m"}
+	applyParamOverride(&appmodel.Channel{ID: 65, ParamOverride: &bad}, numReq)
+	if numReq.ReasoningEffort != "" {
+		t.Fatalf("ReasoningEffort = %q, want empty after non-string override", numReq.ReasoningEffort)
+	}
+
+	// 与既有字段同时存在，互不干扰
+	both := `{"reasoning_effort":"low","temperature":0.2}`
+	bothReq := &transmodel.InternalLLMRequest{Model: "m"}
+	applyParamOverride(&appmodel.Channel{ID: 65, ParamOverride: &both}, bothReq)
+	if bothReq.ReasoningEffort != "low" {
+		t.Fatalf("ReasoningEffort = %q, want %q", bothReq.ReasoningEffort, "low")
+	}
+	if bothReq.Temperature == nil || *bothReq.Temperature != 0.2 {
+		t.Fatalf("Temperature = %#v, want 0.2", bothReq.Temperature)
+	}
+}

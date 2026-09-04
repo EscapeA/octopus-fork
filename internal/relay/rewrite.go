@@ -78,6 +78,12 @@ func applyParamOverride(channel *appmodel.Channel, request *transmodel.InternalL
 			request.TopP = &val
 		}
 	}
+	if v, ok := overrides["reasoning_effort"]; ok && request.ReasoningEffort == "" {
+		var val string
+		if err := jsonAPI.Unmarshal(v, &val); err == nil {
+			request.ReasoningEffort = val
+		}
+	}
 }
 
 func attachRelayGroupEndpointMetadata(request *transmodel.InternalLLMRequest, groupEndpointType string) {
