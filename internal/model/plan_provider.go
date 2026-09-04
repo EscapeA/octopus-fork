@@ -169,7 +169,7 @@ var PlanProviderCategories = []PlanProviderCategoryInfo{
 		Type:        PlanProviderTypeTokenPlan,
 		BaseURL:     "https://platform.sensenova.cn",
 		Models:      "sensenova-6.7-flash-lite,sensenova-u1-fast,deepseek-v4-flash",
-		Description: "SenseNova Coding Plan 套餐用量查询（控制台 Bearer Token 必填，约 3 小时有效期）。可选填 API Key 自动创建/复用转发渠道（接入点 token.sensenova.cn/v1）",
+		Description: "SenseNova Coding Plan 套餐用量查询（新版 pool-usage 接口，控制台 Bearer Token 必填，约 3 小时有效期；可配账号密码自动续期）。可选填 API Key 自动创建/复用转发渠道（接入点 token.sensenova.cn/v1）",
 		HelpURL:     "https://platform.sensenova.cn/console",
 	},
 	{
