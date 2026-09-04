@@ -777,12 +777,12 @@ function SenseNovaPoolCard({ pool, defaultOpen = false }: { pool: TokenPlanPool;
     );
 }
 
-// SenseNova 分池卡片容器：provider 级包裹，多池竖排；default 池默认展开，其余折叠
+// SenseNova 分池卡片容器：provider 级包裹，多池竖排；默认全部折叠，点击展开
 function SenseNovaPoolCards({ pools }: { pools: TokenPlanPool[] }) {
     return (
         <div className="grid grid-cols-1 gap-2">
             {pools.map((pool) => (
-                <SenseNovaPoolCard key={pool.id} pool={pool} defaultOpen={pool.pool_type === 'default'} />
+                <SenseNovaPoolCard key={pool.id} pool={pool} />
             ))}
         </div>
     );
