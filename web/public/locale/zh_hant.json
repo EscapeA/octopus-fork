@@ -3087,6 +3087,8 @@
       "channelProxyPlaceholder": "可選：僅對該供應源生效（覆蓋全域代理）",
       "paramOverride": "參數覆蓋",
       "paramOverridePlaceholder": "可選：JSON 字串，用於覆蓋請求參數",
+      "paramOverrideForce": "強制覆蓋",
+      "paramOverrideForceHint": "開啟後白名單欄位（目前僅 reasoning_effort）無視客戶端取值強制覆蓋；關閉時客戶端優先。",
       "requestRewrite": "請求重寫",
       "requestRewriteHint": "可選：為格式要求較嚴格的上游啟用相容性請求重寫",
       "requestRewriteEnabled": "啟用重寫",

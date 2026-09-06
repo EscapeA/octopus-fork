@@ -455,6 +455,10 @@ func Update(req *model.ChannelUpdateRequest, ctx context.Context) (*model.Channe
 		selectFields = append(selectFields, "param_override")
 		updates.ParamOverride = req.ParamOverride
 	}
+	if req.ParamOverrideForce != nil {
+		selectFields = append(selectFields, "param_override_force")
+		updates.ParamOverrideForce = *req.ParamOverrideForce
+	}
 	if req.RequestRewrite != nil {
 		selectFields = append(selectFields, "request_rewrite")
 		updates.RequestRewrite = req.RequestRewrite

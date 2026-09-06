@@ -72,6 +72,7 @@ export interface ChannelFormData {
     custom_header: Channel['custom_header'];
     channel_proxy: string;
     param_override: string;
+    param_override_force: boolean;
     request_rewrite: RequestRewriteConfig;
     keys: ChannelKeyFormItem[];
     model: string;
@@ -761,6 +762,7 @@ export function ChannelForm({
         auto_sync: formData.auto_sync,
         auto_group: formData.auto_group,
         param_override: formData.param_override.trim() || '',
+        param_override_force: formData.param_override_force,
     });
 
     const handleTestChannel = () => {
@@ -1516,9 +1518,19 @@ export function ChannelForm({
                         </div>
 
                         <div className={fieldGroupClassName}>
-                            <label htmlFor={`${idPrefix}-param-override`} className={labelClassName}>
-                                {t('paramOverride')}
-                            </label>
+                            <div className="flex items-center justify-between gap-3">
+                                <label htmlFor={`${idPrefix}-param-override`} className={labelClassName}>
+                                    {t('paramOverride')}
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <Switch
+                                        checked={formData.param_override_force}
+                                        onCheckedChange={(checked) => onFormDataChange({ ...formData, param_override_force: checked })}
+                                    />
+                                    <span className="text-sm text-card-foreground whitespace-nowrap">{t('paramOverrideForce')}</span>
+                                    <Hint text={t('paramOverrideForceHint')} />
+                                </label>
+                            </div>
                             <textarea
                                 id={`${idPrefix}-param-override`}
                                 value={formData.param_override}

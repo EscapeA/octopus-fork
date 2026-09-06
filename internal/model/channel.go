@@ -94,6 +94,9 @@ type Channel struct {
 	KeySelectionStrategy string                `json:"key_selection_strategy" gorm:"type:varchar(16);not null;default:''"`
 	CustomHeader         []CustomHeader        `json:"custom_header" gorm:"serializer:json"`
 	ParamOverride        *string               `json:"param_override"`
+	// ParamOverrideForce 参数覆盖强制开关：开启后白名单字段（见 relay.paramOverrideForceWhitelist）
+	// 无视客户端取值强制覆盖；关闭时所有字段保持客户端优先（客户端没传才填）。
+	ParamOverrideForce   bool                  `json:"param_override_force" gorm:"not null;default:false"`
 	ChannelProxy         *string               `json:"channel_proxy,omitempty" gorm:"column:channel_proxy"`
 	RequestRewrite       *RequestRewriteConfig `json:"request_rewrite" gorm:"serializer:json"`
 	Stats                *StatsChannel         `json:"stats,omitempty" gorm:"foreignKey:ChannelID"`
@@ -188,6 +191,7 @@ type ChannelUpdateRequest struct {
 	CustomHeader         *[]CustomHeader        `json:"custom_header,omitempty"`
 	ChannelProxy         *string                `json:"channel_proxy,omitempty"`
 	ParamOverride        *string                `json:"param_override,omitempty"`
+	ParamOverrideForce   *bool                  `json:"param_override_force,omitempty"`
 	RequestRewrite       *RequestRewriteConfig  `json:"request_rewrite,omitempty"`
 	MatchRegex           *string                `json:"match_regex,omitempty"`
 	PoolID               *int                   `json:"pool_id,omitempty"`

@@ -3131,6 +3131,8 @@
       "channelProxyPlaceholder": "Optional: proxy for this channel (overrides global proxy)",
       "paramOverride": "Param Override",
       "paramOverridePlaceholder": "Optional: JSON string to override request params",
+      "paramOverrideForce": "Force Override",
+      "paramOverrideForceHint": "When enabled, whitelisted fields (currently reasoning_effort only) override client values; disabled keeps client precedence.",
       "requestRewrite": "Request Rewrite",
       "requestRewriteHint": "Optional compatibility rewrite for stricter upstream request formats",
       "requestRewriteEnabled": "Enable rewrite",

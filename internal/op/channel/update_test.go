@@ -20,9 +20,10 @@ type advancedFields struct {
 	autoGroup            model.AutoGroupType
 	customHeader         []model.CustomHeader
 	poolID               int
+	paramOverrideForce   bool
 }
 
-// advancedUpdateRequest 构造携带全部 9 个高级设置字段的更新请求（回归 #182）。
+// advancedUpdateRequest 构造携带全部 10 个高级设置字段的更新请求（回归 #182）。
 func advancedUpdateRequest(id int) (*model.ChannelUpdateRequest, advancedFields) {
 	f := advancedFields{
 		autoSync:             true,
@@ -36,7 +37,8 @@ func advancedUpdateRequest(id int) (*model.ChannelUpdateRequest, advancedFields)
 			{HeaderKey: "X-Example-Header", HeaderValue: "example-value"},
 			{HeaderKey: "X-Second", HeaderValue: "second"},
 		},
-		poolID: 42,
+		poolID:             42,
+		paramOverrideForce: true,
 	}
 	req := &model.ChannelUpdateRequest{
 		ID:                   id,
@@ -49,11 +51,12 @@ func advancedUpdateRequest(id int) (*model.ChannelUpdateRequest, advancedFields)
 		AutoGroup:            &f.autoGroup,
 		CustomHeader:         &f.customHeader,
 		PoolID:               &f.poolID,
+		ParamOverrideForce:   &f.paramOverrideForce,
 	}
 	return req, f
 }
 
-// assertAdvancedFields 断言渠道上的 9 个高级设置字段与期望值一致。
+// assertAdvancedFields 断言渠道上的 10 个高级设置字段与期望值一致。
 func assertAdvancedFields(t *testing.T, ch *model.Channel, want advancedFields) {
 	t.Helper()
 	if !ch.AutoSync || !ch.SkipModelTest || !ch.Disposable {
@@ -82,6 +85,9 @@ func assertAdvancedFields(t *testing.T, ch *model.Channel, want advancedFields) 
 	}
 	if ch.PoolID != want.poolID {
 		t.Fatalf("PoolID = %d, want %d", ch.PoolID, want.poolID)
+	}
+	if ch.ParamOverrideForce != want.paramOverrideForce {
+		t.Fatalf("ParamOverrideForce = %v, want %v", ch.ParamOverrideForce, want.paramOverrideForce)
 	}
 }
 
