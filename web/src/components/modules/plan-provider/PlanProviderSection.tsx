@@ -25,6 +25,16 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
     Tooltip,
     TooltipContent,
     TooltipTrigger,
@@ -907,6 +917,8 @@ function ProviderCard({
     compact?: boolean;
 }) {
     const t = useTranslations('hub');
+    // 删除二次确认弹窗
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
     // Find category info for display
     const isBalance = provider.provider_type === 'balance';
@@ -923,6 +935,7 @@ function ProviderCard({
     ].filter((tier) => tier.total > 0 && !(isMiMo && tier.key !== 'monthly'));
 
     return (
+        <>
         <div className={cn(
             'rounded-xl border border-border bg-card p-4 transition-colors',
             !provider.channel_enabled && 'opacity-60'
@@ -990,7 +1003,7 @@ function ProviderCard({
                                 size="icon"
                                 variant="ghost"
                                 className="size-8 rounded-lg text-destructive hover:text-destructive"
-                                onClick={() => onDelete(provider.id)}
+                                onClick={() => setDeleteConfirmOpen(true)}
                                 disabled={isRefreshing || isDeleting}
                             >
                                 <Trash2 className="size-3.5" />
@@ -1156,6 +1169,31 @@ function ProviderCard({
                 </div>
             )}
         </div>
+
+            <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+                <AlertDialogContent className="rounded-xl">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t('plan.delete') || '删除'}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {t('plan.confirmDelete') || '确认删除该监控吗？此操作不可撤销，并会删除关联渠道。'}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>{t('plan.cancel') || '取消'}</AlertDialogCancel>
+                        <AlertDialogAction
+                            variant="destructive"
+                            onClick={(event) => {
+                                event.preventDefault();
+                                setDeleteConfirmOpen(false);
+                                onDelete(provider.id);
+                            }}
+                        >
+                            {t('plan.delete') || '删除'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 }
 

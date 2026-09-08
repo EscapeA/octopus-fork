@@ -136,6 +136,8 @@
       "add": "新增並查詢",
       "refresh": "重新整理",
       "delete": "刪除",
+      "confirmDelete": "確認刪除此監控嗎？此操作不可撤銷，並會刪除關聯渠道。",
+      "cancel": "取消",
       "balanceAvailable": "可用餘額",
       "balanceUsed": "已用額度",
       "totalTokens": "歷史 Token",

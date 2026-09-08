@@ -136,6 +136,8 @@
       "add": "Add & Query",
       "refresh": "Refresh",
       "delete": "Delete",
+      "confirmDelete": "Delete this monitor? This cannot be undone and will delete the associated channel.",
+      "cancel": "Cancel",
       "balanceAvailable": "Available Balance",
       "balanceUsed": "Used",
       "totalTokens": "Total Tokens",
