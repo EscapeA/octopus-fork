@@ -201,7 +201,7 @@ function NavigationPreferences() {
                                                     ref={draggableProvided.innerRef}
                                                     {...draggableProvided.draggableProps}
                                                     className={cn(
-                                                        'flex items-center justify-between gap-3 rounded-lg border-border/30 bg-card px-3 py-3 shadow-sm transition-[transform,border-color,box-shadow]',
+                                                        'flex items-center justify-between gap-3 rounded-lg border-border/30 bg-card px-3 py-3 shadow-sm transition-[border-color,box-shadow]',
                                                         snapshot.isDragging && 'border-primary/40 shadow-md'
                                                     )}
                                                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -387,7 +387,7 @@ function SubTabPreferences() {
                                                                 ref={draggableProvided.innerRef}
                                                                 {...draggableProvided.draggableProps}
                                                                 className={cn(
-                                                                    'flex items-center justify-between gap-2 rounded-lg border-border/30 bg-card px-3 py-2 shadow-sm transition-[transform,border-color,box-shadow]',
+                                                                    'flex items-center justify-between gap-2 rounded-lg border-border/30 bg-card px-3 py-2 shadow-sm transition-[border-color,box-shadow]',
                                                                     snapshot.isDragging && 'border-primary/40 shadow-md'
                                                                 )}
                                                                 style={draggableProvided.draggableProps.style as React.CSSProperties}

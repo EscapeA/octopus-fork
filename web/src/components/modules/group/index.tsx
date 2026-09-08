@@ -132,13 +132,14 @@ export function Group() {
                     <GroupedRouteModelView categories={groupedCategories} />
                 ) : (
                     <VirtualizedGrid
-                        items={visibleGroups}
-                        columns={{ default: 1, sm: 2, md: 2, lg: 3 }}
-                        estimateItemHeight={72}
-                        getItemKey={(group, index) => group.id ?? `group-${index}`}
-                        renderItem={(group) => <GroupListItem group={group} />}
-                        bottomPaddingClassName="pb-3 md:pb-4"
-                    />
+                                            items={visibleGroups}
+                                            columns={{ default: 1, sm: 2, md: 2, lg: 3 }}
+                                            estimateItemHeight={72}
+                                            getItemKey={(group, index) => group.id ?? `group-${index}`}
+                                            renderItem={(group) => <GroupListItem group={group} />}
+                                            bottomPaddingClassName="pb-3 md:pb-4"
+                                            rowPositioning="inset"
+                                        />
                 )}
             </section>
         </div>
