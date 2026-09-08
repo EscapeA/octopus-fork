@@ -58,14 +58,19 @@ function DialogContent({
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
-      <DialogPrimitive.Content
-        data-slot="dialog-content"
-        className={cn(
-          "fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg",
-          className
-        )}
-        {...props}
-      >
+      {/* 居中 wrapper：fixed inset-0 + grid，自身无 transform/translate。
+          弹窗内容（Content）若自带 translate/transform 会导致其内部
+          position:fixed 后代（如 dnd 拖拽元素）的 containing block 被劫持，
+          拖起瞬间元素飞到弹窗外被裁剪（长按后选项消失）。 */}
+      <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto p-0">
+        <DialogPrimitive.Content
+          data-slot="dialog-content"
+          className={cn(
+            "relative grid w-full max-w-[calc(100%-2rem)] gap-4 rounded-lg border bg-background p-6 shadow-lg duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg",
+            className
+          )}
+          {...props}
+        >
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close
@@ -77,6 +82,7 @@ function DialogContent({
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>
+      </div>
     </DialogPortal>
   )
 }

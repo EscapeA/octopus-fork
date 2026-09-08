@@ -171,7 +171,7 @@ export function SettingOrder() {
                                                 ref={draggableProvided.innerRef}
                                                 {...draggableProvided.draggableProps}
                                                 className={cn(
-                                                    'flex items-center gap-3 rounded-lg border-border/30 bg-card px-3 py-3 shadow-sm transition-[transform,border-color,box-shadow]',
+                                                    'flex items-center gap-3 rounded-lg border-border/30 bg-card px-3 py-3 shadow-sm transition-[border-color,box-shadow]',
                                                     snapshot.isDragging && 'border-primary/40 shadow-md'
                                                 )}
                                                 // eslint-disable-next-line @typescript-eslint/no-explicit-any

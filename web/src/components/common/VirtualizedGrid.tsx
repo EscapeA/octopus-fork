@@ -38,6 +38,12 @@ interface VirtualizedGridProps<T> {
     reachEndEnabled?: boolean;
     reachEndOffset?: number;
     bottomPaddingClassName?: string;
+    /**
+     * 虚拟行定位方式。默认 'transform'（性能好，但 transform 会创建 containing block，
+     * 劫持 dnd 拖拽元素的 position:fixed → 拖动不跟手）。
+     * 页面内有 DnD（拖拽排序）时必须传 'inset'（top 定位，不劫持 fixed）。
+     */
+    rowPositioning?: 'transform' | 'inset';
 }
 
 function getColumnsForWidth(
@@ -68,6 +74,7 @@ export function VirtualizedGrid<T>({
     reachEndEnabled = false,
     reachEndOffset = 1,
     bottomPaddingClassName = 'pb-3 md:pb-4',
+    rowPositioning = 'transform',
 }: VirtualizedGridProps<T>) {
     'use no memo';
 
@@ -207,9 +214,14 @@ export function VirtualizedGrid<T>({
                                         data-index={virtualRow.index}
                                         ref={rowVirtualizer.measureElement}
                                         className="absolute left-0 top-0 w-full"
-                                        style={{
-                                            transform: `translateY(${translateY}px)`,
-                                        }}
+                                        style={
+                                            // 虚拟行定位：transform/translate 会创建 containing block，
+                                            // 把 dnd 拖拽元素的 position:fixed 参照系从视口劫持到本行，导致不跟手。
+                                            // inset(top) 定位不劫持 fixed，仅需 dnd 的分页启用。
+                                            rowPositioning === 'inset'
+                                                ? { top: `${translateY}px` }
+                                                : { transform: `translateY(${translateY}px)` }
+                                        }
                                     >
                                         {footer}
                                     </div>
@@ -227,9 +239,14 @@ export function VirtualizedGrid<T>({
                                     data-index={virtualRow.index}
                                     ref={rowVirtualizer.measureElement}
                                     className="absolute left-0 top-0 w-full"
-                                    style={{
-                                        transform: `translateY(${translateY}px)`,
-                                    }}
+                                    style={
+                                        // 虚拟行定位：transform/translate 会创建 containing block，
+                                        // 把 dnd 拖拽元素的 position:fixed 参照系从视口劫持到本行，导致不跟手。
+                                        // inset(top) 定位不劫持 fixed，仅需 dnd 的分页启用。
+                                        rowPositioning === 'inset'
+                                            ? { top: `${translateY}px` }
+                                            : { transform: `translateY(${translateY}px)` }
+                                    }
                                 >
                                     <div
                                         className="grid"
