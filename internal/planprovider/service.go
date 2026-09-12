@@ -218,9 +218,10 @@ func queryPlanChannelStats(ctx context.Context, provider *model.PlanProvider, ch
 // 同时作用于用量查询链路与自动创建的转发渠道；其他厂商强制 direct。
 // refreshIntervalMin 自动刷新间隔（分钟），0 表示跟随全局默认设置。
 //
-// loginUsername / loginPassword 仅 sensenova_plan 使用（可选）：
-// 配置商汤控制台账号密码后，系统自动完成 OIDC 登录获取控制台 Bearer Token 并自动续期，
-// 无需手动更换每 3 小时过期的 Token；此时 apiKey 可留空（登录成功后会写入 access_token）。
+// loginUsername / loginPassword（可选）用于控制台账号密码自动登录：
+//   - sensenova_plan：登录换控制台 Bearer Token 并自动续期（apiKey 可留空）；
+//   - tokenrhythm（基元律动）：登录换会话 Cookie 并自动续期（apiKey 可留空）；
+//   - deepseek：仅用于查询官方 usage，apiKey 仍必填。
 func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKey, forwardAPIKey, customName string, refreshIntervalMin int, proxyMode model.ProxyUsageMode, proxyConfigID *int, teamOrgID, teamProjectID, loginUsername, loginPassword string) (*model.PlanProvider, error) {
 	info := getCategoryInfo(category)
 	if info == nil {
@@ -251,11 +252,12 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 	apiKey = strings.TrimSpace(apiKey)
 	loginUsername = strings.TrimSpace(loginUsername)
 	loginPassword = strings.TrimSpace(loginPassword)
-	// 账号密码自动登录目前支持 sensenova_plan 与 deepseek。
-	// sensenova：登录 token 作为主凭据（覆盖 APIKey）；deepseek：账号密码
-	// 用于查询控制台官方 usage，APIKey 仍保留用于余额查询，两者并存。
-	if loginUsername != "" && category != model.PlanProviderSenseNovaPlan && category != model.PlanProviderDeepSeek {
-		return nil, fmt.Errorf("account login is only supported for sensenova_plan and deepseek")
+	// 账号密码自动登录目前支持 sensenova_plan、deepseek 与 tokenrhythm。
+	// sensenova：登录 token 作为主凭据（覆盖 APIKey）；
+	// deepseek：账号密码用于查询控制台官方 usage，APIKey 仍保留用于余额查询，两者并存；
+	// tokenrhythm：登录拿到的会话 Cookie 作为主凭据（覆盖 APIKey），失效后自动重登。
+	if loginUsername != "" && category != model.PlanProviderSenseNovaPlan && category != model.PlanProviderDeepSeek && category != model.PlanProviderTokenRhythm {
+		return nil, fmt.Errorf("account login is only supported for sensenova_plan, deepseek and tokenrhythm")
 	}
 	if loginUsername != "" && loginPassword == "" {
 		return nil, fmt.Errorf("login password is required")
@@ -294,6 +296,17 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 			return nil, fmt.Errorf("encrypt login password: %w", err)
 		}
 		loginPasswordEnc = enc
+	} else if loginUsername != "" && category == model.PlanProviderTokenRhythm {
+		enc, err := crypto.Encrypt(loginPassword)
+		if err != nil {
+			return nil, fmt.Errorf("encrypt login password: %w", err)
+		}
+		loginPasswordEnc = enc
+		cookie, err := tokenRhythmLogin(ctx, loginUsername, loginPassword)
+		if err != nil {
+			return nil, fmt.Errorf("tokenrhythm login: %w", err)
+		}
+		apiKey = cookie
 	}
 
 	teamOrgID = strings.TrimSpace(teamOrgID)
@@ -521,7 +534,7 @@ func RefreshProvider(ctx context.Context, id int) (*model.PlanProvider, error) {
 		// 快照旧余额：本次刷新后 LastBalance 表示"上次检测时的余额"，
 		// 与最新 Balance 的差值即两次检测之间的消费；差额累加进累计已用额度。
 		lastBalance := provider.Balance
-		result, err := QueryBalance(ctx, provider.Category, provider.APIKey, provider.BaseURL)
+		result, err := refreshBalanceWithLogin(ctx, &provider)
 		if err != nil {
 			return nil, fmt.Errorf("refresh balance: %w", err)
 		}
@@ -578,10 +591,10 @@ func RefreshProvider(ctx context.Context, id int) (*model.PlanProvider, error) {
 // 需要用户重新从控制台获取凭据并替换，而非删除重建（删除会连带删掉关联的转发渠道与 channel keys 状态）。
 //
 // 行为：
-//   - newAPIKey 与 loginUsername 至少填一个（sensenova_plan 支持账号密码模式）：
-//     账号密码模式下 newAPIKey 可留空，系统自动登录拿 access_token 作为主凭据。
-//   - 填了 loginUsername（仅 sensenova_plan）：保存账号密码，并保存加密 refresh_token 自动续期；
-//     不填则清空账号密码模式（切回纯 Bearer Token）。
+//   - newAPIKey 与 loginUsername 至少填一个（sensenova_plan / tokenrhythm 支持账号密码模式）：
+//     账号密码模式下 newAPIKey 可留空，系统自动登录拿 access_token / 会话 Cookie 作为主凭据。
+//   - 填了 loginUsername（sensenova_plan / deepseek / tokenrhythm）：保存账号密码，
+//     sensenova 额外保存加密 refresh_token 自动续期；不填则清空账号密码模式（切回手动粘贴凭据）。
 //   - newForwardAPIKey 仅控制台 token plan 类生效（normalizePlanForwardAPIKey 会清空其他类），传空串表示"清空转发凭据"。
 //   - 用新凭据立即查询一次用量并更新 quota/balance 字段（等价于一次 RefreshProvider）。
 //   - forward_api_key 变更且关联渠道存在时，同步更新渠道里匹配旧 forward 值的那把 key；
@@ -605,8 +618,8 @@ func UpdateProviderCredentials(ctx context.Context, id int, newAPIKey, newForwar
 	if newAPIKey == "" && loginUsername == "" {
 		return nil, fmt.Errorf("API key or login credentials is required")
 	}
-	if loginUsername != "" && provider.Category != model.PlanProviderSenseNovaPlan && provider.Category != model.PlanProviderDeepSeek {
-		return nil, fmt.Errorf("account login is only supported for sensenova_plan and deepseek")
+	if loginUsername != "" && provider.Category != model.PlanProviderSenseNovaPlan && provider.Category != model.PlanProviderDeepSeek && provider.Category != model.PlanProviderTokenRhythm {
+		return nil, fmt.Errorf("account login is only supported for sensenova_plan, deepseek and tokenrhythm")
 	}
 	if loginUsername != "" && loginPassword == "" {
 		return nil, fmt.Errorf("login password is required")
@@ -641,6 +654,20 @@ func UpdateProviderCredentials(ctx context.Context, id int, newAPIKey, newForwar
 		provider.LoginUsername = loginUsername
 		provider.LoginPasswordEnc = loginPasswordEnc
 		provider.RefreshTokenEnc = ""
+	} else if loginUsername != "" && provider.Category == model.PlanProviderTokenRhythm {
+		// 基元律动：登录换会话 Cookie 作为主凭据（覆盖手动粘贴的 Cookie）。
+		loginPasswordEnc, err := crypto.Encrypt(loginPassword)
+		if err != nil {
+			return nil, fmt.Errorf("encrypt login password: %w", err)
+		}
+		cookie, err := tokenRhythmLogin(ctx, loginUsername, loginPassword)
+		if err != nil {
+			return nil, fmt.Errorf("tokenrhythm login: %w", err)
+		}
+		newAPIKey = cookie
+		provider.LoginUsername = loginUsername
+		provider.LoginPasswordEnc = loginPasswordEnc
+		provider.RefreshTokenEnc = ""
 	} else {
 		provider.LoginUsername = ""
 		provider.LoginPasswordEnc = ""
@@ -648,6 +675,7 @@ func UpdateProviderCredentials(ctx context.Context, id int, newAPIKey, newForwar
 	}
 	clearSenseNovaSession(id)
 	clearDeepSeekSession(id)
+	clearTokenRhythmSession(id)
 
 	newForwardAPIKey = normalizePlanForwardAPIKey(provider.Category, strings.TrimSpace(newForwardAPIKey))
 	newTeamOrgID = strings.TrimSpace(newTeamOrgID)
@@ -874,6 +902,7 @@ func updatePlanForwardChannelKey(ctx context.Context, provider *model.PlanProvid
 func DeleteProvider(ctx context.Context, id int) error {
 	clearSenseNovaSession(id)
 	clearDeepSeekSession(id)
+	clearTokenRhythmSession(id)
 	var provider model.PlanProvider
 	if err := db.GetDB().WithContext(ctx).First(&provider, id).Error; err != nil {
 		return fmt.Errorf("find plan provider: %w", err)

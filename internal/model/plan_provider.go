@@ -133,7 +133,7 @@ var PlanProviderCategories = []PlanProviderCategoryInfo{
 		Type:        PlanProviderTypeBalance,
 		BaseURL:     "https://tokenrhythm.studio",
 		Models:      "*",
-		Description: "基元律动 TokenRhythm 渠道额度监控（浏览器 Cookie 鉴权）：账户余额、累计总成本、全部 Token 用量。纯监控不创建转发渠道。",
+		Description: "基元律动 TokenRhythm 渠道额度监控：支持两种鉴权方式——① 浏览器 Cookie（tr_session，约 30 天，每次请求自动续期）；② 控制台账号密码自动登录（推荐，失效自动重新登录，无需手动粘贴）。展示账户余额、累计总成本、全部 Token 用量。纯监控不创建转发渠道。",
 		HelpURL:     "https://tokenrhythm.studio/account/account",
 	},
 	{

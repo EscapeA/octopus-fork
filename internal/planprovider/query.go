@@ -1197,7 +1197,8 @@ func queryOpenAIBalance(ctx context.Context, apiKey string) (*BalanceResult, err
 // --- 基元律动 TokenRhythm (tokenrhythm.studio) ---
 //
 // 渠道供应商额度监控，浏览器 Cookie 鉴权（与 MiMo 类似，非 API Key）：
-//   - 鉴权：Cookie 头携带 tr_session / tr_csrf / tr_ref_device（从浏览器 F12 复制）
+//   - 鉴权：Cookie 头携带 tr_session / tr_csrf / tr_ref_device（从浏览器 F12 复制，
+//     或用控制台账号密码自动登录换取——见 tokenrhythm_login.go）
 //   - 端点：GET https://tokenrhythm.studio/api/usage-summary
 //   - 响应 data 字段：balanceCny（账户余额）、costCny（累计总成本）、
 //     inputTokens/outputTokens（全部 Token 用量）、calls/successCalls（调用统计）
@@ -1265,6 +1266,11 @@ func queryTokenRhythmBalance(ctx context.Context, cookie string) (*BalanceResult
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(body, &resp); err != nil {
+		// 会话失效时服务端可能返回 {"code":"UNAUTHORIZED"}（code 为字符串，
+		// 无法反序列化到 int），按会话失效处理，交由调用方重新登录。
+		if bytes.Contains(body, []byte("UNAUTHORIZED")) {
+			return nil, errTokenRhythmSessionInvalid
+		}
 		return nil, fmt.Errorf("tokenrhythm: parse response: %w", err)
 	}
 	if resp.Code != 0 {
@@ -1293,7 +1299,7 @@ func doTokenRhythmGet(ctx context.Context, url, cookie string) ([]byte, error) {
 	req.Header.Set("Cookie", cookie)
 	req.Header.Set("Accept", "application/json, text/plain, */*")
 	req.Header.Set("Referer", "https://tokenrhythm.studio/account/account")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36")
+	req.Header.Set("User-Agent", tokenRhythmChromeUA)
 
 	client := &http.Client{Timeout: requestTimeout}
 	resp, err := client.Do(req)
@@ -1305,6 +1311,11 @@ func doTokenRhythmGet(ctx context.Context, url, cookie string) ([]byte, error) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("read response: %w", err)
+	}
+	// 401 = 会话失效（实测 {"code":"UNAUTHORIZED","message":"未认证或登录已过期"}），
+	// 返回哨兵错误供账号密码模式重登（见 refreshBalanceWithLogin）。
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, errTokenRhythmSessionInvalid
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("http status %d: %s", resp.StatusCode, string(body))

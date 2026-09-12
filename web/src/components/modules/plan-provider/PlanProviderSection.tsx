@@ -130,6 +130,8 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
     const [volcengineAuthMode, setVolcengineAuthMode] = useState<'cookie' | 'aksk'>('cookie');
     // 商汤日日新凭据方式：Bearer Token（手动） / 账号密码（自动登录续期）
     const [senseNovaAuthMode, setSenseNovaAuthMode] = useState<'token' | 'account'>('token');
+    // 基元律动凭据方式：Cookie（手动粘贴） / 账号密码（自动登录续期）
+    const [tokenRhythmAuthMode, setTokenRhythmAuthMode] = useState<'cookie' | 'account'>('cookie');
     const [loginUsername, setLoginUsername] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
     // 智谱团队版组织/项目 ID
@@ -165,8 +167,10 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
     const isSenseNovaPlan = selectedCategory === 'sensenova_plan';
     const isCodexPlan = selectedCategory === 'codex';
     const supportsForwardApiKey = isConsoleTokenPlan && !isMiMoPlan;
-    // 商汤日日新账号密码模式：apiKey 可留空，改填账号密码
-    const useAccountLogin = isSenseNovaPlan && senseNovaAuthMode === 'account';
+    // 基元律动账号密码模式：apiKey（Cookie）可留空，改填账号密码自动登录
+    const isTokenRhythmAccount = isTokenRhythm && tokenRhythmAuthMode === 'account';
+    // 账号密码模式（商汤日日新 / 基元律动）：apiKey 可留空，改填账号密码
+    const useAccountLogin = (isSenseNovaPlan && senseNovaAuthMode === 'account') || isTokenRhythmAccount;
 
     const handleAdd = useCallback(async () => {
         if (!selectedCategory) return;
@@ -211,6 +215,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
             setMimoAuthMode('serviceToken');
             setVolcengineAuthMode('cookie');
             setSenseNovaAuthMode('token');
+            setTokenRhythmAuthMode('cookie');
             setLoginUsername('');
             setLoginPassword('');
             setTeamOrgId('');
@@ -351,11 +356,29 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                         </Select>
                                     </div>
                                 )}
+                                {isTokenRhythm && (
+                                    <div className="space-y-1">
+                                        <label className="text-sm font-medium">
+                                            {t('plan.tokenRhythmAuthModeLabel') || '凭据方式'}
+                                        </label>
+                                        <Select value={tokenRhythmAuthMode} onValueChange={(v: string) => { setTokenRhythmAuthMode(v as 'cookie' | 'account'); setApiKey(''); setLoginPassword(''); }}>
+                                            <SelectTrigger className="h-9 text-sm">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="cookie">{t('plan.tokenRhythmAuthModeCookie') || 'Cookie（手动粘贴）'}</SelectItem>
+                                                <SelectItem value="account">{t('plan.tokenRhythmAuthModeAccount') || '账号密码（自动登录续期）'}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
                                 <label className="text-sm font-medium">
                                     {isMiMoPlan
                                         ? (t('plan.cookieLabel') || 'Cookie')
                                         : isTokenRhythm
-                                            ? (t('plan.cookieLabel') || 'Cookie')
+                                            ? (isTokenRhythmAccount
+                                                ? (t('plan.tokenRhythmAccountModeLabel') || '账号密码登录')
+                                                : (t('plan.cookieLabel') || 'Cookie'))
                                             : isCodexPlan
                                                 ? (t('plan.codexOAuthLabel') || 'OAuth JSON')
                                                 : isConsoleTokenPlan
@@ -375,27 +398,37 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                         </Select>
                                     </div>
                                 )}
-                                {isSenseNovaPlan && senseNovaAuthMode === 'account' ? (
+                                {useAccountLogin ? (
                                     <div className="space-y-2">
                                         <label className="text-sm font-medium">
-                                            {t('plan.senseNovaUsernameLabel') || '登录账号'}
+                                            {isTokenRhythmAccount
+                                                ? (t('plan.tokenRhythmUsernameLabel') || '登录账号')
+                                                : (t('plan.senseNovaUsernameLabel') || '登录账号')}
                                         </label>
                                         <Input
-                                            placeholder={t('plan.senseNovaUsernamePlaceholder') || 'platform.sensenova.cn 控制台登录账号（手机号/用户名）'}
+                                            placeholder={isTokenRhythmAccount
+                                                ? (t('plan.tokenRhythmUsernamePlaceholder') || 'tokenrhythm.studio 登录账号（手机号）')
+                                                : (t('plan.senseNovaUsernamePlaceholder') || 'platform.sensenova.cn 控制台登录账号（手机号/用户名）')}
                                             value={loginUsername}
                                             onChange={(e) => setLoginUsername(e.target.value)}
                                         />
                                         <label className="text-sm font-medium">
-                                            {t('plan.senseNovaPasswordLabel') || '登录密码'}
+                                            {isTokenRhythmAccount
+                                                ? (t('plan.tokenRhythmPasswordLabel') || '登录密码')
+                                                : (t('plan.senseNovaPasswordLabel') || '登录密码')}
                                         </label>
                                         <Input
                                             type="password"
-                                            placeholder={t('plan.senseNovaPasswordPlaceholder') || '控制台登录密码'}
+                                            placeholder={isTokenRhythmAccount
+                                                ? (t('plan.tokenRhythmPasswordPlaceholder') || 'tokenrhythm.studio 登录密码')
+                                                : (t('plan.senseNovaPasswordPlaceholder') || '控制台登录密码')}
                                             value={loginPassword}
                                             onChange={(e) => setLoginPassword(e.target.value)}
                                         />
                                         <p className="text-[11px] leading-tight text-emerald-600">
-                                            {t('plan.senseNovaAccountHint') || '系统自动完成登录并续期控制台 Token（约 3 小时有效期），全程无需手动更换。账号密码 AES 加密存储，仅用于自动登录。'}
+                                            {isTokenRhythmAccount
+                                                ? (t('plan.tokenRhythmAccountHint') || '系统自动登录并保存会话 Cookie（30 天，每次查询滑动续期），失效后自动重新登录，无需手动粘贴。账号密码 AES 加密存储，仅用于自动登录。')
+                                                : (t('plan.senseNovaAccountHint') || '系统自动完成登录并续期控制台 Token（约 3 小时有效期），全程无需手动更换。账号密码 AES 加密存储，仅用于自动登录。')}
                                         </p>
                                     </div>
                                 ) : (
@@ -434,7 +467,7 @@ function PlanProviderSection({ type, title, providers, categories, isLoading, er
                                         {t('plan.mimoServiceTokenHint') || '登录 platform.xiaomimimo.com → F12 → Application → Cookies，复制 api-platform 域下所有 Cookie。有效期约 1 天，过期后需手动更新。'}
                                     </p>
                                 )}
-                                {isTokenRhythm && (
+                                {isTokenRhythm && !isTokenRhythmAccount && (
                                     <p className="text-[11px] leading-tight text-amber-500">
                                         {t('plan.tokenRhythmCookieHint') || '登录 tokenrhythm.studio → F12 → Network → 任意请求 → Request Headers，复制完整 Cookie 值（含 tr_session=、tr_csrf= 字段）。会话过期后需重新获取。'}
                                     </p>
@@ -1221,6 +1254,8 @@ function EditCredentialsDialog({
     const [teamProjectId, setTeamProjectId] = useState('');
     // 商汤日日新凭据方式（默认跟随当前配置：已启用账号密码则切到账号密码模式）
     const [senseNovaAuthMode, setSenseNovaAuthMode] = useState<'token' | 'account'>('token');
+    // 基元律动凭据方式（默认跟随当前配置）
+    const [tokenRhythmAuthMode, setTokenRhythmAuthMode] = useState<'cookie' | 'account'>('cookie');
     const [loginUsername, setLoginUsername] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
 
@@ -1234,7 +1269,8 @@ function EditCredentialsDialog({
             setForwardApiKey('');
             setTeamOrgId('');
             setTeamProjectId('');
-            setSenseNovaAuthMode(provider?.login_configured ? 'account' : 'token');
+            setSenseNovaAuthMode(provider?.login_configured && provider.category === 'sensenova_plan' ? 'account' : 'token');
+            setTokenRhythmAuthMode(provider?.login_configured && provider.category === 'tokenrhythm' ? 'account' : 'cookie');
             setLoginUsername(provider?.login_username || '');
             setLoginPassword('');
         }
@@ -1259,8 +1295,10 @@ function EditCredentialsDialog({
     const supportsForwardApiKey = isConsoleTokenPlan && !isMiMoPlan;
 
     const catInfo = categories.find(c => c.category === category);
-    // 商汤日日新账号密码模式：apiKey 可留空，改填账号密码
-    const useAccountLogin = category === 'sensenova_plan' && senseNovaAuthMode === 'account';
+    // 基元律动账号密码模式：apiKey（Cookie）可留空，改填账号密码自动登录
+    const isTokenRhythmAccount = isTokenRhythm && tokenRhythmAuthMode === 'account';
+    // 账号密码模式（商汤日日新 / 基元律动）：apiKey 可留空，改填账号密码
+    const useAccountLogin = (category === 'sensenova_plan' && senseNovaAuthMode === 'account') || isTokenRhythmAccount;
 
     const handleSubmit = async () => {
         if (useAccountLogin) {
@@ -1336,38 +1374,71 @@ function EditCredentialsDialog({
                                 )}
                             </div>
                         )}
+                        {category === 'tokenrhythm' && (
+                            <div className="space-y-1">
+                                <label className="text-sm font-medium">
+                                    {t('plan.tokenRhythmAuthModeLabel') || '凭据方式'}
+                                </label>
+                                <Select value={tokenRhythmAuthMode} onValueChange={(v: string) => { setTokenRhythmAuthMode(v as 'cookie' | 'account'); setApiKey(''); setLoginPassword(''); }}>
+                                    <SelectTrigger className="h-9 text-sm">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="cookie">{t('plan.tokenRhythmAuthModeCookie') || 'Cookie（手动粘贴）'}</SelectItem>
+                                        <SelectItem value="account">{t('plan.tokenRhythmAuthModeAccount') || '账号密码（自动登录续期）'}</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                {provider.login_configured && tokenRhythmAuthMode === 'account' && (
+                                    <p className="text-[11px] leading-tight text-emerald-600">
+                                        {t('plan.senseNovaLoginConfiguredHint', { username: provider.login_username || '' })}
+                                    </p>
+                                )}
+                            </div>
+                        )}
                         <label className="text-sm font-medium">
                             {isMiMoPlan
                                 ? (t('plan.cookieLabel') || 'Cookie')
                                 : isTokenRhythm
-                                    ? (t('plan.cookieLabel') || 'Cookie')
+                                    ? (isTokenRhythmAccount
+                                        ? (t('plan.tokenRhythmAccountModeLabel') || '账号密码登录')
+                                        : (t('plan.cookieLabel') || 'Cookie'))
                                     : isCodexPlan
                                         ? (t('plan.codexOAuthLabel') || 'OAuth JSON')
                                         : isConsoleTokenPlan
                                             ? (t('plan.consoleTokenLabel') || '控制台 Token')
                                             : (t('plan.apiKeyLabel') || 'API Key')}
                         </label>
-                        {category === 'sensenova_plan' && senseNovaAuthMode === 'account' ? (
+                        {useAccountLogin ? (
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">
-                                    {t('plan.senseNovaUsernameLabel') || '登录账号'}
+                                    {isTokenRhythmAccount
+                                        ? (t('plan.tokenRhythmUsernameLabel') || '登录账号')
+                                        : (t('plan.senseNovaUsernameLabel') || '登录账号')}
                                 </label>
                                 <Input
-                                    placeholder={t('plan.senseNovaUsernamePlaceholder') || 'platform.sensenova.cn 控制台登录账号（手机号/用户名）'}
+                                    placeholder={isTokenRhythmAccount
+                                        ? (t('plan.tokenRhythmUsernamePlaceholder') || 'tokenrhythm.studio 登录账号（手机号）')
+                                        : (t('plan.senseNovaUsernamePlaceholder') || 'platform.sensenova.cn 控制台登录账号（手机号/用户名）')}
                                     value={loginUsername}
                                     onChange={(e) => setLoginUsername(e.target.value)}
                                 />
                                 <label className="text-sm font-medium">
-                                    {t('plan.senseNovaPasswordLabel') || '登录密码'}
+                                    {isTokenRhythmAccount
+                                        ? (t('plan.tokenRhythmPasswordLabel') || '登录密码')
+                                        : (t('plan.senseNovaPasswordLabel') || '登录密码')}
                                 </label>
                                 <Input
                                     type="password"
-                                    placeholder={t('plan.senseNovaPasswordPlaceholder') || '控制台登录密码'}
+                                    placeholder={isTokenRhythmAccount
+                                        ? (t('plan.tokenRhythmPasswordPlaceholder') || 'tokenrhythm.studio 登录密码')
+                                        : (t('plan.senseNovaPasswordPlaceholder') || '控制台登录密码')}
                                     value={loginPassword}
                                     onChange={(e) => setLoginPassword(e.target.value)}
                                 />
                                 <p className="text-[11px] leading-tight text-emerald-600">
-                                    {t('plan.senseNovaAccountHint') || '系统自动完成登录并续期控制台 Token（约 3 小时有效期），全程无需手动更换。账号密码 AES 加密存储，仅用于自动登录。'}
+                                    {isTokenRhythmAccount
+                                        ? (t('plan.tokenRhythmAccountHint') || '系统自动登录并保存会话 Cookie（30 天，每次查询滑动续期），失效后自动重新登录，无需手动粘贴。账号密码 AES 加密存储，仅用于自动登录。')
+                                        : (t('plan.senseNovaAccountHint') || '系统自动完成登录并续期控制台 Token（约 3 小时有效期），全程无需手动更换。账号密码 AES 加密存储，仅用于自动登录。')}
                                 </p>
                             </div>
                         ) : (
@@ -1405,6 +1476,11 @@ function EditCredentialsDialog({
                                                 : category === 'sensenova_plan'
                                                     ? (t('plan.sensenovaTokenHint') || 'Token 有效期约 3 小时，过期后需重新获取。')
                                                     : (t('plan.oasisTokenHint') || 'Oasis-Token 有效期约 30 分钟，过期后需重新获取。')}
+                            </p>
+                        )}
+                        {category === 'tokenrhythm' && !isTokenRhythmAccount && (
+                            <p className="text-[11px] leading-tight text-amber-500">
+                                {t('plan.tokenRhythmCookieHint') || '登录 tokenrhythm.studio → F12 → Network → 任意请求 → Request Headers，复制完整 Cookie 值（含 tr_session=、tr_csrf= 字段）。会话过期后需重新获取。'}
                             </p>
                         )}
                         {isDeepSeek && (
