@@ -14,7 +14,6 @@ import (
 	"github.com/lingyuins/octopus/internal/op/apikey"
 	"github.com/lingyuins/octopus/internal/op/cacheusage"
 	"github.com/lingyuins/octopus/internal/op/relaylog"
-	"github.com/lingyuins/octopus/internal/op/setting"
 	"github.com/lingyuins/octopus/internal/op/stats"
 	"github.com/lingyuins/octopus/internal/price"
 	transformerModel "github.com/lingyuins/octopus/internal/transformer/model"
@@ -338,8 +337,9 @@ func (m *RelayMetrics) saveLog(ctx context.Context, err error, duration time.Dur
 	// 降低每条日志的写入量与磁盘 IO（高负载日志性能优化的主要杠杆）。
 	// SemanticCacheHit 与 CacheReadTokens 不依赖大字段：前者从请求判断，后者
 	// 从 InternalResponse.Usage.PromptTokensDetails.CachedTokens 直接提取。
-	contentEnabled, _ := setting.GetBool(model.SettingKeyRelayLogContentEnabled)
-	if contentEnabled {
+	// 开关还可按 API Key 收窄（relay_log_content_api_key_ids）：只保留指定 Key
+	// 的明细，避免高流量调试 Key 把磁盘写满。见 relayLogContentEnabledForKey。
+	if relayLogContentEnabledForKey(m.APIKeyID) {
 		// 请求内容
 		if m.InternalRequest != nil {
 			if reqJSON, jsonErr := jsonAPI.Marshal(m.filterRequestForLog(m.InternalRequest)); jsonErr == nil {

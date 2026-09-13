@@ -20,6 +20,7 @@ export const SettingKey = {
     SyncLLMInterval: 'sync_llm_interval',
     RelayLogKeepEnabled: 'relay_log_keep_enabled',
     RelayLogContentEnabled: 'relay_log_content_enabled',
+    RelayLogContentAPIKeyIds: 'relay_log_content_api_key_ids',
     RelayLogQueueDropPolicy: 'relay_log_queue_drop_policy',
     StreamSessionReplayEnabled: 'stream_session_replay_enabled',
     RelayLogKeepPeriod: 'relay_log_keep_period',

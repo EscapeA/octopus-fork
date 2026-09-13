@@ -23,7 +23,6 @@ import (
 	ch "github.com/lingyuins/octopus/internal/op/channel"
 	grp "github.com/lingyuins/octopus/internal/op/group"
 	"github.com/lingyuins/octopus/internal/op/relaylog"
-	"github.com/lingyuins/octopus/internal/op/setting"
 	st "github.com/lingyuins/octopus/internal/op/stats"
 	"github.com/lingyuins/octopus/internal/relay/balancer"
 	"github.com/lingyuins/octopus/internal/relay/condition"
@@ -414,8 +413,7 @@ func recordMediaRelayLog(apiKeyID int, requestModel string, endpointType string,
 	}
 
 	if len(bodyBytes) > 0 {
-		contentEnabled, _ := setting.GetBool(dbmodel.SettingKeyRelayLogContentEnabled)
-		if contentEnabled {
+		if relayLogContentEnabledForKey(apiKeyID) {
 			// 与 chat 路径 JSON 字段上限对齐，避免媒体请求 body 无界写入日志缓存。
 			const mediaLogBodyMaxBytes = 16 * 1024
 			if len(bodyBytes) > mediaLogBodyMaxBytes {

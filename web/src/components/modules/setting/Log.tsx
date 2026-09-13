@@ -2,15 +2,17 @@
 
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { ScrollText, Calendar, Hash, Trash2, Terminal, FolderX, FileText, RefreshCw } from 'lucide-react';
+import { ScrollText, Calendar, Hash, Trash2, Terminal, FolderX, FileText, RefreshCw, KeyRound } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useSettingList, useSetSetting, SettingKey } from '@/api/endpoints/setting';
 import { useGroupList } from '@/api/endpoints/group';
+import { useAPIKeyList } from '@/api/endpoints/apikey';
 import { useClearLogs, useClearLogContents } from '@/api/endpoints/log';
 import { toast } from '@/components/common/Toast';
+import { MultiSelectPicker, type MultiSelectOption, type MultiSelectPickerLabels } from '@/components/common/MultiSelectPicker';
 import { useLogAutoRefreshStore, LOG_AUTO_REFRESH_OPTIONS, type LogAutoRefreshInterval } from '@/components/modules/log/ui-store';
 
 type KeepMode = 'count' | 'days';
@@ -22,6 +24,7 @@ export function SettingLog() {
     const t = useTranslations('setting');
     const { data: settings } = useSettingList();
     const { data: groups = [] } = useGroupList();
+    const { data: apiKeys = [] } = useAPIKeyList();
     const setSetting = useSetSetting();
     const clearLogs = useClearLogs();
     const clearLogContents = useClearLogContents();
@@ -37,6 +40,7 @@ export function SettingLog() {
     const [isClearing, setIsClearing] = useState(false);
     const [isClearingContents, setIsClearingContents] = useState(false);
     const [excludedGroups, setExcludedGroups] = useState<string[]>([]);
+    const [contentKeyIds, setContentKeyIds] = useState<number[]>([]);
 
     // 去重的分组名称列表（同名分组只展示一次）
     const groupNames = useMemo(() => {
@@ -51,6 +55,41 @@ export function SettingLog() {
         names.sort((a, b) => a.localeCompare(b));
         return names;
     }, [groups]);
+
+    // 屏蔽分组 / 记录内容的 Key 两个多选控件的候选项
+    const groupOptions = useMemo<MultiSelectOption[]>(
+        () => groupNames.map((name) => ({ value: name, label: name })),
+        [groupNames]
+    );
+
+    const contentKeyOptions = useMemo<MultiSelectOption[]>(
+        () => apiKeys.map((key) => ({
+            value: String(key.id),
+            label: key.name || `#${key.id}`,
+            description: `#${key.id}`,
+        })),
+        [apiKeys]
+    );
+
+    // 弹窗文案（选择器共用一套骨架，标题/说明/空态按调用处区分）
+    const buildPickerLabels = ({
+        title, description, empty, emptySelection,
+    }: { title: string; description?: string; empty: string; emptySelection: string }): MultiSelectPickerLabels => ({
+        dialogTitle: title,
+        dialogDescription: description,
+        searchPlaceholder: t('log.picker.searchPlaceholder'),
+        selectedCount: t('log.picker.selectedCount'),
+        filteredCount: t('log.picker.filteredCount'),
+        clear: t('log.picker.clear'),
+        selectFiltered: t('log.picker.selectFiltered'),
+        unselectFiltered: t('log.picker.unselectFiltered'),
+        apply: t('log.picker.apply'),
+        cancel: t('log.picker.cancel'),
+        empty,
+        emptySelection,
+        noResult: t('log.picker.noResult'),
+        removeHint: t('log.picker.removeHint'),
+    });
 
     const initialEnabled = useRef(true);
     const initialMode = useRef<KeepMode>('count');
@@ -119,6 +158,20 @@ export function SettingLog() {
         queueMicrotask(() => setExcludedGroups(parsed));
     }, [settings]);
 
+    useEffect(() => {
+        if (!settings) return;
+        const raw = settings.find(s => s.key === SettingKey.RelayLogContentAPIKeyIds)?.value;
+        if (raw === undefined) return;
+        let parsed: number[] = [];
+        try {
+            const v = JSON.parse(raw);
+            if (Array.isArray(v)) parsed = v.filter((x): x is number => typeof x === 'number' && Number.isFinite(x));
+        } catch {
+            parsed = [];
+        }
+        queueMicrotask(() => setContentKeyIds(parsed));
+    }, [settings]);
+
     const saveExcludedGroups = (next: string[]) => {
         setExcludedGroups(next);
         setSetting.mutate(
@@ -129,12 +182,19 @@ export function SettingLog() {
         );
     };
 
-    const toggleExcludedGroup = (name: string) => {
-        if (excludedGroups.includes(name)) {
-            saveExcludedGroups(excludedGroups.filter(n => n !== name));
-        } else {
-            saveExcludedGroups([...excludedGroups, name]);
-        }
+    const saveContentKeyIds = (next: string[]) => {
+        const ids = Array.from(new Set(
+            next
+                .map((value) => Number.parseInt(value, 10))
+                .filter((value) => Number.isFinite(value) && value >= 0)
+        )).sort((a, b) => a - b);
+        setContentKeyIds(ids);
+        setSetting.mutate(
+            { key: SettingKey.RelayLogContentAPIKeyIds, value: JSON.stringify(ids) },
+            {
+                onSuccess: () => { toast.success(t('saved')); },
+            }
+        );
     };
 
     const handleEnabledChange = (checked: boolean) => {
@@ -287,6 +347,35 @@ export function SettingLog() {
                 />
             </div>
 
+            {/* 只记录指定 API Key 的请求/响应内容（总开关开启时生效） */}
+            <div className="flex flex-col gap-3 rounded-lg border-border/30 bg-card p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                    <KeyRound className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex flex-col">
+                        <span className="text-sm font-medium">{t('log.contentKeys.label')}</span>
+                        <span className="text-xs text-muted-foreground">{t('log.contentKeys.description')}</span>
+                    </div>
+                    {contentKeyIds.length > 0 && (
+                        <Badge variant="secondary" className="ml-auto text-xs">{contentKeyIds.length}</Badge>
+                    )}
+                </div>
+                <MultiSelectPicker
+                    className="pl-8"
+                    options={contentKeyOptions}
+                    selected={contentKeyIds.map((id) => String(id))}
+                    onApply={saveContentKeyIds}
+                    triggerLabel={t('log.contentKeys.selectLabel')}
+                    icon={<KeyRound className="size-3.5" />}
+                    labels={buildPickerLabels({
+                        title: t('log.contentKeys.dialogTitle'),
+                        description: t('log.contentKeys.dialogDescription'),
+                        empty: t('log.contentKeys.empty'),
+                        emptySelection: t('log.contentKeys.emptySelection'),
+                    })}
+                    disabled={!enabled || !contentEnabled}
+                />
+            </div>
+
             {/* 日志列表自动刷新间隔（浏览器本地偏好） */}
             <div className="flex flex-col gap-3 rounded-lg border-border/30 bg-card p-4 shadow-sm">
                 <div className="flex items-center gap-3">
@@ -426,27 +515,20 @@ export function SettingLog() {
                         <Badge variant="secondary" className="ml-auto text-xs">{excludedGroups.length}</Badge>
                     )}
                 </div>
-                {groupNames.length === 0 ? (
-                    <p className="pl-8 text-xs text-muted-foreground">{t('log.excludedGroups.empty')}</p>
-                ) : (
-                    <div className="flex flex-wrap gap-2 pl-8">
-                        {groupNames.map((name) => {
-                            const active = excludedGroups.includes(name);
-                            return (
-                                <Badge
-                                    key={name}
-                                    variant={active ? 'default' : 'outline'}
-                                    className="max-w-full cursor-pointer gap-1.5 rounded-lg px-2.5 py-1 text-xs transition-colors hover:bg-accent/60"
-                                    onClick={() => toggleExcludedGroup(name)}
-                                    title={active ? t('log.excludedGroups.removeHint') : t('log.excludedGroups.addHint')}
-                                >
-                                    <span className="truncate">{name}</span>
-                                    {active && <span className="text-muted-foreground">×</span>}
-                                </Badge>
-                            );
-                        })}
-                    </div>
-                )}
+                <MultiSelectPicker
+                    className="pl-8"
+                    options={groupOptions}
+                    selected={excludedGroups}
+                    onApply={saveExcludedGroups}
+                    triggerLabel={t('log.excludedGroups.selectLabel')}
+                    icon={<FolderX className="size-3.5" />}
+                    labels={buildPickerLabels({
+                        title: t('log.excludedGroups.label'),
+                        description: t('log.excludedGroups.dialogDescription'),
+                        empty: t('log.excludedGroups.empty'),
+                        emptySelection: t('log.excludedGroups.emptySelection'),
+                    })}
+                />
             </div>
 
             {/* 清空历史日志的请求/响应内容大字段（保留元数据） */}

@@ -2196,13 +2196,37 @@
       "excludedGroups": {
         "label": "屏蔽分組",
         "description": "選中的分組日誌不會在日誌列表與即時流中顯示或載入",
+        "dialogDescription": "選中的分組日誌不會出現在日誌列表與即時流中",
+        "selectLabel": "選擇分組",
         "empty": "暫無分組",
+        "emptySelection": "未屏蔽任何分組",
         "addHint": "點擊屏蔽此分組的日誌",
         "removeHint": "點擊取消屏蔽"
       },
       "contentEnabled": {
         "label": "記錄請求/回應內容",
         "description": "關閉後不再儲存請求與回應正文大欄位，可大幅降低寫入量與磁碟 IO。Token 用量與快取指標仍會記錄。"
+      },
+      "contentKeys": {
+        "label": "記錄內容的 API Key",
+        "description": "總開關開啟時生效：未選擇則記錄全部 Key；選擇後只記錄所選 Key 的請求/回應內容，其餘 Key 仍記錄 Token、費用等中繼資料。",
+        "dialogTitle": "選擇要記錄內容的 API Key",
+        "dialogDescription": "可搜尋後多選，未選擇表示不限制",
+        "selectLabel": "選擇 Key",
+        "empty": "尚無 API Key",
+        "emptySelection": "未選擇時記錄全部 Key"
+      },
+      "picker": {
+        "searchPlaceholder": "搜尋",
+        "selectedCount": "已選 {count}",
+        "filteredCount": "符合 {count}",
+        "clear": "清空",
+        "selectFiltered": "全選符合項",
+        "unselectFiltered": "取消符合項",
+        "apply": "套用（{count}）",
+        "cancel": "取消",
+        "noResult": "沒有符合的結果",
+        "removeHint": "點擊移除"
       },
       "clearContents": {
         "label": "清空請求/回應內容",

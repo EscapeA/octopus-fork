@@ -2240,13 +2240,37 @@
       "excludedGroups": {
         "label": "Hidden Groups",
         "description": "Logs from selected groups will not be shown or loaded in the log list and live stream",
+        "dialogDescription": "Logs from the selected groups stay out of the log list and live stream",
+        "selectLabel": "Select groups",
         "empty": "No groups available",
+        "emptySelection": "No group hidden",
         "addHint": "Click to hide this group's logs",
         "removeHint": "Click to stop hiding this group's logs"
       },
       "contentEnabled": {
         "label": "Record Request/Response Content",
         "description": "When disabled, large request/response bodies are not stored, reducing write load and disk IO. Token counts and cache metrics are still recorded."
+      },
+      "contentKeys": {
+        "label": "API Keys to Record Content For",
+        "description": "Applies while the switch above is on: leave empty to record every key; once keys are selected only those keys store request/response bodies. Other keys still log tokens, cost and other metadata.",
+        "dialogTitle": "Select API keys to record content for",
+        "dialogDescription": "Search and multi-select; empty means no restriction",
+        "selectLabel": "Select keys",
+        "empty": "No API keys available",
+        "emptySelection": "Recording every key until you pick one"
+      },
+      "picker": {
+        "searchPlaceholder": "Search",
+        "selectedCount": "{count} selected",
+        "filteredCount": "{count} shown",
+        "clear": "Clear",
+        "selectFiltered": "Select shown",
+        "unselectFiltered": "Unselect shown",
+        "apply": "Apply ({count})",
+        "cancel": "Cancel",
+        "noResult": "No matching results",
+        "removeHint": "Click to remove"
       },
       "clearContents": {
         "label": "Clear Request/Response Content",

@@ -21,6 +21,7 @@ const (
 	SettingKeyRelayLogKeepCount                  SettingKey = "relay_log_keep_count"                    // 日志保留条数(0=不按条数)
 	SettingKeyRelayLogKeepEnabled                SettingKey = "relay_log_keep_enabled"                  // 是否保留历史日志
 	SettingKeyRelayLogContentEnabled             SettingKey = "relay_log_content_enabled"               // 是否记录请求/响应内容大字段（关闭可大幅降低写入量与磁盘 IO）
+	SettingKeyRelayLogContentAPIKeyIDs           SettingKey = "relay_log_content_api_key_ids"           // 仅在记录内容时包含这些 API Key（JSON 数组，空=全部）；用于只留某个 Key 的明细而不落其它高流量 Key
 	SettingKeyRelayLogQueueDropPolicy            SettingKey = "relay_log_queue_drop_policy"             // 日志队列满时的丢弃策略：disabled(阻塞触发刷盘) | oldest(丢弃最旧) | newest(丢弃最新)
 	SettingKeyStreamSessionReplayEnabled         SettingKey = "stream_session_replay_enabled"           // 是否保留完成会话的缓冲区以支持断线重连重放（关闭可降低内存占用）
 	SettingKeyCORSAllowOrigins                   SettingKey = "cors_allow_origins"                      // 跨域白名单(逗号分隔, 如 "example.com,example2.com"). 为空不允许跨域, "*"允许所有
@@ -133,6 +134,7 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyRelayLogKeepPeriod, Value: "7"},                  // 默认日志保存7天
 		{Key: SettingKeyRelayLogKeepCount, Value: "0"},                   // 默认不按条数保留(0=禁用)
 		{Key: SettingKeyRelayLogContentEnabled, Value: "true"},           // 默认记录请求/响应内容，保持兼容；高负载可关闭以降低 IO
+		{Key: SettingKeyRelayLogContentAPIKeyIDs, Value: "[]"},           // 默认不限制 Key；非空时只记录列表内 API Key 的内容大字段
 		{Key: SettingKeyRelayLogQueueDropPolicy, Value: "oldest"},        // 默认丢弃最旧日志，防止队列溢出 OOM（高 QPS 下推荐）
 		{Key: SettingKeyStreamSessionReplayEnabled, Value: "true"},       // 默认启用重连重放，保持兼容；内存受限可关闭
 		{Key: SettingKeyRelayLogKeepEnabled, Value: "true"},              // 默认保留历史日志
@@ -446,6 +448,17 @@ func (s *Setting) Validate() error {
 		var groups []string
 		if err := json.Unmarshal([]byte(s.Value), &groups); err != nil {
 			return fmt.Errorf("log excluded groups must be a valid JSON array of strings")
+		}
+		return nil
+	case SettingKeyRelayLogContentAPIKeyIDs:
+		var ids []int
+		if err := json.Unmarshal([]byte(s.Value), &ids); err != nil {
+			return fmt.Errorf("relay log content api key ids must be a valid JSON array of integers")
+		}
+		for _, id := range ids {
+			if id < 0 {
+				return fmt.Errorf("relay log content api key ids must be non-negative")
+			}
 		}
 		return nil
 	case SettingKeyModelNormalizeRouterPrefixes, SettingKeyModelNormalizeFunctionalSuffixes:
