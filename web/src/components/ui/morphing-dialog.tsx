@@ -357,7 +357,7 @@ function MorphingDialogContainer({ children }: MorphingDialogContainerProps) {
         <>
           <motion.div
             key={`backdrop-${uniqueId}`}
-            className='fixed inset-0 z-50 bg-black/40 backdrop-blur-sm'
+            className='pointer-events-auto fixed inset-0 z-50 bg-black/40 backdrop-blur-sm'
             data-slot='morphing-dialog-layer'
             data-dialog-id={uniqueId}
             initial={{ opacity: 0 }}
@@ -365,7 +365,7 @@ function MorphingDialogContainer({ children }: MorphingDialogContainerProps) {
             exit={{ opacity: 0, transition: { duration: 0.2 } }}
           />
           <div
-            className='fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-2 sm:items-center sm:p-4'
+            className='pointer-events-auto fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-2 sm:items-center sm:p-4'
             data-slot='morphing-dialog-layer'
             data-dialog-id={uniqueId}
           >
