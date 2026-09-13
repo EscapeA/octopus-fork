@@ -363,9 +363,21 @@ func Handler(endpointType string, inboundType inbound.InboundType, c *gin.Contex
 	maxTotalAttempts := getMaxTotalAttempts()
 
 	if inflightEnabled {
+		executedLocally := false
 		result, sfErr, shared := relayInflightGroup.Do(inflightKey, func() (any, error) {
+			executedLocally = true
 			return executeRelay(req, group, requestModel, maxKeyRetriesPerRoute, maxRouteRetries, ratelimitCooldown, maxTotalAttempts)
 		})
+		// ⚠️ x/sync/singleflight 的 shared 语义是「本次结果是否被多个调用者共享」，
+		// 而不是「本次调用者是不是等待者」：当存在并发同文请求时，**执行 fn 的
+		// 执行者自己** 也会拿到 shared=true（Do 内部 return c.dups > 0）。
+		// 执行者的响应与 metrics 已由 executeRelay 内部处理（写响应 + Save），
+		// 所以必须先按「fn 是否由本 goroutine 执行」分流并立即返回；否则执行者会
+		// 把响应再写一遍（客户端收到两份拼接的 JSON）并重复写 relay log、
+		// 重复累计统计（表现为日志出现时间/耗时/内容完全相同的重复条目）。
+		if executedLocally {
+			return
+		}
 		if sfErr == nil {
 			if outcome, ok := result.(*inflightRelayResult); ok && outcome != nil {
 				if shared {
