@@ -433,7 +433,7 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
                                         <TrendingUp className="size-3.5" />
                                         {t('sections.requests')}
                                     </h4>
-                                    <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                    <dl className="grid grid-cols-2 gap-2 sm:gap-3">
                                         <div className={itemClassName}>
                                             <dt className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
                                                 <CheckCircle2 className="size-4 text-accent" />
@@ -463,7 +463,7 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
                                         <FileText className="size-3.5" />
                                         {t('sections.tokens')}
                                     </h4>
-                                    <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                    <dl className="grid grid-cols-2 gap-2 sm:gap-3">
                                         <div className={itemClassName}>
                                             <dt className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
                                                 <div className="size-2 rounded-full bg-chart-1" />
@@ -493,7 +493,7 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
                                         <DollarSign className="size-3.5" />
                                         {t('sections.costs')}
                                     </h4>
-                                    <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                    <dl className="grid grid-cols-2 gap-2 sm:gap-3">
                                         <div className={itemClassName}>
                                             <dt className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
                                                 <div className="size-2 rounded-full bg-chart-2" />
