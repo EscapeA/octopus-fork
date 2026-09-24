@@ -189,3 +189,52 @@ export function useDeletePlanProvider() {
         },
     });
 }
+
+// --- 基元律动钱包明细（资金明细） ---
+
+// 单条余额变动记录（后端 planprovider.TokenRhythmWalletTransaction）
+export interface TokenRhythmWalletTransaction {
+    transaction_id: string;
+    // INVITE_REWARD / MODEL_USAGE / RECHARGE / OTHER ...
+    type: string;
+    // CREDIT 到账 / DEBIT 支出
+    direction: string;
+    status: string;
+    amount_cny: number;
+    description: string;
+    occurred_at: string;
+    expires_at: string | null;
+    // 该笔变动后余额（账户总余额）；该笔到账中抵扣欠费的部分（「已消费」列 = |debt_delta_cny|）
+    balance_after_cny: number;
+    debt_delta_cny: number;
+    // 该笔带来的赠送 / 充值余额净变动（「实际入账」列 = 两者之和）
+    gift_delta_cny: number;
+    recharge_delta_cny: number;
+}
+
+// 钱包明细查询结果（后端 planprovider.TokenRhythmWallet）
+export interface TokenRhythmWallet {
+    currency: string;
+    available_balance_cny: number;
+    gift_balance_cny: number;
+    recharge_balance_cny: number;
+    debt_balance_cny: number;
+    frozen_balance_cny: number;
+    // 累计到账 = 官方赠送总额；累计消费 = 累计成本（与卡片「已用额度」同源）
+    total_received_cny: number;
+    total_consumed_cny: number;
+    as_of: string;
+    transactions: TokenRhythmWalletTransaction[];
+}
+
+// useTokenRhythmWallet 拉取基元律动钱包明细。
+// providerId 传 null 时不发请求（弹窗打开才传 id），因此不会产生轮询流量。
+export function useTokenRhythmWallet(providerId: number | null) {
+    return useQuery<TokenRhythmWallet>({
+        queryKey: ['plan-provider', 'tokenrhythm', 'wallet', providerId],
+        queryFn: () =>
+            apiClient.get<TokenRhythmWallet>(`/api/v1/plan-provider/wallet/transactions/${providerId}`),
+        enabled: providerId != null && providerId > 0,
+        staleTime: 30_000,
+    });
+}

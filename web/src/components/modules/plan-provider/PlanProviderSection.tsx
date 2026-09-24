@@ -55,6 +55,7 @@ import {
 import { ProxySelector } from '@/components/modules/proxy-pool/ProxySelector';
 import type { ProxyMode } from '@/api/endpoints/proxy-pool';
 import { useSettingList, SettingKey } from '@/api/endpoints/setting';
+import { TokenRhythmWalletDialog } from './TokenRhythmWalletDialog';
 
 // 与后端 model.PlanProviderDeepSeek 对应的类别标识（DeepSeek 专属统计展示）
 const DEEPSEEK_PLAN_CATEGORY = 'deepseek';
@@ -62,6 +63,8 @@ const DEEPSEEK_PLAN_CATEGORY = 'deepseek';
 const SENSENOVA_PLAN_CATEGORY = 'sensenova_plan';
 // MiMo 套餐类别标识：月度订阅固定额度、无滚动刷新，仅展示月档一个用量条
 const MIMO_PLAN_CATEGORY = 'mimo_plan';
+// 基元律动：卡片「可用余额」可点击，弹窗展示资金明细（钱包余额变动）
+const TOKENRHYTHM_PLAN_CATEGORY = 'tokenrhythm';
 
 // --- Balance Section ---
 
@@ -957,6 +960,9 @@ function ProviderCard({
     const isBalance = provider.provider_type === 'balance';
     // MiMo 为月度订阅（固定额度、无滚动刷新），只展示月档一个用量条
     const isMiMo = provider.category === MIMO_PLAN_CATEGORY;
+    // 基元律动：可用余额可点，打开资金明细弹窗
+    const isTokenRhythm = provider.category === TOKENRHYTHM_PLAN_CATEGORY;
+    const [walletOpen, setWalletOpen] = useState(false);
 
     // 有效配额档（total>0）。外层先过滤，使 length/idx 反映真实渲染数，
     // 用于 normal 网格布局的"奇数末项跨两列"判断（QuotaTier 内部
@@ -1054,9 +1060,21 @@ function ProviderCard({
                         <p className="text-xs text-muted-foreground mb-1">
                             {t('plan.balanceAvailable') || '可用余额'}
                         </p>
-                        <p className="text-lg font-bold text-primary tabular-nums">
-                            {formatBalance(provider.balance)}
-                        </p>
+                        {isTokenRhythm ? (
+                            // 基元律动：点击可用余额查看资金明细（钱包余额变动）
+                            <button
+                                type="button"
+                                onClick={() => setWalletOpen(true)}
+                                title={t('plan.wallet.viewDetail') || '查看资金明细'}
+                                className="text-lg font-bold text-primary tabular-nums underline decoration-dotted decoration-1 underline-offset-4 transition-colors hover:text-primary/80 cursor-pointer"
+                            >
+                                {formatBalance(provider.balance)}
+                            </button>
+                        ) : (
+                            <p className="text-lg font-bold text-primary tabular-nums">
+                                {formatBalance(provider.balance)}
+                            </p>
+                        )}
                     </div>
                     <div className="rounded-lg bg-muted/50 p-2.5">
                         <p className="text-xs text-muted-foreground mb-1">
@@ -1226,6 +1244,15 @@ function ProviderCard({
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* 基元律动：资金明细弹窗（点击可用余额打开） */}
+            {isTokenRhythm && (
+                <TokenRhythmWalletDialog
+                    provider={provider}
+                    open={walletOpen}
+                    onOpenChange={setWalletOpen}
+                />
+            )}
         </>
     );
 }
