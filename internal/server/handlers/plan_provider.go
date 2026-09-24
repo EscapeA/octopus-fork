@@ -25,7 +25,8 @@ func init() {
 		AddRoute(router.NewRoute("/balance/list", http.MethodGet).Handle(listBalanceProviders)).
 		AddRoute(router.NewRoute("/tokenplan/list", http.MethodGet).Handle(listTokenPlanProviders)).
 		AddRoute(router.NewRoute("/balance/categories", http.MethodGet).Handle(getBalanceCategories)).
-		AddRoute(router.NewRoute("/tokenplan/categories", http.MethodGet).Handle(getTokenPlanCategories))
+		AddRoute(router.NewRoute("/tokenplan/categories", http.MethodGet).Handle(getTokenPlanCategories)).
+		AddRoute(router.NewRoute("/wallet/transactions/:id", http.MethodGet).Handle(getTokenRhythmWallet))
 
 	// 额度管理路由 (写)
 	router.NewGroupRouter("/api/v1/plan-provider").
@@ -63,6 +64,24 @@ func getBalanceCategories(c *gin.Context) {
 func getTokenPlanCategories(c *gin.Context) {
 	categories := planprovider.GetCategories(model.PlanProviderTypeTokenPlan)
 	resp.Success(c, categories)
+}
+
+// getTokenRhythmWallet 基元律动钱包明细（资金明细）。
+// 对应官网「用户中心 → 费用管理 → 钱包明细」，只对 tokenrhythm 类 balance provider 生效；
+// 明细取上游首屏 20 条（不分页），汇总口径见 planprovider.TokenRhythmWallet 注释。
+func getTokenRhythmWallet(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		resp.Error(c, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	wallet, err := planprovider.QueryTokenRhythmWalletByID(c.Request.Context(), id)
+	if err != nil {
+		resp.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	resp.Success(c, wallet)
 }
 
 type addPlanProviderRequest struct {
