@@ -14,7 +14,6 @@ import { cn } from '@/lib/utils';
 import { createPortal } from 'react-dom';
 import { CopyIconButton } from '@/components/common/CopyButton';
 import { formatAverageLatency, type LatencyUnitMode } from './latency-format';
-import { useSettingStore } from '@/stores/setting';
 
 interface ModelItemProps {
     model: ModelMarketItem;
@@ -24,7 +23,6 @@ interface ModelItemProps {
 
 export const ModelItem = memo(function ModelItem({ model, layout = 'grid', latencyUnit = 'auto' }: ModelItemProps) {
     const t = useTranslations('model');
-    const { chinaMode, exchangeRate } = useSettingStore();
     const isListLayout = layout === 'list';
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -315,10 +313,7 @@ export const ModelItem = memo(function ModelItem({ model, layout = 'grid', laten
                                                     {t('card.inputCache')}
                                                 </span>
                                                 <span className="min-w-0 truncate text-right tabular-nums text-foreground">
-                                                    {chinaMode
-                                                        ? `${(model.input * exchangeRate).toFixed(2)}/${(model.cache_read * exchangeRate).toFixed(2)}¥`
-                                                        : `${model.input.toFixed(2)}/${model.cache_read.toFixed(2)}$`
-                                                    }
+                                                    {`${model.input.toFixed(2)}/${model.cache_read.toFixed(2)}¥`}
                                                 </span>
                                             </div>
                                             <div className="flex items-center justify-between gap-2 rounded-lg bg-card px-2.5 py-2 sm:gap-3 sm:px-3">
@@ -327,10 +322,7 @@ export const ModelItem = memo(function ModelItem({ model, layout = 'grid', laten
                                                     {t('card.outputCache')}
                                                 </span>
                                                 <span className="min-w-0 truncate text-right tabular-nums text-foreground">
-                                                    {chinaMode
-                                                        ? `${(model.output * exchangeRate).toFixed(2)}/${(model.cache_write * exchangeRate).toFixed(2)}¥`
-                                                        : `${model.output.toFixed(2)}/${model.cache_write.toFixed(2)}$`
-                                                    }
+                                                    {`${model.output.toFixed(2)}/${model.cache_write.toFixed(2)}¥`}
                                                 </span>
                                             </div>
                                         </div>

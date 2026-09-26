@@ -1,25 +1,21 @@
 package price
 
 import (
-	"path/filepath"
 	"testing"
 
-	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op/llm"
 )
 
-// TestGetLLMPriceCategoryPriority 验证分类表兜底优先于内置整词子串兜底：
-// llmPrice 里有 "gpt-4o"，而模型 "my-gpt-4o-extra" 会命中 "gpt-4o" 的子串兜底，
-// 但分类表里有一条 prefix "my-gpt-4o" 的分类，分类应胜出。
-func TestGetLLMPriceCategoryPriority(t *testing.T) {
-	dsn := filepath.Join(t.TempDir(), "test.db")
-	if err := db.InitDB("sqlite", dsn, false); err != nil {
+// 分类规则只兜底未定价模型：DB 有非 0 手工人民币价时分类不生效。
+func TestGetLLMPrice_CategoryDoesNotOverrideManualPrice(t *testing.T) {
+	initPriceTestDB(t)
+	if err := llm.Create(model.LLMInfo{
+		Name:     "my-model-a",
+		LLMPrice: model.LLMPrice{Input: 7, Output: 21},
+	}, t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = db.Close() })
-
-	// 预置分类：prefix "my-" 兜底价。
 	if _, err := llm.CreatePriceCategory(model.ModelPriceCategory{
 		Name:      "my-models",
 		RuleType:  string(model.ModelPriceCategoryRulePrefix),
@@ -31,17 +27,31 @@ func TestGetLLMPriceCategoryPriority(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	restore := setPricesForTest(map[string]model.LLMPrice{
-		"gpt-4o": {Input: 5, Output: 15}, // matchFallbackPrice 会对 "my-gpt-4o" 命中
-	})
-	t.Cleanup(restore)
-
-	// llm.Get 未命中（DB 无 my-gpt-4o），分类应优先于 matchFallbackPrice。
-	got := GetLLMPrice("my-gpt-4o")
-	if got == nil {
-		t.Fatal("GetLLMPrice(my-gpt-4o) = nil, want category price")
+	got := GetLLMPrice("my-model-a")
+	if got == nil || got.Input != 7 {
+		t.Fatalf("GetLLMPrice = %+v, want manual price Input 7 (category 42 must not win)", got)
 	}
-	if got.Input != 42 {
-		t.Fatalf("GetLLMPrice(my-gpt-4o) Input = %v, want category 42 (whole-word fallback would give 5)", got.Input)
+}
+
+// 0 价占位行（未定价）→ 分类兜底生效。
+func TestGetLLMPrice_CategoryFillsUnpricedModel(t *testing.T) {
+	initPriceTestDB(t)
+	if err := llm.BatchCreate([]model.LLMInfo{{Name: "my-model-b"}}, t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := llm.CreatePriceCategory(model.ModelPriceCategory{
+		Name:      "my-models",
+		RuleType:  string(model.ModelPriceCategoryRulePrefix),
+		RuleValue: "my-",
+		LLMPrice:  model.LLMPrice{Input: 42, Output: 84},
+		SortOrder: 1,
+		Enabled:   true,
+	}, t.Context()); err != nil {
+		t.Fatal(err)
+	}
+
+	got := GetLLMPrice("my-model-b")
+	if got == nil || got.Input != 42 {
+		t.Fatalf("GetLLMPrice = %+v, want category price Input 42", got)
 	}
 }

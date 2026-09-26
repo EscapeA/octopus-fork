@@ -16,7 +16,6 @@ import (
 	"github.com/lingyuins/octopus/internal/op/stats"
 	"github.com/lingyuins/octopus/internal/poolhealthcheck"
 	"github.com/lingyuins/octopus/internal/pooltokenrefresh"
-	"github.com/lingyuins/octopus/internal/price"
 	"github.com/lingyuins/octopus/internal/relay"
 	"github.com/lingyuins/octopus/internal/relay/balancer"
 	"github.com/lingyuins/octopus/internal/relay/poolscheduler"
@@ -50,18 +49,6 @@ func Init() {
 	poolscheduler.StartReportWorkerPool(context.Background())
 	// 注入 Key 巡检状态清理函数到 relay 包（打破 relay -> task 循环依赖）。
 	relay.OnChannelDeletedKeyHealthHook = RemoveChannelKeyHealthState
-	priceUpdateIntervalHours, err := setting.GetInt(model.SettingKeyModelInfoUpdateInterval)
-	if err != nil {
-		log.Errorf("failed to get model info update interval: %v", err)
-	} else {
-		priceUpdateInterval := time.Duration(priceUpdateIntervalHours) * time.Hour
-		Register(string(model.SettingKeyModelInfoUpdateInterval), priceUpdateInterval, true, func() {
-			if err := price.UpdateLLMPrice(context.Background()); err != nil {
-				log.Warnf("failed to update price info: %v", err)
-			}
-		})
-	}
-
 	Register(TaskBaseUrlDelay, 1*time.Hour, true, ChannelBaseUrlDelayTask)
 
 	syncLLMIntervalHours, err := setting.GetInt(model.SettingKeySyncLLMInterval)

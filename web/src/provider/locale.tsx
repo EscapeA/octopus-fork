@@ -21,10 +21,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     const currentTimeZone = normalizeTimeZone(timeZone) || DEFAULT_TIME_ZONE;
 
     useEffect(() => {
-        registerSettingStoreGetter(() => {
-            const s = useSettingStore.getState();
-            return { chinaMode: s.chinaMode, exchangeRate: s.exchangeRate };
-        });
+        registerSettingStoreGetter(() => useSettingStore.getState().locale);
     }, []);
 
     return (

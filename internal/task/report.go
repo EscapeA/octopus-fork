@@ -193,7 +193,7 @@ func buildReportContent(ctx context.Context, rangeStr, rangeTitle string, metric
 			}
 			for i := 0; i < limit; i++ {
 				m := modelBreakdown[i]
-				sections = append(sections, fmt.Sprintf("%d. %s | %s 请求 | %s tokens | $%.2f",
+				sections = append(sections, fmt.Sprintf("%d. %s | %s 请求 | %s tokens | ¥%.2f",
 					i+1, m.ModelName, formatCount(m.RequestCount), formatTokens(m.TotalTokens), m.TotalCost))
 			}
 			sections = append(sections, "")
@@ -214,7 +214,7 @@ func buildReportContent(ctx context.Context, rangeStr, rangeTitle string, metric
 			}
 			for i := 0; i < limit; i++ {
 				p := providerBreakdown[i]
-				sections = append(sections, fmt.Sprintf("%d. %s | %s 请求 | %s tokens | $%.2f",
+				sections = append(sections, fmt.Sprintf("%d. %s | %s 请求 | %s tokens | ¥%.2f",
 					i+1, p.ChannelName, formatCount(p.RequestCount), formatTokens(p.TotalTokens), p.TotalCost))
 			}
 			sections = append(sections, "")
@@ -235,7 +235,7 @@ func buildReportContent(ctx context.Context, rangeStr, rangeTitle string, metric
 			}
 			for i := 0; i < limit; i++ {
 				k := apiKeyBreakdown[i]
-				sections = append(sections, fmt.Sprintf("%d. %s | %s 请求 | %s tokens | $%.2f",
+				sections = append(sections, fmt.Sprintf("%d. %s | %s 请求 | %s tokens | ¥%.2f",
 					i+1, k.Name, formatCount(k.RequestCount), formatTokens(k.TotalTokens), k.TotalCost))
 			}
 			sections = append(sections, "")
@@ -274,7 +274,7 @@ func formatOverviewSection(o *model.AnalyticsOverview) []string {
 		fmt.Sprintf("请求总数: %s", formatCount(o.RequestCount)),
 		fmt.Sprintf("Token 总数: %s (输入 %s / 输出 %s)",
 			formatCount(o.TotalTokens), formatCount(o.InputTokens), formatCount(o.OutputTokens)),
-		fmt.Sprintf("总成本: $%.2f", o.TotalCost),
+		fmt.Sprintf("总成本: ¥%.2f", o.TotalCost),
 		fmt.Sprintf("成功率: %.2f%%", o.SuccessRate),
 		fmt.Sprintf("活跃渠道: %d", o.ProviderCount),
 		fmt.Sprintf("活跃模型: %d", o.ModelCount),
@@ -284,14 +284,14 @@ func formatOverviewSection(o *model.AnalyticsOverview) []string {
 
 // formatCostBreakdownSection 格式化成本明细分节。
 func formatCostBreakdownSection(o *model.AnalyticsOverview) []string {
-	lines := []string{fmt.Sprintf("总成本: $%.2f", o.TotalCost)}
+	lines := []string{fmt.Sprintf("总成本: ¥%.2f", o.TotalCost)}
 	if o.RequestCount > 0 {
 		costPerRequest := o.TotalCost / float64(o.RequestCount)
-		lines = append(lines, fmt.Sprintf("平均每请求: $%.4f", costPerRequest))
+		lines = append(lines, fmt.Sprintf("平均每请求: ¥%.4f", costPerRequest))
 	}
 	if o.TotalTokens > 0 {
 		costPer1kTokens := (o.TotalCost / float64(o.TotalTokens)) * 1000
-		lines = append(lines, fmt.Sprintf("每千 token: $%.4f", costPer1kTokens))
+		lines = append(lines, fmt.Sprintf("每千 token: ¥%.4f", costPer1kTokens))
 	}
 	return lines
 }

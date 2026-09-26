@@ -1,139 +1,108 @@
 package price
 
 import (
+	"path/filepath"
 	"testing"
 
+	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
+	"github.com/lingyuins/octopus/internal/op/llm"
 )
 
-// setPricesForTest replaces the global llmPrice map for the duration of a test
-// and returns a restore function. Callers that invoke matchFallbackPrice
-// directly must hold llmPriceLock (RLock) themselves, matching GetLLMPrice.
-func setPricesForTest(prices map[string]model.LLMPrice) func() {
-	llmPriceLock.Lock()
-	old := llmPrice
-	llmPrice = prices
-	llmPriceLock.Unlock()
-	return func() {
-		llmPriceLock.Lock()
-		llmPrice = old
-		llmPriceLock.Unlock()
+// initPriceTestDB 建独立测试库。价格目录只来自 DB（人民币手工价）与分类规则：
+// 内存美元价表、models.dev 同步、整词子串兜底均已随「去美元」移除。
+func initPriceTestDB(t *testing.T) {
+	t.Helper()
+	dsn := filepath.Join(t.TempDir(), "test.db")
+	if err := db.InitDB("sqlite", dsn, false); err != nil {
+		t.Fatalf("InitDB failed: %v", err)
+	}
+	// llm 包的价格缓存是包级全局的，跨用例会互相污染：清空并在结束时恢复。
+	cache := llm.GetCache()
+	old := cache.GetAll()
+	cache.Clear()
+	t.Cleanup(func() {
+		_ = db.Close()
+		cache.Clear()
+		for k, v := range old {
+			cache.Set(k, v)
+		}
+	})
+}
+
+// DB 手工价命中即返回，模型名大小写不敏感。
+func TestGetLLMPrice_ManualPriceWins(t *testing.T) {
+	initPriceTestDB(t)
+	if err := llm.Create(model.LLMInfo{
+		Name:     "my-model",
+		LLMPrice: model.LLMPrice{Input: 3, Output: 9, CacheRead: 0.3},
+	}, t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	got := GetLLMPrice("MY-MODEL")
+	if got == nil || got.Input != 3 || got.Output != 9 || got.CacheRead != 0.3 {
+		t.Fatalf("GetLLMPrice = %+v, want 3/9/0.3", got)
 	}
 }
 
-func TestMatchFallbackPrice(t *testing.T) {
-	prices := map[string]model.LLMPrice{
-		"gpt-4o":            {Input: 1},
-		"gpt-4o-mini":       {Input: 2},
-		"claude-3-5-sonnet": {Input: 3},
+// 未定价占位行（四价全 0）→ 分类规则兜底生效。
+func TestGetLLMPrice_UnpricedRowFallsBackToCategory(t *testing.T) {
+	initPriceTestDB(t)
+	if err := llm.BatchCreate([]model.LLMInfo{{Name: "cat-model-a"}}, t.Context()); err != nil {
+		t.Fatal(err)
 	}
-	restore := setPricesForTest(prices)
-	t.Cleanup(restore)
-
-	cases := []struct {
-		name      string
-		modelName string
-		want      string // expected matched key, "" means no match
-	}{
-		// Strategy 1: provider/ prefix stripped
-		{"provider prefix", "openai/gpt-4o", "gpt-4o"},
-		{"nested provider prefix", "azure/openai/gpt-4o-mini", "gpt-4o-mini"},
-
-		// Strategy 2: whole-word substring, longest match wins
-		{"exact match", "gpt-4o", "gpt-4o"},
-		{"longest wins", "gpt-4o-mini", "gpt-4o-mini"},
-		{"prefix separator", "my-gpt-4o", "gpt-4o"},
-		{"surrounding separators", "proxy.gpt-4o.relay", "gpt-4o"},
-
-		// Boundary correctness: alphanumeric粘连 must NOT match
-		{"leading alphanum rejected", "xgpt-4o", ""},
-		{"trailing alphanum rejected", "gpt-4ox", ""},
-		{"trailing uppercase rejected", "gpt-4oMini", ""},
-
-		// No match
-		{"unknown model", "totally-unknown-model", ""},
+	if _, err := llm.CreatePriceCategory(model.ModelPriceCategory{
+		Name:      "cat-models",
+		RuleType:  string(model.ModelPriceCategoryRulePrefix),
+		RuleValue: "cat-model",
+		LLMPrice:  model.LLMPrice{Input: 42, Output: 84},
+		SortOrder: 1,
+		Enabled:   true,
+	}, t.Context()); err != nil {
+		t.Fatal(err)
 	}
-
-	llmPriceLock.RLock()
-	defer llmPriceLock.RUnlock()
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := matchFallbackPrice(tc.modelName)
-			switch {
-			case tc.want == "" && got != nil:
-				t.Fatalf("matchFallbackPrice(%q) = %+v, want nil", tc.modelName, got)
-			case tc.want != "" && got == nil:
-				t.Fatalf("matchFallbackPrice(%q) = nil, want key %q", tc.modelName, tc.want)
-			case tc.want != "" && got.Input != prices[tc.want].Input:
-				t.Fatalf("matchFallbackPrice(%q) Input = %v, want %v (key %q)",
-					tc.modelName, got.Input, prices[tc.want].Input, tc.want)
-			}
-		})
+	got := GetLLMPrice("cat-model-a")
+	if got == nil || got.Input != 42 {
+		t.Fatalf("GetLLMPrice = %+v, want category price Input 42", got)
 	}
 }
 
-func TestContainsWholeWord(t *testing.T) {
-	cases := []struct {
-		s, sub string
-		want   bool
-	}{
-		{"gpt-4o", "gpt-4o", true},
-		{"gpt-4o-mini", "gpt-4o", true},
-		{"my-gpt-4o", "gpt-4o", true},
-		{"a.gpt-4o.b", "gpt-4o", true},
-		{"xgpt-4o", "gpt-4o", false},
-		{"gpt-4ox", "gpt-4o", false},
-		{"gpt-4ogpt-4o", "gpt-4o", false}, // 两次出现都被字母粘连
-		{"totally-unknown", "gpt-4o", false},
+// 未定价且无任何兜底 → 返回 0 价行（未定价 = 不计费），不是 nil。
+func TestGetLLMPrice_UnpricedRowReturnsZero(t *testing.T) {
+	initPriceTestDB(t)
+	if err := llm.BatchCreate([]model.LLMInfo{{Name: "unpriced-model"}}, t.Context()); err != nil {
+		t.Fatal(err)
 	}
-	for _, tc := range cases {
-		if got := containsWholeWord(tc.s, tc.sub); got != tc.want {
-			t.Errorf("containsWholeWord(%q, %q) = %v, want %v", tc.s, tc.sub, got, tc.want)
+	got := GetLLMPrice("unpriced-model")
+	if got == nil || *got != (model.LLMPrice{}) {
+		t.Fatalf("GetLLMPrice = %+v, want zero price row", got)
+	}
+}
+
+// DB 无行且无兜底 → nil（调用方按未定价处理）。
+func TestGetLLMPrice_UnknownModelReturnsNil(t *testing.T) {
+	initPriceTestDB(t)
+	if got := GetLLMPrice("totally-unknown-model"); got != nil {
+		t.Fatalf("GetLLMPrice = %+v, want nil", got)
+	}
+}
+
+// 内置美元价目已彻底移除：历史内置条目名不再返回任何价格
+// （既无内存价表命中，也无 provider 前缀/整词子串兜底）。
+func TestGetLLMPrice_NoBuiltinUsdPricesRemain(t *testing.T) {
+	initPriceTestDB(t)
+	for _, name := range []string{"gpt-4o", "claude-3-5-sonnet", "deepseek-chat", "openai/gpt-4o", "my-gpt-4o-extra"} {
+		if got := GetLLMPrice(name); got != nil {
+			t.Fatalf("GetLLMPrice(%q) = %+v, want nil（内置美元价目与子串兜底应已移除）", name, got)
 		}
 	}
 }
 
-// TestGetLLMPriceFromUpstream 验证同步价格查询：只查外部同步 + 托底价格源，
-// 不查数据库；外部命中用外部价，未命中回落托底（presets_manual）价，均未命中返回 nil。
-func TestGetLLMPriceFromUpstream(t *testing.T) {
-	// 模拟外部价格文件同步后的 map：外部条目覆盖了 gpt-4o，deepseek-v4-flash
-	// 未被外部覆盖（保留 presets_manual.go 托底价）。
-	prices := map[string]model.LLMPrice{
-		"gpt-4o":            {Input: 5, Output: 15, CacheRead: 2.5, CacheWrite: 0},
-		"gpt-4o-mini":       {Input: 0.15, Output: 0.6, CacheRead: 0.08, CacheWrite: 0},
-		"claude-3-5-sonnet": {Input: 3, Output: 15, CacheRead: 0.3, CacheWrite: 3.75},
+func TestIsZeroPrice(t *testing.T) {
+	if !isZeroPrice(model.LLMPrice{}) {
+		t.Fatal("isZeroPrice(zero) = false, want true")
 	}
-	restore := setPricesForTest(prices)
-	t.Cleanup(restore)
-
-	cases := []struct {
-		name      string
-		modelName string
-		wantInput float64
-		wantNil   bool
-	}{
-		{"exact upstream hit", "gpt-4o", 5, false},
-		{"exact upstream hit mixed case", "GPT-4O", 5, false},
-		{"provider prefix fallback", "openai/gpt-4o", 5, false},
-		{"whole-word fallback", "my-gpt-4o-mini", 0.15, false},
-		{"no match", "totally-unknown-model", 0, true},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := GetLLMPriceFromUpstream(tc.modelName)
-			if tc.wantNil {
-				if got != nil {
-					t.Fatalf("GetLLMPriceFromUpstream(%q) = %+v, want nil", tc.modelName, got)
-				}
-				return
-			}
-			if got == nil {
-				t.Fatalf("GetLLMPriceFromUpstream(%q) = nil, want Input %v", tc.modelName, tc.wantInput)
-			}
-			if got.Input != tc.wantInput {
-				t.Fatalf("GetLLMPriceFromUpstream(%q) Input = %v, want %v", tc.modelName, got.Input, tc.wantInput)
-			}
-		})
+	if isZeroPrice(model.LLMPrice{Input: 0.0001}) {
+		t.Fatal("isZeroPrice(non-zero) = true, want false")
 	}
 }

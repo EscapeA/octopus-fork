@@ -2301,14 +2301,6 @@
       "reset": "恢復預設順序",
       "resetSuccess": "設定項順序已恢復預設"
     },
-    "chinaMode": {
-      "label": "中國化模式",
-      "description": "費用顯示人民幣，數字使用萬/億單位",
-      "exchangeRate": {
-        "label": "美元兌人民幣匯率",
-        "hint": "預設 7.2，可手動調整"
-      }
-    },
     "groupUpstreamMeta": {
       "label": "分組上游渠道資訊",
       "description": "在分組編輯頁展示上游價格、餘額、今日收入與延遲/吞吐/狀態"

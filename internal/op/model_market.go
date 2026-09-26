@@ -50,7 +50,7 @@ func ModelMarketInvalidateCache() {
 	marketCache.mu.Unlock()
 }
 
-func ModelMarketGet(ctx context.Context, lastUpdateTime time.Time) (model.ModelMarketResponse, error) {
+func ModelMarketGet(ctx context.Context) (model.ModelMarketResponse, error) {
 	// Fast path: return cached result if still valid.
 	marketCache.mu.RLock()
 	if time.Now().Before(marketCache.expiresAt) {
@@ -77,7 +77,7 @@ func ModelMarketGet(ctx context.Context, lastUpdateTime time.Time) (model.ModelM
 			return model.ModelMarketResponse{}, err
 		}
 
-		items, summary := buildModelMarket(models, modelChannels, channelCache.GetAll(), StatsModelList(), lastUpdateTime)
+		items, summary := buildModelMarket(models, modelChannels, channelCache.GetAll(), StatsModelList())
 		resp := model.ModelMarketResponse{
 			Summary: summary,
 			Items:   items,
@@ -102,7 +102,6 @@ func buildModelMarket(
 	modelChannels []model.LLMChannel,
 	channelsByID map[int]model.Channel,
 	stats []model.StatsModel,
-	lastUpdateTime time.Time,
 ) ([]model.ModelMarketItem, model.ModelMarketSummary) {
 	statsByModelName := make(map[string]modelMarketStatsAggregate)
 	for _, item := range stats {
@@ -260,7 +259,6 @@ func buildModelMarket(
 		CoverageCount:      coverageCount,
 		UniqueChannelCount: len(uniqueChannels),
 		AverageLatencyMS:   summaryAverageLatency,
-		LastUpdateTime:     lastUpdateTime,
 	}
 }
 

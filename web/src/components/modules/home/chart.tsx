@@ -5,11 +5,10 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { useMemo } from 'react';
 import { Area, ComposedChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { useTranslations } from 'next-intl';
-import { formatCount, formatMoney } from '@/lib/utils';
+import { formatCount, formatMoney, prefersChineseUnits } from '@/lib/utils';
 import { formatDateOnly } from '@/lib/time';
 import { AnimatedNumber } from '@/components/common/AnimatedNumber';
 import { useHomeStatsRefreshMs, useHomeViewStore, type ChartMetricType, type ChartPeriod } from '@/components/modules/home/store';
-import { useSettingStore } from '@/stores/setting';
 import { BarChart3, CalendarClock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -26,7 +25,7 @@ export function StatsChart() {
     const { data: statsDaily } = useStatsDaily({ refetchIntervalMs: statsRefreshMs });
     const { data: statsHourly } = useStatsHourly({ refetchIntervalMs: statsRefreshMs });
     const t = useTranslations('home.chart');
-    const { chinaMode } = useSettingStore();
+    const chinaUnits = prefersChineseUnits();
 
     const chartMetrics = useHomeViewStore((state) => state.chartMetrics);
     const toggleChartMetric = useHomeViewStore((state) => state.toggleChartMetric);
@@ -149,13 +148,11 @@ export function StatsChart() {
         return 'url(#fillMetric3)';
     };
 
-    // total_cost already went through formatMoney() in the stats select mapper,
-    // so in chinaMode stat.total_cost.raw is already CNY (USD x exchangeRate once).
-    // Formatting it again via formatMoney would apply the exchange rate a second
-    // time and desync the chart from Overview. Use formatDisplayCost for any value
-    // that is already in display currency.
+    // 币种固定人民币：stat.total_cost.raw 即人民币原值，不存在汇率换算，
+    // 因此这里与 Overview 的 formatMoney 结果天然一致（曾经的双重换算问题随
+    // 汇率机制移除而消失）。单位风格（万/亿 vs K/M/B）跟随语言。
     const formatDisplayCost = (value: number): { value: string; unit: string } => {
-        if (chinaMode) {
+        if (chinaUnits) {
             const v = Number(value);
             if (v >= 100_000_000) return { value: (v / 100_000_000).toFixed(2), unit: '亿元' };
             if (v >= 10_000) return { value: (v / 10_000).toFixed(2), unit: '万元' };
@@ -177,7 +174,7 @@ export function StatsChart() {
         `${parseFloat((value / divisor).toFixed(2))}${unit}`;
 
     const axisCountTick = (value: number): string => {
-        if (chinaMode) {
+        if (chinaUnits) {
             const v = Number(value);
             if (v >= 100_000_000) return chinaTickLabel(v, 100_000_000, '亿');
             if (v >= 10_000) return chinaTickLabel(v, 10_000, '万');
@@ -188,7 +185,7 @@ export function StatsChart() {
     };
 
     const axisCostTick = (value: number): string => {
-        if (chinaMode) {
+        if (chinaUnits) {
             const v = Number(value);
             if (v >= 100_000_000) return chinaTickLabel(v, 100_000_000, '亿元');
             if (v >= 10_000) return chinaTickLabel(v, 10_000, '万元');

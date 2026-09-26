@@ -53,9 +53,9 @@ func getPriceScheduleByName(name string) (model.ModelPriceSchedule, error) {
 	return row, err
 }
 
-// SeedPriceSchedules 在表为空时插入默认峰谷规则（DeepSeek 官方美元价，
-// 见 https://api-docs.deepseek.com/quick_start/pricing 峰谷定价），
-// 保证升级后计费行为平滑过渡；之后完全由前端管理（可改可删）。表非空则跳过。
+// SeedPriceSchedules 在表为空时插入默认峰谷规则骨架（窗口/空闲倍率/周末规则），
+// **价格一律为 0**：价目以人民币维护且由前端填写，代码不再内置任何币种的价格。
+// 表非空则跳过。
 func SeedPriceSchedules(ctx context.Context) error {
 	var count int64
 	if err := db.GetDB().WithContext(ctx).Model(&model.ModelPriceSchedule{}).Count(&count).Error; err != nil {
@@ -64,8 +64,7 @@ func SeedPriceSchedules(ctx context.Context) error {
 	if count > 0 {
 		return nil
 	}
-	// 官方美元价（USD/1M tokens，PEAK）：flash $0.44/$1.32/$0.014，
-	// pro $1.32/$3.96/$0.044；官方 OFF-PEAK 恰为 PEAK × 0.5。
+	// 价格留 0：请在「模型广场 → 价格分类 → 峰谷计费」按人民币官方价填写。
 	// 窗口默认 09:00-12:00 / 14:00-18:00（北京时间）；2026-08-23 起
 	// 周末（周六/周日）全天不再区分峰谷，统一按空闲价。
 	seed := []model.ModelPriceSchedule{
@@ -73,7 +72,7 @@ func SeedPriceSchedules(ctx context.Context) error {
 			Name:           "deepseek-v4-flash",
 			RuleType:       string(model.ModelPriceCategoryRulePrefix),
 			RuleValue:      "deepseek-v4-flash",
-			LLMPrice:       model.LLMPrice{Input: 0.44, Output: 1.32, CacheRead: 0.014},
+			LLMPrice:       model.LLMPrice{},
 			OffPeakMul:     0.5,
 			WeekendOffPeak: true,
 			Window1Start:   540, Window1End: 720,
@@ -85,7 +84,7 @@ func SeedPriceSchedules(ctx context.Context) error {
 			Name:           "deepseek-v4-pro",
 			RuleType:       string(model.ModelPriceCategoryRulePrefix),
 			RuleValue:      "deepseek-v4-pro",
-			LLMPrice:       model.LLMPrice{Input: 1.32, Output: 3.96, CacheRead: 0.044},
+			LLMPrice:       model.LLMPrice{},
 			OffPeakMul:     0.5,
 			WeekendOffPeak: true,
 			Window1Start:   540, Window1End: 720,
