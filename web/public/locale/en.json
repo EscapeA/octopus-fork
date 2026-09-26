@@ -1093,7 +1093,7 @@
         "noChannelWarn": "No notification channel selected; no notification will be sent when the alert fires",
         "cooldownHint": "Cooldown period after alert fires; no duplicate alerts during this time",
         "thresholdHint": {
-          "cost_threshold": "Alert when daily accumulated cost exceeds this amount (USD)",
+          "cost_threshold": "Alert when daily accumulated cost exceeds this amount (CNY)",
           "error_rate": "Alert when error rate in the sliding window exceeds this percentage for the scoped target",
           "quota_exceeded": "Alert when quota usage exceeds this percentage",
           "channel_down": "Alert when consecutive channel failures exceed this count"
@@ -2726,7 +2726,7 @@
       "cacheWrite": "Cache Write",
       "submit": "Create",
       "submitting": "Creating...",
-      "priceHint": "Price unit: USD / 1M tokens"
+      "priceHint": "Price unit: CNY (¥) / 1M tokens"
     },
     "summary": {
       "title": "Model Market",
@@ -2785,8 +2785,8 @@
       "cacheRead": "Cache Read",
       "cacheWrite": "Cache Write",
       "save": "Save",
-      "priceHint": "Price unit: USD / 1M tokens",
-      "peakBillingHint": "Above are PEAK prices. Off-peak (9–12 / 14–18 outside) is charged at half."
+      "priceHint": "Price unit: CNY (¥) / 1M tokens",
+      "peakBillingHint": "Above are PEAK prices: matched peak windows use these; other hours use peak × off-peak multiplier (see Price Categories → Peak/Off-peak)."
     },
     "capabilities": {
       "title": "Model Capabilities",
@@ -2842,7 +2842,7 @@
       "empty": "No price categories yet. Add one to provide fallback pricing.",
       "toastSaved": "Price category saved",
       "toastDeleted": "Price category deleted",
-      "priceHint": "Price unit: USD per million tokens",
+      "priceHint": "Price unit: CNY (¥) per million tokens",
       "missing": "Missing",
       "actions": "Actions",
       "cancel": "Cancel",
@@ -2889,7 +2889,7 @@
       "empty": "No billing schedules yet. Add one to enable time-based billing.",
       "toastSaved": "Billing schedule saved",
       "toastDeleted": "Billing schedule deleted",
-      "priceHint": "Price unit: USD / 1M tokens (peak price)",
+      "priceHint": "Price unit: CNY (¥) / 1M tokens (peak price)",
       "missing": "Missing",
       "actions": "Actions",
       "cancel": "Cancel",
