@@ -263,23 +263,6 @@ build_frontend() {
     return 0
 }
 
-update_price() {
-    log_step "Updating price"
-
-    local python_cmd
-    if ! python_cmd="$(get_python_cmd)"; then
-        log_error "Python is not installed. Please install Python from https://www.python.org/downloads/"
-        return 1
-    fi
-
-    if ! eval "$python_cmd scripts/updatePrice.py"; then
-        log_error "Failed to update price"
-        return 1
-    fi
-    log_success "Price updated"
-}
-
-
 get_go_arch() {
     case "$1" in
     "x86_64") echo "amd64" ;;
@@ -583,12 +566,6 @@ main() {
             exit 1
         fi
 
-        # Update price
-        if ! update_price; then
-            log_error "Failed to update price"
-            exit 1
-        fi
-
         # Build for specified platform
         log_step "Building binary"
 
@@ -614,12 +591,6 @@ main() {
         # Build frontend
         if ! build_frontend; then
             log_error "Failed to build frontend"
-            exit 1
-        fi
-
-        # Update price
-        if ! update_price; then
-            log_error "Failed to update price"
             exit 1
         fi
 

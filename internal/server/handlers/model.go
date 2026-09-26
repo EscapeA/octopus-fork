@@ -5,14 +5,12 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/lingyuins/octopus/internal/helper"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op"
 	ak "github.com/lingyuins/octopus/internal/op/apikey"
 	"github.com/lingyuins/octopus/internal/op/channel"
 	"github.com/lingyuins/octopus/internal/op/group"
 	"github.com/lingyuins/octopus/internal/op/llm"
-	"github.com/lingyuins/octopus/internal/price"
 	"github.com/lingyuins/octopus/internal/server/auth"
 	"github.com/lingyuins/octopus/internal/server/middleware"
 	"github.com/lingyuins/octopus/internal/server/resp"
@@ -51,15 +49,6 @@ func init() {
 			router.NewRoute("/delete", http.MethodPost).
 				Use(middleware.RequirePermission(auth.PermSettingsWrite)).
 				Handle(deleteLLM),
-		).
-		AddRoute(
-			router.NewRoute("/update-price", http.MethodPost).
-				Use(middleware.RequirePermission(auth.PermSettingsWrite)).
-				Handle(updateLLMPrice),
-		).
-		AddRoute(
-			router.NewRoute("/last-update-time", http.MethodGet).
-				Handle(getLastUpdateTime),
 		).
 		AddRoute(
 			router.NewRoute("/capabilities", http.MethodGet).
@@ -204,7 +193,7 @@ func listLLMByChannel(c *gin.Context) {
 }
 
 func getModelMarket(c *gin.Context) {
-	market, err := op.ModelMarketGet(c.Request.Context(), price.GetLastUpdateTime())
+	market, err := op.ModelMarketGet(c.Request.Context())
 	if err != nil {
 		resp.InternalError(c)
 		return
@@ -251,24 +240,6 @@ func deleteLLM(c *gin.Context) {
 		return
 	}
 	resp.Success(c, nil)
-}
-
-func updateLLMPrice(c *gin.Context) {
-	err := price.UpdateLLMPrice(c.Request.Context())
-	if err != nil {
-		resp.InternalError(c)
-		return
-	}
-	if err := helper.LLMPriceRefreshExistingModels(c.Request.Context()); err != nil {
-		resp.InternalError(c)
-		return
-	}
-	resp.Success(c, nil)
-}
-
-func getLastUpdateTime(c *gin.Context) {
-	time := price.GetLastUpdateTime()
-	resp.Success(c, time)
 }
 
 func getModelCapabilities(c *gin.Context) {

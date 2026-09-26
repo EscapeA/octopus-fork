@@ -25,7 +25,17 @@ func initScheduleTestDB(t *testing.T) {
 	if err := db.InitDB("sqlite", dsn, false); err != nil {
 		t.Fatalf("InitDB failed: %v", err)
 	}
-	t.Cleanup(func() { _ = db.Close() })
+	// llm 包的价格缓存是包级全局的，跨用例会互相污染：清空并在结束时恢复。
+	cache := llm.GetCache()
+	oldCache := cache.GetAll()
+	cache.Clear()
+	t.Cleanup(func() {
+		_ = db.Close()
+		cache.Clear()
+		for k, v := range oldCache {
+			cache.Set(k, v)
+		}
+	})
 	ctx := t.Context()
 	if err := llm.SeedPriceSchedules(ctx); err != nil {
 		t.Fatalf("SeedPriceSchedules: %v", err)
@@ -35,7 +45,27 @@ func initScheduleTestDB(t *testing.T) {
 	}
 }
 
-// TestSeedPriceSchedules 验证 seed 幂等性与默认规则内容（DeepSeek 官方高峰价）。
+// setSchedulePrice 把指定峰谷规则的高峰价设为 p。
+// seed 不再内置任何币种的价格（人民币价由前端填写），涉及价格的断言必须显式设置。
+func setSchedulePrice(t *testing.T, name string, p model.LLMPrice) {
+	t.Helper()
+	ctx := t.Context()
+	if err := llm.RefreshPriceScheduleCache(ctx); err != nil {
+		t.Fatal(err)
+	}
+	sched := llm.PriceScheduleMatch(name)
+	if sched == nil {
+		t.Fatalf("schedule %q not found", name)
+	}
+	updated := *sched
+	updated.LLMPrice = p
+	if _, err := llm.UpdatePriceSchedule(updated, ctx); err != nil {
+		t.Fatalf("UpdatePriceSchedule: %v", err)
+	}
+}
+
+// TestSeedPriceSchedules 验证 seed 幂等性与默认规则骨架。
+// 价目一律为 0：代码不再内置任何币种的价格，人民币价由前端按官方价填写。
 func TestSeedPriceSchedules(t *testing.T) {
 	initScheduleTestDB(t)
 	ctx := t.Context()
@@ -80,13 +110,11 @@ func TestSeedPriceSchedules(t *testing.T) {
 	if !flash.WeekendOffPeak {
 		t.Fatalf("flash weekend_off_peak = false, want true (official rule since 2026-08-23)")
 	}
-	if !floatEqual(flash.Input, 0.44) || !floatEqual(flash.Output, 1.32) ||
-		!floatEqual(flash.CacheRead, 0.014) {
-		t.Fatalf("flash peak price = %+v", flash.LLMPrice)
+	if flash.LLMPrice != (model.LLMPrice{}) {
+		t.Fatalf("flash peak price = %+v, want all zero（价目由界面按人民币维护）", flash.LLMPrice)
 	}
-	if !floatEqual(pro.Input, 1.32) || !floatEqual(pro.Output, 3.96) ||
-		!floatEqual(pro.CacheRead, 0.044) {
-		t.Fatalf("pro peak price = %+v", pro.LLMPrice)
+	if pro.LLMPrice != (model.LLMPrice{}) {
+		t.Fatalf("pro peak price = %+v, want all zero", pro.LLMPrice)
 	}
 }
 
@@ -157,6 +185,7 @@ func TestBillingWindowNoRule(t *testing.T) {
 // 即使落在原高峰窗口内也按 offpeak 计费（官方 2026-08-23 起规则）。
 func TestBillingWindowWeekend(t *testing.T) {
 	initScheduleTestDB(t)
+	setSchedulePrice(t, "deepseek-v4-flash", model.LLMPrice{Input: 0.44, Output: 1.32})
 	// 2026-08-22 周六 / 2026-08-23 周日（北京时区）
 	weekend := []time.Time{
 		time.Date(2026, 8, 22, 10, 0, 0, 0, shanghaiLoc), // 周六 10:00（原高峰）
@@ -212,8 +241,9 @@ func TestScaleLLMPrice(t *testing.T) {
 
 func TestEffectiveLLMPrice(t *testing.T) {
 	initScheduleTestDB(t)
+	setSchedulePrice(t, "deepseek-v4-flash", model.LLMPrice{Input: 0.44, Output: 1.32})
 
-	// 命中默认规则：高峰 10:00 → 规则高峰价；空闲 13:00 → 高峰价 × 0.5。
+	// 命中规则：高峰 10:00 → 规则高峰价；空闲 13:00 → 高峰价 × 0.5。
 	peak := EffectiveLLMPrice("deepseek-v4-flash", mustTime(t, 10, 0, 0))
 	if peak == nil || !floatEqual(peak.Input, 0.44) || !floatEqual(peak.Output, 1.32) {
 		t.Fatalf("peak EffectiveLLMPrice = %+v", peak)
@@ -223,11 +253,13 @@ func TestEffectiveLLMPrice(t *testing.T) {
 		t.Fatalf("offpeak EffectiveLLMPrice = %+v", off)
 	}
 
-	// 未命中规则：走 GetLLMPrice（注入 llmPrice 验证不缩放）。
-	restore := setPricesForTest(map[string]model.LLMPrice{
-		"gpt-4o": {Input: 5, Output: 15, CacheRead: 0, CacheWrite: 0},
-	})
-	t.Cleanup(restore)
+	// 未命中规则：走 GetLLMPrice（DB 手工人民币价，不随窗口缩放）。
+	if err := llm.Create(model.LLMInfo{
+		Name:     "gpt-4o",
+		LLMPrice: model.LLMPrice{Input: 5, Output: 15, CacheRead: 0, CacheWrite: 0},
+	}, t.Context()); err != nil {
+		t.Fatal(err)
+	}
 	a := EffectiveLLMPrice("gpt-4o", mustTime(t, 10, 0, 0))
 	b := EffectiveLLMPrice("gpt-4o", mustTime(t, 13, 0, 0))
 	if a == nil || b == nil || !floatEqual(a.Input, b.Input) || !floatEqual(a.Input, 5) {

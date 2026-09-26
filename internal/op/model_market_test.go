@@ -2,7 +2,6 @@ package op
 
 import (
 	"testing"
-	"time"
 
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op/setting"
@@ -33,7 +32,6 @@ func TestBuildModelMarket_AggregatesChannelsKeysAndStats(t *testing.T) {
 			{ID: 1, Name: "gpt-5.2", ChannelID: 1, StatsMetrics: model.StatsMetrics{WaitTime: 3000, RequestSuccess: 9, RequestFailed: 1}},
 			{ID: 2, Name: "gpt-5.2", ChannelID: 2, StatsMetrics: model.StatsMetrics{WaitTime: 1000, RequestSuccess: 1, RequestFailed: 1}},
 		},
-		time.Date(2026, 4, 29, 10, 0, 0, 0, time.FixedZone("CST", 8*3600)),
 	)
 
 	if len(items) != 1 {
@@ -82,7 +80,7 @@ func TestBuildModelMarket_NormalizesAndMergesModelVariants(t *testing.T) {
 			{Name: "@cf/moonshotai/kimi-k2.5", StatsMetrics: model.StatsMetrics{WaitTime: 200, RequestSuccess: 2, RequestFailed: 1}},
 			{Name: "dmxapi-kimi-k2.5", StatsMetrics: model.StatsMetrics{WaitTime: 300, RequestFailed: 2}},
 		},
-		time.Time{},
+		
 	)
 
 	if len(items) != 1 {
@@ -126,7 +124,7 @@ func TestBuildModelMarket_KeepsRawModelsWhenMarketDedupeDisabled(t *testing.T) {
 		nil,
 		nil,
 		nil,
-		time.Time{},
+		
 	)
 
 	if len(items) != 2 {
@@ -149,7 +147,7 @@ func TestBuildModelMarket_SortsItemsBySuccessRateThenSuccessCount(t *testing.T) 
 			{ID: 2, Name: "a-model", StatsMetrics: model.StatsMetrics{RequestSuccess: 4, RequestFailed: 0}},
 			{ID: 3, Name: "b-model", StatsMetrics: model.StatsMetrics{RequestSuccess: 6, RequestFailed: 0}},
 		},
-		time.Time{},
+		
 	)
 
 	if len(items) != 4 {
@@ -168,7 +166,7 @@ func TestBuildModelMarket_UsesEmptyChannelsSliceWhenModelHasNoChannels(t *testin
 		nil,
 		nil,
 		nil,
-		time.Time{},
+		
 	)
 
 	if len(items) != 1 {

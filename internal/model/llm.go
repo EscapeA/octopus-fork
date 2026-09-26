@@ -1,7 +1,5 @@
 package model
 
-import "time"
-
 type LLMPrice struct {
 	Input      float64 `json:"input" gorm:"column:input"`
 	Output     float64 `json:"output" gorm:"column:output"`
@@ -9,6 +7,8 @@ type LLMPrice struct {
 	CacheWrite float64 `json:"cache_write" gorm:"column:cache_write"`
 }
 
+// LLMInfo 是模型价格目录条目。四个单价单位为人民币（¥/M tokens）。
+// 价格由模型管理页手工维护（price_manual=true），不再从外部价格源同步。
 type LLMInfo struct {
 	Name string `json:"name" gorm:"primaryKey;not null"`
 	LLMPrice
@@ -78,7 +78,6 @@ type ModelMarketSummary struct {
 	CoverageCount      int       `json:"coverage_count"`
 	UniqueChannelCount int       `json:"unique_channel_count"`
 	AverageLatencyMS   int64     `json:"average_latency_ms"`
-	LastUpdateTime     time.Time `json:"last_update_time"`
 }
 
 type ModelMarketResponse struct {

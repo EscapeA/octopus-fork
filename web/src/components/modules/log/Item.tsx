@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useMemo, useState, useEffect } from 'react';
-import { Clock, Cpu, Gauge, Zap, AlertCircle, ArrowDownToLine, ArrowUpFromLine, DollarSign, JapaneseYen, ArrowRight, ArrowDown, Send, MessageSquare, Loader2, Percent, RotateCw, ChevronDown, ChevronUp, Pin, KeyRound, Globe, ChevronsDownUp, ChevronsUpDown, TestTube2, Sigma, Brain, Type } from 'lucide-react';
+import { Clock, Cpu, Gauge, Zap, AlertCircle, ArrowDownToLine, ArrowUpFromLine, JapaneseYen, ArrowRight, ArrowDown, Send, MessageSquare, Loader2, Percent, RotateCw, ChevronDown, ChevronUp, Pin, KeyRound, Globe, ChevronsDownUp, ChevronsUpDown, TestTube2, Sigma, Brain, Type } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'motion/react';
 import JsonView from '@uiw/react-json-view';
@@ -11,12 +11,11 @@ import { useTheme } from 'next-themes';
 import { type RelayLog, type ChannelAttempt, useLogDetail } from '@/api/endpoints/log';
 import { getModelIcon, resolveBrandColor } from '@/lib/model-icons';
 import { Badge } from '@/components/ui/badge';
-import { cn, formatCount, formatMoney } from '@/lib/utils';
+import { cn, formatCount, formatMoney, prefersChineseUnits } from '@/lib/utils';
 import { formatUnixSeconds } from '@/lib/time';
 import { endpointTypeLabelKey } from '@/components/modules/group/utils';
 import { resolveLogDisplayFields, formatJsonForCopy } from './display';
 import { useLogFieldVisibility } from './ui-store';
-import { useSettingStore } from '@/stores/setting';
 import { CopyIconButton } from '@/components/common/CopyButton';
 import {
     MorphingDialog,
@@ -302,7 +301,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
     const [responseJsonCollapsed, setResponseJsonCollapsed] = useState(false);
     const displayFields = useMemo(() => resolveLogDisplayFields(log, detail, channelNameById), [channelNameById, detail, log]);
     const vis = useLogFieldVisibility();
-    const chinaMode = useSettingStore((s) => s.chinaMode);
+    const chinaUnits = prefersChineseUnits();
     const { Avatar: ModelAvatar, color: brandColor } = useMemo(
         () => getModelIcon(displayFields.actualModelName),
         [displayFields.actualModelName]
@@ -374,7 +373,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
         ? fmt(formatCount(totalTokens).formatted)
         : tCommon('unknown');
     const costDisplay = usageKnown
-        ? (chinaMode
+        ? (chinaUnits
             ? costFmt(formatMoney(Number(log.cost)).raw)
             : formatMoney(Number(log.cost)).raw.toFixed(2))
         : tCommon('unknown');
@@ -518,7 +517,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                 </div>
                                 {vis.cost && (
                                     <div className="flex items-center gap-1.5">
-                                        {chinaMode ? <JapaneseYen className="size-3.5 shrink-0 text-emerald-500" /> : <DollarSign className="size-3.5 shrink-0 text-emerald-500" />}
+                                        <JapaneseYen className="size-3.5 shrink-0 text-emerald-500" />
                                         <span className="font-medium text-emerald-600 dark:text-emerald-400">
                                             {t('cost')} {costDisplay}
                                         </span>
@@ -891,7 +890,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                             )}
                             {vis.cost && (
                                 <div className="flex items-center gap-1.5">
-                                    {chinaMode ? <JapaneseYen className="size-3.5 text-emerald-500" /> : <DollarSign className="size-3.5 text-emerald-500" />}
+                                    <JapaneseYen className="size-3.5 text-emerald-500" />
                                     <span className="font-medium text-emerald-600 dark:text-emerald-400">
                                         {t('cost')}: {costDisplay}
                                     </span>

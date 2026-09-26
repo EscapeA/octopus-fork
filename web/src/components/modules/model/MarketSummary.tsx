@@ -4,7 +4,6 @@ import { Boxes, Clock3, RefreshCw, RadioTower, Rows3 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { formatDateTime } from '@/lib/time';
 import { formatAverageLatency, type LatencyUnitMode } from './latency-format';
 
 type MarketSummaryValue = {
@@ -12,17 +11,7 @@ type MarketSummaryValue = {
     coverage_count: number;
     unique_channel_count: number;
     average_latency_ms: number;
-    last_update_time?: string;
 };
-
-function formatLastUpdate(value: string | undefined, fallback: string) {
-    if (!value) return fallback;
-    const formatted = formatDateTime(value);
-    if (formatted === '-') return fallback;
-    const date = new Date(value);
-    if (!Number.isNaN(date.getTime()) && date.getFullYear() <= 1) return fallback;
-    return formatted;
-}
 
 export function ModelMarketSummary({
     summary,
@@ -40,7 +29,6 @@ export function ModelMarketSummary({
     latencyUnit?: LatencyUnitMode;
 }) {
     const t = useTranslations('model');
-    const lastUpdateLabel = formatLastUpdate(summary.last_update_time, t('summary.neverUpdated'));
     const requestCount = summary.model_count > 0 ? 1 : 0;
 
     const metrics = [
@@ -97,11 +85,6 @@ export function ModelMarketSummary({
                                 <RefreshCw className={`mr-1.5 h-3.5 w-3.5 sm:mr-2 sm:h-4 sm:w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                                 {isRefreshing ? t('summary.refreshing') : t('summary.refresh')}
                             </Button>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 rounded-lg border border-border/30 bg-card px-2.5 py-1.5 text-[0.65rem] text-muted-foreground sm:gap-2 sm:px-3 sm:py-2 sm:text-[11px]">
-                            <Clock3 className="h-3.5 w-3.5 shrink-0 text-primary sm:h-4 sm:w-4" />
-                            <span className="min-w-0 truncate">{t('summary.lastUpdate')}: {lastUpdateLabel}</span>
                         </div>
 
                         <div className="grid grid-cols-2 gap-1.5 sm:gap-2 lg:grid-cols-4">

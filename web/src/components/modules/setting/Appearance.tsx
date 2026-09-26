@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { SettingOrder } from './SettingOrder';
 import { useTranslations } from 'next-intl';
-import { Bell, Clock3, GripVertical, Layers, Languages, ListOrdered, Monitor, Moon, RotateCcw, Sun, Landmark } from 'lucide-react';
+import { Bell, Clock3, GripVertical, Layers, Languages, ListOrdered, Monitor, Moon, RotateCcw, Sun } from 'lucide-react';
 import {
     DragDropContext,
     Draggable,
@@ -15,7 +15,6 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Hint } from '@/components/ui/hint';
 import { cn } from '@/lib/utils';
 import {
@@ -425,14 +424,12 @@ function SubTabPreferences() {
 export function SettingAppearance() {
     const t = useTranslations('setting');
     const { theme, setTheme } = useTheme();
-    const { locale, setLocale, timeZone, setTimeZone, chinaMode, setChinaMode, exchangeRate, setExchangeRate } = useSettingStore();
+    const { locale, setLocale, timeZone, setTimeZone } = useSettingStore();
     const { data: settings } = useSettingList();
     const setSetting = useSetSetting();
     const [alertNotifyLanguage, setAlertNotifyLanguage] = useState<AlertNotifyLanguage>('en');
     const initialAlertNotifyLanguage = useRef<AlertNotifyLanguage>('en');
     const initialTimeZone = useRef(timeZone);
-    const [localExchangeRate, setLocalExchangeRate] = useState(exchangeRate.toString());
-    const initialExchangeRate = useRef(exchangeRate);
     const [groupUpstreamMetaEnabled, setGroupUpstreamMetaEnabled] = useState(true);
     const initialGroupUpstreamMetaEnabled = useRef(true);
     useEffect(() => {
@@ -630,58 +627,6 @@ export function SettingAppearance() {
                                 </SelectContent>
                             </Select>
                         </div>
-                    </div>
-
-                    {/* 中国化模式 */}
-                    <div className="flex flex-col gap-4 rounded-lg border border-primary/20 bg-gradient-to-br from-primary/5 to-transparent p-4 shadow-sm">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/12">
-                                    <Landmark className="h-5 w-5 text-primary" />
-                                </div>
-                                <div className="space-y-0.5">
-                                    <span className="text-sm font-semibold text-card-foreground">{t('chinaMode.label')}</span>
-                                    <p className="text-xs text-muted-foreground">{t('chinaMode.description')}</p>
-                                </div>
-                            </div>
-                            <Switch
-                                checked={chinaMode}
-                                onCheckedChange={setChinaMode}
-                                aria-label={t('chinaMode.label')}
-                            />
-                        </div>
-                        {chinaMode && (
-                            <div className="flex flex-col gap-3 rounded-lg border-border/30 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between">
-                                <div className="flex items-center gap-3">
-                                    <span className="text-sm font-medium">
-                                        {t('chinaMode.exchangeRate.label')}
-                                        <Hint text={t('chinaMode.exchangeRate.hint')} />
-                                    </span>
-                                </div>
-                                <Input
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    value={localExchangeRate}
-                                    onChange={(e) => setLocalExchangeRate(e.target.value)}
-                                    onBlur={() => {
-                                        const parsed = parseFloat(localExchangeRate);
-                                        if (!isNaN(parsed) && parsed > 0) {
-                                            setExchangeRate(parsed);
-                                            initialExchangeRate.current = parsed;
-                                        } else {
-                                            setLocalExchangeRate(initialExchangeRate.current.toString());
-                                        }
-                                    }}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            (e.target as HTMLInputElement).blur();
-                                        }
-                                    }}
-                                    className="w-48 rounded-xl"
-                                />
-                            </div>
-                        )}
                     </div>
 
                     {/* 分组上游渠道元信息展示 */}

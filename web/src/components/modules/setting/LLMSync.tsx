@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { RefreshCw, Clock, DollarSign } from 'lucide-react';
+import { RefreshCw, Clock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useSettingList, useSetSetting, SettingKey } from '@/api/endpoints/setting';
 import { toast } from '@/components/common/Toast';
@@ -13,9 +13,7 @@ export function SettingLLMSync() {
     const setSetting = useSetSetting();
 
     const [syncInterval, setSyncInterval] = useState('');
-    const [updateInterval, setUpdateInterval] = useState('');
     const initialSyncInterval = useRef('');
-    const initialUpdateInterval = useRef('');
 
     useEffect(() => {
         if (settings) {
@@ -23,12 +21,6 @@ export function SettingLLMSync() {
             if (syncIntervalSetting) {
                 queueMicrotask(() => setSyncInterval(syncIntervalSetting.value));
                 initialSyncInterval.current = syncIntervalSetting.value;
-            }
-
-            const updateIntervalSetting = settings.find(s => s.key === SettingKey.ModelInfoUpdateInterval);
-            if (updateIntervalSetting) {
-                queueMicrotask(() => setUpdateInterval(updateIntervalSetting.value));
-                initialUpdateInterval.current = updateIntervalSetting.value;
             }
         }
     }, [settings]);
@@ -41,9 +33,6 @@ export function SettingLLMSync() {
                 toast.success(t('saved'));
                 if (key === SettingKey.SyncLLMInterval) {
                     initialSyncInterval.current = value;
-                }
-                if (key === SettingKey.ModelInfoUpdateInterval) {
-                    initialUpdateInterval.current = value;
                 }
             }
         });
@@ -71,20 +60,6 @@ export function SettingLLMSync() {
                 />
             </div>
 
-            <div className="flex flex-col gap-3 rounded-lg border-border/30 bg-card p-4 shadow-sm md:flex-row md:items-center md:justify-between">
-                <div className="flex items-center gap-3">
-                    <DollarSign className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-sm font-medium">{t('llmPrice.updateInterval.label')}</span>
-                </div>
-                <Input
-                    type="number"
-                    value={updateInterval}
-                    onChange={(e) => setUpdateInterval(e.target.value)}
-                    onBlur={() => handleSave(SettingKey.ModelInfoUpdateInterval, updateInterval, initialUpdateInterval.current)}
-                    placeholder={t('llmPrice.updateInterval.placeholder')}
-                    className="w-48 rounded-xl"
-                />
-            </div>
         </div>
     );
 }

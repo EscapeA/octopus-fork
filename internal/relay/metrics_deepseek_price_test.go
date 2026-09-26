@@ -1,11 +1,55 @@
 package relay
 
 import (
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/lingyuins/octopus/internal/db"
+	"github.com/lingyuins/octopus/internal/model"
+	"github.com/lingyuins/octopus/internal/op/llm"
 	transmodel "github.com/lingyuins/octopus/internal/transformer/model"
 )
+
+// setupRelayPriceDB 建测试库并显式写入人民币价目：
+// 价格目录不再有任何内置/同步价格，涉及金额的断言必须自己建价。
+//   - 峰谷规则 deepseek-v4-flash：高峰 ¥0.44/¥1.32（空闲 ×0.5 由规则给出）
+//   - 手工价 gpt-4o：¥5/¥15（不套峰谷，两个窗口同价）
+func setupRelayPriceDB(t *testing.T) {
+	t.Helper()
+	dsn := filepath.Join(t.TempDir(), "test.db")
+	if err := db.InitDB("sqlite", dsn, false); err != nil {
+		t.Fatalf("InitDB failed: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	ctx := t.Context()
+	if err := llm.SeedPriceSchedules(ctx); err != nil {
+		t.Fatalf("SeedPriceSchedules: %v", err)
+	}
+	rows, err := llm.ListPriceSchedules(ctx)
+	if err != nil {
+		t.Fatalf("ListPriceSchedules: %v", err)
+	}
+	for _, row := range rows {
+		if row.Name != "deepseek-v4-flash" {
+			continue
+		}
+		row.LLMPrice = model.LLMPrice{Input: 0.44, Output: 1.32, CacheRead: 0.014}
+		if _, err := llm.UpdatePriceSchedule(row, ctx); err != nil {
+			t.Fatalf("UpdatePriceSchedule: %v", err)
+		}
+	}
+	if err := llm.RefreshPriceScheduleCache(ctx); err != nil {
+		t.Fatalf("RefreshPriceScheduleCache: %v", err)
+	}
+	if err := llm.Create(model.LLMInfo{
+		Name:     "gpt-4o",
+		LLMPrice: model.LLMPrice{Input: 5, Output: 15},
+	}, ctx); err != nil {
+		t.Fatalf("llm.Create(gpt-4o): %v", err)
+	}
+}
 
 // shanghaiLocRelay 与 price 包 deepSeekLocation 相同固定偏移，用于构造北京时刻。
 var shanghaiLocRelay = time.FixedZone("UTC+8", 8*3600)
@@ -21,7 +65,8 @@ func beijingRelay(t *testing.T, h, m int) time.Time {
 //   - 北京 13:00（空闲）→ 高峰价 ×0.5
 //   - 非 DeepSeek 模型两个时刻费用相同
 func TestSetInternalResponseDeepSeekPeakPricing(t *testing.T) {
-	// 依赖 price 包 presets_manual.go 的高峰预设（GetLLMPrice 经 map 命中）。
+	setupRelayPriceDB(t)
+	// 显式写入人民币价目（见 setupRelayPriceDB）。
 	// 1e6 uncached input + 1e6 output，便于直接对比价格数值。
 	resp := &transmodel.InternalLLMResponse{
 		Usage: &transmodel.Usage{

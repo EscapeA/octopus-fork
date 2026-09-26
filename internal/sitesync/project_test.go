@@ -592,10 +592,11 @@ func TestProjectAccountSyncsProjectedModelPrices(t *testing.T) {
 		t.Fatalf("ProjectAccount returned error: %v", err)
 	}
 
+	// 价格目录以人民币手工维护：投影同步只建 0 价占位行，不再从价格源自动填价。
 	if got, err := op.LLMGet("gpt-4o-mini"); err != nil {
-		t.Fatalf("expected gpt-4o-mini price to be inserted: %v", err)
-	} else if got.Input <= 0 || got.Output <= 0 {
-		t.Fatalf("unexpected projected price for gpt-4o-mini: %+v", got)
+		t.Fatalf("expected gpt-4o-mini price row to be inserted: %v", err)
+	} else if got.Input != 0 || got.Output != 0 {
+		t.Fatalf("projected price for gpt-4o-mini = %+v, want zero（未定价，价格由界面填）", got)
 	}
 }
 

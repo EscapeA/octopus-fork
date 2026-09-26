@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { registerSettingStoreGetter } from '../../lib/utils.ts';
 
 import { formatAPIKeyStatsResponse } from './apikey-format.ts';
+
+// 单位风格跟随语言：本用例断言 K/M/B 风格，显式固定为英文（默认语言是简中 → 万/亿）。
+registerSettingStoreGetter(() => 'en');
 
 test('formatAPIKeyStatsResponse formats nested stats response without flattening info', () => {
     const formatted = formatAPIKeyStatsResponse({

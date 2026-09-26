@@ -6,19 +6,33 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Lazily read chinaMode / exchangeRate from the persisted setting store.
+ * Lazily read the current locale from the persisted setting store.
  * Avoids a hard import-cycle: consumers in components already use the store
- * directly; utils.ts only needs the values at call-time.
+ * directly; utils.ts only needs the value at call-time.
  */
-let _settingStoreGetter: (() => { chinaMode: boolean; exchangeRate: number }) | null = null;
+type LocaleGetter = () => string;
 
-export function registerSettingStoreGetter(getter: () => { chinaMode: boolean; exchangeRate: number }) {
-  _settingStoreGetter = getter;
+let _localeGetter: LocaleGetter | null = null;
+
+/** Registers the locale getter and returns the previous one (tests restore with it). */
+export function registerSettingStoreGetter(getter: LocaleGetter): LocaleGetter | null {
+  const prev = _localeGetter;
+  _localeGetter = getter;
+  return prev;
 }
 
-function getChinaMode(): { chinaMode: boolean; exchangeRate: number } {
-  if (_settingStoreGetter) return _settingStoreGetter();
-  return { chinaMode: false, exchangeRate: 7.2 };
+/**
+ * 单位风格跟随语言：简中/繁中用 万/亿，其它语言用 K/M/B。
+ * 币种固定人民币（¥）——金额原值即人民币，不存在任何汇率换算。
+ */
+function isChineseLocale(): boolean {
+  const locale = _localeGetter ? _localeGetter() : 'zh-Hans';
+  return locale.startsWith('zh');
+}
+
+/** 单位风格判断：简中/繁中 → 万/亿（图表刻度等直接判断的场景用）。 */
+export function prefersChineseUnits(): boolean {
+  return isChineseLocale();
 }
 
 function formatNumber(num: number | undefined, compare: number[], units: string[]): { value: string, unit: string } {
@@ -32,37 +46,35 @@ function formatNumber(num: number | undefined, compare: number[], units: string[
 
 /**
  * Format a count (token count, request count, etc.).
- * China mode: 万 (10k) / 亿 (100M) only — 千 is skipped.
+ * 简中/繁中：万 (10k) / 亿 (100M) only — 千 is skipped；其它语言：K/M/B。
  */
 export function formatCount(num: number | undefined): { raw: number, formatted: { value: string, unit: string } } {
-  const { chinaMode } = getChinaMode();
-  if (chinaMode) {
-    const v = num ?? 0;
+  const v = num ?? 0;
+  if (isChineseLocale()) {
     if (v >= 100_000_000) return { raw: v, formatted: { value: (v / 100_000_000).toFixed(2), unit: '亿' } };
     if (v >= 10_000)      return { raw: v, formatted: { value: (v / 10_000).toFixed(2), unit: '万' } };
     return { raw: v, formatted: { value: v.toLocaleString(), unit: '' } };
   }
   return {
-    raw: num ?? 0,
-    formatted: formatNumber(num, [1000000000, 1000000, 1000, 1], ['', 'B', 'M', 'K', '', '']),
+    raw: v,
+    formatted: formatNumber(v, [1000000000, 1000000, 1000, 1], ['', 'B', 'M', 'K', '', '']),
   };
 }
 
 /**
- * Format a monetary amount (USD internally).
- * China mode: convert to RMB (× exchangeRate) and display as 元/万元/亿元.
+ * Format a monetary amount. 金额本身即人民币（¥/M tokens 计价），原值直出不做换算。
+ * 简中/繁中：元/万元/亿元；其它语言：¥/K¥/M¥/B¥。
  */
 export function formatMoney(num: number | undefined): { raw: number, formatted: { value: string, unit: string } } {
-  const { chinaMode, exchangeRate } = getChinaMode();
-  if (chinaMode) {
-    const raw = (num ?? 0) * exchangeRate;
-    if (raw >= 100_000_000) return { raw, formatted: { value: (raw / 100_000_000).toFixed(2), unit: '亿元' } };
-    if (raw >= 10_000)      return { raw, formatted: { value: (raw / 10_000).toFixed(2), unit: '万元' } };
-    return { raw, formatted: { value: raw.toFixed(2), unit: '元' } };
+  const v = num ?? 0;
+  if (isChineseLocale()) {
+    if (v >= 100_000_000) return { raw: v, formatted: { value: (v / 100_000_000).toFixed(2), unit: '亿元' } };
+    if (v >= 10_000)      return { raw: v, formatted: { value: (v / 10_000).toFixed(2), unit: '万元' } };
+    return { raw: v, formatted: { value: v.toFixed(2), unit: '元' } };
   }
   return {
-    raw: num ?? 0,
-    formatted: formatNumber(num, [1000000000, 1000000, 1000, 1], ['$', 'B$', 'M$', 'K$', '$', '$']),
+    raw: v,
+    formatted: formatNumber(v, [1000000000, 1000000, 1000, 1], ['¥', 'B¥', 'M¥', 'K¥', '¥', '¥']),
   };
 }
 

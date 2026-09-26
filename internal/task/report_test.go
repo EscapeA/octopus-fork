@@ -185,12 +185,12 @@ func TestFormatCostBreakdownSection(t *testing.T) {
 		}
 		lines := formatCostBreakdownSection(o)
 		joined := strings.Join(lines, "\n")
-		if !strings.Contains(joined, "总成本: $0.11") {
-			t.Errorf("expected 总成本: $0.11, got:\n%s", joined)
+		if !strings.Contains(joined, "总成本: ¥0.11") {
+			t.Errorf("expected 总成本: ¥0.11, got:\n%s", joined)
 		}
 		// 0.11 / 44 = 0.0025
-		if !strings.Contains(joined, "平均每请求: $0.0025") {
-			t.Errorf("expected 平均每请求: $0.0025, got:\n%s", joined)
+		if !strings.Contains(joined, "平均每请求: ¥0.0025") {
+			t.Errorf("expected 平均每请求: ¥0.0025, got:\n%s", joined)
 		}
 		// (0.11 / 673138) * 1000 = 0.0002 (rounded)
 		if !strings.Contains(joined, "每千 token:") {
@@ -204,8 +204,8 @@ func TestFormatCostBreakdownSection(t *testing.T) {
 		if len(lines) != 1 {
 			t.Errorf("expected only total-cost line when no requests/tokens, got %d lines: %v", len(lines), lines)
 		}
-		if !strings.Contains(lines[0], "总成本: $0.00") {
-			t.Errorf("expected 总成本: $0.00, got %q", lines[0])
+		if !strings.Contains(lines[0], "总成本: ¥0.00") {
+			t.Errorf("expected 总成本: ¥0.00, got %q", lines[0])
 		}
 	})
 }

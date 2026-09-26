@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowUpAZ, Boxes, Clock3, Layers3, LayoutGrid, List, Plus, RadioTower, RefreshCw, Rows3, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowUpAZ, Boxes, Clock3, Layers3, LayoutGrid, List, Plus, RadioTower, Rows3, Search, SlidersHorizontal, X } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import {
     MorphingDialog,
@@ -11,9 +11,8 @@ import {
 } from '@/components/ui/morphing-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { buttonVariants } from '@/components/ui/button';
-import { useModelMarket, useUpdateModelPrice } from '@/api/endpoints/model';
+import { useModelMarket } from '@/api/endpoints/model';
 import { formatAverageLatency } from '@/components/modules/model/latency-format';
-import { formatDateTime } from '@/lib/time';
 import { cn } from '@/lib/utils';
 import { useNavStore, type NavItem } from '@/components/modules/navbar';
 import { CreateDialogContent as ChannelCreateContent } from '@/components/modules/channel/Create';
@@ -130,13 +129,11 @@ export function Toolbar() {
     const [expandedSearchItem, setExpandedSearchItem] = useState<ToolbarPage | null>(null);
     const searchExpanded = expandedSearchItem === toolbarItem;
     const { data: modelMarket } = useModelMarket();
-    const updateModelPrice = useUpdateModelPrice();
     const modelSummary = modelMarket?.summary ?? {
         model_count: 0,
         coverage_count: 0,
         unique_channel_count: 0,
         average_latency_ms: 0,
-        last_update_time: '',
     };
 
     if (!toolbarItem) return null;
@@ -327,11 +324,6 @@ export function Toolbar() {
                         >
                             <div className="grid gap-3">
                                 {toolbarItem === 'model' && (() => {
-                                    const lastUpdateRaw = modelSummary.last_update_time;
-                                    const formatted = lastUpdateRaw ? formatDateTime(lastUpdateRaw) : '-';
-                                    const lastUpdateLabel = formatted !== '-' && lastUpdateRaw && new Date(lastUpdateRaw).getFullYear() > 1
-                                        ? formatted
-                                        : modelT('summary.neverUpdated');
                                     const hasData = modelSummary.model_count > 0;
                                     const summaryMetrics = [
                                         { key: 'models', icon: Boxes, label: modelT('summary.modelCount'), value: modelSummary.model_count.toLocaleString() },
@@ -346,24 +338,7 @@ export function Toolbar() {
                                                     <div className="text-xs font-semibold text-foreground sm:text-sm">{modelT('summary.title')}</div>
                                                     <div className="text-[0.65rem] text-muted-foreground sm:text-[11px]">{modelT('summary.description')}</div>
                                                 </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => updateModelPrice.mutate()}
-                                                    disabled={updateModelPrice.isPending}
-                                                    className={cn(
-                                                        OPTION_BUTTON_CLASS,
-                                                        'inline-flex items-center gap-1.5 border-border/30 bg-card text-foreground hover:border-border hover:bg-muted',
-                                                    )}
-                                                >
-                                                    <RefreshCw className={cn('size-3.5', updateModelPrice.isPending && 'animate-spin')} />
-                                                    {updateModelPrice.isPending ? modelT('summary.refreshing') : modelT('summary.refresh')}
-                                                </button>
-                                            </div>
-                                            <div className="flex items-center gap-1.5 rounded-lg border border-border/30 bg-card px-2.5 py-1.5 text-[0.65rem] text-muted-foreground sm:gap-2 sm:px-3 sm:py-2 sm:text-[11px]">
-                                                <Clock3 className="size-3.5 shrink-0 text-primary sm:size-4" />
-                                                <span className="min-w-0 truncate">{modelT('summary.lastUpdate')}: {lastUpdateLabel}</span>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-1.5 sm:gap-2 lg:grid-cols-4">
+                                            </div>                                            <div className="grid grid-cols-2 gap-1.5 sm:gap-2 lg:grid-cols-4">
                                                 {summaryMetrics.map((m) => (
                                                     <div key={m.key} className="min-w-0 overflow-hidden rounded-lg border border-border/30 bg-card px-2 py-1.5 sm:px-2.5 sm:py-2">
                                                         <div className="flex min-w-0 items-center gap-1 text-[0.6rem] text-muted-foreground sm:gap-1.5 sm:text-[10px]">

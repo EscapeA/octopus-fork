@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
@@ -58,7 +57,6 @@ func TestBuildModelMarket_AppliesImportedExplicitMappings(t *testing.T) {
 		nil,
 		nil,
 		nil,
-		time.Time{},
 	)
 
 	if len(items) != 2 {
@@ -82,7 +80,7 @@ func TestBuildModelMarket_ReflectsRuleChanges(t *testing.T) {
 		`[{"variant":"kimi-k2.5-256k","canonical":"kimi-k2.5"}]`)
 	items, _ := buildModelMarket(
 		[]model.LLMInfo{{Name: "kimi-k2.5"}, {Name: "kimi-k2.5-256k"}},
-		nil, nil, nil, time.Time{},
+		nil, nil, nil,
 	)
 	if len(items) != 1 {
 		t.Fatalf("first pass: len(items) = %d, want 1", len(items))
@@ -93,7 +91,7 @@ func TestBuildModelMarket_ReflectsRuleChanges(t *testing.T) {
 		`[{"variant":"kimi-k2.5-256k","canonical":"kimi-k2.5-256k"}]`)
 	items, _ = buildModelMarket(
 		[]model.LLMInfo{{Name: "kimi-k2.5"}, {Name: "kimi-k2.5-256k"}},
-		nil, nil, nil, time.Time{},
+		nil, nil, nil,
 	)
 	if len(items) != 2 {
 		t.Fatalf("second pass: len(items) = %d, want 2 (rules changed)", len(items))
@@ -111,7 +109,7 @@ func TestBuildModelMarket_ExplicitMappingCaseInsensitive(t *testing.T) {
 
 	items, _ := buildModelMarket(
 		[]model.LLMInfo{{Name: "kimi-k2.5"}, {Name: "kimi-k2.5-256k"}},
-		nil, nil, nil, time.Time{},
+		nil, nil, nil,
 	)
 	if len(items) != 1 {
 		names := make([]string, 0, len(items))
@@ -138,7 +136,7 @@ func TestBuildModelMarket_ExplicitMappingMatchesPrefixedVariants(t *testing.T) {
 			{Name: "dmxapi-kimi-k2.5-256k"},
 			{Name: "moonshotai/kimi-k2.5-256k"},
 		},
-		nil, nil, nil, time.Time{},
+		nil, nil, nil,
 	)
 	if len(items) != 1 {
 		names := make([]string, 0, len(items))
