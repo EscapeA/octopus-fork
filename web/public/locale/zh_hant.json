@@ -2682,7 +2682,7 @@
       "cacheWrite": "快取寫入",
       "submit": "建立",
       "submitting": "建立中...",
-      "priceHint": "價格單位：美元 / 百萬 tokens"
+      "priceHint": "價格單位：人民幣（元）/ 百萬 tokens"
     },
     "summary": {
       "title": "模型廣場",
@@ -2741,8 +2741,8 @@
       "cacheRead": "快取讀取",
       "cacheWrite": "快取寫入",
       "save": "儲存",
-      "priceHint": "價格單位：美元 / 百萬 tokens",
-      "peakBillingHint": "以上為高峰價，北京 9–12 / 14–18 按此計費，其餘時段減半。"
+      "priceHint": "價格單位：人民幣（元）/ 百萬 tokens",
+      "peakBillingHint": "以上為高峰價：命中峰谷時段按此計費，其餘時段按空閒倍率計費（窗口與倍率見「價格分類 → 峰谷計費」）。"
     },
     "capabilities": {
       "title": "模型能力",
@@ -2798,7 +2798,7 @@
       "empty": "目前沒有價格分類，新增一個以提供兜底定價。",
       "toastSaved": "價格分類已儲存",
       "toastDeleted": "價格分類已刪除",
-      "priceHint": "價格單位：美元/百萬 tokens",
+      "priceHint": "價格單位：人民幣（元）/百萬 tokens",
       "missing": "缺失",
       "actions": "操作",
       "cancel": "取消",
@@ -2845,7 +2845,7 @@
       "empty": "暫無峰谷計費規則，添加一個以按時段計費。",
       "toastSaved": "峰谷計費規則已保存",
       "toastDeleted": "峰谷計費規則已刪除",
-      "priceHint": "價格單位：美元/百萬 tokens（高峰價）",
+      "priceHint": "價格單位：人民幣（元）/百萬 tokens（高峰價）",
       "missing": "缺失",
       "actions": "操作",
       "cancel": "取消",
