@@ -73,9 +73,24 @@ func KeyAutoDisableProbeInterval() time.Duration {
 	return time.Duration(v) * time.Minute
 }
 
-// handleUpstreamPaymentRequired 处理一次上游 402。由 relay 失败分支调用。
-// 达到阈值时禁用该 Key 并通知；未达阈值时仅累计计数。
-func handleUpstreamPaymentRequired(ch *dbmodel.Channel, key dbmodel.ChannelKey, modelName string) {
+// handleUpstreamPaymentRequired 处理一次上游 402（relay 失败分支入口）。
+// 同一请求内的多次重试只计一次（阈值语义 = 连续 N 次请求都收到 402）。
+func handleUpstreamPaymentRequired(ra *relayAttempt, modelName string) {
+	if ra == nil || ra.channel == nil {
+		return
+	}
+	if !KeyAutoDisableEnabled() {
+		return
+	}
+	if ra.markInsufficientBalanceCounted(ra.usedKey.ID) {
+		return
+	}
+	handleChannelKeyInsufficientBalance(ra.channel, ra.usedKey, modelName)
+}
+
+// handleChannelKeyInsufficientBalance 累计某 (channel, key) 的连续 402 计数，
+// 达到阈值时禁用该 Key 并通知；未达阈值时仅累计。
+func handleChannelKeyInsufficientBalance(ch *dbmodel.Channel, key dbmodel.ChannelKey, modelName string) {
 	if ch == nil || key.ID == 0 {
 		return
 	}

@@ -39,6 +39,12 @@ func seedChannelWithKey(channelID, keyID int) dbmodel.ChannelKey {
 	return key
 }
 
+// newTestAttempt 构造最小可用的尝试上下文（请求级 + 渠道/Key），
+// 用于直接驱动 402 处理入口（含「同请求只计一次」的去重逻辑）。
+func newTestAttempt(ch *dbmodel.Channel, key dbmodel.ChannelKey) *relayAttempt {
+	return &relayAttempt{relayRequest: &relayRequest{}, channel: ch, usedKey: key}
+}
+
 func cachedKey(t *testing.T, channelID, keyID int) dbmodel.ChannelKey {
 	t.Helper()
 	channel, ok := chop.GetCache().Get(channelID)
@@ -62,12 +68,12 @@ func TestHandleUpstreamPaymentRequiredDisablesKeyAtThreshold(t *testing.T) {
 
 	channel, _ := chop.GetCache().Get(channelID)
 	for i := 1; i <= 2; i++ {
-		handleUpstreamPaymentRequired(&channel, key, "deepseek-flash")
+		handleUpstreamPaymentRequired(newTestAttempt(&channel, key), "deepseek-flash")
 		if !cachedKey(t, channelID, keyID).Enabled {
 			t.Fatalf("第 %d 次 402 就禁用了 Key，阈值应为 3", i)
 		}
 	}
-	handleUpstreamPaymentRequired(&channel, key, "deepseek-flash")
+	handleUpstreamPaymentRequired(newTestAttempt(&channel, key), "deepseek-flash")
 
 	got := cachedKey(t, channelID, keyID)
 	if got.Enabled {
@@ -93,7 +99,7 @@ func TestHandleUpstreamPaymentRequiredRespectsSwitch(t *testing.T) {
 
 	channel, _ := chop.GetCache().Get(channelID)
 	for i := 0; i < 5; i++ {
-		handleUpstreamPaymentRequired(&channel, key, "deepseek-flash")
+		handleUpstreamPaymentRequired(newTestAttempt(&channel, key), "deepseek-flash")
 	}
 	if !cachedKey(t, channelID, keyID).Enabled {
 		t.Fatal("开关关闭时不应自动禁用 Key")
@@ -109,7 +115,7 @@ func TestReEnableAutoDisabledChannelKeyClearsMarkers(t *testing.T) {
 	key := seedChannelWithKey(channelID, keyID)
 
 	channel, _ := chop.GetCache().Get(channelID)
-	handleUpstreamPaymentRequired(&channel, key, "deepseek-flash")
+	handleUpstreamPaymentRequired(newTestAttempt(&channel, key), "deepseek-flash")
 	if cachedKey(t, channelID, keyID).Enabled {
 		t.Fatal("阈值 1 时应立即禁用")
 	}
@@ -123,6 +129,33 @@ func TestReEnableAutoDisabledChannelKeyClearsMarkers(t *testing.T) {
 	}
 	if ReEnableAutoDisabledChannelKey(&channel, keyID) {
 		t.Fatal("重复恢复不应再报告变更")
+	}
+}
+
+func TestUpstreamPaymentRequiredCountsOncePerRequest(t *testing.T) {
+	const channelID, keyID = 9204, 5304
+	seedAutoDisableSettings(t, true, 3)
+	key := seedChannelWithKey(channelID, keyID)
+	t.Cleanup(func() { balancer.RemoveKeyAutoDisableCounter(keyID) })
+
+	channel, _ := chop.GetCache().Get(channelID)
+	// 同一个请求（同一个 relayRequest）内重试 5 次 402，只应计 1 次。
+	ra := newTestAttempt(&channel, key)
+	for i := 0; i < 5; i++ {
+		handleUpstreamPaymentRequired(ra, "deepseek-flash")
+	}
+	if n := balancer.GetAutoDisableFailureCount(channelID, keyID); n != 1 {
+		t.Fatalf("同一请求内计数 = %d, want 1（阈值语义是连续 N 次请求）", n)
+	}
+	if !cachedKey(t, channelID, keyID).Enabled {
+		t.Fatal("单次请求不应达到 3 次阈值")
+	}
+	// 新的请求（新 relayAttempt/新 relayRequest）继续累计。
+	for i := 0; i < 2; i++ {
+		handleUpstreamPaymentRequired(newTestAttempt(&channel, key), "deepseek-flash")
+	}
+	if cachedKey(t, channelID, keyID).Enabled {
+		t.Fatal("累计 3 次请求后应自动禁用")
 	}
 }
 

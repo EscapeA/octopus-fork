@@ -486,7 +486,7 @@ func (ra *relayAttempt) attempt() attemptResult {
 	// 状态：连续达阈值即自动禁用该 Key（落库 enabled=false + 标记 + 通知），避免每个
 	// 冷却周期都白打一次 402、浪费 Key 级重试额度。详见 insufficient_balance_guard.go。
 	if statusCode == http.StatusPaymentRequired {
-		handleUpstreamPaymentRequired(ra.channel, ra.usedKey, ra.internalRequest.Model)
+		handleUpstreamPaymentRequired(ra, ra.internalRequest.Model)
 	}
 
 	if decision.Scope == ScopeNone && !decision.IsError {
