@@ -402,12 +402,16 @@ func testGroupModelItem(ctx context.Context, endpointType string, item appmodel.
 		return result
 	}
 
-	usedKey := channel.GetChannelKey()
+	// 按被测模型选 key：与真实转发一致——key 的 supported_models 非空时只在
+	// 这些模型上被选用。否则「模型只对某个 key 开放」的场景下，测试会挑中
+	// 对该模型无权限的 key（如成本最低但不在灰度名单里）而误报 403。
+	usedKey := channel.GetChannelKeyWithCooldown(item.ModelName, 300)
 	if strings.TrimSpace(usedKey.ChannelKey) == "" {
 		result.Message = "no available key"
 		recordTestLog(ctx, endpointType, item, result, channel, nil, 0, nil, nil)
 		return result
 	}
+	failedKeyIDs := make([]int, 0, len(channel.Keys))
 
 	if outbound.Get(channel.Type) == nil {
 		result.Message = fmt.Sprintf("unsupported channel type: %d", channel.Type)
@@ -472,13 +476,15 @@ probeAdapters:
 			}
 
 			logAttempts = append(logAttempts, appmodel.ChannelAttempt{
-				ChannelID:   channel.ID,
-				ChannelName: channel.Name,
-				ModelName:   item.ModelName,
-				AttemptNum:  attemptNum,
-				Status:      attemptStatus,
-				Duration:    attemptDuration,
-				Msg:         attemptMsg,
+				ChannelID:    channel.ID,
+				ChannelKeyID: usedKey.ID,
+				ChannelName:  channel.Name,
+				ModelName:    item.ModelName,
+				AdapterType:  adapterType.String(),
+				AttemptNum:   attemptNum,
+				Status:       attemptStatus,
+				Duration:     attemptDuration,
+				Msg:          attemptMsg,
 			})
 
 			if err == nil {
@@ -489,6 +495,16 @@ probeAdapters:
 			}
 			result.Attempts = attemptNum
 			result.Message = err.Error()
+
+			// 失败换 key 重试：与 relay 的 failedKeyIDs 语义一致，在同渠道内换一个
+			// 支持该模型的 key（例如上一个 key 对该模型无权限/被限流）。没有其它
+			// 候选时保持原 key 继续重试，维持旧行为。
+			if usedKey.ID > 0 {
+				failedKeyIDs = append(failedKeyIDs, usedKey.ID)
+				if next := channel.GetChannelKeyExcludingWithCooldown(failedKeyIDs, item.ModelName, 300); strings.TrimSpace(next.ChannelKey) != "" {
+					usedKey = next
+				}
+			}
 		}
 	}
 
