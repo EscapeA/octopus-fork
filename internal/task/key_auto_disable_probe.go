@@ -53,11 +53,7 @@ func ProbeAutoDisabledKeys() {
 			continue
 		}
 		for _, key := range ch.Keys {
-			if key.AutoDisabledAt == nil {
-				continue
-			}
-			if strings.TrimSpace(key.ChannelKey) == "" || !key.Enabled {
-				// 已被手动恢复（标记应已清空）或 Key 为空：只清理残留标记，不探测。
+			if !shouldProbeAutoDisabledKey(key) {
 				continue
 			}
 			if last, ok := keyAutoDisableProbeLast.Load(key.ID); ok {
@@ -82,6 +78,15 @@ func ProbeAutoDisabledKeys() {
 			}
 		}
 	}
+}
+
+// shouldProbeAutoDisabledKey 判定某 Key 是否需要试活。
+//
+// 判据只看「自动禁用标记」：自动禁用的 Key 本来就 Enabled=false，**不能**按 Enabled
+// 过滤，否则永远选不出待试活的 Key（实测踩过）。用户手动重新启用时标记会被清空，
+// 因此 AutoDisabledAt == nil 已把「已恢复」的 Key 排除在外。
+func shouldProbeAutoDisabledKey(key model.ChannelKey) bool {
+	return key.AutoDisabledAt != nil && strings.TrimSpace(key.ChannelKey) != ""
 }
 
 // firstProbeBaseURL 返回渠道首个 base_url 与 suffix_mode（与渠道测试一致地取首个）。
