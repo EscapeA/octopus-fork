@@ -61,6 +61,20 @@ func buildFailureHintKey(channelID, keyID int, modelName string) string {
 	return s
 }
 
+// balancerKeyNeedle 构建 ":keyID:" needle，用于按 keyID 定位并清理
+// "channelID:keyID:modelName" 形式的缓存键（与 balancer 包的 buildKeyNeedle 同义；
+// balancer 侧同名函数未导出，故在 relay 包内保留一份）。
+func balancerKeyNeedle(keyID int) string {
+	b := getBuilder()
+	b.Grow(14)
+	b.WriteByte(':')
+	b.WriteString(strconv.Itoa(keyID))
+	b.WriteByte(':')
+	s := b.String()
+	putBuilder(b)
+	return s
+}
+
 // buildSemanticCacheKey 构建 "apiKeyID|endpointFamily|requestModel|text|false" 格式 key
 func buildSemanticCacheKey(apiKeyID int, endpointFamily, requestModel, text string) string {
 	b := getBuilder()

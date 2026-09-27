@@ -1601,6 +1601,12 @@
         "hint": "Controls how reasoning tokens (thinking process) are streamed. 'buffer' waits for visible content before sending reasoning (safe retry, but may trigger Cloudflare/Nginx timeouts on long reasoning). 'immediate' sends reasoning chunks instantly (real-time thinking display, but empty-output retry is unavailable).",
         "buffer": "Buffer (safe retry, CF timeout risk)",
         "immediate": "Immediate (real-time, no retry)"
+      },
+      "keyAutoDisable": {
+        "label": "Auto disable key on upstream 402",
+        "hint": "When upstream keeps returning HTTP 402 (payment required / insufficient balance), the key is disabled automatically after the threshold is reached (enabled=false is persisted and a notification is sent), instead of wasting one 402 round-trip and a retry slot every cooldown cycle.",
+        "threshold": "Consecutive 402 threshold",
+        "probeInterval": "Probe interval (minutes, 0=disabled)"
       }
     },
     "autoStrategy": {
@@ -3335,7 +3341,10 @@
       "keySelectionStrategyAvailability": "Availability",
       "keySelectionStrategySpeed": "Speed",
       "keySelectionStrategyPriority": "Priority",
-      "keyHealthFailed": "Check failed"
+      "keyHealthFailed": "Check failed",
+      "autoDisabled": "Auto disabled",
+      "autoDisabledHint": "This key was disabled automatically (upstream returned HTTP 402 insufficient balance repeatedly). Top up the account and re-enable it with the switch below, or wait for the scheduled probe to recover it.",
+      "autoDisabledEnable": "Enable"
     }
   },
   "errors": {
@@ -3684,6 +3693,16 @@
       "recover": {
         "title": "Channel \"{name}\" key verification recovered",
         "content": "Channel \"{name}\" (ID: {id}) key verification recovered."
+      }
+    },
+    "key_auto_disable": {
+      "disabled": {
+        "title": "Channel \"{name}\" key auto disabled",
+        "content": "Channel \"{name}\" (ID: {id}) key {key} auto disabled after {fails} consecutive HTTP 402 (payment required / insufficient balance). Model: {model}"
+      },
+      "enabled": {
+        "title": "Channel \"{name}\" key auto enabled",
+        "content": "Channel \"{name}\" (ID: {id}) key {key} auto enabled: probe succeeded."
       }
     }
   },

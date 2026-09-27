@@ -264,6 +264,25 @@ func PurgeFailureHintCache() {
 	globalFailureHintCache.purgeExpired()
 }
 
+// removeFailureHintsByKey 清除某个 Key 的所有失败提示（跨渠道、跨模型）。
+// 自动禁用/重新启用该 Key 时调用，避免残留的失败提示在 Key 恢复后继续跳过它。
+func removeFailureHintsByKey(keyID int) {
+	if keyID == 0 {
+		return
+	}
+	needle := balancerKeyNeedle(keyID)
+	if store.Enabled() {
+		_ = store.GetKV().DelBySubstring(context.Background(), failureHintKeyPrefix, needle)
+	}
+	globalFailureHintCache.mu.Lock()
+	defer globalFailureHintCache.mu.Unlock()
+	for k := range globalFailureHintCache.entries {
+		if strings.Contains(k, needle) {
+			delete(globalFailureHintCache.entries, k)
+		}
+	}
+}
+
 func resetFailureHintCache() {
 	globalFailureHintCache.mu.Lock()
 	defer globalFailureHintCache.mu.Unlock()

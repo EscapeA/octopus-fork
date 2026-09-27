@@ -141,6 +141,12 @@ type ChannelKey struct {
 	// 空表示不限制（兼容存量 key）。key 选择时用 ModelMatches 过滤，
 	// 避免把不支持当前模型的 key 发给上游（如上游中转站某 token 无某模型权限）。
 	SupportedModels string `json:"supported_models,omitempty" gorm:"column:supported_models;type:varchar(512)"`
+	// AutoDisabledAt / AutoDisableReason 记录系统自动禁用该 key 的时间与原因（详见
+	// relay/insufficient_balance_guard.go：上游连续返回 402 达阈值时自动禁用）。
+	// Enabled=false 才是真正生效的禁用开关，这两个字段仅用于展示（前端徽标/原因）
+	// 与「定时试活自动恢复」的判定；用户手动启用时会被清空。
+	AutoDisabledAt    *time.Time `json:"auto_disabled_at,omitempty" gorm:"column:auto_disabled_at"`
+	AutoDisableReason string     `json:"auto_disable_reason,omitempty" gorm:"column:auto_disable_reason;type:varchar(255)"`
 	// Managed 标记该 key 是否由 site 同步投影自动生成。
 	// site 同步 diff 时只删除 Managed=true 的 key，
 	// 保留用户手动添加的（Managed=false）key 不被清除。

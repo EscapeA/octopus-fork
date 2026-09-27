@@ -85,6 +85,10 @@ export type ChannelKey = {
     priority: number;
     remark: string;
     supported_models?: string;
+    /** 系统自动禁用时间（上游连续 402 余额不足达阈值时写入）；空表示未被自动禁用 */
+    auto_disabled_at?: string | null;
+    /** 系统自动禁用的原因描述（前端展示在徽标 Hint 中） */
+    auto_disable_reason?: string;
 };
 
 export type ChannelGroup = {
