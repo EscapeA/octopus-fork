@@ -226,6 +226,10 @@ type relayRequest struct {
 	// 「连续 N 次请求都收到 402」，同一请求内的多次 Key 重试不应把计数叠加多次
 	// （否则单渠道单 Key 的请求一次就能把阈值打满）。仅本请求 goroutine 访问。
 	counted402Keys map[int]struct{}
+	// autoDisabledKeys 记录本请求内被「402 自动禁用」的 Key ID。后续尝试/降级适配器
+	// 手里拿的是禁用前的 Key 旧副本，只要写回就会把 enabled=false 覆盖回 true
+	// （缓存立即失效，刷盘后 DB 也被改回），故写回前先查这里。仅本请求 goroutine 访问。
+	autoDisabledKeys map[int]struct{}
 }
 
 // markInsufficientBalanceCounted 标记本请求内该 Key 已计入一次 402 计数。
@@ -242,6 +246,26 @@ func (r *relayRequest) markInsufficientBalanceCounted(keyID int) bool {
 	}
 	r.counted402Keys[keyID] = struct{}{}
 	return false
+}
+
+// markKeyAutoDisabled 记录本请求内该 Key 已被 402 自动禁用。
+func (r *relayRequest) markKeyAutoDisabled(keyID int) {
+	if r == nil || keyID == 0 {
+		return
+	}
+	if r.autoDisabledKeys == nil {
+		r.autoDisabledKeys = make(map[int]struct{}, 1)
+	}
+	r.autoDisabledKeys[keyID] = struct{}{}
+}
+
+// keyAutoDisabledInRequest 本请求内该 Key 是否已被自动禁用。
+func (r *relayRequest) keyAutoDisabledInRequest(keyID int) bool {
+	if r == nil || keyID == 0 || r.autoDisabledKeys == nil {
+		return false
+	}
+	_, ok := r.autoDisabledKeys[keyID]
+	return ok
 }
 
 // relayAttempt 尝试级上下文

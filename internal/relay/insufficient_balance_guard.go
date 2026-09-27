@@ -85,26 +85,46 @@ func handleUpstreamPaymentRequired(ra *relayAttempt, modelName string) {
 	if ra.markInsufficientBalanceCounted(ra.usedKey.ID) {
 		return
 	}
-	handleChannelKeyInsufficientBalance(ra.channel, ra.usedKey, modelName)
+	if handleChannelKeyInsufficientBalance(ra.channel, ra.usedKey, modelName) {
+		// 本请求后续的尝试（含 adapter 降级）不能再把禁用前的旧副本写回。
+		ra.markKeyAutoDisabled(ra.usedKey.ID)
+	}
+}
+
+// handleUpstreamPaymentRequiredMedia 媒体链路（TTS/图片等）的 402 处理入口。
+// counted 由调用方在请求作用域内持有（媒体链路没有 relayRequest 上下文），
+// 保证同一请求只计一次。返回 true 表示本次刚禁用了该 Key（调用方应跳过陈旧写回）。
+func handleUpstreamPaymentRequiredMedia(ch *dbmodel.Channel, key dbmodel.ChannelKey, modelName string, counted map[int]struct{}) bool {
+	if ch == nil || key.ID == 0 || !KeyAutoDisableEnabled() {
+		return false
+	}
+	if counted != nil {
+		if _, ok := counted[key.ID]; ok {
+			return false
+		}
+		counted[key.ID] = struct{}{}
+	}
+	return handleChannelKeyInsufficientBalance(ch, key, modelName)
 }
 
 // handleChannelKeyInsufficientBalance 累计某 (channel, key) 的连续 402 计数，
-// 达到阈值时禁用该 Key 并通知；未达阈值时仅累计。
-func handleChannelKeyInsufficientBalance(ch *dbmodel.Channel, key dbmodel.ChannelKey, modelName string) {
+// 达到阈值时禁用该 Key 并通知（返回 true）；未达阈值时仅累计（返回 false）。
+func handleChannelKeyInsufficientBalance(ch *dbmodel.Channel, key dbmodel.ChannelKey, modelName string) bool {
 	if ch == nil || key.ID == 0 {
-		return
+		return false
 	}
 	if !KeyAutoDisableEnabled() {
-		return
+		return false
 	}
 	threshold := KeyAutoDisableThreshold()
 	count := balancer.RecordAutoDisableFailure(ch.ID, key.ID)
 	if count < threshold {
 		log.Infof("key auto disable: channel %d(%s) key %d got 402 (%d/%d before disable), model=%s",
 			ch.ID, ch.Name, key.ID, count, threshold, strings.TrimSpace(modelName))
-		return
+		return false
 	}
 	DisableChannelKeyForInsufficientBalance(ch, key, count, modelName)
+	return true
 }
 
 // DisableChannelKeyForInsufficientBalance 自动禁用 Key：落库 enabled=false + 标记，

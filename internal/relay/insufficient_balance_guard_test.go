@@ -159,6 +159,27 @@ func TestUpstreamPaymentRequiredCountsOncePerRequest(t *testing.T) {
 	}
 }
 
+func TestAutoDisabledKeyMarksRequestForStaleWriteProtection(t *testing.T) {
+	// 自动禁用后必须在本请求上留下标记：relay 失败分支据此跳过 ch.KeyUpdate(旧副本)，
+	// 否则会把 enabled=false 覆盖回 true（缓存立即失效 + 刷盘回滚 DB，实测踩过）。
+	const channelID, keyID = 9205, 5305
+	seedAutoDisableSettings(t, true, 1)
+	key := seedChannelWithKey(channelID, keyID)
+
+	channel, _ := chop.GetCache().Get(channelID)
+	ra := newTestAttempt(&channel, key)
+	if ra.keyAutoDisabledInRequest(keyID) {
+		t.Fatal("禁用前不应有标记")
+	}
+	handleUpstreamPaymentRequired(ra, "deepseek-flash")
+	if !ra.keyAutoDisabledInRequest(keyID) {
+		t.Fatal("自动禁用后应在请求上标记该 Key，供陈旧写回保护使用")
+	}
+	if cachedKey(t, channelID, keyID).Enabled {
+		t.Fatal("阈值 1 时应已禁用")
+	}
+}
+
 func TestKeyAutoDisableProbeIntervalSetting(t *testing.T) {
 	setting.GetCache().Set(dbmodel.SettingKeyKeyAutoDisableProbeInterval, "0")
 	if d := KeyAutoDisableProbeInterval(); d != 0 {

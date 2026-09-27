@@ -152,6 +152,12 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 	var lastChannelName string
 	var lastResolvedModel string
 
+	// 上游 402（余额不足/欠费）自动禁用：媒体链路无 relayRequest 上下文，故在请求
+	// 作用域内持有「本请求已计数/已禁用」集合——阈值语义是「连续 N 次请求」，
+	// 且被禁用的 Key 不能再被陈旧副本写回覆盖（详见 insufficient_balance_guard.go）。
+	counted402Keys := make(map[int]struct{}, 1)
+	autoDisabled402Keys := make(map[int]struct{}, 1)
+
 	for routeRound := 1; routeRound <= maxRouteRetries; routeRound++ {
 		if err := operationCtx.Err(); err != nil {
 			lastErr = err
@@ -294,7 +300,16 @@ func MediaHandler(endpointType MediaEndpointType, c *gin.Context) {
 					return
 				}
 
-				ch.KeyUpdate(usedKey)
+				if statusCode == http.StatusPaymentRequired {
+					if handleUpstreamPaymentRequiredMedia(channel, usedKey, resolvedModel, counted402Keys) {
+						autoDisabled402Keys[usedKey.ID] = struct{}{}
+					}
+				}
+				// 该 Key 已在本请求内被自动禁用时跳过写回：usedKey 是禁用前的旧副本，
+				// 写回会把 enabled=false 覆盖回 true。
+				if _, autoDisabled := autoDisabled402Keys[usedKey.ID]; !autoDisabled {
+					ch.KeyUpdate(usedKey)
+				}
 				// 决策摘要 + 上游原始错误，使 relay log 能区分 429 等错误的真实成因（issue #93）。
 				mediaFailMsg := decision.String()
 				if upstreamErr := extractUpstreamErrorDetail(fwdErr); upstreamErr != "" {

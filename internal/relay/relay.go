@@ -528,7 +528,11 @@ func (ra *relayAttempt) attempt() attemptResult {
 	}
 
 	// ====== 失败 ======
-	ch.KeyUpdate(ra.usedKey)
+	// 该 Key 已在本请求内被 402 自动禁用时跳过写回：ra.usedKey 是禁用前的旧副本，
+	// 写回会把 enabled=false 覆盖成 true（缓存立即失效，刷盘后 DB 也被改回）。
+	if !ra.keyAutoDisabledInRequest(ra.usedKey.ID) {
+		ch.KeyUpdate(ra.usedKey)
+	}
 
 	// 构造日志消息：决策摘要 + 上游原始错误（issue #93）。
 	// fwdErr 形如 "upstream error: 429: {\"error\":...}"，已包含上游真实响应体，
