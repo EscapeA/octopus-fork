@@ -33,6 +33,8 @@ const (
 	KeySelfUpdateFail   NotifKey = "update.fail"
 	KeyKeyHealthFail    NotifKey = "key_health.fail"
 	KeyKeyHealthRecover NotifKey = "key_health.recover"
+	KeyKeyAutoDisabled  NotifKey = "key_auto_disable.disabled"
+	KeyKeyAutoEnabled   NotifKey = "key_auto_disable.enabled"
 )
 
 // fallbackTitle / fallbackContent 提供每个键的英文回退模板（Go fmt 占位符 %s/%d/%v）。
@@ -61,6 +63,8 @@ var (
 		KeySelfUpdateFail:   `Self update failed`,
 		KeyKeyHealthFail:    `Channel "%s" key verification failed`,
 		KeyKeyHealthRecover: `Channel "%s" key verification recovered`,
+		KeyKeyAutoDisabled:  `Channel "%s" key %s auto disabled (HTTP 402)`,
+		KeyKeyAutoEnabled:   `Channel "%s" key %s auto enabled`,
 	}
 	fallbackContent = map[NotifKey]string{
 		KeyAlertFiring:      `Alert rule "%s" triggered. %s`,
@@ -83,6 +87,8 @@ var (
 		KeySelfUpdateFail:   `%s`,
 		KeyKeyHealthFail:    `Channel "%s" (ID: %d) consecutive %d key verification failures: %s`,
 		KeyKeyHealthRecover: `Channel "%s" (ID: %d) key verification recovered.`,
+		KeyKeyAutoDisabled:  `Channel "%s" (ID: %d) key %s auto disabled after %d consecutive HTTP 402 (payment required / insufficient balance): model=%s`,
+		KeyKeyAutoEnabled:   `Channel "%s" (ID: %d) key %s auto enabled: probe succeeded.`,
 	}
 )
 

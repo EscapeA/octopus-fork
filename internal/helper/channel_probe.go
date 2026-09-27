@@ -266,6 +266,30 @@ func performChannelModelFallback(ctx context.Context, channel *appmodel.Channel,
 	return 0, "", nil, fmt.Errorf("no adapter available for channel type: %d", channel.Type)
 }
 
+// TestChannelKeyWithModel 用渠道配置的模型对该 (baseURL, apiKey) 发起一次**真实最小
+// 模型调用**，供「上游 402 自动禁用」后的定时试活使用（见 internal/task/key_auto_disable_probe.go）。
+//
+// 为什么不复用 TestChannel 的 GET /models 探测：余额不足时上游的 /models 通常仍返回
+// 200（模型列表属静态元数据），只有真实推理请求才会回 402；用 /models 探测会把仍欠费
+// 的 Key 误判成已恢复，于是自动恢复立刻又被下一次 402 打回禁用，来回抖动。
+//
+// 返回上游状态码、响应体与错误；err == nil 表示该 Key 当前可用。
+func TestChannelKeyWithModel(ctx context.Context, channel *appmodel.Channel, baseURL, suffixMode, apiKey string) (int, string, error) {
+	if channel == nil {
+		return 0, "", fmt.Errorf("channel is nil")
+	}
+	url := strings.TrimSpace(baseURL)
+	if url == "" {
+		return 0, "", fmt.Errorf("at least one base url is required")
+	}
+	if strings.TrimSpace(apiKey) == "" {
+		return 0, "", fmt.Errorf("api key is required")
+	}
+	base := probeBaseURL{url: channel.GetNormalizedBaseUrlFor(url), suffixMode: suffixMode}
+	statusCode, body, _, err := performChannelModelFallback(ctx, channel, base, apiKey)
+	return statusCode, body, err
+}
+
 func maskSecret(secret string) string {
 	trimmed := strings.TrimSpace(secret)
 	if trimmed == "" {

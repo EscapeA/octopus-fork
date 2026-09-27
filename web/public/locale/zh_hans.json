@@ -1557,6 +1557,12 @@
         "hint": "控制推理 token（思考过程）的流式发送方式。「缓冲」策略等待可见内容到达后再发送推理内容（可安全重试，但长时间推理可能触发 Cloudflare/Nginx 超时）；「立即」策略实时发送推理块（实时思考展示，但空输出无法重试）。",
         "buffer": "缓冲（可重试，CF 超时风险）",
         "immediate": "立即（实时，无重试）"
+      },
+      "keyAutoDisable": {
+        "label": "上游 402 自动禁用 Key",
+        "hint": "上游返回 HTTP 402（余额不足/欠费）时，连续达到阈值即自动禁用该 Key（落库 enabled=false 并通知），避免每个冷却周期都白打一次 402、浪费重试额度。",
+        "threshold": "连续 402 阈值",
+        "probeInterval": "试活间隔（分钟，0=不试活）"
       }
     },
     "autoStrategy": {
@@ -3291,7 +3297,10 @@
       "keySelectionStrategyAvailability": "可用度",
       "keySelectionStrategySpeed": "速度",
       "keySelectionStrategyPriority": "优先级",
-      "keyHealthFailed": "巡检失败"
+      "keyHealthFailed": "巡检失败",
+      "autoDisabled": "已自动禁用",
+      "autoDisabledHint": "该 Key 由系统自动禁用（上游连续返回 402 余额不足/欠费）。充值后可用下方开关手动启用，或等待定时试活自动恢复。",
+      "autoDisabledEnable": "启用"
     }
   },
   "errors": {
@@ -3684,6 +3693,16 @@
       "recover": {
         "title": "渠道「{name}」Key 验证恢复",
         "content": "渠道「{name}」(ID: {id}) Key 验证已恢复正常。"
+      }
+    },
+    "key_auto_disable": {
+      "disabled": {
+        "title": "渠道「{name}」Key 已自动禁用",
+        "content": "渠道「{name}」(ID: {id}) 的 Key {key} 连续 {fails} 次收到上游 402（余额不足/欠费），已自动禁用。模型：{model}"
+      },
+      "enabled": {
+        "title": "渠道「{name}」Key 已自动恢复",
+        "content": "渠道「{name}」(ID: {id}) 的 Key {key} 试活成功，已自动重新启用。"
       }
     }
   },

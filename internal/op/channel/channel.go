@@ -284,6 +284,8 @@ func KeySaveDB(ctx context.Context) error {
 			"priority",
 			"remark",
 			"managed",
+			"auto_disabled_at",
+			"auto_disable_reason",
 		}),
 	}).Create(&keys).Error; err != nil {
 		keyCacheNeedUpdateLock.Lock()
@@ -487,6 +489,12 @@ func Update(req *model.ChannelUpdateRequest, ctx context.Context) (*model.Channe
 			updates := map[string]interface{}{}
 			if ku.Enabled != nil {
 				updates["enabled"] = *ku.Enabled
+				// 手动重新启用时清空「系统自动禁用」标记（详见 relay 侧 402 自动禁用），
+				// 否则前端仍会显示"已自动禁用"徽标，且定时试活任务会把它当作待恢复项。
+				if *ku.Enabled {
+					updates["auto_disabled_at"] = nil
+					updates["auto_disable_reason"] = ""
+				}
 			}
 			if ku.ChannelKey != nil {
 				enc, err := crypto.Encrypt(*ku.ChannelKey)

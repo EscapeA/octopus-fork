@@ -37,6 +37,9 @@ export function SettingRetry() {
         nextValues[SettingKey.KeyHealthCheckNotifyEnabled] = settings.find((item) => item.key === SettingKey.KeyHealthCheckNotifyEnabled)?.value ?? 'true';
         nextValues[SettingKey.KeyHealthCheckRecoveryNotify] = settings.find((item) => item.key === SettingKey.KeyHealthCheckRecoveryNotify)?.value ?? 'true';
         nextValues[SettingKey.KeyHealthCheckNotifyCooldown] = settings.find((item) => item.key === SettingKey.KeyHealthCheckNotifyCooldown)?.value ?? '300';
+        nextValues[SettingKey.KeyAutoDisableEnabled] = settings.find((item) => item.key === SettingKey.KeyAutoDisableEnabled)?.value ?? 'true';
+        nextValues[SettingKey.KeyAutoDisableThreshold] = settings.find((item) => item.key === SettingKey.KeyAutoDisableThreshold)?.value ?? '3';
+        nextValues[SettingKey.KeyAutoDisableProbeInterval] = settings.find((item) => item.key === SettingKey.KeyAutoDisableProbeInterval)?.value ?? '30';
         nextValues[SettingKey.RateLimitHoldEnabled] = settings.find((item) => item.key === SettingKey.RateLimitHoldEnabled)?.value ?? 'false';
         queueMicrotask(() => setValues(nextValues));
         initialValues.current = nextValues;
@@ -370,6 +373,59 @@ export function SettingRetry() {
                                 />
                                 {t('retry.keyHealth.recoveryNotify')}
                             </label>
+                        </div>
+                    </div>
+                ) : null}
+            </div>
+            {/* 上游 402（余额不足/欠费）自动禁用 Key */}
+            <div className="space-y-4 rounded-lg border-border/30 bg-card p-4 shadow-sm">
+                <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="min-w-0 flex flex-col gap-1">
+                        <span className="text-sm font-medium">
+                            {t('retry.keyAutoDisable.label')}
+                            <Hint text={t('retry.keyAutoDisable.hint')} />
+                        </span>
+                    </div>
+                    <Switch
+                        checked={values[SettingKey.KeyAutoDisableEnabled] !== 'false'}
+                        onCheckedChange={(checked) => {
+                            const value = checked ? 'true' : 'false';
+                            setValues((prev) => ({ ...prev, [SettingKey.KeyAutoDisableEnabled]: value }));
+                            setSetting.mutate(
+                                { key: SettingKey.KeyAutoDisableEnabled, value },
+                                {
+                                    onSuccess: () => {
+                                        toast.success(t('saved'));
+                                        initialValues.current = { ...initialValues.current, [SettingKey.KeyAutoDisableEnabled]: value };
+                                    },
+                                },
+                            );
+                        }}
+                    />
+                </div>
+                {values[SettingKey.KeyAutoDisableEnabled] !== 'false' ? (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs text-muted-foreground">{t('retry.keyAutoDisable.threshold')}</label>
+                            <Input
+                                type="number"
+                                min={1}
+                                value={values[SettingKey.KeyAutoDisableThreshold] ?? '3'}
+                                onChange={(e) => setValues((prev) => ({ ...prev, [SettingKey.KeyAutoDisableThreshold]: e.target.value }))}
+                                onBlur={() => handleSave(SettingKey.KeyAutoDisableThreshold)}
+                                className="h-9 rounded-lg"
+                            />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs text-muted-foreground">{t('retry.keyAutoDisable.probeInterval')}</label>
+                            <Input
+                                type="number"
+                                min={0}
+                                value={values[SettingKey.KeyAutoDisableProbeInterval] ?? '30'}
+                                onChange={(e) => setValues((prev) => ({ ...prev, [SettingKey.KeyAutoDisableProbeInterval]: e.target.value }))}
+                                onBlur={() => handleSave(SettingKey.KeyAutoDisableProbeInterval)}
+                                className="h-9 rounded-lg"
+                            />
                         </div>
                     </div>
                 ) : null}

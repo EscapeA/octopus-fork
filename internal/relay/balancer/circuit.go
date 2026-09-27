@@ -298,6 +298,26 @@ func RemoveChannelEntries(channelID int) {
 	})
 }
 
+// RemoveKeyEntries 删除指定 Key 的所有熔断器条目（跨模型、跨渠道）。
+// 在 Key 被自动禁用/删除时调用：Key 已被排除，残留的 Open 状态没有意义，
+// 且会在 Key 恢复后继续排斥它。
+func RemoveKeyEntries(keyID int) {
+	if keyID == 0 {
+		return
+	}
+	needle := buildKeyNeedle(keyID)
+	globalBreaker.Range(func(key, _ any) bool {
+		k, ok := key.(string)
+		if !ok {
+			return true
+		}
+		if strings.Contains(k, needle) {
+			globalBreaker.Delete(key)
+		}
+		return true
+	})
+}
+
 // PurgeIdleEntries 删除空闲时长超过 idleFor 的熔断器条目。globalBreaker 的 key 含
 // 客户端请求携带的 modelName（基数不受控），缺少按空闲时长的周期回收会导致 map
 // 无界增长（见 issue #46）。仅回收处于 Closed 且最近一次失败已超过 idleFor 的条目，

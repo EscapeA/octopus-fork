@@ -482,6 +482,13 @@ func (ra *relayAttempt) attempt() attemptResult {
 	// 记录可用度衰减：按错误类型加权（401/403 重扣、429/5xx 轻扣），仅 availability 策略生效。
 	balancer.RecordKeyAvailability(ra.channel.ID, ra.usedKey.ID, ra.internalRequest.Model, statusCode, false)
 
+	// 上游 402（Payment Required：余额不足/欠费）不是限流式的短时抖动，而是账号级长期
+	// 状态：连续达阈值即自动禁用该 Key（落库 enabled=false + 标记 + 通知），避免每个
+	// 冷却周期都白打一次 402、浪费 Key 级重试额度。详见 insufficient_balance_guard.go。
+	if statusCode == http.StatusPaymentRequired {
+		handleUpstreamPaymentRequired(ra, ra.internalRequest.Model)
+	}
+
 	if decision.Scope == ScopeNone && !decision.IsError {
 		// ====== 成功 ======
 		ra.collectResponse()
@@ -510,6 +517,8 @@ func (ra *relayAttempt) attempt() attemptResult {
 		balancer.RecordAutoLatency(ra.channel.ID, ra.internalRequest.Model, span.Duration().Milliseconds())
 		// 可用度：成功加分（上限 100），仅 availability 策略生效。
 		balancer.RecordKeyAvailability(ra.channel.ID, ra.usedKey.ID, ra.internalRequest.Model, statusCode, true)
+		// 402 自动禁用计数：该 Key 出现成功请求即清零（连续 402 语义）。
+		balancer.ResetAutoDisableCounter(ra.channel.ID, ra.usedKey.ID)
 		// 速度策略：记录 EMA 平滑 TPS（output_tokens / duration_seconds），仅 speed 策略生效。
 		balancer.RecordKeySpeed(ra.channel.ID, ra.usedKey.ID, ra.internalRequest.Model, ra.metrics.Stats.OutputToken, span.Duration().Milliseconds())
 		// 会话保持：更新粘性记录
@@ -519,7 +528,11 @@ func (ra *relayAttempt) attempt() attemptResult {
 	}
 
 	// ====== 失败 ======
-	ch.KeyUpdate(ra.usedKey)
+	// 该 Key 已在本请求内被 402 自动禁用时跳过写回：ra.usedKey 是禁用前的旧副本，
+	// 写回会把 enabled=false 覆盖成 true（缓存立即失效，刷盘后 DB 也被改回）。
+	if !ra.keyAutoDisabledInRequest(ra.usedKey.ID) {
+		ch.KeyUpdate(ra.usedKey)
+	}
 
 	// 构造日志消息：决策摘要 + 上游原始错误（issue #93）。
 	// fwdErr 形如 "upstream error: 429: {\"error\":...}"，已包含上游真实响应体，

@@ -114,6 +114,8 @@ func Init() {
 		balancer.PurgeStaleKeyAvailability(balancerIdleThreshold)
 		// 清理长时间未活动的速度 TPS 条目，与可用度同维度回收。
 		balancer.PurgeStaleKeySpeed(balancerIdleThreshold)
+		// 回收空闲的 402 自动禁用计数条目（key 维度，基数受 channel×key 约束）。
+		balancer.PurgeIdleAutoDisableCounters(balancerIdleThreshold)
 		// 清理长时间未活动的限流 bucket。其 key 含客户端请求携带的 modelName
 		// （基数不受控），与 balancer 全局 map 同维度，缺少周期回收会在刷量/随机
 		// model 名下无界增长（见 issue #46 同类遗漏）。
@@ -220,6 +222,11 @@ func Init() {
 		keyHealthIntervalMin = 30
 	}
 	Register(TaskKeyHealthCheck, time.Duration(keyHealthIntervalMin)*time.Minute, false, CheckKeyHealth)
+
+	// 上游 402 自动禁用的 Key 定时试活：任务固定每 5 分钟跑一轮，是否到点由
+	// key_auto_disable_probe_interval（分钟，0=关闭）逐个 Key 判定——这样改设置
+	// 无需重启即生效（任务注册间隔固定，判定在任务内做）。
+	Register(TaskKeyAutoDisableProbe, 5*time.Minute, false, ProbeAutoDisabledKeys)
 
 	// 号池 OAuth token 刷新：按设置间隔扫描即将过期的 oauth 账号并刷新。
 	poolTokenRefreshMin, err := setting.GetInt(model.SettingKeyPoolTokenRefreshInterval)

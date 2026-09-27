@@ -1557,6 +1557,12 @@
         "hint": "控制推理 token（思考過程）的串流發送方式。「緩衝」策略等待可見內容到達後再發送推理內容（可安全重試，但長時間推理可能觸發 Cloudflare/Nginx 逾時）；「立即」策略即時發送推理塊（即時思考展示，但空輸出無法重試）。",
         "buffer": "緩衝（可重試，CF 逾時風險）",
         "immediate": "立即（即時，無重試）"
+      },
+      "keyAutoDisable": {
+        "label": "上游 402 自動停用 Key",
+        "hint": "上游回傳 HTTP 402（餘額不足/欠費）時，連續達到門檻即自動停用該 Key（落庫 enabled=false 並通知），避免每個冷卻週期都白打一次 402、浪費重試額度。",
+        "threshold": "連續 402 門檻",
+        "probeInterval": "試活間隔（分鐘，0=不試活）"
       }
     },
     "autoStrategy": {
@@ -3291,7 +3297,10 @@
       "keySelectionStrategyAvailability": "可用度",
       "keySelectionStrategySpeed": "速度",
       "keySelectionStrategyPriority": "優先級",
-      "keyHealthFailed": "巡檢失敗"
+      "keyHealthFailed": "巡檢失敗",
+      "autoDisabled": "已自動停用",
+      "autoDisabledHint": "該 Key 由系統自動停用（上游連續回傳 402 餘額不足/欠費）。儲值後可用下方開關手動啟用，或等待定時試活自動恢復。",
+      "autoDisabledEnable": "啟用"
     }
   },
   "errors": {
@@ -3684,6 +3693,16 @@
       "recover": {
         "title": "渠道「{name}」Key 驗證恢復",
         "content": "渠道「{name}」(ID: {id}) Key 驗證已恢復正常。"
+      }
+    },
+    "key_auto_disable": {
+      "disabled": {
+        "title": "渠道「{name}」Key 已自動停用",
+        "content": "渠道「{name}」(ID: {id}) 的 Key {key} 連續 {fails} 次收到上游 402（餘額不足/欠費），已自動停用。模型：{model}"
+      },
+      "enabled": {
+        "title": "渠道「{name}」Key 已自動恢復",
+        "content": "渠道「{name}」(ID: {id}) 的 Key {key} 試活成功，已自動重新啟用。"
       }
     }
   },

@@ -62,6 +62,9 @@ export interface ChannelKeyFormItem {
     total_cost?: number;
     remark?: string;
     supported_models?: string;
+    /** 系统自动禁用标记（上游连续 402 达阈值时后端写入）；有值时展示「已自动禁用」徽标 */
+    auto_disabled_at?: string | null;
+    auto_disable_reason?: string;
 }
 
 export interface ChannelFormData {
@@ -1374,15 +1377,37 @@ export function ChannelForm({
                                 <X className="h-4 w-4" />
                             </Button>
                         </div>
-                        <Hint text={t('supportedModelsHint')} side="top">
-                            <Input
-                                type="text"
-                                value={k.supported_models ?? ''}
-                                onChange={(e) => handleUpdateKey(idx, { supported_models: e.target.value })}
-                                placeholder={t('supportedModels')}
-                                className="rounded-lg text-xs text-muted-foreground"
-                            />
-                        </Hint>
+                        <div className="flex items-center gap-2">
+                            <div className="min-w-0 flex-1">
+                                <Hint text={t('supportedModelsHint')} side="top">
+                                    <Input
+                                        type="text"
+                                        value={k.supported_models ?? ''}
+                                        onChange={(e) => handleUpdateKey(idx, { supported_models: e.target.value })}
+                                        placeholder={t('supportedModels')}
+                                        className="rounded-lg text-xs text-muted-foreground"
+                                    />
+                                </Hint>
+                            </div>
+                            {k.auto_disabled_at ? (
+                                <div className="flex shrink-0 items-center gap-1.5">
+                                    <Hint text={k.auto_disable_reason || t('autoDisabledHint')} side="top">
+                                        <Badge variant="destructive" className="whitespace-nowrap rounded-full text-[10px] font-normal">
+                                            {t('autoDisabled')}
+                                        </Badge>
+                                    </Hint>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-6 px-2 text-xs"
+                                        onClick={() => handleUpdateKey(idx, { enabled: true, auto_disabled_at: null, auto_disable_reason: '' })}
+                                    >
+                                        {t('autoDisabledEnable')}
+                                    </Button>
+                                </div>
+                            ) : null}
+                        </div>
                         </div>
                     ))}
                 </div>
