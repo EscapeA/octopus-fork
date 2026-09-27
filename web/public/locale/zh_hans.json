@@ -3184,7 +3184,16 @@
         "applySuccess": "已添加 {count} 个模型",
         "allModels": "全部模型",
         "perKey": "按 Key 查看",
-        "noModels": "未返回模型"
+        "noModels": "未返回模型",
+        "perKeyHint": "勾选即写入该 key 的「支持的模型」；全部不勾 = 不限。应用时会把勾选模型的并集并入渠道模型列表。",
+        "perKeyUnlimited": "不限",
+        "perKeyLimited": "限定 {count} 个",
+        "perKeySelectAll": "全选",
+        "perKeyClear": "清空(不限)",
+        "perKeyNotProbed": "本次探测未返回、但当前已限定，勾选会保留",
+        "perKeyUnmappable": "与当前表单 key 对不上，已跳过写回；请重新点「刷新模型」",
+        "applyPerKey": "应用({count} 个 key 已限定)",
+        "perKeyApplySuccess": "已更新 {keys} 个 key 的支持模型，并把 {models} 个模型并入渠道列表"
       },
       "template": {
         "label": "内置供应商模板",

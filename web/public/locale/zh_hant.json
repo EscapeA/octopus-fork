@@ -3184,7 +3184,16 @@
         "applySuccess": "已新增 {count} 個模型",
         "allModels": "全部模型",
         "perKey": "按 Key 檢視",
-        "noModels": "未返回模型"
+        "noModels": "未返回模型",
+        "perKeyHint": "勾選即寫入該 key 的「支援的模型」；全部不勾 = 不限。套用時會把勾選模型的聯集併入供應源模型清單。",
+        "perKeyUnlimited": "不限",
+        "perKeyLimited": "限定 {count} 個",
+        "perKeySelectAll": "全選",
+        "perKeyClear": "清空(不限)",
+        "perKeyNotProbed": "本次探測未返回、但目前已被限定，勾選會保留",
+        "perKeyUnmappable": "與目前表單的 key 對不上，已略過寫回；請重新點「重新整理」",
+        "applyPerKey": "套用({count} 個 key 已限定)",
+        "perKeyApplySuccess": "已更新 {keys} 個 key 的支援模型，並把 {models} 個模型併入供應源清單"
       },
       "template": {
         "label": "內建供應商模板",

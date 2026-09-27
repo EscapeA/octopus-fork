@@ -3228,7 +3228,16 @@
         "applySuccess": "Added {count} models",
         "allModels": "All Models",
         "perKey": "Per Key",
-        "noModels": "No models returned"
+        "noModels": "No models returned",
+        "perKeyHint": "Checking a model writes it into that key's supported models; nothing checked = unlimited. Applying also merges the union into the channel model list.",
+        "perKeyUnlimited": "Unlimited",
+        "perKeyLimited": "{count} limited",
+        "perKeySelectAll": "Select all",
+        "perKeyClear": "Clear (unlimited)",
+        "perKeyNotProbed": "Not returned by this probe but currently limited — keeping it checked",
+        "perKeyUnmappable": "Cannot map to a key in this form; write-back skipped. Please refresh models again.",
+        "applyPerKey": "Apply ({count} keys limited)",
+        "perKeyApplySuccess": "Updated {keys} key(s) supported models and merged {models} model(s) into the channel list"
       },
       "template": {
         "label": "Built-in Templates",
