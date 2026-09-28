@@ -142,7 +142,7 @@ type ChannelKey struct {
 	// SupportedModels 逗号分隔的模型列表，限定该 key 只能用于这些模型。
 	// 空表示不限制（兼容存量 key）。key 选择时用 ModelMatches 过滤，
 	// 避免把不支持当前模型的 key 发给上游（如上游中转站某 token 无某模型权限）。
-	SupportedModels string `json:"supported_models,omitempty" gorm:"column:supported_models;type:varchar(512)"`
+	SupportedModels string `json:"supported_models,omitempty" gorm:"column:supported_models;type:text"`
 	// Managed 标记该 key 是否由 site 同步投影自动生成。
 	// site 同步 diff 时只删除 Managed=true 的 key，
 	// 保留用户手动添加的（Managed=false）key 不被清除。
