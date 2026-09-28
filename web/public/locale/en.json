@@ -2496,7 +2496,8 @@
         "resultTitle": "Check details",
         "resultPassed": "Passed",
         "resultFailed": "Failed",
-        "resultAttempts": "Retried {count} times"
+        "resultAttempts": "Retried {count} times",
+        "removeFailedConfirm": "Removed models will need to be re-tested to restore. Continue?"
       },
       "actions": {
         "edit": "Edit",
@@ -2506,7 +2507,8 @@
         "delete": "Delete",
         "confirmDelete": "Confirm Delete",
         "testAvailability": "Test availability",
-        "removeFailedModels": "Remove failed models"
+        "removeFailedModels": "Remove failed models",
+        "confirmRemove": "Confirm Remove"
       }
     },
     "form": {
@@ -2589,7 +2591,10 @@
           "responsesOnly": "Responses only",
           "messagesOnly": "Anthropic Messages only"
         }
-      }
+      },
+      "advancedSettings": "Advanced Settings",
+      "nameRequired": "Please enter a group name",
+      "membersRequired": "Please select at least one model"
     },
     "mode": {
       "roundRobin": "Round Robin",
@@ -2938,7 +2943,6 @@
       },
       "reasoningChars": "Reasoning",
       "reasoningCharsUnit": " chars",
-
       "reasoningTokensUnit": " tokens",
       "billingWindowPeak": "Peak",
       "billingWindowOffPeak": "Off-peak",

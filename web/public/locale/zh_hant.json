@@ -2445,7 +2445,8 @@
         "resultTitle": "????",
         "resultPassed": "??",
         "resultFailed": "??",
-        "resultAttempts": "?? {count} ?"
+        "resultAttempts": "?? {count} ?",
+        "removeFailedConfirm": "移除後需要重新檢測才能恢復，確定繼續嗎？"
       },
       "actions": {
         "edit": "編輯",
@@ -2455,7 +2456,8 @@
         "delete": "刪除",
         "confirmDelete": "確認刪除",
         "testAvailability": "檢測可用功能",
-        "removeFailedModels": "移除失敗模型"
+        "removeFailedModels": "移除失敗模型",
+        "confirmRemove": "確認移除"
       }
     },
     "form": {
@@ -2538,7 +2540,10 @@
           "responsesOnly": "僅 Responses",
           "messagesOnly": "僅 Anthropic Messages"
         }
-      }
+      },
+      "advancedSettings": "進階設定",
+      "nameRequired": "請輸入分組名稱",
+      "membersRequired": "請至少選擇一個模型"
     },
     "mode": {
       "roundRobin": "輪詢",
@@ -2894,7 +2899,6 @@
       },
       "reasoningChars": "思考",
       "reasoningCharsUnit": "字",
-
       "reasoningTokensUnit": "字",
       "billingWindowPeak": "高峰",
       "billingWindowOffPeak": "空閒",

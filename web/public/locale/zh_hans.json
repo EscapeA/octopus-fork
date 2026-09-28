@@ -2452,7 +2452,8 @@
         "resultTitle": "检测明细",
         "resultPassed": "通过",
         "resultFailed": "失败",
-        "resultAttempts": "重试 {count} 次"
+        "resultAttempts": "重试 {count} 次",
+        "removeFailedConfirm": "移除后需要重新检测才能恢复，确定继续吗？"
       },
       "actions": {
         "edit": "编辑",
@@ -2462,7 +2463,8 @@
         "delete": "删除",
         "confirmDelete": "确认删除",
         "testAvailability": "检测可用功能",
-        "removeFailedModels": "移除失败模型"
+        "removeFailedModels": "移除失败模型",
+        "confirmRemove": "确认移除"
       }
     },
     "form": {
@@ -2545,7 +2547,10 @@
           "responsesOnly": "仅 Responses",
           "messagesOnly": "仅 Anthropic Messages"
         }
-      }
+      },
+      "advancedSettings": "高级配置",
+      "nameRequired": "请输入分组名称",
+      "membersRequired": "请至少选择一个模型"
     },
     "mode": {
       "roundRobin": "轮询",
@@ -2894,7 +2899,6 @@
       },
       "reasoningChars": "思考",
       "reasoningCharsUnit": "字",
-
       "reasoningTokensUnit": "字",
       "billingWindowPeak": "高峰",
       "billingWindowOffPeak": "空闲",
