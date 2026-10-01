@@ -30,7 +30,8 @@ export type SettingItemId =
     | 'pool'
     | 'proxy-pool'
     | 'webdav'
-    | 'webauthn';
+    | 'webauthn'
+    | 'api-token';
 
 export const DEFAULT_SETTING_ORDER: SettingItemId[] = [
     'info',
@@ -49,6 +50,7 @@ export const DEFAULT_SETTING_ORDER: SettingItemId[] = [
     'pool',
     'proxy-pool',
     'webauthn',
+    'api-token',
 ];
 
 export const SETTING_ORDER_STORAGE_KEY = 'octopus-setting-order';
@@ -123,6 +125,7 @@ export function SettingOrder() {
             normalize: settingT('normalize.title'),
             webdav: settingT('webdav.title'),
             webauthn: settingT('webauthn.title'),
+            'api-token': settingT('apiToken.title'),
             pool: settingT('pool.title'),
             'proxy-pool': settingT('proxyPool.title'),
         };

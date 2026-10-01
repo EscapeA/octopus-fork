@@ -302,6 +302,7 @@ func Migrate(conn *gorm.DB) error {
 		&model.ModelPriceSchedule{},
 		&model.APIKey{},
 		&model.AuditLog{},
+		&model.APIToken{},
 		&model.Setting{},
 		&model.StatsTotal{},
 		&model.StatsDaily{},

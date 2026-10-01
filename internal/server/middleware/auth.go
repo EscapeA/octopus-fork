@@ -10,6 +10,7 @@ import (
 	"github.com/lingyuins/octopus/internal/conf"
 	"github.com/lingyuins/octopus/internal/model"
 	ak "github.com/lingyuins/octopus/internal/op/apikey"
+	"github.com/lingyuins/octopus/internal/op/apitoken"
 	"github.com/lingyuins/octopus/internal/op/stats"
 	"github.com/lingyuins/octopus/internal/op/user"
 	"github.com/lingyuins/octopus/internal/server/auth"
@@ -40,15 +41,17 @@ func Auth() gin.HandlerFunc {
 			return
 		}
 
-		// 2) Agent 令牌（机器身份）——以绑定用户的角色鉴权，审计记该用户名。
-		if ok, username := auth.VerifyAgentToken(credential); ok {
-			currentUser, err := user.GetByUsername(username, c.Request.Context())
+		// 2) 机器令牌（api_tokens 表）——以绑定用户的角色鉴权，审计记该用户名。
+		if token, ok := apitoken.Authenticate(credential, c.ClientIP()); ok {
+			currentUser, err := user.GetByID(token.UserID, c.Request.Context())
 			if err != nil {
-				log.Warnf("agent token is bound to unknown user %q: %v", username, err)
+				log.Warnf("api token %d is bound to unknown user %d: %v", token.ID, token.UserID, err)
 				resp.Error(c, http.StatusUnauthorized, resp.ErrUnauthorized)
 				c.Abort()
 				return
 			}
+			c.Set("api_token_id", int(token.ID))
+			c.Set("api_token_name", token.Name)
 			setAuthContext(c, currentUser)
 			c.Next()
 			return

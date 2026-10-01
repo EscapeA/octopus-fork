@@ -20,8 +20,9 @@ import (
 const maxAuditTargetBodyBytes = 8 << 10
 
 var auditedManagementWriteRoutes = map[string]struct{}{
-	"POST /api/v1/agent-token/rotate":                                                {},
-	"POST /api/v1/agent-token/revoke":                                                {},
+	"POST /api/v1/api-token/create":                                                  {},
+	"POST /api/v1/api-token/revoke":                                                  {},
+	"DELETE /api/v1/api-token/delete/:id":                                            {},
 	"POST /api/v1/alert/notif/create":                                                {},
 	"POST /api/v1/alert/notif/update":                                                {},
 	"DELETE /api/v1/alert/notif/delete/:id":                                          {},

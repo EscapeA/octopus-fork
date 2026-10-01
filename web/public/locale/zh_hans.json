@@ -2347,6 +2347,46 @@
     "groupUpstreamMeta": {
       "label": "分组上游渠道信息",
       "description": "在分组编辑页展示上游价格、余额、今日收入与延迟/吞吐/状态"
+    },
+    "apiToken": {
+      "title": "机器令牌",
+      "hint": "给脚本 / agent / CI 用的管理面凭证，无需登录即可调用 API",
+      "description": "令牌明文只在创建时显示一次，服务端只存摘要；权限跟随绑定用户，审计日志记该用户名。",
+      "namePlaceholder": "令牌名称（如 墨 CLI）",
+      "boundUser": "绑定用户",
+      "boundUserPlaceholder": "选择绑定用户",
+      "expiresNever": "永不过期",
+      "expiresDays": "{days} 天后过期",
+      "create": "创建令牌",
+      "creating": "创建中…",
+      "loading": "加载中…",
+      "empty": "暂无机器令牌",
+      "createdAt": "创建",
+      "expiresAt": "到期",
+      "lastUsed": "最近使用",
+      "neverUsed": "从未使用",
+      "revoke": "吊销",
+      "delete": "删除",
+      "revokeTitle": "吊销令牌",
+      "revokeConfirm": "吊销后使用该令牌的调用会立即失败，且无法恢复。",
+      "deleteTitle": "删除令牌",
+      "deleteConfirm": "删除后该记录不可恢复（已吊销的令牌可直接删除）。",
+      "cancel": "取消",
+      "revoked": "已吊销",
+      "deleted": "已删除",
+      "copied": "已复制到剪贴板",
+      "copyFailed": "复制失败",
+      "createFailed": "创建失败",
+      "actionFailed": "操作失败",
+      "needName": "请填写令牌名称",
+      "needUser": "请选择绑定用户",
+      "copy": "复制",
+      "state": {
+        "active": "有效",
+        "revoked": "已吊销",
+        "expired": "已过期",
+        "userMissing": "绑定用户不存在"
+      }
     }
   },
   "group": {

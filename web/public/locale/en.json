@@ -2391,6 +2391,46 @@
     "groupUpstreamMeta": {
       "label": "Group upstream channel info",
       "description": "Show upstream price, balance, today's income, and latency/throughput/status in the group editor"
+    },
+    "apiToken": {
+      "title": "Machine Tokens",
+      "hint": "Management API credentials for scripts / agents / CI, usable without logging in",
+      "description": "The plaintext token is shown once at creation; only its digest is stored. Permissions follow the bound user and audit logs record that username.",
+      "namePlaceholder": "Token name (e.g. agent CLI)",
+      "boundUser": "Bound user",
+      "boundUserPlaceholder": "Select a bound user",
+      "expiresNever": "Never expires",
+      "expiresDays": "Expires in {days} days",
+      "create": "Create token",
+      "creating": "Creating…",
+      "loading": "Loading…",
+      "empty": "No machine tokens yet",
+      "createdAt": "Created",
+      "expiresAt": "Expires",
+      "lastUsed": "Last used",
+      "neverUsed": "Never used",
+      "revoke": "Revoke",
+      "delete": "Delete",
+      "revokeTitle": "Revoke token",
+      "revokeConfirm": "Calls using this token fail immediately after revocation and cannot be restored.",
+      "deleteTitle": "Delete token",
+      "deleteConfirm": "This record cannot be restored after deletion (revoked tokens can be deleted directly).",
+      "cancel": "Cancel",
+      "revoked": "Token revoked",
+      "deleted": "Token deleted",
+      "copied": "Copied to clipboard",
+      "copyFailed": "Copy failed",
+      "createFailed": "Failed to create token",
+      "actionFailed": "Operation failed",
+      "needName": "Token name is required",
+      "needUser": "A bound user is required",
+      "copy": "Copy",
+      "state": {
+        "active": "Active",
+        "revoked": "Revoked",
+        "expired": "Expired",
+        "userMissing": "Bound user missing"
+      }
     }
   },
   "group": {

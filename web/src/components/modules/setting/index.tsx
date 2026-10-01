@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import {
     Sun, User, Database,
     ScrollText, Monitor, RefreshCw, ChevronsUpDown,
-    Info, Bot, Sparkles, Cloud, Fingerprint, Wand2, Layers, Network,
+    Info, Bot, Sparkles, Cloud, Fingerprint, Wand2, Layers, Network, KeyRound,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { SettingAppearance } from './Appearance';
@@ -21,6 +21,7 @@ import { SettingAIRoute } from './AIRoute';
 import { SettingSemanticCache } from './SemanticCache';
 import { SettingWebDAV } from './WebDAV';
 import { SettingWebAuthn } from './WebAuthn';
+import { SettingAPIToken } from './APIToken';
 import { SettingNormalize } from './Normalize';
 import { SettingPool } from './Pool';
 import { useProxyPoolDialogStore } from '@/components/modules/proxy-pool/dialog-store';
@@ -47,6 +48,7 @@ const SETTING_ITEM_DEFS: SettingItemDef[] = [
     { id: 'redis',              icon: <Database className="h-5 w-5" />,          titleKey: 'redis.title',          component: <SettingCache /> },
     { id: 'webdav',            icon: <Cloud className="h-5 w-5" />,             titleKey: 'webdav.title',         component: <SettingWebDAV /> },
     { id: 'webauthn',          icon: <Fingerprint className="h-5 w-5" />,      titleKey: 'webauthn.title',       component: <SettingWebAuthn /> },
+    { id: 'api-token',         icon: <KeyRound className="h-5 w-5" />,         titleKey: 'apiToken.title',       component: <SettingAPIToken /> },
     { id: 'normalize',         icon: <Wand2 className="h-5 w-5" />,           titleKey: 'normalize.title',      component: <SettingNormalize /> },
     { id: 'pool',              icon: <Layers className="h-5 w-5" />,           titleKey: 'pool.title',           component: <SettingPool /> },
     { id: 'proxy-pool',        icon: <Network className="h-5 w-5" />,          titleKey: 'proxyPool.title',      component: null },

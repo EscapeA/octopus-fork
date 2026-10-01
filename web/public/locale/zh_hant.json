@@ -2347,6 +2347,46 @@
     "groupUpstreamMeta": {
       "label": "分組上游渠道資訊",
       "description": "在分組編輯頁展示上游價格、餘額、今日收入與延遲/吞吐/狀態"
+    },
+    "apiToken": {
+      "title": "機器權杖",
+      "hint": "給腳本 / agent / CI 用的管理面憑證，無需登入即可呼叫 API",
+      "description": "權杖明文只在建立時顯示一次，服務端只存摘要；權限跟隨綁定使用者，稽核記錄記該使用者名稱。",
+      "namePlaceholder": "權杖名稱（如 墨 CLI）",
+      "boundUser": "綁定使用者",
+      "boundUserPlaceholder": "選擇綁定使用者",
+      "expiresNever": "永不過期",
+      "expiresDays": "{days} 天後過期",
+      "create": "建立權杖",
+      "creating": "建立中…",
+      "loading": "載入中…",
+      "empty": "尚無機器權杖",
+      "createdAt": "建立",
+      "expiresAt": "到期",
+      "lastUsed": "最近使用",
+      "neverUsed": "從未使用",
+      "revoke": "撤銷",
+      "delete": "刪除",
+      "revokeTitle": "撤銷權杖",
+      "revokeConfirm": "撤銷後使用該權杖的呼叫會立即失敗，且無法復原。",
+      "deleteTitle": "刪除權杖",
+      "deleteConfirm": "刪除後該記錄不可復原（已撤銷的權杖可直接刪除）。",
+      "cancel": "取消",
+      "revoked": "已撤銷",
+      "deleted": "已刪除",
+      "copied": "已複製到剪貼簿",
+      "copyFailed": "複製失敗",
+      "createFailed": "建立失敗",
+      "actionFailed": "操作失敗",
+      "needName": "請填寫權杖名稱",
+      "needUser": "請選擇綁定使用者",
+      "copy": "複製",
+      "state": {
+        "active": "有效",
+        "revoked": "已撤銷",
+        "expired": "已過期",
+        "userMissing": "綁定使用者不存在"
+      }
     }
   },
   "group": {
