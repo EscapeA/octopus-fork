@@ -23,6 +23,7 @@ func init() {
 var legacyAgentTokenSettingKeys = []string{
 	"agent_api_token_hash",
 	"agent_api_token_username",
+	"agent_api_token_enabled",
 	"agent_api_token_prefix",
 	"agent_api_token_created_at",
 }
