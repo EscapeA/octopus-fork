@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Prevent process termination when the relay log queue is full with the `disabled` drop policy.
+- Ensure singleflight leaders write responses and record metrics only once, including failed requests.
+- Clean up group caches and runtime state for all channel deletion paths.
+- Periodically persist site-model hourly statistics, retain failed batches for retry, and invalidate bindings after projection.
+- Continue saving independent caches after an earlier save failure.
+- Abort release builds on platform or artifact failures, freeze frontend dependencies, and test release failure handling in CI.
+
+## [v2.6.1] - 2026-09-28
+
+### 🎨 UI/UX
+
+- **Group**: 分组创建/编辑页信息降噪——低频字段（匹配正则、超时、会话保持、推理缓冲、条件表达式）折叠进「高级配置」面板，首屏只保留必填字段
+- **Group**: 表单提交时内联校验提示（分组名称必填、至少选择一个模型）
+- **Group**: 编辑弹窗标题去重，直接显示分组名
+- **Group**: 「移除失败模型」操作增加二次确认弹窗
+
 ## [v2.6.0] - 2026-08-28
 
 ### 🚀 Features

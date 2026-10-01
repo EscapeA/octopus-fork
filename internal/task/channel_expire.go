@@ -13,7 +13,6 @@ import (
 	ch "github.com/lingyuins/octopus/internal/op/channel"
 	"github.com/lingyuins/octopus/internal/op/notification"
 	"github.com/lingyuins/octopus/internal/op/setting"
-	st "github.com/lingyuins/octopus/internal/op/stats"
 	"github.com/lingyuins/octopus/internal/utils/log"
 )
 
@@ -61,7 +60,6 @@ func deleteExpiredChannel(ctx context.Context, channel model.Channel, notifChann
 		log.Errorf("channel expire: failed to delete channel %d (%s): %v (will retry next cycle)", channel.ID, channel.Name, err)
 		return
 	}
-	st.OnChannelDeleted(channel.ID)
 	log.Infof("channel expire: deleted expired disposable channel %d (%s)", channel.ID, channel.Name)
 
 	// 删除成功后发送通知。

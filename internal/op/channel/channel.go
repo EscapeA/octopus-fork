@@ -21,6 +21,9 @@ var keyCacheNeedUpdate = make(map[int]struct{})
 var keyCacheNeedUpdateLock sync.Mutex
 var runtimeUpdateLock sync.Mutex
 
+// OnDeleted is injected by op to clean up dependent caches and runtime state.
+var OnDeleted func(channelID int)
+
 // GetCache returns the internal channel cache (for backward compatibility).
 func GetCache() cache.Cache[int, model.Channel] { return chCache }
 
@@ -420,6 +423,10 @@ func Update(req *model.ChannelUpdateRequest, ctx context.Context) (*model.Channe
 	if req.AutoSync != nil {
 		selectFields = append(selectFields, "auto_sync")
 		updates.AutoSync = *req.AutoSync
+	}
+	if req.AutoSyncKeyModels != nil {
+		selectFields = append(selectFields, "auto_sync_key_models")
+		updates.AutoSyncKeyModels = *req.AutoSyncKeyModels
 	}
 	if req.SkipModelTest != nil {
 		selectFields = append(selectFields, "skip_model_test")
@@ -871,7 +878,7 @@ func RefreshCacheByID(id int, ctx context.Context) error {
 	return nil
 }
 
-// Delete performs channel DB deletion transaction (without stats/group cache cleanup).
+// Delete removes a channel and invokes dependent cleanup after committing.
 func Delete(id int, ctx context.Context) error {
 	ch, ok := chCache.Get(id)
 	if !ok {
@@ -920,6 +927,9 @@ func Delete(id int, ctx context.Context) error {
 	}
 	runtimeUpdateLock.Unlock()
 
+	if OnDeleted != nil {
+		OnDeleted(id)
+	}
 	return nil
 }
 
