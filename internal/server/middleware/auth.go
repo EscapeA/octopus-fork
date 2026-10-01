@@ -14,44 +14,61 @@ import (
 	"github.com/lingyuins/octopus/internal/op/user"
 	"github.com/lingyuins/octopus/internal/server/auth"
 	"github.com/lingyuins/octopus/internal/server/resp"
+	"github.com/lingyuins/octopus/internal/utils/log"
 )
 
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		token := c.GetHeader("Authorization")
-		if token == "" {
+		header := c.GetHeader("Authorization")
+		if header == "" {
 			resp.Error(c, http.StatusBadRequest, resp.ErrBadRequest)
 			c.Abort()
 			return
 		}
-		valid, userID, role := auth.VerifyJWTToken(strings.TrimPrefix(token, "Bearer "))
-		if !valid {
-			resp.Error(c, http.StatusUnauthorized, resp.ErrUnauthorized)
-			c.Abort()
+		credential := strings.TrimPrefix(header, "Bearer ")
+
+		// 1) JWT（前端登录态）——原有唯一通路，行为保持不变。
+		if valid, userID, _ := auth.VerifyJWTToken(credential); valid && userID != 0 {
+			currentUser, err := user.GetByID(userID, c.Request.Context())
+			if err != nil {
+				resp.Error(c, http.StatusUnauthorized, resp.ErrUnauthorized)
+				c.Abort()
+				return
+			}
+			setAuthContext(c, currentUser)
+			c.Next()
 			return
 		}
 
-		if userID == 0 {
-			resp.Error(c, http.StatusUnauthorized, resp.ErrUnauthorized)
-			c.Abort()
+		// 2) Agent 令牌（机器身份）——以绑定用户的角色鉴权，审计记该用户名。
+		if ok, username := auth.VerifyAgentToken(credential); ok {
+			currentUser, err := user.GetByUsername(username, c.Request.Context())
+			if err != nil {
+				log.Warnf("agent token is bound to unknown user %q: %v", username, err)
+				resp.Error(c, http.StatusUnauthorized, resp.ErrUnauthorized)
+				c.Abort()
+				return
+			}
+			setAuthContext(c, currentUser)
+			c.Next()
 			return
 		}
 
-		currentUser, err := user.GetByID(userID, c.Request.Context())
-		if err != nil {
-			resp.Error(c, http.StatusUnauthorized, resp.ErrUnauthorized)
-			c.Abort()
-			return
-		}
-		role = currentUser.Role
-		if role == "" {
-			role = model.UserRoleViewer
-		}
-		c.Set("user_id", int(currentUser.ID))
-		c.Set("username", currentUser.Username)
-		c.Set("user_role", role)
-		c.Next()
+		resp.Error(c, http.StatusUnauthorized, resp.ErrUnauthorized)
+		c.Abort()
 	}
+}
+
+// setAuthContext 把已解析出的用户写入请求上下文（角色一律以库中当前值为准，
+// 避免降权后旧凭证仍带旧角色）。
+func setAuthContext(c *gin.Context, currentUser model.User) {
+	role := currentUser.Role
+	if role == "" {
+		role = model.UserRoleViewer
+	}
+	c.Set("user_id", int(currentUser.ID))
+	c.Set("username", currentUser.Username)
+	c.Set("user_role", role)
 }
 
 func APIKeyAuth() gin.HandlerFunc {

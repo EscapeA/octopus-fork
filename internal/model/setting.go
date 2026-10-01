@@ -125,6 +125,13 @@ const (
 	SettingKeyKeyAutoDisableThreshold              SettingKey = "key_auto_disable_threshold"               // 连续收到多少次 402 后自动禁用该 Key
 	SettingKeyKeyAutoDisableProbeInterval          SettingKey = "key_auto_disable_probe_interval"          // 自动禁用 Key 的定时试活间隔（分钟），0=不自动试活（仅手动恢复）
 	SettingKeyGroupUpstreamMetaDisplayEnabled      SettingKey = "group_upstream_meta_display_enabled"      // 分组编辑页展示上游价/余额/今日收入/性能指标
+	// Agent 令牌：给机器身份（脚本 / agent / CI）用的管理面凭证，替代「用管理员账号
+	// 密码登录换 JWT」。设置表里只存 SHA-256 摘要，明文仅生成时返回一次。
+	SettingKeyAgentAPITokenHash      SettingKey = "agent_api_token_hash"       // Agent 令牌 SHA-256 摘要（空=未配置）
+	SettingKeyAgentAPITokenUsername  SettingKey = "agent_api_token_username"   // Agent 令牌绑定的用户名（按该用户角色鉴权，审计记该用户）
+	SettingKeyAgentAPITokenEnabled   SettingKey = "agent_api_token_enabled"    // Agent 令牌开关（"true"/"false"）
+	SettingKeyAgentAPITokenPrefix    SettingKey = "agent_api_token_prefix"     // 令牌展示前缀（不足以复用为令牌）
+	SettingKeyAgentAPITokenCreatedAt SettingKey = "agent_api_token_created_at" // 最近一次轮换时间（RFC3339，仅供展示）
 )
 
 type Setting struct {
@@ -246,6 +253,12 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyPoolHealthCheckEnabled, Value: "false"},         // 默认关闭号池巡检
 		{Key: SettingKeyPoolHealthCheckInterval, Value: "30"},           // 默认 30 分钟巡检
 		{Key: SettingKeyPoolHealthCheckFailThreshold, Value: "3"},       // 默认 3 次失败后 SetError
+		// Agent 令牌默认关闭、未配置；用户名需由轮换接口显式指定（该用户必须存在）。
+		{Key: SettingKeyAgentAPITokenHash, Value: ""},
+		{Key: SettingKeyAgentAPITokenUsername, Value: ""},
+		{Key: SettingKeyAgentAPITokenEnabled, Value: "false"},
+		{Key: SettingKeyAgentAPITokenPrefix, Value: ""},
+		{Key: SettingKeyAgentAPITokenCreatedAt, Value: ""},
 	}
 }
 
