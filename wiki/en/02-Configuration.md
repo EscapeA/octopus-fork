@@ -37,6 +37,7 @@ Most operational knobs are not stored in `config.json`. Retry policy, circuit br
 | `server.host` | Listen address | `0.0.0.0` |
 | `server.port` | Server port | `8080` |
 | `server.trusted_proxies` | Comma-separated trusted reverse-proxy CIDRs/IPs for resolving real client IP from `X-Forwarded-For`. Empty = trust none (safe default; `c.ClientIP()` returns the direct TCP address). `*` = trust all (dev only; XFF spoofing risk). | empty |
+| `server.static_dir` | Directory holding the frontend static assets (absolute, or relative to the process working directory). Decouples the web build from the binary: replacing files takes effect immediately, with no rebuild or restart; an invalid value (no `index.html`) logs a warning and falls back to the embedded assets. Env `OCTOPUS_STATIC_DIR` takes precedence. | empty (embedded assets) |
 | `database.type` | Database type | `sqlite` |
 | `database.path` | Database connection string | `data/data.db` |
 | `database.sqlite.cache_size` | SQLite `PRAGMA cache_size` (negative = KB, e.g. `-20000` ≈ 20 MB; positive = pages). Only used when `database.type` is `sqlite`. | `-20000` (≈ 20 MB) |
@@ -116,6 +117,7 @@ All configuration options can be overridden via environment variables using the 
 | `OCTOPUS_SERVER_PORT` | `server.port` |
 | `OCTOPUS_SERVER_HOST` | `server.host` |
 | `OCTOPUS_SERVER_TRUSTED_PROXIES` | `server.trusted_proxies` |
+| `OCTOPUS_STATIC_DIR` | `server.static_dir` (overrides config.json) |
 | `OCTOPUS_DATABASE_TYPE` | `database.type` |
 | `OCTOPUS_DATABASE_PATH` | `database.path` |
 | `OCTOPUS_DATABASE_SQLITE_CACHE_SIZE` | `database.sqlite.cache_size` (SQLite page cache; negative = KB, e.g. `-20000` ≈ 20MB) |

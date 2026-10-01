@@ -11,6 +11,7 @@ import (
 func TestResolveLocalStaticDirPrefersWebOutInDebug(t *testing.T) {
 	t.Setenv("OCTOPUS_DEBUG", "true")
 	t.Setenv(StaticDirEnv, "")
+	setStaticDirConfig(t, "")
 
 	root := t.TempDir()
 	prevWD, err := os.Getwd()
@@ -42,6 +43,7 @@ func TestResolveLocalStaticDirPrefersWebOutInDebug(t *testing.T) {
 func TestResolveLocalStaticDirFallsBackToStaticOutInDebug(t *testing.T) {
 	t.Setenv("OCTOPUS_DEBUG", "true")
 	t.Setenv(StaticDirEnv, "")
+	setStaticDirConfig(t, "")
 
 	root := t.TempDir()
 	prevWD, err := os.Getwd()
@@ -69,6 +71,7 @@ func TestResolveLocalStaticDirFallsBackToStaticOutInDebug(t *testing.T) {
 func TestResolveLocalStaticDirDisabledOutsideDebug(t *testing.T) {
 	t.Setenv("OCTOPUS_DEBUG", "false")
 	t.Setenv(StaticDirEnv, "")
+	setStaticDirConfig(t, "")
 
 	root := t.TempDir()
 	prevWD, err := os.Getwd()
@@ -180,6 +183,98 @@ func TestResolveLocalStaticDirInvalidEnvDoesNotFallBack(t *testing.T) {
 
 	if got, ok := resolveLocalStaticDir(); ok || got != "" {
 		t.Fatalf("expected embedded fallback when env dir is invalid, got %q ok=%v", got, ok)
+	}
+}
+
+// setStaticDirConfig 设置 config.json 形式的 server.static_dir 并在用例结束后还原，
+// 避免污染同包其他用例（conf.AppConfig 是进程级全局）。
+func setStaticDirConfig(t *testing.T, dir string) {
+	t.Helper()
+	prev := conf.AppConfig.Server.StaticDir
+	conf.AppConfig.Server.StaticDir = dir
+	t.Cleanup(func() { conf.AppConfig.Server.StaticDir = prev })
+}
+
+// server.static_dir：config.json 形式同样无需 debug 模式。
+func TestResolveLocalStaticDirFromConfigWithoutDebug(t *testing.T) {
+	t.Setenv("OCTOPUS_DEBUG", "false")
+	t.Setenv(StaticDirEnv, "")
+
+	root := t.TempDir()
+	webRoot := filepath.Join(root, "srv-web")
+	mustWriteStaticIndex(t, filepath.Join(webRoot, "index.html"))
+
+	otherWD := t.TempDir()
+	prevWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(otherWD); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(prevWD)
+	})
+
+	setStaticDirConfig(t, webRoot)
+
+	got, ok := resolveLocalStaticDir()
+	if !ok {
+		t.Fatalf("expected config static dir to be used without debug mode")
+	}
+	if filepath.Clean(got) != filepath.Clean(webRoot) {
+		t.Fatalf("expected %q, got %q", webRoot, got)
+	}
+}
+
+// env 优先于 config.json。
+func TestResolveLocalStaticDirEnvOverridesConfig(t *testing.T) {
+	t.Setenv("OCTOPUS_DEBUG", "false")
+
+	root := t.TempDir()
+	envDir := filepath.Join(root, "from-env")
+	cfgDir := filepath.Join(root, "from-config")
+	mustWriteStaticIndex(t, filepath.Join(envDir, "index.html"))
+	mustWriteStaticIndex(t, filepath.Join(cfgDir, "index.html"))
+
+	t.Setenv(StaticDirEnv, envDir)
+	setStaticDirConfig(t, cfgDir)
+
+	got, ok := resolveLocalStaticDir()
+	if !ok {
+		t.Fatalf("expected a static dir")
+	}
+	if filepath.Clean(got) != filepath.Clean(envDir) {
+		t.Fatalf("expected env dir %q to win over config dir, got %q", envDir, got)
+	}
+}
+
+// server.static_dir 无效时同样不静默改用其他目录（回落到内嵌资源）。
+func TestResolveLocalStaticDirInvalidConfigDoesNotFallBack(t *testing.T) {
+	root := t.TempDir()
+	prevWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("chdir temp root: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(prevWD)
+	})
+
+	t.Setenv("OCTOPUS_DEBUG", "true")
+	t.Setenv(StaticDirEnv, "")
+	mustWriteStaticIndex(t, filepath.Join(root, "web", "out", "index.html"))
+
+	emptyDir := filepath.Join(root, "empty-web")
+	if err := os.MkdirAll(emptyDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	setStaticDirConfig(t, emptyDir)
+
+	if got, ok := resolveLocalStaticDir(); ok || got != "" {
+		t.Fatalf("expected embedded fallback when config dir is invalid, got %q ok=%v", got, ok)
 	}
 }
 

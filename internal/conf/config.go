@@ -25,6 +25,11 @@ type Server struct {
 	// ExternalURL 是本服务对外的可访问基础 URL（含 scheme://host[:port]），
 	// 用于 OAuth 回调地址拼接。为空时回退到 http://host:port。重启生效（engine 级配置）。
 	ExternalURL string `mapstructure:"external_url"`
+	// StaticDir 指定前端静态资源目录（绝对或相对进程工作目录），便于把前端产物
+	// 与二进制解耦：产物放磁盘后替换文件即生效，无需重编/重启。优先级低于环境变量
+	// OCTOPUS_STATIC_DIR；为空时回退到二进制内嵌资源（debug 模式下仍探测
+	// web/out → static/out）。启动期读取，改值需重启。
+	StaticDir string `mapstructure:"static_dir"`
 }
 
 type Log struct {

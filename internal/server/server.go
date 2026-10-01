@@ -80,8 +80,8 @@ func Start() error {
 		log.Infof("serving frontend static assets from local directory: %s", localStaticDir)
 		r.Use(middleware.StaticLocal("/", localStaticDir))
 	} else if static.StaticFS != nil {
-		if dir := strings.TrimSpace(os.Getenv(StaticDirEnv)); dir != "" {
-			log.Warnf("%s=%q has no index.html; falling back to embedded frontend assets", StaticDirEnv, dir)
+		if dir, source := configuredStaticDir(); dir != "" {
+			log.Warnf("%s=%q has no index.html; falling back to embedded frontend assets", source, dir)
 		}
 		r.Use(middleware.StaticEmbed("/", static.StaticFS))
 	} else {
@@ -188,17 +188,29 @@ func truncateRunes(s string, max int) string {
 }
 
 // StaticDirEnv 显式指定前端静态资源目录（相对进程工作目录或绝对路径）。
-// 设置后优先于 debug 模式的目录探测，用于「前端产物与二进制解耦」的部署形态：
-// 前端构建产物放在挂载目录里，替换文件即生效，无需重编/重启后端。
+// 设置后优先于 config.json 的 server.static_dir，用于「前端产物与二进制解耦」的部署形态：
+// 前端构建产物放在静态目录里，替换文件即生效，无需重编/重启后端。
 const StaticDirEnv = "OCTOPUS_STATIC_DIR"
 
+// configuredStaticDir 返回显式配置的静态目录及其来源名（env 优先于 config.json），
+// 未显式配置时返回空串。来源名用于日志，避免「以为生效了其实没有」。
+func configuredStaticDir() (string, string) {
+	if dir := strings.TrimSpace(os.Getenv(StaticDirEnv)); dir != "" {
+		return dir, StaticDirEnv
+	}
+	if dir := strings.TrimSpace(conf.AppConfig.Server.StaticDir); dir != "" {
+		return dir, "server.static_dir"
+	}
+	return "", ""
+}
+
 // staticDirCandidates 返回静态资源目录候选（按优先级）：
-//   - 显式设置 StaticDirEnv：只认它，无效也不回退到 debug 探测（避免容器里
+//   - 显式配置（env / config.json）：只认它，无效也不回退到 debug 探测（避免容器里
 //     误服到别的目录，宁可回落到二进制内嵌资源）；
 //   - debug 模式：保留开发时的 web/out → static/out 探测；
 //   - 其他：nil（使用二进制内嵌资源）。
 func staticDirCandidates() []string {
-	if dir := strings.TrimSpace(os.Getenv(StaticDirEnv)); dir != "" {
+	if dir, _ := configuredStaticDir(); dir != "" {
 		return []string{dir}
 	}
 	if !conf.IsDebug() {
