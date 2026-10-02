@@ -14,8 +14,8 @@ import (
 var settingCache = cache.New[model.SettingKey, string](16)
 
 // generation 在每次设置发生变更时自增。调用方可以缓存基于设置派生的
-// 配置（如语义缓存运行时配置），只在代际变化时重新读取，避免在请求热
-// 路径上反复读取多个设置并重建配置。
+// 配置（例如 relay 日志内容白名单），只在代际变化时重新读取，避免在请求
+// 热路径上反复读取多个设置并重建配置。
 var generation atomic.Uint64
 
 // Generation 返回当前设置代际。每当任意设置被写入（SetString/SetInt）或
