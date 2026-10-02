@@ -389,7 +389,7 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
 
             <MorphingDialogDescription className="min-h-0 flex-1 overflow-hidden px-1">
                 <Tabs value={currentView} className="flex h-full min-h-0 flex-col">
-                    <TabsContents className="min-h-0 flex-1">
+                    <TabsContents className="flex min-h-0 flex-1 flex-col">
                         <TabsContent value="viewing" className="flex min-h-0 flex-1 flex-col overflow-y-auto">
                             <div className="space-y-4 pr-1 sm:space-y-5">
                                 <dl className="grid grid-cols-3 gap-2 sm:gap-3">
