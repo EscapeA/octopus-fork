@@ -30,7 +30,7 @@
 - 📅 **Usage Reports** - Schedule daily / weekly / monthly usage reports delivered through notification channels
 - 💎 **Model Market** - Unified model catalog with pricing, channel coverage, enabled key counts, latency, and success metrics, plus create / edit / delete / refresh price workflows
 - 🔃 **Model Sync** - Automatic synchronization of available model lists with channels
-- 📊 **Analytics & Evaluation** - Overview, provider / model / API key utilization, route health, latency distribution, provider prompt-cache analytics, and live entry points for group testing / AI routing
+- 📊 **Analytics** - Overview, provider / model / API key utilization, route health, latency distribution, and provider prompt-cache analytics
 - 🛠️ **Ops & Audit** - Telemetry, quota, health, system, and audit dashboards for daily operations, plus a management-write audit trail
 - 🧭 **Configurable Navigation** - Persist top-level console page order and visibility in settings and reuse it across browsers
 - 💾 **Runtime State Persistence** - Persist auto strategy windows and circuit breaker state to the database
@@ -388,7 +388,7 @@ The embedded management UI currently ships with these top-level modules:
 | Channel | Upstream provider configuration, keys, headers, sync, latency probing, proxy mode, and request rewrite profiles |
 | Group | Model routing, load-balancing strategies, sticky sessions, group test, AI route generation, endpoint provider, zashboard-style collapsible group list, and CC Switch deep link |
 | Model Market | Model catalog, custom pricing, channel coverage, enabled key counts, latency, success metrics, and capabilities dual-view |
-| Analytics | Channel × Model (default), Usage Breakdown, Route Health, Latency distribution, Evaluation, Cache (provider prompt cache), and share snapshot |
+| Analytics | Channel × Model (default), Usage Breakdown, Route Health, Latency distribution, Cache (provider prompt cache), and share snapshot |
 | Log | Relay request history, error details, token usage, and cost records |
 | Notification | Unified notification center with 4 groups: Messages (inbox / archived), Alerts (rules / history), Delivery (channels / policies / preferences), and Reports (schedules / history). Alert rules, notification channels (webhook, Gotify, email, Telegram, Feishu, DingTalk, WeCom, ntfy), and usage report scheduling all live here |
 | Ops | Telemetry (hero metrics, P95 latency, provider health, prompt-cache analytics), Quota, Health, Maintenance (retry / circuit breaker / response filter), System, and Audit trail |
@@ -684,7 +684,7 @@ The Capabilities panel shows per-model endpoint support declarations, conversati
 
 ### 📈 Analytics
 
-The Analytics module is a read-oriented operations view with six tabs. The default tab is **Channel × Model** so the most-watched data shows first:
+The Analytics module is a read-oriented operations view with five tabs. The default tab is **Channel × Model** so the most-watched data shows first:
 
 | Tab | What it shows |
 |-----|---------------|
@@ -692,14 +692,12 @@ The Analytics module is a read-oriented operations view with six tabs. The defau
 | Usage Breakdown | Provider, model, and API key breakdowns for the selected time range (renamed from "Utilization" with a no-billing hint when cost data is empty) |
 | Route Health | Health score, enabled / disabled item counts, and recent failure pressure for each group |
 | Latency | Request latency metrics (Avg, P50, P95, P99), first-token-user-time (FTUT) metrics, and latency distribution histogram |
-| Evaluation | Group readiness, AI route progress, and group test progress |
 | Cache | Provider-side prompt-cache analytics (cache rate, reuse ratio, estimated cost savings per provider) |
 
 **Time ranges:** `1d`, `7d`, `30d`, `90d`, `ytd`, and `all`
 
 The overview metrics API still exists as `/api/v1/analytics/overview`, but the primary UI entry point for those summary cards is now the Home page. Home also carries an independent `7d / 30d / 90d` overview-range switch, plus a daily hero summary, trend chart, GitHub-style activity heatmap, and ranking panel.
 
-The Evaluation tab is intentionally lightweight: it acts as an entry point into group testing and AI routing instead of duplicating those full workflows.
 
 **Share Snapshot:**
 
@@ -989,7 +987,7 @@ internal/
 ├── op/                 # Business logic operations split by domain
 │   ├── airoute/        # AI route generation, progress tracking, service pool, and compatibility helpers
 │   ├── alert/          # Alert rule evaluation and notification dispatch
-│   ├── analytics/      # Dashboard, utilization, route-health, evaluation, and latency queries
+│   ├── analytics/      # Dashboard, utilization, route-health, and latency queries
 │   ├── apikey/         # API key CRUD and validation
 │   ├── audit/          # Audit log persistence
 │   ├── backup/         # Database export/import, WebDAV cloud backup scheduler

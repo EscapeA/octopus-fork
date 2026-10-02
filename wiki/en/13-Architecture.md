@@ -15,7 +15,7 @@ internal/
 ├── op/                 # Business logic operations split by domain
 │   ├── airoute/        # AI route generation, progress tracking, service pool, and compatibility helpers
 │   ├── alert/          # Alert rule evaluation and notification dispatch
-│   ├── analytics/      # Dashboard, utilization, route-health, evaluation, and latency queries
+│   ├── analytics/      # Dashboard, utilization, route-health, and latency queries
 │   ├── apikey/         # API key CRUD and validation
 │   ├── audit/          # Audit log persistence
 │   ├── backup/         # Database export/import, WebDAV cloud backup scheduler
