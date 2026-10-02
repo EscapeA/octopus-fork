@@ -1,16 +1,6 @@
 package model
 
 type OpsCacheStatus struct {
-	Enabled             bool                          `json:"enabled"`
-	RuntimeEnabled      bool                          `json:"runtime_enabled"`
-	TTLSeconds          int                           `json:"ttl_seconds"`
-	Threshold           int                           `json:"threshold"`
-	MaxEntries          int                           `json:"max_entries"`
-	CurrentEntries      int                           `json:"current_entries"`
-	Hits                int64                         `json:"hits"`
-	Misses              int64                         `json:"misses"`
-	HitRate             float64                       `json:"hit_rate"`
-	UsageRate           float64                       `json:"usage_rate"`
 	ProviderPromptCache OpsProviderPromptCacheSummary `json:"provider_prompt_cache"`
 }
 
@@ -99,7 +89,6 @@ type OpsHealthGroupItem struct {
 
 type OpsHealthStatus struct {
 	DatabaseOK         bool                 `json:"database_ok"`
-	CacheOK            bool                 `json:"cache_ok"`
 	TaskRuntimeOK      bool                 `json:"task_runtime_ok"`
 	RecentErrorCount   int64                `json:"recent_error_count"`
 	HealthyGroupCount  int                  `json:"healthy_group_count"`
@@ -168,7 +157,6 @@ type OpsTelemetrySummary struct {
 	RuntimeSignals       OpsTelemetryRuntimeSignals       `json:"runtime_signals"`
 	DatabaseHealth       OpsTelemetryDatabaseHealth       `json:"database_health"`
 	SessionQuotaActivity OpsTelemetrySessionQuotaActivity `json:"session_quota_activity"`
-	PromptCache          OpsTelemetryPromptCache          `json:"prompt_cache"`
 	ProviderHealth       OpsTelemetryProviderHealth       `json:"provider_health"`
 	DrilldownShortcuts   []OpsTelemetryDrilldownShortcut  `json:"drilldown_shortcuts"`
 }
@@ -209,15 +197,6 @@ type OpsTelemetrySessionQuotaActivity struct {
 	QuotaAlerts         int `json:"quota_alerts"`
 	SessionsByAPIKey    int `json:"sessions_by_api_key"`
 	QuotaMonitors       int `json:"quota_monitors"`
-}
-
-type OpsTelemetryPromptCache struct {
-	Entries    int     `json:"entries"`
-	HitRate    float64 `json:"hit_rate"`
-	Hits       int64   `json:"hits"`
-	Misses     int64   `json:"misses"`
-	MaxEntries int     `json:"max_entries"`
-	UsageRate  float64 `json:"usage_rate"`
 }
 
 type OpsTelemetryProviderHealth struct {

@@ -42,89 +42,81 @@ const (
 	SettingKeyRateLimitHoldInterval              SettingKey = "rate_limit_hold_interval"                // 429 渠道内延时重试间隔（秒）
 	SettingKeyRateLimitHoldMaxWait               SettingKey = "rate_limit_hold_max_wait"                // 429 渠道内延时重试总等待上限（秒），超时后才换下一渠道
 
-	SettingKeyPoolTokenRefreshInterval             SettingKey = "pool_token_refresh_interval"              // 号池 OAuth token 刷新检查间隔（分钟）
-	SettingKeyPoolQuotaSyncInterval                SettingKey = "pool_quota_sync_interval"                 // 号池额度同步间隔（分钟）
-	SettingKeyPlanProviderRefreshInterval          SettingKey = "plan_provider_refresh_interval"           // 额度监控自动刷新默认间隔（分钟）
-	SettingKeyPoolMinPriority                      SettingKey = "pool_min_priority"                        // 号池分层过滤 minPriority 阈值（默认 -9999 表示关闭）
-	SettingKeyPoolLayeredFilterEnabled             SettingKey = "pool_layered_filter_enabled"              // 号池分层过滤开关：开启后 SelectAccount 过滤掉 priority < min_priority 的候选
-	SettingKeyPoolHealthCheckEnabled               SettingKey = "pool_health_check_enabled"                // 号池账号健康巡检开关
-	SettingKeyPoolHealthCheckInterval              SettingKey = "pool_health_check_interval_minutes"       // 号池账号健康巡检间隔（分钟）
-	SettingKeyPoolHealthCheckFailThreshold         SettingKey = "pool_health_check_fail_threshold"         // 号池账号健康巡检失败阈值（连续 N 次后 SetError）
-	SettingKeyAutoStrategyMinSamples               SettingKey = "auto_strategy_min_samples"                // Auto策略最小样本数阈值
-	SettingKeyAutoStrategyTimeWindow               SettingKey = "auto_strategy_time_window"                // Auto策略时间窗口（秒）
-	SettingKeyAutoStrategySampleThreshold          SettingKey = "auto_strategy_sample_threshold"           // Auto策略滑动窗口大小
-	SettingKeyAutoStrategyLatencyWeight            SettingKey = "auto_strategy_latency_weight"             // Auto策略延迟权重（0-100）
-	SettingKeyAutoStrategyTTFTWeight               SettingKey = "auto_strategy_ttft_weight"                // Auto策略TTFT权重（0-100），启用后流式评分用TTFT EMA替代总延迟EMA
-	SettingKeyAutoStrategyPriceWeight              SettingKey = "auto_strategy_price_weight"               // Auto策略成本权重（0-100），启用后按渠道模型单价对评分降权
-	SettingKeyAutoStrategyExploreRate              SettingKey = "auto_strategy_explore_rate"               // Auto策略探索概率（0-100），>0时按评分softmax随机化候选顺序
-	SettingKeyAutoStrategyBucketTolerance          SettingKey = "auto_strategy_bucket_tolerance"           // Auto策略同分桶容差（0-100评分点），桶内随机打散避免轮流垄断
-	SettingKeySemanticCacheEnabled                 SettingKey = "semantic_cache_enabled"                   // 语义缓存开关
-	SettingKeySemanticCacheTTL                     SettingKey = "semantic_cache_ttl"                       // 语义缓存 TTL（秒）
-	SettingKeySemanticCacheThreshold               SettingKey = "semantic_cache_threshold"                 // 语义缓存相似度阈值（0-1）
-	SettingKeySemanticCacheMaxEntries              SettingKey = "semantic_cache_max_entries"               // 语义缓存最大条目数
-	SettingKeySemanticCacheEmbeddingBaseURL        SettingKey = "semantic_cache_embedding_base_url"        // 语义缓存 embedding 服务 Base URL
-	SettingKeySemanticCacheEmbeddingAPIKey         SettingKey = "semantic_cache_embedding_api_key"         // 语义缓存 embedding 服务 API Key
-	SettingKeySemanticCacheEmbeddingModel          SettingKey = "semantic_cache_embedding_model"           // 语义缓存 embedding 模型名称
-	SettingKeySemanticCacheEmbeddingTimeoutSeconds SettingKey = "semantic_cache_embedding_timeout_seconds" // 语义缓存 embedding 请求超时（秒）
-	SettingKeyNavOrder                             SettingKey = "nav_order"                                // 顶级页面顺序(JSON)
-	SettingKeyNavVisible                           SettingKey = "nav_visible"                              // 顶级页面显示状态(JSON)
-	SettingKeyHubTabOrder                          SettingKey = "hub_tab_order"                            // Hub 子标签顺序(JSON)
-	SettingKeyHubTabVisible                        SettingKey = "hub_tab_visible"                          // Hub 子标签可见性(JSON)
-	SettingKeyAnalyticsTabOrder                    SettingKey = "analytics_tab_order"                      // 分析中心子标签顺序(JSON)
-	SettingKeyAnalyticsTabVisible                  SettingKey = "analytics_tab_visible"                    // 分析中心子标签可见性(JSON)
-	SettingKeyOpsTabOrder                          SettingKey = "ops_tab_order"                            // 运维中心子标签顺序(JSON)
-	SettingKeyOpsTabVisible                        SettingKey = "ops_tab_visible"                          // 运维中心子标签可见性(JSON)
-	SettingKeyAIRouteGroupID                       SettingKey = "ai_route_group_id"                        // AI路由目标分组 ID
-	SettingKeyAIRouteBaseURL                       SettingKey = "ai_route_base_url"                        // AI路由分析服务 Base URL
-	SettingKeyAIRouteAPIKey                        SettingKey = "ai_route_api_key"                         // AI路由分析服务 API Key
-	SettingKeyAIRouteModel                         SettingKey = "ai_route_model"                           // AI路由分析模型名称
-	SettingKeyAIRouteTimeoutSeconds                SettingKey = "ai_route_timeout_seconds"                 // AI路由分析单次请求超时（秒）
-	SettingKeyAIRouteParallelism                   SettingKey = "ai_route_parallelism"                     // AI路由分析批次最大并发数
-	SettingKeyAIRouteServices                      SettingKey = "ai_route_services"                        // AI路由分析服务池(JSON)
-	SettingKeyAIRouteMaxModelsPerRequest           SettingKey = "ai_route_max_models_per_request"          // AI路由分析单批次最大模型数，超过按模型家族切分批次
-	SettingKeyStatsTimezone                        SettingKey = "stats_timezone"                           // 统计时区（IANA 名，如 Asia/Shanghai）；空串回退到 stats_timezone_offset
-	SettingKeyStatsTimezoneOffset                  SettingKey = "stats_timezone_offset"                    // [已弃用] 统计时区偏移（小时），整型；stats_timezone 为空时回退使用
-	SettingKeyJWTDefaultExpiryMinutes              SettingKey = "jwt_default_expiry_minutes"               // 默认JWT过期时间（分钟）
-	SettingKeyJWTRememberMeExpiryDays              SettingKey = "jwt_remember_me_expiry_days"              // 记住我JWT过期时间（天）
-	SettingKeyLoginRateLimitWindow                 SettingKey = "login_rate_limit_window"                  // 登录限流时间窗口（分钟）
-	SettingKeyLoginRateLimitMaxFailed              SettingKey = "login_rate_limit_max_failed"              // 登录限流最大失败次数
-	SettingKeyStreamSessionTTLMinutes              SettingKey = "stream_session_ttl_minutes"               // 流会话TTL（分钟）
-	SettingKeyStreamSessionMaxEvents               SettingKey = "stream_session_max_events"                // 流会话最大事件数
-	SettingKeyStreamSessionMaxBytesMB              SettingKey = "stream_session_max_bytes_mb"              // 流会话最大字节数（MB）
-	SettingKeyStreamSessionMaxSessions             SettingKey = "stream_session_max_sessions"              // 流会话全局并发上限（超限驱逐最旧会话；内存上限≈本值×最大字节数）
-	SettingKeyNotifyHTTPTimeoutSeconds             SettingKey = "notify_http_timeout_seconds"              // 通知HTTP请求超时（秒）
-	SettingKeyFailureHintTTLUnauthorized           SettingKey = "failure_hint_ttl_unauthorized"            // 认证失败提示缓存TTL（秒）
-	SettingKeyFailureHintTTLRateLimit              SettingKey = "failure_hint_ttl_rate_limit"              // 限流失败提示缓存TTL（秒）
-	SettingKeyFailureHintTTLNetwork                SettingKey = "failure_hint_ttl_network"                 // 网络失败提示缓存TTL（秒）
-	SettingKeyWebDAVConfig                         SettingKey = "webdav_config"                            // WebDAV 云备份配置（JSON）
-	SettingKeySiteSyncInterval                     SettingKey = "site_sync_interval"                       // 站点账号同步间隔（小时）
-	SettingKeySiteCheckinInterval                  SettingKey = "site_checkin_interval"                    // 站点自动签到间隔（小时）
-	SettingKeyStatsSiteModelBackfilled             SettingKey = "stats_site_model_backfilled"              // 站点模型统计回填标记
-	SettingKeyProjectedChannelAutoGroupEnabled     SettingKey = "projected_channel_auto_group_enabled"     // 站点投影渠道自动分组全局开关
-	SettingKeyResponseFilterEnabled                SettingKey = "response_filter_enabled"                  // 输出结果关键词拦截开关
-	SettingKeyResponseFilterKeywords               SettingKey = "response_filter_keywords"                 // 拦截关键词列表(JSON 数组)
-	SettingKeyResponseFilterAction                 SettingKey = "response_filter_action"                   // 拦截动作: block(阻断) / replace(替换为*)
-	SettingKeyResponseFilterErrorMessage           SettingKey = "response_filter_error_message"            // 阻断时返回的错误信息
-	SettingKeyLogLevel                             SettingKey = "log_level"                                // 应用日志级别: debug, info, warn, error
-	SettingKeyLogExcludedGroups                    SettingKey = "log_excluded_groups"                      // 在日志列表/实时流中屏蔽的分组名称列表(JSON 数组)
-	SettingKeyModelNormalizeRouterPrefixes         SettingKey = "model_normalize_router_prefixes"          // 模型名归一化: 路由商/平台前缀列表(JSON 数组，元素如 "dmxapi-")
-	SettingKeyModelNormalizeFunctionalSuffixes     SettingKey = "model_normalize_functional_suffixes"      // 模型名归一化: 功能性后缀列表(JSON 数组，元素如 "-cc")
-	SettingKeyModelNormalizeExplicitMappings       SettingKey = "model_normalize_explicit_mappings"        // 模型名归一化: 显式变体→基准名映射(JSON 数组，元素如 {"variant":"...","canonical":"..."})
-	SettingKeyModelNormalizeMarketDedupeDefault    SettingKey = "model_normalize_market_dedupe_default"    // 模型名归一化: 模型广场默认开启归一化去重("true"/"false")
-	SettingKeyWebAuthnRPID                         SettingKey = "webauthn_rp_id"                           // WebAuthn RP ID（域名，不含协议/端口）
-	SettingKeyWebAuthnRPName                       SettingKey = "webauthn_rp_name"                         // WebAuthn RP 展示名
-	SettingKeyWebAuthnOrigins                      SettingKey = "webauthn_origins"                         // WebAuthn 允许的 Origin 列表（逗号分隔，完整 scheme://host[:port]）
-	SettingKeyTrustedProxies                       SettingKey = "trusted_proxies"                          // 可信反向代理 CIDR/IP 列表（逗号分隔，解析 X-Forwarded-For 取真实客户端 IP）；空=不信任任何代理，*=信任所有（有风险）；需重启生效
-	SettingKeyKeyHealthCheckEnabled                SettingKey = "key_health_check_enabled"                 // 定时 Key 可用性验证开关（issue #142）
-	SettingKeyKeyHealthCheckInterval               SettingKey = "key_health_check_interval"                // 定时 Key 验证间隔（分钟）
-	SettingKeyKeyHealthCheckFailThreshold          SettingKey = "key_health_check_fail_threshold"          // 连续失败多少次后标记异常
-	SettingKeyKeyHealthCheckNotifyEnabled          SettingKey = "key_health_check_notify_enabled"          // 是否发送 Key 验证失败通知
-	SettingKeyKeyHealthCheckRecoveryNotify         SettingKey = "key_health_check_recovery_notify"         // 是否发送 Key 验证恢复通知
-	SettingKeyKeyHealthCheckNotifyCooldown         SettingKey = "key_health_check_notify_cooldown"         // Key 验证通知冷却时间（秒）
-	SettingKeyKeyAutoDisableEnabled                SettingKey = "key_auto_disable_enabled"                 // 上游返回 402（余额不足/欠费）达阈值时是否自动禁用该 Key
-	SettingKeyKeyAutoDisableThreshold              SettingKey = "key_auto_disable_threshold"               // 连续收到多少次 402 后自动禁用该 Key
-	SettingKeyKeyAutoDisableProbeInterval          SettingKey = "key_auto_disable_probe_interval"          // 自动禁用 Key 的定时试活间隔（分钟），0=不自动试活（仅手动恢复）
-	SettingKeyGroupUpstreamMetaDisplayEnabled      SettingKey = "group_upstream_meta_display_enabled"      // 分组编辑页展示上游价/余额/今日收入/性能指标
+	SettingKeyPoolTokenRefreshInterval          SettingKey = "pool_token_refresh_interval"           // 号池 OAuth token 刷新检查间隔（分钟）
+	SettingKeyPoolQuotaSyncInterval             SettingKey = "pool_quota_sync_interval"              // 号池额度同步间隔（分钟）
+	SettingKeyPlanProviderRefreshInterval       SettingKey = "plan_provider_refresh_interval"        // 额度监控自动刷新默认间隔（分钟）
+	SettingKeyPoolMinPriority                   SettingKey = "pool_min_priority"                     // 号池分层过滤 minPriority 阈值（默认 -9999 表示关闭）
+	SettingKeyPoolLayeredFilterEnabled          SettingKey = "pool_layered_filter_enabled"           // 号池分层过滤开关：开启后 SelectAccount 过滤掉 priority < min_priority 的候选
+	SettingKeyPoolHealthCheckEnabled            SettingKey = "pool_health_check_enabled"             // 号池账号健康巡检开关
+	SettingKeyPoolHealthCheckInterval           SettingKey = "pool_health_check_interval_minutes"    // 号池账号健康巡检间隔（分钟）
+	SettingKeyPoolHealthCheckFailThreshold      SettingKey = "pool_health_check_fail_threshold"      // 号池账号健康巡检失败阈值（连续 N 次后 SetError）
+	SettingKeyAutoStrategyMinSamples            SettingKey = "auto_strategy_min_samples"             // Auto策略最小样本数阈值
+	SettingKeyAutoStrategyTimeWindow            SettingKey = "auto_strategy_time_window"             // Auto策略时间窗口（秒）
+	SettingKeyAutoStrategySampleThreshold       SettingKey = "auto_strategy_sample_threshold"        // Auto策略滑动窗口大小
+	SettingKeyAutoStrategyLatencyWeight         SettingKey = "auto_strategy_latency_weight"          // Auto策略延迟权重（0-100）
+	SettingKeyAutoStrategyTTFTWeight            SettingKey = "auto_strategy_ttft_weight"             // Auto策略TTFT权重（0-100），启用后流式评分用TTFT EMA替代总延迟EMA
+	SettingKeyAutoStrategyPriceWeight           SettingKey = "auto_strategy_price_weight"            // Auto策略成本权重（0-100），启用后按渠道模型单价对评分降权
+	SettingKeyAutoStrategyExploreRate           SettingKey = "auto_strategy_explore_rate"            // Auto策略探索概率（0-100），>0时按评分softmax随机化候选顺序
+	SettingKeyAutoStrategyBucketTolerance       SettingKey = "auto_strategy_bucket_tolerance"        // Auto策略同分桶容差（0-100评分点），桶内随机打散避免轮流垄断
+	SettingKeyNavOrder                          SettingKey = "nav_order"                             // 顶级页面顺序(JSON)
+	SettingKeyNavVisible                        SettingKey = "nav_visible"                           // 顶级页面显示状态(JSON)
+	SettingKeyHubTabOrder                       SettingKey = "hub_tab_order"                         // Hub 子标签顺序(JSON)
+	SettingKeyHubTabVisible                     SettingKey = "hub_tab_visible"                       // Hub 子标签可见性(JSON)
+	SettingKeyAnalyticsTabOrder                 SettingKey = "analytics_tab_order"                   // 分析中心子标签顺序(JSON)
+	SettingKeyAnalyticsTabVisible               SettingKey = "analytics_tab_visible"                 // 分析中心子标签可见性(JSON)
+	SettingKeyOpsTabOrder                       SettingKey = "ops_tab_order"                         // 运维中心子标签顺序(JSON)
+	SettingKeyOpsTabVisible                     SettingKey = "ops_tab_visible"                       // 运维中心子标签可见性(JSON)
+	SettingKeyAIRouteGroupID                    SettingKey = "ai_route_group_id"                     // AI路由目标分组 ID
+	SettingKeyAIRouteBaseURL                    SettingKey = "ai_route_base_url"                     // AI路由分析服务 Base URL
+	SettingKeyAIRouteAPIKey                     SettingKey = "ai_route_api_key"                      // AI路由分析服务 API Key
+	SettingKeyAIRouteModel                      SettingKey = "ai_route_model"                        // AI路由分析模型名称
+	SettingKeyAIRouteTimeoutSeconds             SettingKey = "ai_route_timeout_seconds"              // AI路由分析单次请求超时（秒）
+	SettingKeyAIRouteParallelism                SettingKey = "ai_route_parallelism"                  // AI路由分析批次最大并发数
+	SettingKeyAIRouteServices                   SettingKey = "ai_route_services"                     // AI路由分析服务池(JSON)
+	SettingKeyAIRouteMaxModelsPerRequest        SettingKey = "ai_route_max_models_per_request"       // AI路由分析单批次最大模型数，超过按模型家族切分批次
+	SettingKeyStatsTimezone                     SettingKey = "stats_timezone"                        // 统计时区（IANA 名，如 Asia/Shanghai）；空串回退到 stats_timezone_offset
+	SettingKeyStatsTimezoneOffset               SettingKey = "stats_timezone_offset"                 // [已弃用] 统计时区偏移（小时），整型；stats_timezone 为空时回退使用
+	SettingKeyJWTDefaultExpiryMinutes           SettingKey = "jwt_default_expiry_minutes"            // 默认JWT过期时间（分钟）
+	SettingKeyJWTRememberMeExpiryDays           SettingKey = "jwt_remember_me_expiry_days"           // 记住我JWT过期时间（天）
+	SettingKeyLoginRateLimitWindow              SettingKey = "login_rate_limit_window"               // 登录限流时间窗口（分钟）
+	SettingKeyLoginRateLimitMaxFailed           SettingKey = "login_rate_limit_max_failed"           // 登录限流最大失败次数
+	SettingKeyStreamSessionTTLMinutes           SettingKey = "stream_session_ttl_minutes"            // 流会话TTL（分钟）
+	SettingKeyStreamSessionMaxEvents            SettingKey = "stream_session_max_events"             // 流会话最大事件数
+	SettingKeyStreamSessionMaxBytesMB           SettingKey = "stream_session_max_bytes_mb"           // 流会话最大字节数（MB）
+	SettingKeyStreamSessionMaxSessions          SettingKey = "stream_session_max_sessions"           // 流会话全局并发上限（超限驱逐最旧会话；内存上限≈本值×最大字节数）
+	SettingKeyNotifyHTTPTimeoutSeconds          SettingKey = "notify_http_timeout_seconds"           // 通知HTTP请求超时（秒）
+	SettingKeyFailureHintTTLUnauthorized        SettingKey = "failure_hint_ttl_unauthorized"         // 认证失败提示缓存TTL（秒）
+	SettingKeyFailureHintTTLRateLimit           SettingKey = "failure_hint_ttl_rate_limit"           // 限流失败提示缓存TTL（秒）
+	SettingKeyFailureHintTTLNetwork             SettingKey = "failure_hint_ttl_network"              // 网络失败提示缓存TTL（秒）
+	SettingKeyWebDAVConfig                      SettingKey = "webdav_config"                         // WebDAV 云备份配置（JSON）
+	SettingKeySiteSyncInterval                  SettingKey = "site_sync_interval"                    // 站点账号同步间隔（小时）
+	SettingKeySiteCheckinInterval               SettingKey = "site_checkin_interval"                 // 站点自动签到间隔（小时）
+	SettingKeyStatsSiteModelBackfilled          SettingKey = "stats_site_model_backfilled"           // 站点模型统计回填标记
+	SettingKeyProjectedChannelAutoGroupEnabled  SettingKey = "projected_channel_auto_group_enabled"  // 站点投影渠道自动分组全局开关
+	SettingKeyResponseFilterEnabled             SettingKey = "response_filter_enabled"               // 输出结果关键词拦截开关
+	SettingKeyResponseFilterKeywords            SettingKey = "response_filter_keywords"              // 拦截关键词列表(JSON 数组)
+	SettingKeyResponseFilterAction              SettingKey = "response_filter_action"                // 拦截动作: block(阻断) / replace(替换为*)
+	SettingKeyResponseFilterErrorMessage        SettingKey = "response_filter_error_message"         // 阻断时返回的错误信息
+	SettingKeyLogLevel                          SettingKey = "log_level"                             // 应用日志级别: debug, info, warn, error
+	SettingKeyLogExcludedGroups                 SettingKey = "log_excluded_groups"                   // 在日志列表/实时流中屏蔽的分组名称列表(JSON 数组)
+	SettingKeyModelNormalizeRouterPrefixes      SettingKey = "model_normalize_router_prefixes"       // 模型名归一化: 路由商/平台前缀列表(JSON 数组，元素如 "dmxapi-")
+	SettingKeyModelNormalizeFunctionalSuffixes  SettingKey = "model_normalize_functional_suffixes"   // 模型名归一化: 功能性后缀列表(JSON 数组，元素如 "-cc")
+	SettingKeyModelNormalizeExplicitMappings    SettingKey = "model_normalize_explicit_mappings"     // 模型名归一化: 显式变体→基准名映射(JSON 数组，元素如 {"variant":"...","canonical":"..."})
+	SettingKeyModelNormalizeMarketDedupeDefault SettingKey = "model_normalize_market_dedupe_default" // 模型名归一化: 模型广场默认开启归一化去重("true"/"false")
+	SettingKeyWebAuthnRPID                      SettingKey = "webauthn_rp_id"                        // WebAuthn RP ID（域名，不含协议/端口）
+	SettingKeyWebAuthnRPName                    SettingKey = "webauthn_rp_name"                      // WebAuthn RP 展示名
+	SettingKeyWebAuthnOrigins                   SettingKey = "webauthn_origins"                      // WebAuthn 允许的 Origin 列表（逗号分隔，完整 scheme://host[:port]）
+	SettingKeyTrustedProxies                    SettingKey = "trusted_proxies"                       // 可信反向代理 CIDR/IP 列表（逗号分隔，解析 X-Forwarded-For 取真实客户端 IP）；空=不信任任何代理，*=信任所有（有风险）；需重启生效
+	SettingKeyKeyHealthCheckEnabled             SettingKey = "key_health_check_enabled"              // 定时 Key 可用性验证开关（issue #142）
+	SettingKeyKeyHealthCheckInterval            SettingKey = "key_health_check_interval"             // 定时 Key 验证间隔（分钟）
+	SettingKeyKeyHealthCheckFailThreshold       SettingKey = "key_health_check_fail_threshold"       // 连续失败多少次后标记异常
+	SettingKeyKeyHealthCheckNotifyEnabled       SettingKey = "key_health_check_notify_enabled"       // 是否发送 Key 验证失败通知
+	SettingKeyKeyHealthCheckRecoveryNotify      SettingKey = "key_health_check_recovery_notify"      // 是否发送 Key 验证恢复通知
+	SettingKeyKeyHealthCheckNotifyCooldown      SettingKey = "key_health_check_notify_cooldown"      // Key 验证通知冷却时间（秒）
+	SettingKeyKeyAutoDisableEnabled             SettingKey = "key_auto_disable_enabled"              // 上游返回 402（余额不足/欠费）达阈值时是否自动禁用该 Key
+	SettingKeyKeyAutoDisableThreshold           SettingKey = "key_auto_disable_threshold"            // 连续收到多少次 402 后自动禁用该 Key
+	SettingKeyKeyAutoDisableProbeInterval       SettingKey = "key_auto_disable_probe_interval"       // 自动禁用 Key 的定时试活间隔（分钟），0=不自动试活（仅手动恢复）
+	SettingKeyGroupUpstreamMetaDisplayEnabled   SettingKey = "group_upstream_meta_display_enabled"   // 分组编辑页展示上游价/余额/今日收入/性能指标
 )
 
 type Setting struct {
@@ -171,14 +163,6 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyAutoStrategyPriceWeight, Value: "0"},       // 默认0=关闭，价格目录有数据后可开启省钱降权
 		{Key: SettingKeyAutoStrategyExploreRate, Value: "0"},       // 默认0=纯贪心（保持旧行为），>0启用softmax探索
 		{Key: SettingKeyAutoStrategyBucketTolerance, Value: "5"},   // 默认5评分点容差，桶内随机打散
-		{Key: SettingKeySemanticCacheEnabled, Value: "false"},      // 默认关闭语义缓存
-		{Key: SettingKeySemanticCacheTTL, Value: "3600"},           // 默认TTL 1小时
-		{Key: SettingKeySemanticCacheThreshold, Value: "98"},       // 默认相似度阈值 0.98（0-100）
-		{Key: SettingKeySemanticCacheMaxEntries, Value: "1000"},    // 默认最大1000条
-		{Key: SettingKeySemanticCacheEmbeddingBaseURL, Value: ""},
-		{Key: SettingKeySemanticCacheEmbeddingAPIKey, Value: ""},
-		{Key: SettingKeySemanticCacheEmbeddingModel, Value: ""},
-		{Key: SettingKeySemanticCacheEmbeddingTimeoutSeconds, Value: "10"},
 		{Key: SettingKeyNavOrder, Value: `["home","hub","channel","pool","group","model","analytics","log","notification","ops","apikey","setting","user"]`},
 		{Key: SettingKeyNavVisible, Value: `["home","hub","channel","pool","group","model","analytics","log","notification","ops","apikey","setting","user"]`},
 		{Key: SettingKeyHubTabOrder, Value: `["sites","site-channels","automation","balance","tokenplan"]`},
@@ -264,8 +248,6 @@ func (s *Setting) Validate() error {
 		SettingKeyRelayRetryCount, SettingKeyRelayRouteRetries, SettingKeyCircuitBreakerThreshold, SettingKeyCircuitBreakerCooldown,
 		SettingKeyCircuitBreakerMaxCooldown, SettingKeyCircuitBreakerHalfOpenProbeTimeout, SettingKeyRatelimitCooldown, SettingKeyRelayMaxTotalAttempts,
 		SettingKeyRateLimitHoldInterval, SettingKeyRateLimitHoldMaxWait,
-		SettingKeySemanticCacheTTL, SettingKeySemanticCacheThreshold, SettingKeySemanticCacheMaxEntries,
-		SettingKeySemanticCacheEmbeddingTimeoutSeconds,
 		SettingKeyAutoStrategyMinSamples, SettingKeyAutoStrategyTimeWindow, SettingKeyAutoStrategySampleThreshold,
 		SettingKeyAutoStrategyLatencyWeight,
 		SettingKeyAutoStrategyTTFTWeight, SettingKeyAutoStrategyPriceWeight,
@@ -316,18 +298,6 @@ func (s *Setting) Validate() error {
 		if (s.Key == SettingKeyAutoStrategyTTFTWeight || s.Key == SettingKeyAutoStrategyPriceWeight || s.Key == SettingKeyAutoStrategyExploreRate || s.Key == SettingKeyAutoStrategyBucketTolerance) && (v < 0 || v > 100) {
 			return fmt.Errorf("auto strategy weight must be between 0 and 100")
 		}
-		if s.Key == SettingKeySemanticCacheTTL && v < 1 {
-			return fmt.Errorf("semantic cache TTL must be greater than 0")
-		}
-		if s.Key == SettingKeySemanticCacheThreshold && (v < 0 || v > 100) {
-			return fmt.Errorf("semantic cache threshold must be between 0 and 100")
-		}
-		if s.Key == SettingKeySemanticCacheMaxEntries && v < 1 {
-			return fmt.Errorf("semantic cache max entries must be greater than 0")
-		}
-		if s.Key == SettingKeySemanticCacheEmbeddingTimeoutSeconds && v < 1 {
-			return fmt.Errorf("semantic cache embedding timeout must be greater than 0")
-		}
 		if s.Key == SettingKeyAIRouteGroupID && v < 0 {
 			return fmt.Errorf("ai route group id must be greater than or equal to 0")
 		}
@@ -356,7 +326,7 @@ func (s *Setting) Validate() error {
 				return fmt.Errorf("setting value must be greater than 0")
 			}
 		}
-	case SettingKeyRelayLogKeepEnabled, SettingKeyRelayLogContentEnabled, SettingKeyStreamSessionReplayEnabled, SettingKeySemanticCacheEnabled, SettingKeyModelNormalizeMarketDedupeDefault, SettingKeyRetryEmptyOutput, SettingKeyRateLimitHoldEnabled, SettingKeyKeyHealthCheckEnabled, SettingKeyKeyHealthCheckNotifyEnabled, SettingKeyKeyHealthCheckRecoveryNotify,
+	case SettingKeyRelayLogKeepEnabled, SettingKeyRelayLogContentEnabled, SettingKeyStreamSessionReplayEnabled, SettingKeyModelNormalizeMarketDedupeDefault, SettingKeyRetryEmptyOutput, SettingKeyRateLimitHoldEnabled, SettingKeyKeyHealthCheckEnabled, SettingKeyKeyHealthCheckNotifyEnabled, SettingKeyKeyHealthCheckRecoveryNotify,
 		SettingKeyPoolLayeredFilterEnabled, SettingKeyPoolHealthCheckEnabled, SettingKeyKeyAutoDisableEnabled:
 		if s.Value != "true" && s.Value != "false" {
 			return fmt.Errorf("setting value must be true or false")
@@ -376,26 +346,23 @@ func (s *Setting) Validate() error {
 			return fmt.Errorf("relay log queue drop policy must be disabled, oldest or newest")
 		}
 		return nil
-	case SettingKeyProxyURL, SettingKeySemanticCacheEmbeddingBaseURL, SettingKeyAIRouteBaseURL:
+	case SettingKeyProxyURL, SettingKeyAIRouteBaseURL:
 		if s.Value == "" {
 			return nil
 		}
 		parsedURL, err := url.Parse(s.Value)
 		if err != nil {
-			if s.Key == SettingKeySemanticCacheEmbeddingBaseURL {
-				return fmt.Errorf("semantic cache embedding base URL is invalid: %w", err)
-			}
 			if s.Key == SettingKeyAIRouteBaseURL {
 				return fmt.Errorf("ai route base URL is invalid: %w", err)
 			}
 			return fmt.Errorf("proxy URL is invalid: %w", err)
 		}
-		if s.Key == SettingKeySemanticCacheEmbeddingBaseURL {
+		if s.Key == SettingKeyAIRouteBaseURL {
 			if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
-				return fmt.Errorf("semantic cache embedding base URL scheme must be http or https")
+				return fmt.Errorf("ai route base URL scheme must be http or https")
 			}
 			if parsedURL.Host == "" {
-				return fmt.Errorf("semantic cache embedding base URL must have a host")
+				return fmt.Errorf("ai route base URL must have a host")
 			}
 			return nil
 		}

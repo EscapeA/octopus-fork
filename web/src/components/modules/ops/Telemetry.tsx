@@ -10,7 +10,6 @@ import {
     Braces,
     Cpu,
     Database,
-    HardDrive,
     Timer,
     TrendingUp,
     Zap,
@@ -21,7 +20,6 @@ import type {
     OpsTelemetryTrendPoint,
     OpsTelemetryDatabaseHealth,
     OpsTelemetrySessionQuotaActivity,
-    OpsTelemetryPromptCache,
     OpsTelemetryProviderItem,
     OpsTelemetryDrilldownShortcut,
 } from '@/api/endpoints/ops';
@@ -174,27 +172,6 @@ function SessionQuota({ activity }: { activity: OpsTelemetrySessionQuotaActivity
                         <span className={`text-sm font-medium ${r.alert ? 'text-amber-500' : ''}`}>{r.value}</span>
                     </div>
                 ))}
-            </div>
-        </div>
-    );
-}
-
-function PromptCache({ cache }: { cache: OpsTelemetryPromptCache }) {
-    const t = useTranslations('ops');
-    return (
-        <div className="space-y-4">
-            <h3 className="text-sm font-medium">{t('telemetry.prompt_cache.title')}</h3>
-            <div className="grid grid-cols-2 gap-3">
-                <HeroMetricCard icon={HardDrive} label={t('telemetry.prompt_cache.entries')} value={`${cache.entries}/${cache.max_entries}`} />
-                <HeroMetricCard icon={Activity} label={t('telemetry.prompt_cache.hit_rate')} value={formatTelemetryPercent(cache.hit_rate)} />
-                <div className="rounded-xl border border-border/60 bg-card p-3">
-                    <div className="text-xs text-muted-foreground">{t('telemetry.prompt_cache.hits')}</div>
-                    <div className="mt-1 text-lg font-semibold">{formatCount(cache.hits)}</div>
-                </div>
-                <div className="rounded-xl border border-border/60 bg-card p-3">
-                    <div className="text-xs text-muted-foreground">{t('telemetry.prompt_cache.misses')}</div>
-                    <div className="mt-1 text-lg font-semibold">{formatCount(cache.misses)}</div>
-                </div>
             </div>
         </div>
     );
@@ -419,22 +396,15 @@ export function Telemetry({ onNavigate }: { onNavigate: (tab: string) => void })
                 <div className="space-y-8">
                     <HeroMetrics hero={data.hero} />
 
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                        <div className="space-y-6">
-                            <div className="rounded-xl border border-border bg-card p-5">
-                                <RuntimeSignals signals={data.runtime_signals} />
-                            </div>
-                            <div className="rounded-xl border border-border bg-card p-5">
-                                <PromptCache cache={data.prompt_cache} />
-                            </div>
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                        <div className="rounded-xl border border-border bg-card p-5">
+                            <RuntimeSignals signals={data.runtime_signals} />
                         </div>
-                        <div className="space-y-6">
-                            <div className="rounded-xl border border-border bg-card p-5">
-                                <DatabaseHealth db={data.database_health} />
-                            </div>
-                            <div className="rounded-xl border border-border bg-card p-5">
-                                <SessionQuota activity={data.session_quota_activity} />
-                            </div>
+                        <div className="rounded-xl border border-border bg-card p-5">
+                            <DatabaseHealth db={data.database_health} />
+                        </div>
+                        <div className="rounded-xl border border-border bg-card p-5">
+                            <SessionQuota activity={data.session_quota_activity} />
                         </div>
                     </div>
 

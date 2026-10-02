@@ -19,7 +19,6 @@ import (
 	"github.com/lingyuins/octopus/internal/op/backup"
 	"github.com/lingyuins/octopus/internal/op/dbmigration"
 	notifop "github.com/lingyuins/octopus/internal/op/notification"
-	"github.com/lingyuins/octopus/internal/op/ops"
 	stg "github.com/lingyuins/octopus/internal/op/setting"
 	"github.com/lingyuins/octopus/internal/server/auth"
 	"github.com/lingyuins/octopus/internal/server/middleware"
@@ -118,11 +117,6 @@ func setSetting(c *gin.Context) {
 	// Setting is now persisted. All downstream effects are best-effort:
 	// log failures but do not return an error status to the client,
 	// which would misleadingly suggest the setting was NOT saved.
-	if shouldRefreshSemanticCacheRuntime(setting.Key) {
-		if err := ops.RefreshSemanticCacheRuntime(); err != nil {
-			log.Warnf("semantic cache refresh failed after setting %s: %v", setting.Key, err)
-		}
-	}
 	if shouldInvalidateModelMarket(setting.Key) {
 		op.ModelMarketInvalidateCache()
 	}
@@ -165,22 +159,6 @@ func setSetting(c *gin.Context) {
 		}
 	}
 	resp.Success(c, setting)
-}
-
-func shouldRefreshSemanticCacheRuntime(key model.SettingKey) bool {
-	switch key {
-	case model.SettingKeySemanticCacheEnabled,
-		model.SettingKeySemanticCacheTTL,
-		model.SettingKeySemanticCacheThreshold,
-		model.SettingKeySemanticCacheMaxEntries,
-		model.SettingKeySemanticCacheEmbeddingBaseURL,
-		model.SettingKeySemanticCacheEmbeddingAPIKey,
-		model.SettingKeySemanticCacheEmbeddingModel,
-		model.SettingKeySemanticCacheEmbeddingTimeoutSeconds:
-		return true
-	default:
-		return false
-	}
 }
 
 func shouldInvalidateModelMarket(key model.SettingKey) bool {
@@ -252,10 +230,6 @@ func importDB(c *gin.Context) {
 	}
 
 	if err := op.InitCache(); err != nil {
-		resp.Error(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-	if err := ops.RefreshSemanticCacheRuntime(); err != nil {
 		resp.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}

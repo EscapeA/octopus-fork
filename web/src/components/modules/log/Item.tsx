@@ -313,7 +313,6 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
     const requestAPIKeyName = displayFields.requestAPIKeyName;
 	const clientIP = log.client_ip || '';
     const cacheReadTokens = displayFields.cacheReadTokens;
-    const semanticCacheHit = displayFields.semanticCacheHit;
     const effectiveInputTokens = Math.max(0, log.input_tokens - cacheReadTokens);
     const inputLabel = cacheReadTokens > 0 ? t('realInput') : t('input');
     const displayChannelName = displayFields.channelName || '-';
@@ -495,12 +494,6 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                     <ArrowDownToLine className="size-3.5 shrink-0 text-green-500" />
                                     <span>{inputLabel} {inputTokenDisplay}</span>
                                 </div>
-                                {semanticCacheHit && (
-                                    <div className="flex items-center gap-1.5">
-                                        <ArrowDownToLine className="size-3.5 shrink-0 text-cyan-500" />
-                                        <span>{t('semanticCacheHit')}</span>
-                                    </div>
-                                )}
                                 {cacheReadTokens > 0 && (
                                     <div className="flex items-center gap-1.5">
                                         <ArrowDownToLine className="size-3.5 shrink-0 text-teal-500" />
@@ -880,12 +873,6 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                 <div className="flex items-center gap-1.5">
                                     <ArrowDownToLine className="size-3.5 text-teal-500" />
                                     <span>{t('cacheHit')}: {fmt(formatCount(cacheReadTokens).formatted)}</span>
-                                </div>
-                            )}
-                            {semanticCacheHit && (
-                                <div className="flex items-center gap-1.5">
-                                    <ArrowDownToLine className="size-3.5 text-cyan-500" />
-                                    <span>{t('semanticCacheHit')}</span>
                                 </div>
                             )}
                             {vis.cost && (

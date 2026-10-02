@@ -483,16 +483,6 @@
   "analytics": {
     "title": "分析中心",
     "subtitle": "聚合 Octopus 目前的統計、利用率與路由健康視角，一期先復用現有統計與日誌能力完成可用分析頁。",
-    "cache": {
-      "title": "快取",
-      "metrics": {
-        "hitRate": "命中率",
-        "entries": "條目數"
-      },
-      "status": {
-        "configuredOff": "未設定"
-      }
-    },
     "cards": {
       "overview": {
         "title": "概述",
@@ -622,103 +612,6 @@
         "tokens": "Token"
       }
     },
-    "evaluation": {
-      "title": "評估",
-      "description": "聚合現有分組檢測與 AI 路由分析入口，當前版本只展示運行態摘要，不新增 benchmark 歷史歸檔。",
-      "actions": {
-        "openGroupTest": "前往分組檢測",
-        "openAIRoute": "前往路由分析",
-        "openSemanticCache": "前往語意快取設定"
-      },
-      "availability": {
-        "title": "分組可用性檢測",
-        "description": "檢測動作仍在分組卡片內觸發，這裡只提供統一入口和最近狀態摘要。",
-        "hint": "當前共有 {count} 個分組可進入檢測流程。",
-        "empty": "當前沒有可檢測分組"
-      },
-      "aiRoute": {
-        "title": "AI 路由分析",
-        "description": "複用現有 AI Route 入口和進度能力，在這裡聚合最近任務狀態。",
-        "hint": "最近任務當前階段：{step}",
-        "unavailable": "最近一次 AI 路由任務狀態暫時不可用。",
-        "empty": "當前沒有 AI 路由任務"
-      },
-      "semanticCache": {
-        "title": "語意快取評估",
-        "description": "這裡集中查看語意快取執行態與命中訊號，具體設定仍保留在設定頁。",
-        "hint": "先確認執行狀態，再前往設定頁調整 embedding 服務與快取參數。",
-        "summaryTitle": "語意快取成效",
-        "summaryDescription": "這裡只展示 evaluation 介面回傳的即時執行計數，不複製設定頁控制項。",
-        "unavailable": "語意快取摘要暫時不可用，但 Evaluation 其他部分仍可正常使用。",
-        "status": {
-          "disabled": "未啟用",
-          "runtimeOn": "執行中",
-          "runtimeOff": "已設定但未執行",
-          "loading": "載入中...",
-          "unavailable": "暫不可用"
-        },
-        "metrics": {
-          "hits": "命中次數",
-          "misses": "未命中次數",
-          "hitRate": "命中率",
-          "currentEntries": "目前條目數",
-          "maxEntries": "最大條目數",
-          "usageRate": "容量占用",
-          "evaluatedRequests": "參與評估請求",
-          "cacheHitResponses": "命中回應",
-          "cacheMissRequests": "未命中請求",
-          "bypassedRequests": "旁路請求",
-          "storedResponses": "已寫入回應"
-        }
-      },
-      "archive": {
-        "title": "歷史歸檔",
-        "description": "當前版本暫無 benchmark 歷史歸檔，這是有意留白，不是載入失敗。",
-        "hint": "如果後續確認需要長期歸檔，再單獨設計資料模型和寫入流程。"
-      },
-      "summary": {
-        "title": "最近評測狀態",
-        "description": "這裡只展示當前會話最近一次 AI Route 與分組檢測任務，不做持久化歷史。",
-        "aiRoute": "最近 AI 路由任務",
-        "groupTest": "最近分組檢測任務",
-        "status": "當前狀態",
-        "progress": "任務進度",
-        "groups": "分組數量",
-        "routes": "路由 / 路由項",
-        "result": "檢測結果",
-        "passed": "通過數量",
-        "failed": "失敗數量",
-        "allPassed": "全部通過",
-        "partialFailed": "存在失敗",
-        "unavailable": "最近任務進度暫時不可用。",
-        "empty": "當前沒有可展示的運行態任務"
-      },
-      "runtime": {
-        "status": {
-          "idle": "空閒",
-          "queued": "排隊中",
-          "running": "運行中",
-          "unavailable": "暫不可用",
-          "completed": "已完成",
-          "failed": "失敗",
-          "timeout": "超時"
-        },
-        "step": {
-          "idle": "暫無階段",
-          "queued": "等待開始",
-          "collecting_models": "收集模型",
-          "building_batches": "建立批次",
-          "analyzing_batches": "分析批次",
-          "parsing_response": "解析回應",
-          "validating_routes": "校驗路由",
-          "writing_groups": "寫入分組",
-          "finalizing": "整理結果",
-          "completed": "已完成",
-          "failed": "失敗",
-          "timeout": "超時"
-        }
-      }
-    },
     "share": {
       "button": "分享",
       "title": "分享快照",
@@ -738,15 +631,12 @@
       "section": {
         "overview": "概覽",
         "latency": "延遲",
-        "cache": "語意快取",
         "topProviders": "熱門渠道",
         "topModels": "熱門模型",
         "topApiKeys": "熱門 API Key",
         "routeHealth": "路由健康"
       },
       "metric": {
-        "cacheHits": "快取命中",
-        "cacheMisses": "快取未命中",
         "totalGroups": "路由組總數"
       }
     }
@@ -773,31 +663,6 @@
       "empty": "暫無可展示資料"
     },
     "cache": {
-      "description": "集中查看語意快取設定、執行態命中情況與容量占用。",
-      "views": {
-        "semantic": "語意快取",
-        "providerPrompt": "提示快取(提供方)"
-      },
-      "metrics": {
-        "hitRate": "命中率",
-        "currentEntries": "目前條目",
-        "ttlSeconds": "TTL",
-        "threshold": "相似度閾值"
-      },
-      "status": {
-        "configuredOn": "已啟用設定",
-        "configuredOff": "設定關閉",
-        "runtimeOn": "執行中",
-        "runtimeOff": "未執行",
-        "runtimeHint": "目前語意快取已初始化，命中率與容量資料反映即時執行態。",
-        "runtimeMissing": "目前設定已關閉或執行態未初始化，可在設定頁檢查語意快取開關。"
-      },
-      "detail": {
-        "hits": "命中次數",
-        "misses": "未命中次數",
-        "maxEntries": "最大條目數",
-        "usageRate": "容量占用"
-      },
       "providerPrompt": {
         "description": "按請求日誌聚合提供方提示快取活動，查看哪些渠道啟用了提示快取，以及帶來多少輸入復用。",
         "metrics": {
@@ -874,7 +739,6 @@
       },
       "cards": {
         "database": "資料庫",
-        "cache": "快取執行態",
         "taskRuntime": "任務設定",
         "recentErrors": "近 24 小時錯誤",
         "healthyGroups": "健康分組",
@@ -984,13 +848,6 @@
         "active_sessions": "活躍會話",
         "sticky_sessions": "黏性會話",
         "quota_alerts": "配額告警"
-      },
-      "prompt_cache": {
-        "title": "語意快取",
-        "entries": "條目數",
-        "hit_rate": "命中率",
-        "hits": "命中",
-        "misses": "未命中"
       },
       "provider_health": {
         "title": "供應商健康",
@@ -1661,49 +1518,6 @@
         "baseUrlPlaceholder": "Base URL（OpenAI 相容）",
         "apiKeyPlaceholder": "API Key",
         "modelPlaceholder": "模型名稱"
-      }
-    },
-    "semanticCache": {
-      "title": "Semantic Cache",
-      "description": "在維持目前卡片布局的前提下，設定語意快取運行參數與獨立 embedding 服務。",
-      "enabled": {
-        "label": "啟用語意快取"
-      },
-      "ttl": {
-        "label": "快取 TTL（秒）",
-        "placeholder": "請輸入 TTL 秒數",
-        "hint": "快取條目會在該時長後過期。"
-      },
-      "threshold": {
-        "label": "相似度閾值（0-100）",
-        "placeholder": "請輸入相似度閾值",
-        "hint": "值越高，命中快取前要求的語意相似度越接近。"
-      },
-      "maxEntries": {
-        "label": "最大條目數",
-        "placeholder": "請輸入最大快取條目數",
-        "hint": "達到上限後會優先淘汰較早的快取條目。"
-      },
-      "embedding": {
-        "title": "Embedding 服務",
-        "description": "以下設定僅用於語意快取的 embedding 請求，不與 AI Route 共用。"
-      },
-      "baseUrl": {
-        "label": "Embedding Base URL",
-        "placeholder": "請輸入 OpenAI 相容 embedding Base URL"
-      },
-      "apiKey": {
-        "label": "Embedding API Key",
-        "placeholder": "請輸入 embedding API Key"
-      },
-      "model": {
-        "label": "Embedding 模型",
-        "placeholder": "請輸入 embedding 模型名稱"
-      },
-      "timeoutSeconds": {
-        "label": "Embedding 超時（秒）",
-        "placeholder": "請輸入 embedding 請求超時時間",
-        "hint": "僅作用於語意快取的 embedding 請求。"
       }
     },
     "pageOrder": {
@@ -3006,7 +2820,6 @@
       "input": "輸入",
       "totalTokens": "總消耗",
       "cacheHit": "命中快取",
-      "semanticCacheHit": "語意快取命中",
       "output": "輸出",
       "cost": "費用",
       "requestContent": "請求內容",

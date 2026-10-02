@@ -386,8 +386,8 @@ func TestRelayLogApplyKeepEnabledClosesAndReopensLogDB(t *testing.T) {
 }
 
 // TestRelayLogListReadsPersistedCacheColumns 验证列表查询直接返回落库的
-// semantic_cache_hit / cache_read_tokens 列，而不再读取并解析 response_content
-// 大字段——这是日志列表加载缓慢问题的核心修复点。
+// cache_read_tokens 列，而不再读取并解析 response_content 大字段——
+// 这是日志列表加载缓慢问题的核心修复点。
 func TestRelayLogListReadsPersistedCacheColumns(t *testing.T) {
 	dsn := filepath.Join(t.TempDir(), "relaylog-cachecols.db")
 	if err := db.InitDB("sqlite", dsn, false); err != nil {
@@ -411,8 +411,8 @@ func TestRelayLogListReadsPersistedCacheColumns(t *testing.T) {
 	// 落库时大字段是一个无法解析出缓存信号的占位串：若查询仍依赖解析
 	// response_content，下面对 cache 列的断言就会失败。
 	seed := []model.RelayLog{
-		{ID: 1, Time: 1, RequestModelName: "gpt-4", SemanticCacheHit: true, CacheReadTokens: 0, ResponseContent: "not-json"},
-		{ID: 2, Time: 2, RequestModelName: "claude", SemanticCacheHit: false, CacheReadTokens: 123, ResponseContent: "not-json"},
+		{ID: 1, Time: 1, RequestModelName: "gpt-4", CacheReadTokens: 0, ResponseContent: "not-json"},
+		{ID: 2, Time: 2, RequestModelName: "claude", CacheReadTokens: 123, ResponseContent: "not-json"},
 	}
 	if err := db.GetDB().Create(&seed).Error; err != nil {
 		t.Fatalf("seed relay logs failed: %v", err)
@@ -429,9 +429,6 @@ func TestRelayLogListReadsPersistedCacheColumns(t *testing.T) {
 	byID := make(map[int64]model.RelayLogListItem, len(logs))
 	for _, l := range logs {
 		byID[l.ID] = l
-	}
-	if !byID[1].SemanticCacheHit {
-		t.Fatalf("log 1 SemanticCacheHit = false, want true (should come from persisted column)")
 	}
 	if byID[2].CacheReadTokens != 123 {
 		t.Fatalf("log 2 CacheReadTokens = %d, want 123 (should come from persisted column)", byID[2].CacheReadTokens)

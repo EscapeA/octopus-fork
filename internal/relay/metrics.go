@@ -335,8 +335,7 @@ func (m *RelayMetrics) saveLog(ctx context.Context, err error, duration time.Dur
 
 	// 大字段（请求/响应内容）记录开关。关闭时跳过 JSON 构造与存储，可大幅
 	// 降低每条日志的写入量与磁盘 IO（高负载日志性能优化的主要杠杆）。
-	// SemanticCacheHit 与 CacheReadTokens 不依赖大字段：前者从请求判断，后者
-	// 从 InternalResponse.Usage.PromptTokensDetails.CachedTokens 直接提取。
+	// CacheReadTokens 不依赖大字段：开启时从响应内容解析，关闭时从 Usage 直取。
 	// 开关还可按 API Key 收窄（relay_log_content_api_key_ids）：只保留指定 Key
 	// 的明细，避免高流量调试 Key 把磁盘写满。见 relayLogContentEnabledForKey。
 	if relayLogContentEnabledForKey(m.APIKeyID) {
@@ -357,30 +356,15 @@ func (m *RelayMetrics) saveLog(ctx context.Context, err error, duration time.Dur
 					insert := fmt.Sprintf(`"usage":{"cache_creation_input_tokens":%d,`, m.InternalResponse.Usage.CacheCreationInputTokens)
 					respJSON = []byte(strings.Replace(respStr, old, insert, 1))
 				}
-				if isSemanticCacheHitRequest(m.InternalRequest) {
-					relayLog.SemanticCacheHit = true
-					if relayLog.ChannelName == "" {
-						relayLog.ChannelName = "Semantic Cache"
-					}
-					respJSON = semanticCacheHitPayload(respJSON, m.InternalRequest)
-				}
 				relayLog.ResponseContent = string(respJSON)
 			}
 		}
 
-		if !relayLog.SemanticCacheHit {
-			relayLog.CacheReadTokens = opRelayLogCacheReadTokens(relayLog.ResponseContent)
-		}
+		relayLog.CacheReadTokens = opRelayLogCacheReadTokens(relayLog.ResponseContent)
 	} else {
-		// 关闭大字段时仍需维护 SemanticCacheHit 与 CacheReadTokens 两个列
-		// （它们在列表查询中被读取，不依赖大字段）。
-		relayLog.SemanticCacheHit = isSemanticCacheHitRequest(m.InternalRequest)
-		if relayLog.SemanticCacheHit && relayLog.ChannelName == "" {
-			relayLog.ChannelName = "Semantic Cache"
-		}
-		if !relayLog.SemanticCacheHit {
-			relayLog.CacheReadTokens = cacheReadTokensFromUsage(m.InternalResponse)
-		}
+		// 关闭大字段时仍需维护 CacheReadTokens 列
+		// （它在列表查询中被读取，不依赖大字段）。
+		relayLog.CacheReadTokens = cacheReadTokensFromUsage(m.InternalResponse)
 	}
 
 	// 错误信息
@@ -401,7 +385,7 @@ func (m *RelayMetrics) saveLog(ctx context.Context, err error, duration time.Dur
 
 func opRelayLogCacheReadTokens(responseContent string) int {
 	signals, ok := cacheusage.ParseProviderPromptCacheUsageSignals(responseContent)
-	if !ok || signals.SemanticCacheHit || signals.CachedTokens <= 0 {
+	if !ok || signals.CachedTokens <= 0 {
 		return 0
 	}
 	return int(signals.CachedTokens)
@@ -409,7 +393,7 @@ func opRelayLogCacheReadTokens(responseContent string) int {
 
 // cacheReadTokensFromUsage 在关闭大字段记录时，直接从 InternalResponse.Usage
 // 提取 prompt cache 命中 token，避免解析 ResponseContent 字符串。与
-// opRelayLogCacheReadTokens 语义一致（仅取 provider 提示缓存，非语义缓存）。
+// opRelayLogCacheReadTokens 语义一致（仅取 provider 提示缓存）。
 func cacheReadTokensFromUsage(resp *transformerModel.InternalLLMResponse) int {
 	if resp == nil || resp.Usage == nil {
 		return 0

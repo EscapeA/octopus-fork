@@ -37,7 +37,6 @@ type RelayLog struct {
 	ActualModelName   string `json:"actual_model_name" gorm:"column:actual_model_name"`                                                                                          // 实际使用模型名称
 	InputTokens       int    `json:"input_tokens" gorm:"column:input_tokens"`                                                                                                    // 输入Token
 	OutputTokens      int    `json:"output_tokens" gorm:"column:output_tokens"`                                                                                                  // 输出 Token
-	SemanticCacheHit  bool   `json:"semantic_cache_hit" gorm:"column:semantic_cache_hit"`                                                                                        // 语义缓存命中（写入时落库，避免列表查询重解析大字段）
 	CacheReadTokens   int    `json:"cache_read_tokens" gorm:"column:cache_read_tokens"`                                                                                          // 提供方提示缓存命中 Token（写入时落库）
 	ReasoningEffort   string `json:"reasoning_effort" gorm:"column:reasoning_effort"`                                                                                            // 出站最终思考强度（effective）
 	ReasoningTokens   int    `json:"reasoning_tokens" gorm:"column:reasoning_tokens"`                                                                                            // 上游返回的思考 Token（usage，确定性）
@@ -69,7 +68,6 @@ type RelayLogListItem struct {
 	ActualModelName   string           `json:"actual_model_name" gorm:"column:actual_model_name"`
 	InputTokens       int              `json:"input_tokens" gorm:"column:input_tokens"`
 	OutputTokens      int              `json:"output_tokens" gorm:"column:output_tokens"`
-	SemanticCacheHit  bool             `json:"semantic_cache_hit" gorm:"column:semantic_cache_hit"`
 	CacheReadTokens   int              `json:"cache_read_tokens" gorm:"column:cache_read_tokens"`
 	ReasoningEffort   string           `json:"reasoning_effort" gorm:"column:reasoning_effort"`
 	ReasoningTokens   int              `json:"reasoning_tokens" gorm:"column:reasoning_tokens"`
@@ -122,7 +120,6 @@ func (r *RelayLog) ToListItem() RelayLogListItem {
 		ActualModelName:   r.ActualModelName,
 		InputTokens:       r.InputTokens,
 		OutputTokens:      r.OutputTokens,
-		SemanticCacheHit:  r.SemanticCacheHit,
 		CacheReadTokens:   r.CacheReadTokens,
 		ReasoningEffort:   r.ReasoningEffort,
 		ReasoningTokens:   r.ReasoningTokens,

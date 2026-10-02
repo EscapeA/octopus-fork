@@ -30,7 +30,6 @@ import (
 	"github.com/lingyuins/octopus/internal/transformer/outbound"
 	"github.com/lingyuins/octopus/internal/transformer/rewrite"
 	"github.com/lingyuins/octopus/internal/utils/log"
-	"github.com/lingyuins/octopus/internal/utils/semantic_cache"
 	"github.com/lingyuins/octopus/internal/utils/xurl"
 	"github.com/tmaxmax/go-sse"
 )
@@ -332,27 +331,12 @@ func Handler(endpointType string, inboundType inbound.InboundType, c *gin.Contex
 		group:             &group, // 传递分组对象用于策略读取
 		iter:              iter,
 		streamSession:     streamSession,
-		retryCache:        newRetryRequestCache(),
 	}
 
 	var inflightKey string
 	var inflightEnabled bool
-	if endpointFamily := semanticCacheEndpointFamily(endpointType, inboundType); endpointFamily != "" {
-		served, payload, cacheErr := maybeServeSemanticCacheHit(c, req, endpointFamily)
-		if cacheErr != nil {
-			log.Warnf("semantic cache lookup failed: %v", cacheErr)
-		}
-		if served {
-			log.Infof("semantic cache hit: model=%s endpoint=%s", requestModel, endpointFamily)
-			if normalizedPayload := semanticCacheHitPayload(payload, internalRequest); len(normalizedPayload) > 0 {
-				if internalResponse, parseErr := buildSemanticCacheHitInternalResponse(internalRequest, normalizedPayload); parseErr == nil {
-					metrics.SetInternalResponse(internalResponse, internalRequest.Model)
-				}
-			}
-			metrics.Save(true, nil, nil)
-			return
-		}
-		if _, text, ok, _ := getSemanticCacheLookupInput(req, endpointFamily); ok {
+	if endpointFamily := relayEndpointFamily(endpointType, inboundType); endpointFamily != "" {
+		if text, ok := extractRequestText(internalRequest); ok {
 			inflightKey, inflightEnabled = requestSingleflightKey(apiKeyID, endpointFamily, internalRequest.Model, text, internalRequest)
 		}
 	}
@@ -375,36 +359,16 @@ func Handler(endpointType string, inboundType inbound.InboundType, c *gin.Contex
 		// 所以必须先按「fn 是否由本 goroutine 执行」分流并立即返回；否则执行者会
 		// 把响应再写一遍（客户端收到两份拼接的 JSON）并重复写 relay log、
 		// 重复累计统计（表现为日志出现时间/耗时/内容完全相同的重复条目）。
-		// 走到下面的分支时本 goroutine 必是等待者（shared 恒为 true，上游 v2.6.1
-		// 起语义缓存命中块已不再额外判 shared），故 shared 本身无需再引用。
+		// 走到下面的分支时本 goroutine 必是等待者，故 shared 本身无需再引用。
 		if executedLocally {
 			return
 		}
 		if sfErr == nil {
 			if outcome, ok := result.(*inflightRelayResult); ok && outcome != nil {
-				if outcome.namespace != "" && outcome.requestText != "" {
-					cfg, ok := semanticCacheRuntimeConfig()
-					if ok {
-						embedding, _, embErr := lookupSemanticEmbeddingWithCache(req.operationCtx, req, cfg, outcome.namespace, outcome.requestText)
-						if embErr == nil {
-							if payload, found := semantic_cache.Lookup(outcome.namespace, embedding); found {
-								normalizedPayload := semanticCacheHitPayload(payload, internalRequest)
-								c.Data(http.StatusOK, "application/json", normalizedPayload)
-								if internalResponse, parseErr := buildSemanticCacheHitInternalResponse(internalRequest, normalizedPayload); parseErr == nil {
-									metrics.SetInternalResponse(internalResponse, outcome.actualModel)
-								}
-								metrics.Save(true, nil, nil)
-								return
-							}
-						}
-					}
-				}
 				if resp := cloneInternalResponse(outcome.internalResp); resp != nil {
 					metrics.SetInternalResponse(resp, outcome.actualModel)
-					// Cache miss: the leader already wrote its own response.
-					// Transform the internal response to the inbound format and
-					// write it to the shared caller's context so the client
-					// receives a complete body instead of an empty 200 (4C-01).
+					// 执行者已经写过它自己的响应。这里把内部响应按入站格式转换后写回
+					// 共享调用方的 context，客户端才能拿到完整响应体而不是空的 200 (4C-01)。
 					if inResponse, terr := req.inAdapter.TransformResponse(req.clientCtx, resp); terr == nil && len(inResponse) > 0 {
 						c.Data(http.StatusOK, "application/json", inResponse)
 					} else if terr != nil {
@@ -499,7 +463,6 @@ func (ra *relayAttempt) attempt() attemptResult {
 	if decision.Scope == ScopeNone && !decision.IsError {
 		// ====== 成功 ======
 		ra.collectResponse()
-		ra.collectAndStoreStreamResponse()
 		ra.usedKey.TotalCost += ra.metrics.Stats.InputCost + ra.metrics.Stats.OutputCost
 		ch.KeyUpdate(ra.usedKey)
 
@@ -1446,8 +1409,6 @@ func (ra *relayAttempt) handleResponse(ctx context.Context, response *http.Respo
 		return fmt.Errorf("failed to transform inbound response: %w", err)
 	}
 
-	storeSemanticCacheResponse(ctx, ra.internalRequest, inResponse)
-
 	ra.c.Data(http.StatusOK, "application/json", inResponse)
 	return nil
 }
@@ -1488,23 +1449,6 @@ func (ra *relayAttempt) collectResponse() {
 	}
 
 	ra.metrics.SetInternalResponse(internalResponse, ra.internalRequest.Model)
-}
-
-// collectAndStoreStreamResponse stores the already-aggregated stream response
-// in the semantic cache (success path only). It reuses the InternalResponse
-// previously collected by collectResponse() to avoid a second call to
-// GetInternalResponse(), which would return nil after stream chunks are consumed.
-func (ra *relayAttempt) collectAndStoreStreamResponse() {
-	if ra.internalRequest.Stream == nil || !*ra.internalRequest.Stream {
-		return
-	}
-	internalResponse := ra.metrics.InternalResponse
-	if internalResponse == nil {
-		return
-	}
-	if responseJSON, err := jsonAPI.Marshal(internalResponse); err == nil {
-		storeSemanticCacheResponse(ra.operationCtx, ra.internalRequest, responseJSON)
-	}
 }
 
 func rewriteConversationRequestByProvider(group dbmodel.Group, req *model.InternalLLMRequest) *model.InternalLLMRequest {
@@ -1821,9 +1765,8 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 						poolscheduler.ReportResult(channel.PoolID, poolAccount.ID, true, 0, 0)
 						poolscheduler.ReleaseSlot(channel.PoolID, poolAccount.ID)
 					}
-					namespace, requestText, _ := semanticCacheStoreMetadata(req.internalRequest)
 					req.metrics.Save(true, nil, currentAttempts)
-					return newInflightRelayResult(cloneInternalResponse(req.metrics.InternalResponse), req.internalRequest.Model, currentAttempts, namespace, requestText), nil
+					return newInflightRelayResult(cloneInternalResponse(req.metrics.InternalResponse), req.internalRequest.Model, currentAttempts), nil
 				}
 
 				// 号池模式：上报失败 + 释放槽位 + 设置冷却。

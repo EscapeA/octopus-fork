@@ -10,14 +10,14 @@ import { createJSONStorage, persist } from 'zustand/middleware';
  */
 
 export type HubTab = 'sites' | 'site-channels' | 'automation' | 'balance' | 'tokenplan';
-export type AnalyticsTab = 'cache' | 'utilization' | 'route-health' | 'channel-model' | 'evaluation' | 'latency';
+export type AnalyticsTab = 'cache' | 'utilization' | 'route-health' | 'channel-model' | 'latency';
 export type OpsTab = 'telemetry' | 'quota' | 'health' | 'maintenance' | 'system' | 'audit';
 
 export type ModuleId = 'hub' | 'analytics' | 'ops';
 export type SubTab = HubTab | AnalyticsTab | OpsTab;
 
 export const DEFAULT_HUB_TABS: HubTab[] = ['sites', 'site-channels', 'automation', 'balance', 'tokenplan'];
-export const DEFAULT_ANALYTICS_TABS: AnalyticsTab[] = ['cache', 'utilization', 'route-health', 'channel-model', 'evaluation', 'latency'];
+export const DEFAULT_ANALYTICS_TABS: AnalyticsTab[] = ['cache', 'utilization', 'route-health', 'channel-model', 'latency'];
 export const DEFAULT_OPS_TABS: OpsTab[] = ['telemetry', 'quota', 'health', 'maintenance', 'system', 'audit'];
 
 export const DEFAULT_SUB_TABS: Record<ModuleId, SubTab[]> = {

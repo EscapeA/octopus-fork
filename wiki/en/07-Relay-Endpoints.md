@@ -16,8 +16,6 @@ The public relay API supports both OpenAI-style and Anthropic-style clients:
 
 JSON media endpoints can also proxy upstream SSE streams when the provider supports `stream=true`.
 
-Semantic cache is currently evaluated for non-streaming and streaming OpenAI Chat and OpenAI Responses text requests (streaming cache hits replay from the SSE session buffer). Anthropic, embeddings, and media / utility requests bypass the cache and continue through the normal relay flow.
-
 **Zen Direct Model Routing:**
 
 Requests with model name prefixed `zen/<model>` bypass group model mapping and route directly to the upstream model. Octopus performs smart channel-type detection based on the model name (e.g., Claude → Anthropic, Gemini → Gemini, GPT → OpenAI).

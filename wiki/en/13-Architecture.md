@@ -59,7 +59,7 @@ internal/
 ├── helper/             # Cross-cutting helpers (AI route, channel/group probes, price, notify)
 ├── price/              # LLM price catalog (models.dev sync)
 ├── update/             # Self-update mechanism
-├── utils/              # Utilities (cache, ratelimit, semantic_cache, tokenizer, crypto, …)
+├── utils/              # Utilities (cache, ratelimit, tokenizer, crypto, …)
 └── sitesync/           # Site sync, projection, and check-in implementation
 ```
 

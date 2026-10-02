@@ -728,7 +728,7 @@ func RelayLogList(ctx context.Context, filter LogFilter, page, pageSize int) ([]
 				Select("id", "time", "request_model_name", "request_api_key_id", "request_api_key_name",
 					"client_ip",
 					"endpoint_type", "channel_id", "channel_name", "actual_model_name",
-					"input_tokens", "output_tokens", "semantic_cache_hit", "cache_read_tokens",
+					"input_tokens", "output_tokens", "cache_read_tokens",
 					"reasoning_effort", "reasoning_tokens", "reasoning_chars",
 					"ftut", "use_time",
 					"cost", "billing_window", "error", "attempts", "total_attempts", "is_test")
@@ -815,8 +815,8 @@ func RelayLogList(ctx context.Context, filter LogFilter, page, pageSize int) ([]
 			if err := query.Order("id DESC").Offset(dbOffset).Limit(remaining).Find(&dbLogs).Error; err != nil {
 				return nil, err
 			}
-			// semantic_cache_hit / cache_read_tokens 已在写入时落库，直接返回，
-			// 无需读取并重新解析 response_content 大字段。
+			// cache_read_tokens 已在写入时落库，直接返回，无需读取并重新解析
+			// response_content 大字段。
 			result = append(result, dbLogs...)
 		}
 	}
@@ -905,10 +905,7 @@ func RelayLogGetByID(ctx context.Context, id int64) (*model.RelayLog, error) {
 			if relayLogCache[i].ID == id {
 				cached := relayLogCache[i]
 				if usage, ok := cacheusage.ParseProviderPromptCacheUsageSignals(cached.ResponseContent); ok {
-					cached.SemanticCacheHit = usage.SemanticCacheHit
-					if !usage.SemanticCacheHit {
-						cached.CacheReadTokens = int(usage.CachedTokens)
-					}
+					cached.CacheReadTokens = int(usage.CachedTokens)
 				}
 				return &cached, nil
 			}
@@ -930,10 +927,7 @@ func RelayLogGetByID(ctx context.Context, id int64) (*model.RelayLog, error) {
 		return lookupCache()
 	}
 	if usage, ok := cacheusage.ParseProviderPromptCacheUsageSignals(relayLog.ResponseContent); ok {
-		relayLog.SemanticCacheHit = usage.SemanticCacheHit
-		if !usage.SemanticCacheHit {
-			relayLog.CacheReadTokens = int(usage.CachedTokens)
-		}
+		relayLog.CacheReadTokens = int(usage.CachedTokens)
 	}
 	return &relayLog, nil
 }

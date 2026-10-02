@@ -483,16 +483,6 @@
   "analytics": {
     "title": "分析中心",
     "subtitle": "聚合 Octopus 当前统计、利用率与路由健康视角。",
-    "cache": {
-      "title": "缓存",
-      "metrics": {
-        "hitRate": "命中率",
-        "entries": "条目数"
-      },
-      "status": {
-        "configuredOff": "未配置"
-      }
-    },
     "cards": {
       "overview": {
         "title": "概述",
@@ -622,103 +612,6 @@
         "tokens": "Token"
       }
     },
-    "evaluation": {
-      "title": "评估",
-      "description": "聚合现有分组检测与 AI 路由分析入口。",
-      "actions": {
-        "openGroupTest": "前往分组检测",
-        "openAIRoute": "前往路由分析",
-        "openSemanticCache": "前往语义缓存设置"
-      },
-      "availability": {
-        "title": "分组可用性检测",
-        "description": "检测动作仍在分组卡片内触发，这里只提供统一入口和最近状态摘要。",
-        "hint": "当前共有 {count} 个分组可进入检测流程。",
-        "empty": "当前没有可检测分组"
-      },
-      "aiRoute": {
-        "title": "AI 路由分析",
-        "description": "复用现有 AI Route 入口和进度能力，在这里聚合最近任务状态。",
-        "hint": "最近任务当前阶段：{step}",
-        "unavailable": "最近一次 AI 路由任务状态暂时不可用。",
-        "empty": "当前没有 AI 路由任务"
-      },
-      "semanticCache": {
-        "title": "语义缓存评估",
-        "description": "这里集中查看语义缓存运行态和命中信号，具体配置仍留在设置页。",
-        "hint": "先确认运行状态，再前往设置页调整 embedding 服务和缓存参数。",
-        "summaryTitle": "语义缓存成效",
-        "summaryDescription": "这里只展示 evaluation 接口返回的实时运行计数。",
-        "unavailable": "语义缓存摘要暂时不可用，但 Evaluation 其他部分仍可正常使用。",
-        "status": {
-          "disabled": "未启用",
-          "runtimeOn": "运行中",
-          "runtimeOff": "已配置但运行关闭",
-          "loading": "加载中...",
-          "unavailable": "暂不可用"
-        },
-        "metrics": {
-          "hits": "命中次数",
-          "misses": "未命中次数",
-          "hitRate": "命中率",
-          "currentEntries": "当前条目数",
-          "maxEntries": "最大条目数",
-          "usageRate": "容量占用",
-          "evaluatedRequests": "参与评估请求",
-          "cacheHitResponses": "命中响应",
-          "cacheMissRequests": "未命中请求",
-          "bypassedRequests": "旁路请求",
-          "storedResponses": "已写入响应"
-        }
-      },
-      "archive": {
-        "title": "历史归档",
-        "description": "当前版本暂无 benchmark 历史归档，这是有意留白，不是加载失败。",
-        "hint": "如果后续确认需要长期归档，再单独设计数据模型和写入流程。"
-      },
-      "summary": {
-        "title": "最近评测状态",
-        "description": "这里只展示当前会话最近一次 AI Route 与分组检测任务，不做持久化历史。",
-        "aiRoute": "最近 AI 路由任务",
-        "groupTest": "最近分组检测任务",
-        "status": "当前状态",
-        "progress": "任务进度",
-        "groups": "分组数量",
-        "routes": "路由 / 路由项",
-        "result": "检测结果",
-        "passed": "通过数量",
-        "failed": "失败数量",
-        "allPassed": "全部通过",
-        "partialFailed": "存在失败",
-        "unavailable": "最近任务进度暂时不可用。",
-        "empty": "当前没有可展示的运行态任务"
-      },
-      "runtime": {
-        "status": {
-          "idle": "空闲",
-          "queued": "排队中",
-          "running": "运行中",
-          "unavailable": "暂不可用",
-          "completed": "已完成",
-          "failed": "失败",
-          "timeout": "超时"
-        },
-        "step": {
-          "idle": "暂无阶段",
-          "queued": "等待开始",
-          "collecting_models": "收集模型",
-          "building_batches": "构建批次",
-          "analyzing_batches": "分析批次",
-          "parsing_response": "解析响应",
-          "validating_routes": "校验路由",
-          "writing_groups": "写入分组",
-          "finalizing": "整理结果",
-          "completed": "已完成",
-          "failed": "失败",
-          "timeout": "超时"
-        }
-      }
-    },
     "share": {
       "button": "分享",
       "title": "分享快照",
@@ -738,15 +631,12 @@
       "section": {
         "overview": "概览",
         "latency": "延迟",
-        "cache": "语义缓存",
         "topProviders": "热门渠道",
         "topModels": "热门模型",
         "topApiKeys": "热门 API Key",
         "routeHealth": "路由健康"
       },
       "metric": {
-        "cacheHits": "缓存命中",
-        "cacheMisses": "缓存未命中",
         "totalGroups": "路由组总数"
       }
     }
@@ -773,31 +663,6 @@
       "empty": "暂无可展示数据"
     },
     "cache": {
-      "description": "集中查看语义缓存配置、运行态命中情况和容量占用。",
-      "views": {
-        "semantic": "语义缓存",
-        "providerPrompt": "提示缓存(提供方)"
-      },
-      "metrics": {
-        "hitRate": "命中率",
-        "currentEntries": "当前条目",
-        "ttlSeconds": "TTL",
-        "threshold": "相似度阈值"
-      },
-      "status": {
-        "configuredOn": "已启用配置",
-        "configuredOff": "配置关闭",
-        "runtimeOn": "运行中",
-        "runtimeOff": "未运行",
-        "runtimeHint": "当前语义缓存已初始化，命中率和容量数据反映实时运行态。",
-        "runtimeMissing": "当前配置已关闭或运行态未初始化，可在设置页检查语义缓存开关。"
-      },
-      "detail": {
-        "hits": "命中次数",
-        "misses": "未命中次数",
-        "maxEntries": "最大条目数",
-        "usageRate": "容量占用"
-      },
       "providerPrompt": {
         "description": "按请求日志聚合提供方提示缓存活动，查看哪些渠道启用了提示缓存，以及带来了多少输入复用。",
         "metrics": {
@@ -874,7 +739,6 @@
       },
       "cards": {
         "database": "数据库",
-        "cache": "缓存运行态",
         "taskRuntime": "任务配置",
         "recentErrors": "近 24 小时错误",
         "healthyGroups": "健康分组",
@@ -984,13 +848,6 @@
         "active_sessions": "活跃会话",
         "sticky_sessions": "粘性会话",
         "quota_alerts": "配额告警"
-      },
-      "prompt_cache": {
-        "title": "语义缓存",
-        "entries": "条目数",
-        "hit_rate": "命中率",
-        "hits": "命中",
-        "misses": "未命中"
       },
       "provider_health": {
         "title": "供应商健康",
@@ -1661,49 +1518,6 @@
         "baseUrlPlaceholder": "Base URL（OpenAI 兼容）",
         "apiKeyPlaceholder": "API Key",
         "modelPlaceholder": "模型名称"
-      }
-    },
-    "semanticCache": {
-      "title": "Semantic Cache",
-      "description": "在保持当前卡片布局的前提下，配置语义缓存运行参数和独立 embedding 服务。",
-      "enabled": {
-        "label": "启用语义缓存"
-      },
-      "ttl": {
-        "label": "缓存 TTL（秒）",
-        "placeholder": "请输入 TTL 秒数",
-        "hint": "缓存条目会在该时长后过期。"
-      },
-      "threshold": {
-        "label": "相似度阈值（0-100）",
-        "placeholder": "请输入相似度阈值",
-        "hint": "值越高，命中缓存前要求的语义相似度越接近。"
-      },
-      "maxEntries": {
-        "label": "最大条目数",
-        "placeholder": "请输入最大缓存条目数",
-        "hint": "达到上限后会优先淘汰较早的缓存条目。"
-      },
-      "embedding": {
-        "title": "Embedding 服务",
-        "description": "以下配置仅用于语义缓存的 embedding 请求，不与 AI Route 共用。"
-      },
-      "baseUrl": {
-        "label": "Embedding Base URL",
-        "placeholder": "请输入 OpenAI 兼容 embedding Base URL"
-      },
-      "apiKey": {
-        "label": "Embedding API Key",
-        "placeholder": "请输入 embedding API Key"
-      },
-      "model": {
-        "label": "Embedding 模型",
-        "placeholder": "请输入 embedding 模型名称"
-      },
-      "timeoutSeconds": {
-        "label": "Embedding 超时（秒）",
-        "placeholder": "请输入 embedding 请求超时时间",
-        "hint": "仅作用于语义缓存的 embedding 请求。"
       }
     },
     "pageOrder": {
@@ -3006,7 +2820,6 @@
       "input": "输入",
       "totalTokens": "总消耗",
       "cacheHit": "命中缓存",
-      "semanticCacheHit": "语义缓存命中",
       "output": "输出",
       "cost": "费用",
       "requestContent": "请求内容",

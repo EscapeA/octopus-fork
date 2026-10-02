@@ -581,9 +581,7 @@ func recordTestLog(ctx context.Context, endpointType string, item appmodel.Group
 		}
 
 		// 提供方提示缓存命中 Token（与正常日志一致，从响应内容解析）。
-		if !relayLog.SemanticCacheHit {
-			relayLog.CacheReadTokens = opRelayLogCacheReadTokens(relayLog.ResponseContent)
-		}
+		relayLog.CacheReadTokens = opRelayLogCacheReadTokens(relayLog.ResponseContent)
 	}
 
 	if logErr := relaylog.RelayLogAdd(ctx, relayLog); logErr != nil {
@@ -604,7 +602,7 @@ func recordTestLog(ctx context.Context, endpointType string, item appmodel.Group
 // 故在此内联一份等价实现。
 func opRelayLogCacheReadTokens(responseContent string) int {
 	signals, ok := cacheusage.ParseProviderPromptCacheUsageSignals(responseContent)
-	if !ok || signals.SemanticCacheHit || signals.CachedTokens <= 0 {
+	if !ok || signals.CachedTokens <= 0 {
 		return 0
 	}
 	return int(signals.CachedTokens)

@@ -37,9 +37,8 @@ func TestSingleflightHandlerLeaderWritesAndSavesOnce(t *testing.T) {
 				t.Fatal(err)
 			}
 			for key, value := range map[dbmodel.SettingKey]string{
-				dbmodel.SettingKeySemanticCacheEnabled: "false",
-				dbmodel.SettingKeyRelayRetryCount:      "0",
-				dbmodel.SettingKeyRelayRouteRetries:    "1",
+				dbmodel.SettingKeyRelayRetryCount:   "0",
+				dbmodel.SettingKeyRelayRouteRetries: "1",
 			} {
 				if err := setting.SetString(key, value); err != nil {
 					t.Fatal(err)

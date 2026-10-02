@@ -30,9 +30,8 @@
 - 📅 **Usage Reports** - Schedule daily / weekly / monthly usage reports delivered through notification channels
 - 💎 **Model Market** - Unified model catalog with pricing, channel coverage, enabled key counts, latency, and success metrics, plus create / edit / delete / refresh price workflows
 - 🔃 **Model Sync** - Automatic synchronization of available model lists with channels
-- 📊 **Analytics & Evaluation** - Overview, provider / model / API key utilization, route health, latency distribution, semantic-cache evaluation, provider prompt-cache analytics, and live entry points for group testing / AI routing
+- 📊 **Analytics & Evaluation** - Overview, provider / model / API key utilization, route health, latency distribution, provider prompt-cache analytics, and live entry points for group testing / AI routing
 - 🛠️ **Ops & Audit** - Telemetry, quota, health, system, and audit dashboards for daily operations, plus a management-write audit trail
-- 🧠 **Semantic Cache** - Embedding-backed semantic cache for non-streaming and streaming OpenAI Chat / OpenAI Responses text requests, with runtime status and effectiveness metrics
 - 🧭 **Configurable Navigation** - Persist top-level console page order and visibility in settings and reuse it across browsers
 - 💾 **Runtime State Persistence** - Persist auto strategy windows and circuit breaker state to the database
 - 🔗 **Site Management** - Manage upstream relay platforms (New-API, One-API, One-Hub, Sub2API, etc.) with multi-account support, projected channels, auto-sync, and auto-checkin
@@ -216,7 +215,7 @@ The configuration file is located at `data/config.json` by default and is automa
 }
 ```
 
-Most operational knobs are not stored in `config.json`. Retry policy, circuit breaker thresholds, auto-strategy tuning, relay log retention, public API base URL, AI-route service settings, semantic-cache switches, WebDAV backup, proxy pool, and model mapping rules are managed at runtime from the Settings page / management API and stored in the database.
+Most operational knobs are not stored in `config.json`. Retry policy, circuit breaker thresholds, auto-strategy tuning, relay log retention, public API base URL, AI-route service settings, WebDAV backup, proxy pool, and model mapping rules are managed at runtime from the Settings page / management API and stored in the database.
 
 **Configuration Options:**
 
@@ -389,12 +388,12 @@ The embedded management UI currently ships with these top-level modules:
 | Channel | Upstream provider configuration, keys, headers, sync, latency probing, proxy mode, and request rewrite profiles |
 | Group | Model routing, load-balancing strategies, sticky sessions, group test, AI route generation, endpoint provider, zashboard-style collapsible group list, and CC Switch deep link |
 | Model Market | Model catalog, custom pricing, channel coverage, enabled key counts, latency, success metrics, and capabilities dual-view |
-| Analytics | Channel × Model (default), Usage Breakdown, Route Health, Latency distribution, Evaluation, Cache (semantic + provider prompt cache), and share snapshot |
+| Analytics | Channel × Model (default), Usage Breakdown, Route Health, Latency distribution, Evaluation, Cache (provider prompt cache), and share snapshot |
 | Log | Relay request history, error details, token usage, and cost records |
 | Notification | Unified notification center with 4 groups: Messages (inbox / archived), Alerts (rules / history), Delivery (channels / policies / preferences), and Reports (schedules / history). Alert rules, notification channels (webhook, Gotify, email, Telegram, Feishu, DingTalk, WeCom, ntfy), and usage report scheduling all live here |
 | Ops | Telemetry (hero metrics, P95 latency, provider health, prompt-cache analytics), Quota, Health, Maintenance (retry / circuit breaker / response filter), System, and Audit trail |
 | APIKey | API key create, edit, delete, supported-model allowlists, expiry, max-cost caps, RPM / TPM quotas, IP allowlists, and per-model quotas |
-| Setting | Version/update info, appearance and nav preferences (order + visibility), runtime tuning, semantic cache, AI route services, API key defaults, WebAuthn/Passkey, database migration, WebDAV backup, site automation, backup/restore, model-name normalization rules, and dangerous operations |
+| Setting | Version/update info, appearance and nav preferences (order + visibility), runtime tuning, AI route services, API key defaults, WebAuthn/Passkey, database migration, WebDAV backup, site automation, backup/restore, model-name normalization rules, and dangerous operations |
 | User | Admin user management and roles |
 
 Additionally, the following features are accessible from the app shell toolbar or within other modules:
@@ -497,8 +496,6 @@ The public relay API supports both OpenAI-style and Anthropic-style clients:
 | Multipart media | `/v1/images/edits`, `/v1/images/variations`, `/v1/audio/transcriptions` | Multipart upload forwarding |
 
 JSON media endpoints can also proxy upstream SSE streams when the provider supports `stream=true`.
-
-Semantic cache is currently evaluated for non-streaming and streaming OpenAI Chat and OpenAI Responses text requests (streaming cache hits replay from the SSE session buffer). Anthropic, embeddings, and media / utility requests bypass the cache and continue through the normal relay flow.
 
 **Zen Direct Model Routing:**
 
@@ -695,18 +692,18 @@ The Analytics module is a read-oriented operations view with six tabs. The defau
 | Usage Breakdown | Provider, model, and API key breakdowns for the selected time range (renamed from "Utilization" with a no-billing hint when cost data is empty) |
 | Route Health | Health score, enabled / disabled item counts, and recent failure pressure for each group |
 | Latency | Request latency metrics (Avg, P50, P95, P99), first-token-user-time (FTUT) metrics, and latency distribution histogram |
-| Evaluation | Group readiness, AI route progress, group test progress, and semantic-cache effectiveness |
-| Cache | Semantic cache effectiveness and provider-side prompt-cache analytics (cache rate, reuse ratio, estimated cost savings per provider) |
+| Evaluation | Group readiness, AI route progress, and group test progress |
+| Cache | Provider-side prompt-cache analytics (cache rate, reuse ratio, estimated cost savings per provider) |
 
 **Time ranges:** `1d`, `7d`, `30d`, `90d`, `ytd`, and `all`
 
 The overview metrics API still exists as `/api/v1/analytics/overview`, but the primary UI entry point for those summary cards is now the Home page. Home also carries an independent `7d / 30d / 90d` overview-range switch, plus a daily hero summary, trend chart, GitHub-style activity heatmap, and ranking panel.
 
-The Evaluation tab is intentionally lightweight: it acts as an entry point into group testing, AI routing, and semantic-cache tuning instead of duplicating those full workflows.
+The Evaluation tab is intentionally lightweight: it acts as an entry point into group testing and AI routing instead of duplicating those full workflows.
 
 **Share Snapshot:**
 
-The Analytics page includes a Share button that generates a visual PNG snapshot of the current analytics state, which can be downloaded or copied to the clipboard. The snapshot includes key stats (requests, tokens, cost, providers, cache hit rate) and a timestamp.
+The Analytics page includes a Share button that generates a visual PNG snapshot of the current analytics state, which can be downloaded or copied to the clipboard. The snapshot includes key stats (requests, tokens, cost, providers) and a timestamp.
 
 ---
 
@@ -716,16 +713,16 @@ The Ops module focuses on runtime posture and operational diagnostics:
 
 | Tab | What it shows |
 |-----|---------------|
-| Telemetry | Hero metrics (uptime, total requests, avg latency, error rate, active connections, memory usage), P95 latency, throughput RPS, database health, session & quota activity, semantic cache snapshot, provider health table (sortable columns + mini bar charts) |
+| Telemetry | Hero metrics (uptime, total requests, avg latency, error rate, active connections, memory usage), P95 latency, throughput RPS, database health, session & quota activity, provider health table (sortable columns + mini bar charts) |
 | Quota | API key limit posture across RPM, TPM, max-cost, and per-model quota settings, merged with total tokens + success rate + "view key detail" jump |
-| Health | Database reachability, cache readiness, task-runtime sanity, recent error count, and failing groups (with jump to Analytics → Route Health) |
+| Health | Database reachability, task-runtime sanity, recent error count, and failing groups (with jump to Analytics → Route Health) |
 | Maintenance | Actionable runtime tuning: Retry, Circuit Breaker, and Response Filter settings consolidated in one tab (moved out of the Settings page) |
 | System | Build metadata, database type, public API base URL, proxy, retention intervals, AI route mode, and AI route services |
 | Audit | Paginated audit history for management-side write operations |
 
 **Provider Prompt Cache Analytics:**
 
-The Telemetry tab includes provider-side prompt cache monitoring, tracking upstream provider prompt caching effectiveness: cache rate, cache reuse ratio, cache read / write tokens, estimated cost savings per channel, and a 24-hour cache trend chart. This is separate from the semantic cache.
+The Telemetry tab includes provider-side prompt cache monitoring, tracking upstream provider prompt caching effectiveness: cache rate, cache reuse ratio, cache read / write tokens, estimated cost savings per channel, and a 24-hour cache trend chart.
 
 **Audit scope:**
 
@@ -753,7 +750,7 @@ Since the program handles numerous statistics, writing to the database on every 
 - Both are saved periodically using the same interval as statistics persistence
 - Both are also saved during graceful shutdown
 
-**Key settings cards in the current UI (14 cards):**
+**Key settings cards in the current UI (13 cards):**
 
 | Card | Purpose |
 |------|---------|
@@ -762,7 +759,6 @@ Since the program handles numerous statistics, writing to the database on every 
 | AI Route | Default compatibility group, timeout, parallelism, and service-pool configuration |
 | Auto Strategy | Auto strategy tuning (minimum samples, time window, sliding window size, latency weight) |
 | Account | Login-session/account preferences and application timezone selection (10 time zones) |
-| Semantic Cache | Enablement, TTL, similarity threshold, max entries, embedding base URL / API key / model / timeout |
 | Log | Retention (time-based and count-based) and log level |
 | System | Public API base URL, proxy URL, CORS allowlist (tag-style management), and stats persistence interval |
 | LLM Sync | Upstream model synchronization and price refresh cadence |
@@ -776,15 +772,6 @@ Since the program handles numerous statistics, writing to the database on every 
 > - **Retry / Circuit Breaker / Response Filter** → `Ops → Maintenance` tab
 > - **Site Automation** → `Hub → Automation` tab
 > - **Purge Unavailable Models / Delete All Route Groups** → `Group` page "Maintenance" dropdown button
-
-**Semantic Cache Scope:**
-
-- Applies to non-streaming and streaming OpenAI Chat and OpenAI Responses text requests
-- Streaming cache hits replay from the SSE session buffer with stable stream-session recovery
-- Namespaces cache entries by `api_key_id + endpoint_family + requested_model`
-- If the embedding client is not fully configured, or embedding lookup / store fails, Octopus bypasses the cache and relays the request normally
-- Runtime state and effectiveness are visible in both `Analytics -> Evaluation` and `Ops -> Telemetry`
-- Cache entries are preserved across unchanged runtime config refreshes
 
 **Database Live Migration:**
 
@@ -804,7 +791,7 @@ The Backup settings card includes a live database migration feature beyond simpl
 
 **Settings Card Order:**
 
-The Settings page supports drag-and-drop reordering of its 14 card sections, with order persisted to local storage. A "Reset to Default" button restores the original order.
+The Settings page supports drag-and-drop reordering of its 13 card sections, with order persisted to local storage. A "Reset to Default" button restores the original order.
 
 > ⚠️ **Important**: When exiting the program, use proper shutdown methods (like `Ctrl+C` or sending `SIGTERM` signal) to ensure in-memory statistics are correctly written to the database. **Do NOT use `kill -9` or other forced termination methods**, as this may result in statistics data loss.
 
@@ -1046,7 +1033,7 @@ internal/
 ├── helper/             # Cross-cutting helpers (AI route, channel/group probes, price, notify)
 ├── price/              # LLM price catalog (models.dev sync)
 ├── update/             # Self-update mechanism
-├── utils/              # Utilities (cache, ratelimit, semantic_cache, tokenizer, crypto, …)
+├── utils/              # Utilities (cache, ratelimit, tokenizer, crypto, …)
 └── sitesync/           # Site sync, projection, and check-in implementation
 ```
 

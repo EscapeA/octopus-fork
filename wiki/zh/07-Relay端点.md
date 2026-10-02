@@ -16,8 +16,6 @@
 
 当上游支持 `stream=true` 时，JSON 媒体类端点也可以直接透传 SSE 流。
 
-语义缓存当前会评估非流式和流式的 OpenAI Chat 与 OpenAI Responses 文本请求（流式缓存命中会从 SSE 会话缓冲区重放）。Anthropic、embeddings 以及媒体 / 工具类端点都会直接旁路缓存，继续走正常 relay 链路。
-
 **Zen 直连模型路由：**
 
 以 `zen/<model>` 前缀发起的请求会绕过分组模型映射，直接路由到上游模型。Octopus 会根据模型名进行智能渠道类型检测（如 Claude → Anthropic，Gemini → Gemini，GPT → OpenAI）。

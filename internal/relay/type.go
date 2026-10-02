@@ -221,7 +221,6 @@ type relayRequest struct {
 	group             *dbmodel.Group // 新增：用于读取分组级推理缓冲策略
 	iter              *balancer.Iterator
 	streamSession     *relayStreamSession
-	retryCache        *retryRequestCache
 	// counted402Keys 记录本请求内已计入「连续 402」的 Key ID。阈值语义是
 	// 「连续 N 次请求都收到 402」，同一请求内的多次 Key 重试不应把计数叠加多次
 	// （否则单渠道单 Key 的请求一次就能把阈值打满）。仅本请求 goroutine 访问。

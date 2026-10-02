@@ -29,9 +29,8 @@
 - 📅 **Usage Reports** - Schedule daily / weekly / monthly usage reports delivered through notification channels
 - 💎 **Model Market** - Unified model catalog with pricing, channel coverage, enabled key counts, latency, and success metrics
 - 🔃 **Model Sync** - Automatic synchronization of available model lists with channels
-- 📊 **Analytics & Evaluation** - Overview, provider / model / API key utilization, route health, latency distribution, semantic-cache evaluation
+- 📊 **Analytics & Evaluation** - Overview, provider / model / API key utilization, route health, latency distribution
 - 🛠️ **Ops & Audit** - Telemetry, quota, health, system, and audit dashboards for daily operations
-- 🧠 **Semantic Cache** - Embedding-backed semantic cache for non-streaming and streaming OpenAI Chat / Responses text requests
 - 🧭 **Configurable Navigation** - Persist top-level console page order and visibility in settings
 - 💾 **Runtime State Persistence** - Persist auto strategy windows and circuit breaker state to the database
 - 🔗 **Site Management** - Manage upstream relay platforms with multi-account support, projected channels, auto-sync, and auto-checkin
@@ -58,7 +57,7 @@
 | 07 | [Relay Endpoints](en/07-Relay-Endpoints.md) | Public relay API, Zen routing, model mapping, proxy pool |
 | 08 | [Analytics](en/08-Analytics.md) | Channel×Model, usage breakdown, route health, latency, evaluation, cache |
 | 09 | [Ops](en/09-Ops.md) | Telemetry, quota, health, maintenance, system, audit |
-| 10 | [Settings](en/10-Settings.md) | 14 settings cards, semantic cache, DB migration, dangerous ops |
+| 10 | [Settings](en/10-Settings.md) | 13 settings cards, DB migration, dangerous ops |
 | 11 | [Hub & Sites](en/11-Hub-Sites.md) | Site management, WebDAV backup, API credentials, CLI export, notifications |
 | 12 | [Client Integration](en/12-Client-Integration.md) | OpenAI SDK, Claude Code, Codex, CLI export |
 | 13 | [Architecture](en/13-Architecture.md) | Layered architecture, relay data flow, hub adapters, timezone, security |

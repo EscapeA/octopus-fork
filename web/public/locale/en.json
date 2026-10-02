@@ -483,16 +483,6 @@
   "analytics": {
     "title": "Analytics",
     "subtitle": "A unified view for Octopus metrics, utilization, and route health. Phase one stays on top of existing stats and relay logs.",
-    "cache": {
-      "title": "Cache",
-      "metrics": {
-        "hitRate": "Hit Rate",
-        "entries": "Entries"
-      },
-      "status": {
-        "configuredOff": "Off"
-      }
-    },
     "cards": {
       "overview": {
         "title": "Overview",
@@ -622,103 +612,6 @@
         "tokens": "Tokens"
       }
     },
-    "evaluation": {
-      "title": "Evaluation",
-      "description": "Aggregate existing group testing and AI route analysis entry points, while keeping this release to live runtime summaries only and avoiding benchmark archival.",
-      "actions": {
-        "openGroupTest": "Open Group Checks",
-        "openAIRoute": "Open Route Analysis",
-        "openSemanticCache": "Open Semantic Cache Settings"
-      },
-      "availability": {
-        "title": "Group Availability Checks",
-        "description": "The actual test action still runs from each group card; this page only provides the shared entry point and latest runtime summary.",
-        "hint": "{count} groups are currently available for testing.",
-        "empty": "There are no groups available to test right now."
-      },
-      "aiRoute": {
-        "title": "AI Route Analysis",
-        "description": "Reuse the existing AI Route trigger and progress flow, and surface the latest task state here.",
-        "hint": "Latest task step: {step}",
-        "unavailable": "The latest AI route task is temporarily unavailable.",
-        "empty": "There is no recent AI route task."
-      },
-      "semanticCache": {
-        "title": "Semantic Cache Evaluation",
-        "description": "Review the live semantic cache runtime and hit signals here, while keeping configuration in Settings.",
-        "hint": "Use this entry to inspect runtime status first, then tune embedding and cache settings from the Settings page.",
-        "summaryTitle": "Semantic Cache Effectiveness",
-        "summaryDescription": "This section shows the live runtime counters returned by the evaluation API without duplicating the control surface from Settings.",
-        "unavailable": "Semantic cache summary is temporarily unavailable. The rest of Evaluation stays usable.",
-        "status": {
-          "disabled": "Disabled",
-          "runtimeOn": "Runtime On",
-          "runtimeOff": "Configured but Runtime Off",
-          "loading": "Loading...",
-          "unavailable": "Unavailable"
-        },
-        "metrics": {
-          "hits": "Hits",
-          "misses": "Misses",
-          "hitRate": "Hit Rate",
-          "currentEntries": "Current Entries",
-          "maxEntries": "Max Entries",
-          "usageRate": "Capacity Used",
-          "evaluatedRequests": "Evaluated",
-          "cacheHitResponses": "Hit Responses",
-          "cacheMissRequests": "Miss Requests",
-          "bypassedRequests": "Bypassed",
-          "storedResponses": "Stored"
-        }
-      },
-      "archive": {
-        "title": "History Archive",
-        "description": "This version intentionally leaves benchmark history unarchived; this is product scope, not a loading failure.",
-        "hint": "If long-term storage is needed later, the data model and write path should be designed separately."
-      },
-      "summary": {
-        "title": "Latest Evaluation Runtime",
-        "description": "Only the latest AI Route and group test tasks from the current session are shown here. No persistent history is stored yet.",
-        "aiRoute": "Latest AI Route Task",
-        "groupTest": "Latest Group Test Task",
-        "status": "Status",
-        "progress": "Progress",
-        "groups": "Groups",
-        "routes": "Routes / Items",
-        "result": "Result",
-        "passed": "Passed",
-        "failed": "Failed",
-        "allPassed": "All Passed",
-        "partialFailed": "Partial Failure",
-        "unavailable": "The latest task progress is temporarily unavailable.",
-        "empty": "There is no runtime task to show right now."
-      },
-      "runtime": {
-        "status": {
-          "idle": "Idle",
-          "queued": "Queued",
-          "running": "Running",
-          "unavailable": "Unavailable",
-          "completed": "Completed",
-          "failed": "Failed",
-          "timeout": "Timed Out"
-        },
-        "step": {
-          "idle": "No Step",
-          "queued": "Waiting",
-          "collecting_models": "Collecting Models",
-          "building_batches": "Building Batches",
-          "analyzing_batches": "Analyzing Batches",
-          "parsing_response": "Parsing Response",
-          "validating_routes": "Validating Routes",
-          "writing_groups": "Writing Groups",
-          "finalizing": "Finalizing",
-          "completed": "Completed",
-          "failed": "Failed",
-          "timeout": "Timed Out"
-        }
-      }
-    },
     "share": {
       "button": "Share",
       "title": "Share Snapshot",
@@ -738,15 +631,12 @@
       "section": {
         "overview": "Overview",
         "latency": "Latency",
-        "cache": "Semantic Cache",
         "topProviders": "Top Providers",
         "topModels": "Top Models",
         "topApiKeys": "Top API Keys",
         "routeHealth": "Route Health"
       },
       "metric": {
-        "cacheHits": "Cache Hits",
-        "cacheMisses": "Cache Misses",
         "totalGroups": "Total Groups"
       }
     }
@@ -773,31 +663,6 @@
       "empty": "No data available"
     },
     "cache": {
-      "description": "Review semantic-cache configuration, runtime hit signals, and capacity usage in one place.",
-      "views": {
-        "semantic": "Semantic Cache",
-        "providerPrompt": "Prompt Cache (Provider-Side)"
-      },
-      "metrics": {
-        "hitRate": "Hit Rate",
-        "currentEntries": "Current Entries",
-        "ttlSeconds": "TTL",
-        "threshold": "Similarity Threshold"
-      },
-      "status": {
-        "configuredOn": "Configured On",
-        "configuredOff": "Configured Off",
-        "runtimeOn": "Runtime Active",
-        "runtimeOff": "Runtime Missing",
-        "runtimeHint": "The semantic cache is initialized and the metrics reflect the live runtime state.",
-        "runtimeMissing": "The cache is disabled or the runtime was not initialized. Check semantic-cache settings."
-      },
-      "detail": {
-        "hits": "Hits",
-        "misses": "Misses",
-        "maxEntries": "Max Entries",
-        "usageRate": "Capacity Used"
-      },
       "providerPrompt": {
         "description": "Aggregate provider-side prompt caching activity from request history so you can see where cache control is active and how much input reuse you are getting.",
         "metrics": {
@@ -874,7 +739,6 @@
       },
       "cards": {
         "database": "Database",
-        "cache": "Cache Runtime",
         "taskRuntime": "Task Config",
         "recentErrors": "Errors in 24h",
         "healthyGroups": "Healthy Groups",
@@ -984,13 +848,6 @@
         "active_sessions": "Active Sessions",
         "sticky_sessions": "Sticky Sessions",
         "quota_alerts": "Quota Alerts"
-      },
-      "prompt_cache": {
-        "title": "Semantic Cache",
-        "entries": "Entries",
-        "hit_rate": "Hit Rate",
-        "hits": "Hits",
-        "misses": "Misses"
       },
       "provider_health": {
         "title": "Provider Health",
@@ -1705,49 +1562,6 @@
         "baseUrlPlaceholder": "Base URL (OpenAI compatible)",
         "apiKeyPlaceholder": "API Key",
         "modelPlaceholder": "Model name"
-      }
-    },
-    "semanticCache": {
-      "title": "Semantic Cache",
-      "description": "Configure the semantic cache runtime and its dedicated embedding service without leaving the current card layout.",
-      "enabled": {
-        "label": "Enable Semantic Cache"
-      },
-      "ttl": {
-        "label": "Cache TTL (seconds)",
-        "placeholder": "Enter TTL in seconds",
-        "hint": "Cached entries expire after this duration."
-      },
-      "threshold": {
-        "label": "Similarity Threshold (0-100)",
-        "placeholder": "Enter similarity threshold",
-        "hint": "Higher values require a closer semantic match before a cached response is reused."
-      },
-      "maxEntries": {
-        "label": "Max Entries",
-        "placeholder": "Enter the maximum number of cached entries",
-        "hint": "When the limit is reached, older cached entries are evicted first."
-      },
-      "embedding": {
-        "title": "Embedding Service",
-        "description": "These settings are used only for semantic-cache embedding requests and are not shared with AI Route."
-      },
-      "baseUrl": {
-        "label": "Embedding Base URL",
-        "placeholder": "Enter an OpenAI-compatible embedding base URL"
-      },
-      "apiKey": {
-        "label": "Embedding API Key",
-        "placeholder": "Enter the embedding API key"
-      },
-      "model": {
-        "label": "Embedding Model",
-        "placeholder": "Enter the embedding model name"
-      },
-      "timeoutSeconds": {
-        "label": "Embedding Timeout (seconds)",
-        "placeholder": "Enter the embedding request timeout",
-        "hint": "Applies only to semantic-cache embedding requests."
       }
     },
     "pageOrder": {
@@ -3051,7 +2865,6 @@
       "output": "Output",
       "totalTokens": "Total",
       "cacheHit": "Cache Hit",
-      "semanticCacheHit": "Semantic Cache Hit",
       "cost": "Cost",
       "requestContent": "Request Content",
       "responseContent": "Response Content",

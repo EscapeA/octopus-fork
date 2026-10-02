@@ -9,20 +9,6 @@ import (
 	"github.com/lingyuins/octopus/internal/utils/telemetry"
 )
 
-func TestBuildOpsCacheStatus_ComputesRates(t *testing.T) {
-	got := buildOpsCacheStatus(true, true, 3600, 98, 100, 3, 1, 25)
-
-	if !got.Enabled || !got.RuntimeEnabled {
-		t.Fatalf("expected cache to be enabled at config and runtime levels: %+v", got)
-	}
-	if got.HitRate != 75 {
-		t.Fatalf("hit rate = %v, want 75", got.HitRate)
-	}
-	if got.UsageRate != 25 {
-		t.Fatalf("usage rate = %v, want 25", got.UsageRate)
-	}
-}
-
 func TestBuildOpsQuotaSummary_ClassifiesAndSortsKeys(t *testing.T) {
 	now := time.Unix(1_700_000_000, 0)
 	keys := []model.APIKey{
@@ -104,9 +90,9 @@ func TestBuildOpsHealthStatus_CountsAndLimitsFailingGroups(t *testing.T) {
 		{GroupID: 8, GroupName: "g8", Status: "degraded", FailureCount: 4, HealthScore: 30},
 	}
 
-	got := buildOpsHealthStatus(true, true, true, 9, groupHealth, time.Unix(1_700_000_000, 0))
+	got := buildOpsHealthStatus(true, true, 9, groupHealth, time.Unix(1_700_000_000, 0))
 
-	if got.RecentErrorCount != 9 || !got.DatabaseOK || !got.CacheOK || !got.TaskRuntimeOK {
+	if got.RecentErrorCount != 9 || !got.DatabaseOK || !got.TaskRuntimeOK {
 		t.Fatalf("unexpected base health status: %+v", got)
 	}
 	if got.HealthyGroupCount != 1 || got.WarningGroupCount != 2 || got.DegradedGroupCount != 2 || got.DownGroupCount != 2 || got.EmptyGroupCount != 1 {
