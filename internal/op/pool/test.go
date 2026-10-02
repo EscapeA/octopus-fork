@@ -94,7 +94,6 @@ func TestAccount(poolID, accountID int, modelName string) (*AccountTestResult, e
 		// testTimeout 处被砍断，且不自愈（直到进程重启）。
 		// 浅拷贝 http.Client 即可独立设置超时：http.Client 只有 Transport/CheckRedirect/
 		// Jar/Timeout 四个字段、无 mutex 无内部状态，Transport 指针共享因此连接池照常复用。
-		// 先例见 internal/op/airoute/route.go 的 cloned := *baseClient 写法。
 		cloned := *pc
 		cloned.Timeout = testTimeout
 		client = &cloned

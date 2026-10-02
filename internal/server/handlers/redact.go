@@ -84,14 +84,10 @@ func redactSettingsURLsForViewer(settings []model.Setting) {
 	for settingIndex := range settings {
 		switch settings[settingIndex].Key {
 		case model.SettingKeyProxyURL,
-			model.SettingKeyPublicAPIBaseURL,
-			model.SettingKeyAIRouteBaseURL:
+			model.SettingKeyPublicAPIBaseURL:
 			settings[settingIndex].Value = maskURLDomainForViewer(settings[settingIndex].Value)
-		case model.SettingKeyWebDAVConfig,
-			model.SettingKeyAIRouteAPIKey,
-			model.SettingKeyAIRouteServices:
-			// 密钥类设置（WebDAV 密码、路由 API Key、服务池 JSON）对 viewer
-			// 整体遮蔽，避免明文凭据经设置列表泄露。
+		case model.SettingKeyWebDAVConfig:
+			// 密钥类设置（WebDAV 密码）对 viewer 整体遮蔽，避免明文凭据经设置列表泄露。
 			settings[settingIndex].Value = viewerMaskedDomain
 		}
 	}

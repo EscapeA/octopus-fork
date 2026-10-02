@@ -13,7 +13,6 @@ internal/
 │   └── migrate/        # Versioned schema migrations (001-033)
 ├── model/              # Domain types (Channel, Group, APIKey, User, Site, ProxyConfiguration, ModelMapping, …)
 ├── op/                 # Business logic operations split by domain
-│   ├── airoute/        # AI route generation, progress tracking, service pool, and compatibility helpers
 │   ├── alert/          # Alert rule evaluation and notification dispatch
 │   ├── analytics/      # Dashboard, utilization, route-health, and latency queries
 │   ├── apikey/         # API key CRUD and validation
@@ -56,7 +55,7 @@ internal/
 ├── hub/                # Remote site adapter interface, registry, HTTP client, and platform-specific adapters
 ├── planprovider/       # Upstream subscription plan monitoring (Codex, MiMo, StepFun, SenseNova, balance-type providers)
 ├── store/              # Optional cache/state backend (KVStore, RateLimitStore, StatsStore, RuntimeStateStore): memory + Redis
-├── helper/             # Cross-cutting helpers (AI route, channel/group probes, price, notify)
+├── helper/             # Cross-cutting helpers (channel/group probes, price, notify)
 ├── price/              # LLM price catalog (models.dev sync)
 ├── update/             # Self-update mechanism
 ├── utils/              # Utilities (cache, ratelimit, tokenizer, crypto, …)

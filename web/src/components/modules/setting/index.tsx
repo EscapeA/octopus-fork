@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import {
     Sun, User, Database,
     ScrollText, Monitor, RefreshCw, ChevronsUpDown,
-    Info, Bot, Sparkles, Cloud, Fingerprint, Wand2, Layers, Network, KeyRound,
+    Info, Sparkles, Cloud, Fingerprint, Wand2, Layers, Network, KeyRound,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { SettingAppearance } from './Appearance';
@@ -17,7 +17,6 @@ import { SettingInfo } from './Info';
 import { SettingLLMSync } from './LLMSync';
 import { SettingLog } from './Log';
 import { SettingAutoStrategy } from './AutoStrategy';
-import { SettingAIRoute } from './AIRoute';
 import { SettingWebDAV } from './WebDAV';
 import { SettingWebAuthn } from './WebAuthn';
 import { SettingAPIToken } from './APIToken';
@@ -36,7 +35,6 @@ type SettingItemDef = {
 const SETTING_ITEM_DEFS: SettingItemDef[] = [
     { id: 'info',              icon: <Info className="h-5 w-5" />,              titleKey: 'info.title',           component: <SettingInfo /> },
     { id: 'appearance',        icon: <Sun className="h-5 w-5" />,              titleKey: 'appearance',           component: <SettingAppearance /> },
-    { id: 'ai-route',          icon: <Bot className="h-5 w-5" />,              titleKey: 'aiRoute.title',        component: <SettingAIRoute /> },
     { id: 'auto-strategy',     icon: <Sparkles className="h-5 w-5" />,         titleKey: 'autoStrategy.title',   component: <SettingAutoStrategy /> },
     { id: 'account',           icon: <User className="h-5 w-5" />,              titleKey: 'account.title',         component: <SettingAccount /> },
     { id: 'log',               icon: <ScrollText className="h-5 w-5" />,        titleKey: 'log.title',           component: <SettingLog /> },

@@ -13,7 +13,6 @@ import {
     MorphingDialogClose, MorphingDialogDescription, MorphingDialogTitle, useMorphingDialog,
 } from '@/components/ui/morphing-dialog';
 import { cn } from '@/lib/utils';
-import { AIRouteButton } from './AIRouteButton';
 import { AvailabilityResultsPanel } from './AvailabilityResultsPanel';
 import { GroupEditor, type GroupEditorValues } from './Editor';
 import type { SelectedMember } from './ItemList';
@@ -81,9 +80,6 @@ export function EditDialogContent({
                     <div className="col-span-2 row-start-2 flex min-w-0 flex-wrap items-center gap-2 sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:justify-end">
                         {canTest ? (
                             <>
-                                <AIRouteButton scope="group" groupId={group.id} variant="ghost"
-                                    className="h-10 rounded-lg border-border bg-card px-3 text-xs transition-colors hover:translate-y-0 hover:bg-muted sm:text-sm"
-                                    onSuccess={() => setIsOpen(false)} />
                                 <Button type="button" variant="outline" onClick={handleTest}
                                     disabled={isTestingAvailability || isSubmitting || editMembers.length === 0}
                                     className="h-10 rounded-lg bg-card px-3 text-xs shadow-none sm:text-sm">

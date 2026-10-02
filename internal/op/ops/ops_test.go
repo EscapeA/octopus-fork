@@ -106,17 +106,6 @@ func TestBuildOpsHealthStatus_CountsAndLimitsFailingGroups(t *testing.T) {
 	}
 }
 
-func TestBuildOpsAIRouteServices_ReturnsEmptySliceForNilConfigs(t *testing.T) {
-	got := buildOpsAIRouteServices(nil)
-
-	if got == nil {
-		t.Fatal("expected empty slice, got nil")
-	}
-	if len(got) != 0 {
-		t.Fatalf("expected no services, got %d", len(got))
-	}
-}
-
 func TestParseOpsProviderPromptCacheUsage_OpenAIStyle(t *testing.T) {
 	usage, ok := parseOpsProviderPromptCacheUsage(`{"usage":{"input_tokens":1000,"input_tokens_details":{"cached_tokens":250},"output_tokens":10}}`)
 	if !ok {

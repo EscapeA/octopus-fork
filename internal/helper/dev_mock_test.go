@@ -2,7 +2,6 @@ package helper
 
 import (
 	"context"
-	"sync"
 	"testing"
 
 	"github.com/lingyuins/octopus/internal/model"
@@ -32,30 +31,5 @@ func TestTestChannelReturnsMockSuccessWhenDevMockEnabled(t *testing.T) {
 	}
 	if len(summary.Results) == 0 {
 		t.Fatal("TestChannel() returned no results in dev mock mode")
-	}
-}
-
-func TestStartGenerateAIRouteReturnsCompletedProgressWhenDevMockEnabled(t *testing.T) {
-	t.Setenv("OCTOPUS_DEV_MOCK_SUCCESS", "true")
-
-	aiRouteProgress = sync.Map{}
-
-	progress, err := StartGenerateAIRoute(model.GenerateAIRouteRequest{
-		Scope: model.AIRouteScopeTable,
-	})
-	if err != nil {
-		t.Fatalf("StartGenerateAIRoute() error = %v", err)
-	}
-	if !progress.Done {
-		t.Fatal("progress.Done = false, want true")
-	}
-	if progress.Status != model.AIRouteTaskStatusCompleted {
-		t.Fatalf("progress.Status = %q, want %q", progress.Status, model.AIRouteTaskStatusCompleted)
-	}
-	if !progress.ResultReady || progress.Result == nil {
-		t.Fatal("progress.ResultReady/result not populated")
-	}
-	if _, ok := GetGenerateAIRouteProgress(progress.ID); !ok {
-		t.Fatal("GetGenerateAIRouteProgress() ok = false, want true")
 	}
 }

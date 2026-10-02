@@ -182,7 +182,7 @@ On first launch, you can initialize the admin account in either of these ways:
 The management API and embedded Web UI use three built-in roles:
 
 - `admin`: full access, including user management
-- `editor`: operational write access for channels, groups, settings, API keys, logs, alerts, and AI routing
+- `editor`: operational write access for channels, groups, settings, API keys, logs, and alerts
 - `viewer`: read-only access to operational data
 
 Role checks are enforced on the server side, using the currently stored role rather than trusting only the JWT claim.
@@ -215,7 +215,7 @@ The configuration file is located at `data/config.json` by default and is automa
 }
 ```
 
-Most operational knobs are not stored in `config.json`. Retry policy, circuit breaker thresholds, auto-strategy tuning, relay log retention, public API base URL, AI-route service settings, WebDAV backup, proxy pool, and model mapping rules are managed at runtime from the Settings page / management API and stored in the database.
+Most operational knobs are not stored in `config.json`. Retry policy, circuit breaker thresholds, auto-strategy tuning, relay log retention, public API base URL, WebDAV backup, proxy pool, and model mapping rules are managed at runtime from the Settings page / management API and stored in the database.
 
 **Configuration Options:**
 
@@ -386,14 +386,14 @@ The embedded management UI currently ships with these top-level modules:
 | Home | Version, runtime status, high-level summaries, trend chart, activity heatmap, and ranking panel |
 | Hub | Upstream relay platform management with 5 tabs: Sites (multi-account cards with inline balance / sync / check-in status, archive/restore, batch edit, and bulk import from AllAPIHub / MetAPI), Site Channels (projected channel bindings), Automation (auto-sync and auto-checkin intervals), Balance (plan balance charts), and TokenPlan (token plan monitoring) |
 | Channel | Upstream provider configuration, keys, headers, sync, latency probing, proxy mode, and request rewrite profiles |
-| Group | Model routing, load-balancing strategies, sticky sessions, group test, AI route generation, endpoint provider, zashboard-style collapsible group list, and CC Switch deep link |
+| Group | Model routing, load-balancing strategies, sticky sessions, group test, endpoint provider, zashboard-style collapsible group list, and CC Switch deep link |
 | Model Market | Model catalog, custom pricing, channel coverage, enabled key counts, latency, success metrics, and capabilities dual-view |
 | Analytics | Channel × Model (default), Usage Breakdown, Route Health, Latency distribution, Cache (provider prompt cache), and share snapshot |
 | Log | Relay request history, error details, token usage, and cost records |
 | Notification | Unified notification center with 4 groups: Messages (inbox / archived), Alerts (rules / history), Delivery (channels / policies / preferences), and Reports (schedules / history). Alert rules, notification channels (webhook, Gotify, email, Telegram, Feishu, DingTalk, WeCom, ntfy), and usage report scheduling all live here |
 | Ops | Telemetry (hero metrics, P95 latency, provider health, prompt-cache analytics), Quota, Health, Maintenance (retry / circuit breaker / response filter), System, and Audit trail |
 | APIKey | API key create, edit, delete, supported-model allowlists, expiry, max-cost caps, RPM / TPM quotas, IP allowlists, and per-model quotas |
-| Setting | Version/update info, appearance and nav preferences (order + visibility), runtime tuning, AI route services, API key defaults, WebAuthn/Passkey, database migration, WebDAV backup, site automation, backup/restore, model-name normalization rules, and dangerous operations |
+| Setting | Version/update info, appearance and nav preferences (order + visibility), runtime tuning, API key defaults, WebAuthn/Passkey, database migration, WebDAV backup, site automation, backup/restore, model-name normalization rules, and dangerous operations |
 | User | Admin user management and roles |
 
 Additionally, the following features are accessible from the app shell toolbar or within other modules:
@@ -618,14 +618,6 @@ Groups aggregate multiple channels into a unified external model name.
 - After candidates are explored, Octopus sorts by success rate, then uses sample count, weight, priority, and latency tuning as tie-breakers
 - Auto-strategy windows are restored from the database at startup and saved periodically plus on graceful shutdown
 
-**AI Routing Behavior:**
-
-- Clicking **AI Route** on the route page sends all models to AI and generates the full routing table in batch
-- Existing groups with the same name only receive missing route items; existing groups are not cleared or replaced
-- Clicking **AI Fill Current Group** in the edit dialog sends all models to AI and appends only the matched route items to that group
-- The setting previously named AI route target group now acts as the default target group for the single-group compatibility flow only
-- AI route tasks are persistent with heartbeat, progress tracking, batch management, and interruption recovery
-
 **CC Switch Integration:**
 
 The group toolbar includes a CC Switch deep link generator that creates provider import links for 5 target apps: Claude Code, Codex, Gemini, OpenCode, and OpenClaw. For Claude Code, it supports mapping Haiku / Sonnet / Opus models to specific route groups.
@@ -715,7 +707,7 @@ The Ops module focuses on runtime posture and operational diagnostics:
 | Quota | API key limit posture across RPM, TPM, max-cost, and per-model quota settings, merged with total tokens + success rate + "view key detail" jump |
 | Health | Database reachability, task-runtime sanity, recent error count, and failing groups (with jump to Analytics → Route Health) |
 | Maintenance | Actionable runtime tuning: Retry, Circuit Breaker, and Response Filter settings consolidated in one tab (moved out of the Settings page) |
-| System | Build metadata, database type, public API base URL, proxy, retention intervals, AI route mode, and AI route services |
+| System | Build metadata, database type, public API base URL, proxy, and retention intervals |
 | Audit | Paginated audit history for management-side write operations |
 
 **Provider Prompt Cache Analytics:**
@@ -724,7 +716,7 @@ The Telemetry tab includes provider-side prompt cache monitoring, tracking upstr
 
 **Audit scope:**
 
-- Covers selected management write routes such as channel / group / model / setting / API key / alert / user mutations, AI route generation, log clearing, price refresh, import, and self-update
+- Covers selected management write routes such as channel / group / model / setting / API key / alert / user mutations, log clearing, price refresh, import, and self-update
 - Does not record public `/v1/...` relay traffic
 
 ---
@@ -754,7 +746,6 @@ Since the program handles numerous statistics, writing to the database on every 
 |------|---------|
 | Info | Current version, latest release lookup, cache-mismatch detection, and in-place self-update entry with version mismatch notification |
 | Appearance | Theme, locale, alert language, drag-and-drop top-level navigation order, and per-page visibility toggles |
-| AI Route | Default compatibility group, timeout, parallelism, and service-pool configuration |
 | Auto Strategy | Auto strategy tuning (minimum samples, time window, sliding window size, latency weight) |
 | Account | Login-session/account preferences and application timezone selection (10 time zones) |
 | Log | Retention (time-based and count-based) and log level |
@@ -985,7 +976,6 @@ internal/
 │   └── migrate/        # Versioned schema migrations (001-033)
 ├── model/              # Domain types (Channel, Group, APIKey, User, Site, ProxyConfiguration, ModelMapping, …)
 ├── op/                 # Business logic operations split by domain
-│   ├── airoute/        # AI route generation, progress tracking, service pool, and compatibility helpers
 │   ├── alert/          # Alert rule evaluation and notification dispatch
 │   ├── analytics/      # Dashboard, utilization, route-health, and latency queries
 │   ├── apikey/         # API key CRUD and validation
@@ -1028,7 +1018,7 @@ internal/
 ├── hub/                # Remote site adapter interface, registry, HTTP client, and platform-specific adapters
 ├── planprovider/       # Upstream subscription plan monitoring (Codex, MiMo, StepFun, SenseNova, balance-type providers)
 ├── store/              # Optional cache/state backend (KVStore, RateLimitStore, StatsStore, RuntimeStateStore): memory + Redis
-├── helper/             # Cross-cutting helpers (AI route, channel/group probes, price, notify)
+├── helper/             # Cross-cutting helpers (channel/group probes, price, notify)
 ├── price/              # LLM price catalog (models.dev sync)
 ├── update/             # Self-update mechanism
 ├── utils/              # Utilities (cache, ratelimit, tokenizer, crypto, …)

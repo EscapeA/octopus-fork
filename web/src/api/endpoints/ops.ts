@@ -102,13 +102,6 @@ export interface OpsHealthStatus {
     checked_at: number;
 }
 
-export interface OpsAIRouteServiceSummary {
-    name: string;
-    base_url: string;
-    model: string;
-    enabled: boolean;
-}
-
 export interface OpsSystemSummary {
     version: string;
     commit: string;
@@ -125,13 +118,6 @@ export interface OpsSystemSummary {
     model_info_update_interval_hours: number;
     import_enabled: boolean;
     export_enabled: boolean;
-    ai_route_group_id: number;
-    ai_route_timeout_seconds: number;
-    ai_route_parallelism: number;
-    ai_route_legacy_mode: boolean;
-    ai_route_service_count: number;
-    ai_route_enabled_service_count: number;
-    ai_route_services: OpsAIRouteServiceSummary[];
     channel_count: number;
     group_count: number;
     api_key_count: number;
@@ -157,9 +143,6 @@ type OpsHealthStatusServer = Omit<OpsHealthStatus, 'failing_groups'> & {
     failing_groups: OpsHealthGroupItem[] | null;
 };
 
-type OpsSystemSummaryServer = Omit<OpsSystemSummary, 'ai_route_services'> & {
-    ai_route_services: OpsAIRouteServiceSummary[] | null;
-};
 
 const auditLogsInfiniteQueryKey = (pageSize: number) => ['audit', 'infinite', pageSize] as const;
 
@@ -208,11 +191,7 @@ export function useOpsHealthStatus() {
 export function useOpsSystemSummary() {
     return useQuery({
         queryKey: ['ops', 'system'],
-        queryFn: async () => apiClient.get<OpsSystemSummaryServer>('/api/v1/ops/system'),
-        select: (data): OpsSystemSummary => ({
-            ...data,
-            ai_route_services: data.ai_route_services ?? [],
-        }),
+        queryFn: () => apiClient.get<OpsSystemSummary>('/api/v1/ops/system'),
         refetchInterval: REFETCH_INTERVAL_CONFIG,
     });
 }

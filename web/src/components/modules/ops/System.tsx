@@ -1,11 +1,11 @@
 'use client';
 
-import { Boxes, Cpu, GitBranch, KeyRound, Radio, Server, Settings2 } from 'lucide-react';
+import { Boxes, KeyRound, Radio, Server, Settings2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useOpsSystemSummary } from '@/api/endpoints/ops';
 import { useNavStore } from '@/components/modules/navbar';
 import { Button } from '@/components/ui/button';
-import { MetricCard, QueryState, StatusBadge } from '@/components/modules/analytics/shared';
+import { MetricCard, QueryState } from '@/components/modules/analytics/shared';
 
 function InfoRow({ label, value }: { label: string; value: string }) {
     return (
@@ -20,8 +20,6 @@ export function System() {
     const t = useTranslations('ops');
     const { setActiveItem } = useNavStore();
     const { data, isLoading, error } = useOpsSystemSummary();
-
-    const aiRouteModeLabel = data?.ai_route_legacy_mode ? t('system.fields.legacyMode') : t('system.fields.servicePoolMode');
 
     return (
         <section className="rounded-xl border border-border/35 bg-card p-5 text-card-foreground">
@@ -62,13 +60,6 @@ export function System() {
                             title={t('system.metrics.apiKeys')}
                             value={data?.api_key_count ?? 0}
                             icon={KeyRound}
-                        />
-                        <MetricCard
-                            title={t('system.metrics.aiRouteServices')}
-                            value={data?.ai_route_enabled_service_count ?? 0}
-                            helper={`${data?.ai_route_enabled_service_count ?? 0} / ${data?.ai_route_service_count ?? 0}`}
-                            icon={GitBranch}
-                            accentClassName="bg-chart-4/10 text-chart-4"
                         />
                     </div>
 
@@ -115,51 +106,6 @@ export function System() {
                                 label={t('system.fields.importExport')}
                                 value={`${data?.import_enabled ? t('system.fields.enabled') : t('system.fields.disabled')} / ${data?.export_enabled ? t('system.fields.enabled') : t('system.fields.disabled')}`}
                             />
-                            <InfoRow label={t('system.fields.aiRouteGroup')} value={String(data?.ai_route_group_id ?? 0)} />
-                            <InfoRow
-                                label={t('system.fields.aiRouteTimeout')}
-                                value={`${data?.ai_route_timeout_seconds ?? 0}s`}
-                            />
-                            <InfoRow
-                                label={t('system.fields.aiRouteParallelism')}
-                                value={String(data?.ai_route_parallelism ?? 0)}
-                            />
-                            <InfoRow label={t('system.fields.aiRouteMode')} value={aiRouteModeLabel} />
-
-                            <div className="mt-4 rounded-lg border border-border/40 bg-card p-3">
-                                <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
-                                    <Cpu className="h-4 w-4" />
-                                    {t('system.sections.services')}
-                                </div>
-
-                                <QueryState
-                                    loading={false}
-                                    error={null}
-                                    empty={!data || data.ai_route_services.length === 0}
-                                    emptyLabel={t('system.fields.notConfigured')}
-                                >
-                                    <div className="space-y-3">
-                                        {(data?.ai_route_services ?? []).map((service) => (
-                                            <article
-                                                key={`${service.name}-${service.model}`}
-                                                className="rounded-lg border border-border/40 bg-card p-3"
-                                            >
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <div className="min-w-0">
-                                                        <div className="truncate text-sm font-semibold">{service.name}</div>
-                                                        <div className="mt-1 text-xs text-muted-foreground">{service.base_url || '-'}</div>
-                                                        <div className="mt-1 text-xs text-muted-foreground">{service.model || '-'}</div>
-                                                    </div>
-                                                    <StatusBadge
-                                                        label={service.enabled ? t('system.fields.enabled') : t('system.fields.disabled')}
-                                                        tone={service.enabled ? 'success' : 'neutral'}
-                                                    />
-                                                </div>
-                                            </article>
-                                        ))}
-                                    </div>
-                                </QueryState>
-                            </div>
                         </article>
                     </div>
                 </div>

@@ -100,8 +100,6 @@ func inferErrorMessageKey(message string) string {
 		return "errors.groupNotFound"
 	case "group test progress not found":
 		return "errors.groupTestProgressNotFound"
-	case "ai route progress not found":
-		return "errors.aiRouteProgressNotFound"
 	case "missing progress id":
 		return "errors.missingProgressId"
 	case "channel name already exists":

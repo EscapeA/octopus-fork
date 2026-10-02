@@ -3,7 +3,6 @@ package ops
 import (
 	"context"
 	"fmt"
-	"github.com/lingyuins/octopus/internal/utils/json"
 	"runtime"
 	"sort"
 	"strings"
@@ -13,7 +12,6 @@ import (
 	"github.com/lingyuins/octopus/internal/conf"
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
-	"github.com/lingyuins/octopus/internal/op/airoute"
 	"github.com/lingyuins/octopus/internal/op/analytics"
 	"github.com/lingyuins/octopus/internal/op/apikey"
 	"github.com/lingyuins/octopus/internal/op/cacheusage"
@@ -127,19 +125,6 @@ func OpsSystemSummaryGet(ctx context.Context) (*model.OpsSystemSummary, error) {
 	if err != nil {
 		return nil, err
 	}
-	aiRouteGroupID, err := setting.GetInt(model.SettingKeyAIRouteGroupID)
-	if err != nil {
-		return nil, err
-	}
-	aiRouteTimeoutSeconds, err := setting.GetInt(model.SettingKeyAIRouteTimeoutSeconds)
-	if err != nil {
-		return nil, err
-	}
-	aiRouteParallelism, err := setting.GetInt(model.SettingKeyAIRouteParallelism)
-	if err != nil {
-		return nil, err
-	}
-
 	channels, err := channel.List(ctx)
 	if err != nil {
 		return nil, err
@@ -151,14 +136,6 @@ func OpsSystemSummaryGet(ctx context.Context) (*model.OpsSystemSummary, error) {
 	apiKeys, err := apikey.List(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	aiRouteServices, legacyMode := loadOpsAIRouteServicesSummary()
-	enabledServiceCount := 0
-	for _, service := range aiRouteServices {
-		if service.Enabled {
-			enabledServiceCount++
-		}
 	}
 
 	summary := &model.OpsSystemSummary{
@@ -177,13 +154,6 @@ func OpsSystemSummaryGet(ctx context.Context) (*model.OpsSystemSummary, error) {
 		ModelInfoUpdateIntervalHours: modelInfoUpdateIntervalHours,
 		ImportEnabled:                true,
 		ExportEnabled:                true,
-		AIRouteGroupID:               aiRouteGroupID,
-		AIRouteTimeoutSeconds:        aiRouteTimeoutSeconds,
-		AIRouteParallelism:           aiRouteParallelism,
-		AIRouteLegacyMode:            legacyMode,
-		AIRouteServiceCount:          len(aiRouteServices),
-		AIRouteEnabledServiceCount:   enabledServiceCount,
-		AIRouteServices:              aiRouteServices,
 		ChannelCount:                 len(channels),
 		GroupCount:                   len(groups),
 		APIKeyCount:                  len(apiKeys),
@@ -716,54 +686,6 @@ func loadOpsRecentErrorCount(ctx context.Context, since time.Time) (int64, error
 	lock.Unlock()
 
 	return errorCount, nil
-}
-
-func loadOpsAIRouteServicesSummary() ([]model.OpsAIRouteServiceSummary, bool) {
-	rawServices, _ := setting.GetString(model.SettingKeyAIRouteServices)
-	rawServices = strings.TrimSpace(rawServices)
-	if rawServices != "" && rawServices != "[]" {
-		var configs []model.AIRouteServiceConfig
-		if err := json.Unmarshal([]byte(rawServices), &configs); err == nil {
-			return buildOpsAIRouteServices(configs), false
-		}
-	}
-
-	baseURL, _ := setting.GetString(model.SettingKeyAIRouteBaseURL)
-	apiKey, _ := setting.GetString(model.SettingKeyAIRouteAPIKey)
-	modelName, _ := setting.GetString(model.SettingKeyAIRouteModel)
-	if strings.TrimSpace(baseURL) == "" && strings.TrimSpace(apiKey) == "" && strings.TrimSpace(modelName) == "" {
-		return buildOpsAIRouteServices(nil), false
-	}
-
-	enabled := strings.TrimSpace(baseURL) != "" && strings.TrimSpace(apiKey) != "" && strings.TrimSpace(modelName) != ""
-	configs := []model.AIRouteServiceConfig{{
-		Name:    "legacy",
-		BaseURL: baseURL,
-		APIKey:  apiKey,
-		Model:   modelName,
-		Enabled: &enabled,
-	}}
-	return buildOpsAIRouteServices(configs), true
-}
-
-func buildOpsAIRouteServices(configs []model.AIRouteServiceConfig) []model.OpsAIRouteServiceSummary {
-	services := make([]model.OpsAIRouteServiceSummary, 0, len(configs))
-	for i, cfg := range configs {
-		services = append(services, model.OpsAIRouteServiceSummary{
-			Name:    airoute.NormalizeAIRouteServiceName(cfg, i+1),
-			BaseURL: strings.TrimSpace(cfg.BaseURL),
-			Model:   strings.TrimSpace(cfg.Model),
-			Enabled: cfg.IsEnabled(),
-		})
-	}
-
-	sort.SliceStable(services, func(i, j int) bool {
-		if services[i].Enabled != services[j].Enabled {
-			return services[i].Enabled
-		}
-		return services[i].Name < services[j].Name
-	})
-	return services
 }
 
 func hasPerModelQuota(raw string) bool {

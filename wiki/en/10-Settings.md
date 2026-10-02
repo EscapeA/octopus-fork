@@ -25,7 +25,6 @@ Since the program handles numerous statistics, writing to the database on every 
 |------|---------|
 | Info | Current version, latest release lookup, cache-mismatch detection, and in-place self-update entry with version mismatch notification |
 | Appearance | Theme, locale, alert language, drag-and-drop top-level navigation order, and per-page visibility toggles |
-| AI Route | Default compatibility group, timeout, parallelism, and service-pool configuration |
 | Auto Strategy | Auto strategy tuning (minimum samples, time window, sliding window size, latency weight) |
 | Account | Login-session/account preferences and application timezone selection (10 time zones) |
 | Log | Retention (time-based and count-based) and log level |

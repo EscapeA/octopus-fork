@@ -100,13 +100,6 @@ type OpsHealthStatus struct {
 	CheckedAt          int64                `json:"checked_at"`
 }
 
-type OpsAIRouteServiceSummary struct {
-	Name    string `json:"name"`
-	BaseURL string `json:"base_url"`
-	Model   string `json:"model"`
-	Enabled bool   `json:"enabled"`
-}
-
 type OpsSystemSummary struct {
 	Version                      string                     `json:"version"`
 	Commit                       string                     `json:"commit"`
@@ -123,13 +116,6 @@ type OpsSystemSummary struct {
 	ModelInfoUpdateIntervalHours int                        `json:"model_info_update_interval_hours"`
 	ImportEnabled                bool                       `json:"import_enabled"`
 	ExportEnabled                bool                       `json:"export_enabled"`
-	AIRouteGroupID               int                        `json:"ai_route_group_id"`
-	AIRouteTimeoutSeconds        int                        `json:"ai_route_timeout_seconds"`
-	AIRouteParallelism           int                        `json:"ai_route_parallelism"`
-	AIRouteLegacyMode            bool                       `json:"ai_route_legacy_mode"`
-	AIRouteServiceCount          int                        `json:"ai_route_service_count"`
-	AIRouteEnabledServiceCount   int                        `json:"ai_route_enabled_service_count"`
-	AIRouteServices              []OpsAIRouteServiceSummary `json:"ai_route_services"`
 	ChannelCount                 int                        `json:"channel_count"`
 	GroupCount                   int                        `json:"group_count"`
 	APIKeyCount                  int                        `json:"api_key_count"`

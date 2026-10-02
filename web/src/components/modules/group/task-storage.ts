@@ -1,15 +1,6 @@
 'use client';
 
-import type { AIRouteScope } from '@/api/endpoints/group';
-
-const AI_ROUTE_PROGRESS_STORAGE_KEY = 'octopus.ai-route-progress';
 const GROUP_TEST_PROGRESS_STORAGE_KEY = 'octopus.group-test-progress';
-
-export type StoredAIRouteTask = {
-    id: string;
-    scope: AIRouteScope;
-    groupId?: number;
-};
 
 export type StoredGroupTestTask = {
     id: string;
@@ -69,23 +60,6 @@ function removeStoredTask(key: string) {
     storage.removeItem(key);
 }
 
-function isStoredAIRouteTask(value: unknown): value is StoredAIRouteTask {
-    if (!value || typeof value !== 'object') {
-        return false;
-    }
-
-    const task = value as Partial<StoredAIRouteTask>;
-    if (typeof task.id !== 'string' || (task.scope !== 'group' && task.scope !== 'table')) {
-        return false;
-    }
-
-    if (task.scope === 'group') {
-        return isPositiveNumber(task.groupId);
-    }
-
-    return task.groupId === undefined || isPositiveNumber(task.groupId);
-}
-
 function isStoredGroupTestTask(value: unknown): value is StoredGroupTestTask {
     if (!value || typeof value !== 'object') {
         return false;
@@ -93,38 +67,6 @@ function isStoredGroupTestTask(value: unknown): value is StoredGroupTestTask {
 
     const task = value as Partial<StoredGroupTestTask>;
     return typeof task.id === 'string' && isPositiveNumber(task.groupId);
-}
-
-export function readStoredAIRouteTask() {
-    return readStoredTask(AI_ROUTE_PROGRESS_STORAGE_KEY, isStoredAIRouteTask);
-}
-
-export function writeStoredAIRouteTask(task: StoredAIRouteTask) {
-    writeStoredTask(AI_ROUTE_PROGRESS_STORAGE_KEY, task);
-}
-
-export function clearStoredAIRouteTask(id?: string) {
-    if (!id) {
-        removeStoredTask(AI_ROUTE_PROGRESS_STORAGE_KEY);
-        return;
-    }
-
-    const current = readStoredAIRouteTask();
-    if (current?.id === id) {
-        removeStoredTask(AI_ROUTE_PROGRESS_STORAGE_KEY);
-    }
-}
-
-export function matchesStoredAIRouteTask(task: StoredAIRouteTask | null, scope: AIRouteScope, groupId: number) {
-    if (!task || task.scope !== scope) {
-        return false;
-    }
-
-    if (scope === 'group') {
-        return task.groupId === groupId && groupId > 0;
-    }
-
-    return true;
 }
 
 export function readStoredGroupTestTask() {

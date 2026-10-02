@@ -758,17 +758,15 @@
       }
     },
     "system": {
-      "description": "汇总当前版本、关键设置和 AI 路由服务池信息，保持为只读运维视角。",
+      "description": "汇总当前版本与关键设置，保持为只读运维视角。",
       "metrics": {
         "channels": "渠道数",
         "groups": "分组数",
-        "apiKeys": "API Key 数",
-        "aiRouteServices": "AI 路由服务"
+        "apiKeys": "API Key 数"
       },
       "sections": {
         "runtime": "运行时摘要",
-        "operations": "运维配置",
-        "services": "AI 路由服务池"
+        "operations": "运维配置"
       },
       "fields": {
         "version": "版本",
@@ -782,16 +780,11 @@
         "syncLlmInterval": "模型同步周期",
         "modelInfoInterval": "价格刷新周期",
         "importExport": "导入 / 导出",
-        "aiRouteGroup": "AI 路由目标分组",
-        "aiRouteTimeout": "AI 路由超时",
-        "aiRouteParallelism": "AI 路由并发",
-        "aiRouteMode": "AI 路由模式",
         "legacyMode": "旧版单服务",
         "servicePoolMode": "服务池模式",
         "enabled": "启用",
         "disabled": "关闭",
-        "logCountUnit": "条",
-        "notConfigured": "当前没有已配置的 AI 路由服务。"
+        "logCountUnit": "条"
       }
     },
     "audit": {
@@ -1466,60 +1459,6 @@
         "placeholder": "5"
       }
     },
-    "aiRoute": {
-      "title": "AI 路由设置",
-      "badge": "指令栖息地",
-      "group": {
-        "label": "单分组 AI 路由默认目标分组",
-        "placeholder": "请选择默认目标分组",
-        "hint": "用于兼容单分组 AI 路由模式；路由页点击“AI路由”会直接生成整张路由表。"
-      },
-      "baseUrl": {
-        "label": "AI Base URL",
-        "placeholder": "请输入 OpenAI 兼容 Base URL"
-      },
-      "apiKey": {
-        "label": "AI API Key",
-        "placeholder": "请输入 AI API Key"
-      },
-      "model": {
-        "label": "AI 模型",
-        "placeholder": "请输入用于路由分析的模型名称"
-      },
-      "timeoutSeconds": {
-        "label": "AI 超时（秒）",
-        "placeholder": "请输入单次请求超时时间",
-        "hint": "用于单次 AI 路由分析请求。模型较慢或模型列表较大时可适当调大。"
-      },
-      "parallelism": {
-        "label": "批次并发数",
-        "placeholder": "请输入大于 0 的整数",
-        "hint": "控制 AI 路由 bucket 的最大并发分析数。默认 3，可自定义更高并发；实际执行不会超过当前任务批次数。"
-      },
-      "maxModels": {
-        "label": "单批次最大模型数",
-        "placeholder": "请输入大于 0 的整数",
-        "hint": "超过该数量的模型列表会按模型家族切分成多个分析批次。上下文窗口大的分析模型可调高（如 200）以获得更完整的跨家族归一；模型经常被拆散漏归类时可尝试调大。"
-      },
-      "services": {
-        "label": "AI 服务池",
-        "placeholder": "请输入 AI 服务配置 JSON 数组",
-        "hint": "留空或 [] 时继续使用上面的单服务配置；配置服务后启用多服务池和失败切换。",
-        "invalid": "AI 服务池 JSON 必须是数组",
-        "add": "添加服务",
-        "empty": "当前没有配置任何 AI 路由分析服务。",
-        "invalidStored": "存量 AI 服务池配置不是合法的 JSON 数组。请在下方修正原文后重试，即可回到结构化编辑。",
-        "retryParse": "重新解析",
-        "serviceIndex": "服务 {index}",
-        "disabledTag": "已停用",
-        "enabledCount": "已启用 {enabled}/{total}",
-        "save": "保存服务池",
-        "namePlaceholder": "服务名称（可选）",
-        "baseUrlPlaceholder": "Base URL（OpenAI 兼容）",
-        "apiKeyPlaceholder": "API Key",
-        "modelPlaceholder": "模型名称"
-      }
-    },
     "pageOrder": {
       "title": "Page Order",
       "description": "拖拽调整顶级页面顺序，松手后立即保存为全局配置。",
@@ -1668,7 +1607,7 @@
       "button": "删除全部路由分组",
       "deleting": "删除中...",
       "confirmTitle": "确认删除全部路由分组？",
-      "confirmDescription": "这会永久删除 {count, plural, =0 {全部路由分组} other {# 个路由分组}}及其路由项。\n单分组 AI 路由默认目标分组设置也会被重置。\n此操作不可恢复。\n是否继续？",
+      "confirmDescription": "这会永久删除 {count, plural, =0 {全部路由分组} other {# 个路由分组}}及其路由项。\n此操作不可恢复。\n是否继续？",
       "cancel": "取消",
       "confirm": "确认全部删除",
       "success": "已删除 {count} 个路由分组",
@@ -2213,11 +2152,6 @@
       "autoGroupSuccess": "自动分组完成，已创建 {created} 个分组，跳过 {skipped} 个已存在分组",
       "autoGroupSuccessDescription": "扫描到 {models} 个模型，识别出 {candidates} 个候选分组，创建 {created} 个，跳过 {skippedExisting} 个已存在分组，跳过 {skippedCovered} 个已覆盖模型",
       "autoGroupFailed": "自动分组失败",
-      "aiRouteTableSuccess": "AI路由生成成功，共生成 {routes} 个模型路由，影响 {groups} 个分组，写入 {items} 个路由项",
-      "aiRouteGroupSuccess": "AI路由同步成功，共生成 {routes} 个模型路由，更新当前分组中的 {items} 个路由项",
-      "aiRouteFailed": "AI路由生成失败",
-      "aiRouteEmptyResult": "AI 路由结果为空",
-      "aiRouteMissingGroup": "请先在设置中选择单分组 AI 路由默认目标分组",
       "removedFailedModels": "已移除检测失败模型",
       "autoAddFailed": "自动添加失败",
       "testAllPassed": "分组内模型均可用",
@@ -2228,9 +2162,6 @@
     },
     "actions": {
       "autoGroup": "自动分组",
-      "aiRoute": "AI路由",
-      "aiRouteGroup": "AI同步当前分组",
-      "aiRouteProgress": "查看进度",
       "maintenance": "维护"
     },
     "autoGroup": {
@@ -2239,143 +2170,6 @@
       "submit": "开始自动分组",
       "submitting": "自动分组中...",
       "categoryHint": "可选。填写后新建分组会带上该分类，用于 API Key 调用范围控制。"
-    },
-    "aiRoute": {
-      "table": {
-        "confirmTitle": "确认生成整张 AI 路由表",
-        "confirmDescription": "系统会把全部模型发送给 AI 分析，并按分析结果批量生成整张路由表。\n已存在同名分组会同步路由项，并移除未命中的旧路由项；其他分组不会被删除。\n是否继续？",
-        "submit": "开始生成路由表",
-        "submitting": "AI路由生成中..."
-      },
-      "group": {
-        "confirmTitle": "确认 AI 同步当前分组",
-        "confirmDescription": "系统会把全部模型发送给 AI 分析，并按分析结果同步当前分组的路由项。\n未命中的旧路由项会被移除；相同路由项会按最新优先级和权重更新。\n是否继续？",
-        "submit": "开始同步当前分组",
-        "submitting": "AI路由同步中..."
-      },
-      "progress": {
-        "title": "AI 路由任务进度",
-        "description": {
-          "table": "正在生成整张 AI 路由表，你可以随时关闭弹窗，稍后再回来查看。",
-          "group": "正在同步当前分组的 AI 路由，你可以随时关闭弹窗，稍后再回来查看。"
-        },
-        "loading": "正在读取任务进度...",
-        "close": "关闭",
-        "batchProgress": "已完成 {completed}/{total} 批",
-        "lastUpdated": "状态更新时间：{time}",
-        "lastHeartbeat": "心跳时间：{time}",
-        "heartbeatStale": "后端心跳暂时未更新，可能仍在等待 AI 返回",
-        "currentBatch": "活跃批次",
-        "recentBatch": "最近活跃批次",
-        "activeBatches": "活跃批次",
-        "activeBatchCount": "{count} 个活跃批次",
-        "batchLabel": "第 {index}/{total} 批",
-        "batchCapability": "能力类型",
-        "batchModels": "本批模型数",
-        "batchChannels": "涉及渠道数",
-        "batchService": "分析服务",
-        "batchAttempt": "尝试次数",
-        "channelList": "渠道处理进度",
-        "channelSections": {
-          "running": "当前活跃",
-          "completed": "已完成",
-          "pending": "待处理",
-          "failed": "失败",
-          "empty": {
-            "running": "当前没有活跃渠道",
-            "completed": "当前还没有已完成渠道",
-            "pending": "当前没有待处理渠道",
-            "failed": "当前没有失败渠道"
-          }
-        },
-        "channelModels": "已处理 {completed}/{total} 个模型",
-        "result": {
-          "groupSummary": "AI 路由同步完成，共生成 {routes} 条路由，更新 {items} 个路由项。",
-          "tableSummary": "AI 路由表生成完成，共生成 {routes} 条路由，影响 {groups} 个分组，写入 {items} 个路由项。"
-        },
-        "status": {
-          "queued": "排队中",
-          "running": "执行中",
-          "completed": "已完成",
-          "failed": "失败",
-          "timeout": "超时"
-        },
-        "steps": {
-          "queued": "任务已创建",
-          "collecting_models": "收集渠道和模型",
-          "building_batches": "规划分析批次",
-          "analyzing_batches": "等待 AI 分析",
-          "parsing_response": "解析 AI 返回结果",
-          "validating_routes": "校验候选路由",
-          "writing_groups": "写入分组和路由项",
-          "finalizing": "任务收尾中",
-          "completed": "任务完成",
-          "failed": "任务失败",
-          "timeout": "任务超时"
-        },
-        "channelStatus": {
-          "pending": "待处理",
-          "running": "处理中",
-          "completed": "已完成",
-          "failed": "失败"
-        },
-        "batchStatus": {
-          "running": "分析中",
-          "parsing": "解析中",
-          "retrying": "重试中",
-          "failed": "失败",
-          "completed": "已完成"
-        },
-        "summary": {
-          "totalChannels": "总渠道数",
-          "completedChannels": "已完成渠道",
-          "runningChannels": "活跃渠道",
-          "pendingChannels": "待处理渠道",
-          "failedChannels": "失败渠道",
-          "modelsProgress": "模型处理进度"
-        },
-        "channelFallbackName": "渠道 {id}",
-        "runtime": {
-          "taskCreated": "AI 路由任务已创建，等待开始。",
-          "taskCompleted": "AI 路由生成完成。",
-          "taskTimeout": "AI 路由任务超时，请稍后重试。",
-          "collectedModels": "已收集 {channels} 个渠道，共 {models} 个模型。",
-          "plannedSingleBatch": "已完成批次规划，准备开始 AI 分析。",
-          "plannedBatches": "已完成批次规划，共拆分为 {batches} 批。",
-          "waitingBatchResult": "正在等待第 {index}/{total} 批 AI 返回结果（{endpoint}，涉及 {channels} 个渠道 / {models} 个模型）。",
-          "parallelAnalyzing": "正在并发分析 {active} 个批次，最近启动第 {index}/{total} 批（{endpoint}，涉及 {channels} 个渠道 / {models} 个模型）。",
-          "batchRetrying": "第 {index}/{total} 批分析失败，正在切换其他服务重试。",
-          "batchRetryingWithReason": "第 {index}/{total} 批分析失败，正在切换其他服务重试：{reason}",
-          "batchParsing": "AI 已返回第 {index}/{total} 批结果，正在解析和校验。",
-          "batchCompletedWithActive": "第 {index}/{total} 批已完成，当前还有 {active} 个活跃批次。",
-          "batchCompletedWaitingNext": "第 {index}/{total} 批已完成，等待启动下一批。",
-          "allBatchesCompleted": "全部批次分析完成，准备校验路由结果。",
-          "batchFailedIndexed": "第 {index}/{total} 批失败。",
-          "batchFailedIndexedWithReason": "第 {index}/{total} 批失败：{reason}",
-          "validatingRoutes": "正在校验 AI 返回的 {routes} 条候选路由。",
-          "validatingRoutesGeneric": "正在校验 AI 返回的候选路由。",
-          "writingCurrentGroup": "正在写入当前分组。",
-          "writingNamedGroup": "正在写入分组 \"{group}\"。",
-          "writingRoute": "正在写入第 {index}/{total} 条路由。",
-          "writingNamedRoute": "正在写入路由 \"{route}\"（{index}/{total}）。",
-          "finalizing": "正在收尾。",
-          "finalizingCustom": "{message}",
-          "channelAnalyzingEndpoint": "正在分析 {endpoint} 模型。",
-          "channelAnalyzing": "正在分析。",
-          "channelCompleted": "已完成。",
-          "channelFailedWithReason": "渠道处理失败：{reason}",
-          "partialFailure": "AI 路由部分失败，但已保留成功写入的 {success_groups} 个分组：{cause}",
-          "channelFailed": "当前渠道处理失败。",
-          "batchFailed": "当前批次失败。",
-          "noService": "没有可用的 AI 路由分析服务（第 {batch_index} 批）。",
-          "emptyResult": "AI返回结果为空。",
-          "invalidJSON": "AI返回结果不是合法JSON。",
-          "rateLimited": "AI 分析服务触发限流，正在尝试切换其他服务{body_suffix}",
-          "upstreamTimeout": "AI 分析服务响应超时，请更换更快的 AI 模型，或减少待分析模型数量后重试{body_suffix}",
-          "unavailable": "AI 分析服务暂时不可用，请稍后重试{body_suffix}",
-          "upstreamStatus": "AI 分析失败：上游状态 {status}{body_suffix}"
-        }
-      }
     },
     "create": {
       "title": "创建分组",
@@ -2545,7 +2339,7 @@
     "empty": "暂无分组，点击左上角按钮创建",
     "emptyState": {
       "title": "暂无分组",
-      "description": "你可以手动新建分组，或使用自动分组 / AI路由快速生成。"
+      "description": "你可以手动新建分组，或使用自动分组快速生成。"
     },
     "ccswitch": {
       "title": "生成 CC Switch 链接",
@@ -2583,7 +2377,8 @@
       "emptyTitle": "没有匹配的路由模型",
       "emptyDescription": "请调整搜索词或筛选条件。",
       "emptyGroup": "该分组暂无路由模型"
-    }
+    },
+    "channelFallbackName": "渠道 {id}"
   },
   "model": {
     "loading": "加载模型广场中...",
@@ -2990,7 +2785,7 @@
     },
     "groupManager": {
       "title": "渠道分组",
-      "hint": "用于渠道页面的管理与展示，也会作为 AI 路由生成时的分组参考，但不会直接改写现有路由与转发结果。",
+      "hint": "用于渠道页面的管理与展示。",
       "create": "新建分组",
       "createPlaceholder": "输入渠道分组名称",
       "defaultName": "默认",
@@ -3230,7 +3025,6 @@
     "channelNotFound": "渠道不存在",
     "groupNotFound": "分组不存在",
     "groupTestProgressNotFound": "分组检测进度不存在",
-    "aiRouteProgressNotFound": "AI 路由进度不存在",
     "missingProgressId": "缺少进度 ID",
     "channelNameAlreadyExists": "渠道名称已存在",
     "groupNameAlreadyExists": "分组名称已存在",

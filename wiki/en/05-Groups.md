@@ -35,14 +35,6 @@ Groups aggregate multiple channels into a unified external model name.
 - After candidates are explored, Octopus sorts by success rate, then uses sample count, weight, priority, and latency tuning as tie-breakers
 - Auto-strategy windows are restored from the database at startup and saved periodically plus on graceful shutdown
 
-**AI Routing Behavior:**
-
-- Clicking **AI Route** on the route page sends all models to AI and generates the full routing table in batch
-- Existing groups with the same name only receive missing route items; existing groups are not cleared or replaced
-- Clicking **AI Fill Current Group** in the edit dialog sends all models to AI and appends only the matched route items to that group
-- The setting previously named AI route target group now acts as the default target group for the single-group compatibility flow only
-- AI route tasks are persistent with heartbeat, progress tracking, batch management, and interruption recovery
-
 **CC Switch Integration:**
 
 The group toolbar includes a CC Switch deep link generator that creates provider import links for 5 target apps: Claude Code, Codex, Gemini, OpenCode, and OpenClaw. For Claude Code, it supports mapping Haiku / Sonnet / Opus models to specific route groups.

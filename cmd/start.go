@@ -91,14 +91,6 @@ func runStart() error {
 		}
 	}
 
-	startupTaskCtx, startupTaskCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	if interruptedCount, err := op.AIRouteTaskMarkActiveInterrupted(startupTaskCtx, op.DefaultAIRouteTaskInterruptedMessage); err != nil {
-		log.Warnf("ai route task recovery failed: %v", err)
-	} else if interruptedCount > 0 {
-		log.Warnf("marked %d stale ai route task(s) as interrupted on startup", interruptedCount)
-	}
-	startupTaskCancel()
-
 	if err := op.InitCache(); err != nil {
 		shutdown.Shutdown()
 		return fmt.Errorf("cache init error: %w", err)
@@ -155,20 +147,6 @@ func runStart() error {
 		return nil
 	})
 	shutdown.Register(op.SaveCache)
-	shutdown.Register(func() error {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		interruptedCount, err := op.AIRouteTaskMarkActiveInterrupted(ctx, op.DefaultAIRouteTaskInterruptedMessage)
-		if err != nil {
-			return err
-		}
-		if interruptedCount > 0 {
-			log.Warnf("marked %d active ai route task(s) as interrupted during shutdown", interruptedCount)
-		}
-		return nil
-	})
-
 	task.Init()
 	go task.RUN()
 	shutdown.Listen()

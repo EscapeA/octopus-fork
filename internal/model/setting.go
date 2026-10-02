@@ -66,14 +66,6 @@ const (
 	SettingKeyAnalyticsTabVisible               SettingKey = "analytics_tab_visible"                 // 分析中心子标签可见性(JSON)
 	SettingKeyOpsTabOrder                       SettingKey = "ops_tab_order"                         // 运维中心子标签顺序(JSON)
 	SettingKeyOpsTabVisible                     SettingKey = "ops_tab_visible"                       // 运维中心子标签可见性(JSON)
-	SettingKeyAIRouteGroupID                    SettingKey = "ai_route_group_id"                     // AI路由目标分组 ID
-	SettingKeyAIRouteBaseURL                    SettingKey = "ai_route_base_url"                     // AI路由分析服务 Base URL
-	SettingKeyAIRouteAPIKey                     SettingKey = "ai_route_api_key"                      // AI路由分析服务 API Key
-	SettingKeyAIRouteModel                      SettingKey = "ai_route_model"                        // AI路由分析模型名称
-	SettingKeyAIRouteTimeoutSeconds             SettingKey = "ai_route_timeout_seconds"              // AI路由分析单次请求超时（秒）
-	SettingKeyAIRouteParallelism                SettingKey = "ai_route_parallelism"                  // AI路由分析批次最大并发数
-	SettingKeyAIRouteServices                   SettingKey = "ai_route_services"                     // AI路由分析服务池(JSON)
-	SettingKeyAIRouteMaxModelsPerRequest        SettingKey = "ai_route_max_models_per_request"       // AI路由分析单批次最大模型数，超过按模型家族切分批次
 	SettingKeyStatsTimezone                     SettingKey = "stats_timezone"                        // 统计时区（IANA 名，如 Asia/Shanghai）；空串回退到 stats_timezone_offset
 	SettingKeyStatsTimezoneOffset               SettingKey = "stats_timezone_offset"                 // [已弃用] 统计时区偏移（小时），整型；stats_timezone 为空时回退使用
 	SettingKeyJWTDefaultExpiryMinutes           SettingKey = "jwt_default_expiry_minutes"            // 默认JWT过期时间（分钟）
@@ -171,14 +163,6 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyAnalyticsTabVisible, Value: `["cache","utilization","route-health","channel-model","evaluation","latency"]`},
 		{Key: SettingKeyOpsTabOrder, Value: `["telemetry","quota","health","maintenance","system","audit"]`},
 		{Key: SettingKeyOpsTabVisible, Value: `["telemetry","quota","health","maintenance","system","audit"]`},
-		{Key: SettingKeyAIRouteGroupID, Value: "0"},
-		{Key: SettingKeyAIRouteBaseURL, Value: ""},
-		{Key: SettingKeyAIRouteAPIKey, Value: ""},
-		{Key: SettingKeyAIRouteModel, Value: ""},
-		{Key: SettingKeyAIRouteTimeoutSeconds, Value: "180"},
-		{Key: SettingKeyAIRouteParallelism, Value: "3"},
-		{Key: SettingKeyAIRouteServices, Value: "[]"},
-		{Key: SettingKeyAIRouteMaxModelsPerRequest, Value: "120"},
 		{Key: SettingKeyStatsTimezone, Value: ""}, // 空=未配置，回退到 stats_timezone_offset 再回退 UTC
 		{Key: SettingKeyStatsTimezoneOffset, Value: "0"},
 		{Key: SettingKeyJWTDefaultExpiryMinutes, Value: "15"},    // 默认15分钟
@@ -252,8 +236,6 @@ func (s *Setting) Validate() error {
 		SettingKeyAutoStrategyLatencyWeight,
 		SettingKeyAutoStrategyTTFTWeight, SettingKeyAutoStrategyPriceWeight,
 		SettingKeyAutoStrategyExploreRate, SettingKeyAutoStrategyBucketTolerance,
-		SettingKeyAIRouteGroupID, SettingKeyAIRouteTimeoutSeconds, SettingKeyAIRouteParallelism,
-		SettingKeyAIRouteMaxModelsPerRequest,
 		SettingKeyStatsTimezoneOffset,
 		SettingKeyJWTDefaultExpiryMinutes, SettingKeyJWTRememberMeExpiryDays,
 		SettingKeyLoginRateLimitWindow, SettingKeyLoginRateLimitMaxFailed,
@@ -298,18 +280,6 @@ func (s *Setting) Validate() error {
 		if (s.Key == SettingKeyAutoStrategyTTFTWeight || s.Key == SettingKeyAutoStrategyPriceWeight || s.Key == SettingKeyAutoStrategyExploreRate || s.Key == SettingKeyAutoStrategyBucketTolerance) && (v < 0 || v > 100) {
 			return fmt.Errorf("auto strategy weight must be between 0 and 100")
 		}
-		if s.Key == SettingKeyAIRouteGroupID && v < 0 {
-			return fmt.Errorf("ai route group id must be greater than or equal to 0")
-		}
-		if s.Key == SettingKeyAIRouteTimeoutSeconds && v < 1 {
-			return fmt.Errorf("ai route timeout must be greater than 0")
-		}
-		if s.Key == SettingKeyAIRouteParallelism && v < 1 {
-			return fmt.Errorf("ai route parallelism must be greater than 0")
-		}
-		if s.Key == SettingKeyAIRouteMaxModelsPerRequest && v < 1 {
-			return fmt.Errorf("ai route max models per request must be greater than 0")
-		}
 		if s.Key == SettingKeyStatsTimezoneOffset && (v < -12 || v > 14) {
 			return fmt.Errorf("stats timezone offset must be between -12 and 14")
 		}
@@ -346,34 +316,13 @@ func (s *Setting) Validate() error {
 			return fmt.Errorf("relay log queue drop policy must be disabled, oldest or newest")
 		}
 		return nil
-	case SettingKeyProxyURL, SettingKeyAIRouteBaseURL:
+	case SettingKeyProxyURL:
 		if s.Value == "" {
 			return nil
 		}
 		parsedURL, err := url.Parse(s.Value)
 		if err != nil {
-			if s.Key == SettingKeyAIRouteBaseURL {
-				return fmt.Errorf("ai route base URL is invalid: %w", err)
-			}
 			return fmt.Errorf("proxy URL is invalid: %w", err)
-		}
-		if s.Key == SettingKeyAIRouteBaseURL {
-			if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
-				return fmt.Errorf("ai route base URL scheme must be http or https")
-			}
-			if parsedURL.Host == "" {
-				return fmt.Errorf("ai route base URL must have a host")
-			}
-			return nil
-		}
-		if s.Key == SettingKeyAIRouteBaseURL {
-			if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
-				return fmt.Errorf("ai route base URL scheme must be http or https")
-			}
-			if parsedURL.Host == "" {
-				return fmt.Errorf("ai route base URL must have a host")
-			}
-			return nil
 		}
 
 		validSchemes := map[string]bool{
@@ -424,8 +373,6 @@ func (s *Setting) Validate() error {
 			return fmt.Errorf("nav setting must be a valid JSON array of strings")
 		}
 		return nil
-	case SettingKeyAIRouteServices:
-		return ValidateAIRouteServiceConfigs(s.Value)
 	case SettingKeyWebDAVConfig:
 		var cfg map[string]any
 		if err := json.Unmarshal([]byte(s.Value), &cfg); err != nil {

@@ -4,7 +4,6 @@ import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { GroupListItem } from './GroupListItem';
 import { AutoGroupButton } from './AutoGroupButton';
-import { AIRouteButton } from './AIRouteButton';
 import { MaintenanceButton } from './MaintenanceButton';
 import { useGroupList, type Group as RouteGroup } from '@/api/endpoints/group';
 import { useModelChannelList } from '@/api/endpoints/model';
@@ -106,7 +105,6 @@ export function Group() {
 
                         <div className="flex flex-col gap-3 sm:flex-row">
                             <AutoGroupButton variant="default" className="h-11 rounded-lg justify-start px-4 sm:flex-1" />
-                            <AIRouteButton variant="default" className="h-11 rounded-lg justify-start px-4 sm:flex-1" />
                             <MaintenanceButton className="h-11 rounded-lg justify-start px-4 sm:flex-1" />
                             <MorphingDialog>
                                 <MorphingDialogTrigger className={buttonVariants({ variant: 'outline', className: 'h-11 min-w-0 sm:min-w-36 justify-start rounded-lg border-border bg-card px-4 hover:bg-muted sm:flex-1' })}>

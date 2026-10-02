@@ -24,7 +24,6 @@ import {
 import type { SelectedMember } from './ItemList';
 import { MemberList } from './ItemList';
 import { GroupEditor, type GroupEditorValues } from './Editor';
-import { AIRouteButton } from './AIRouteButton';
 import { buildChannelNameByModelKey, modelChannelKey, MODE_LABELS, inferGroupCapabilities, CAPABILITY_LABEL_KEYS, CAPABILITY_COLORS, endpointTypeLabelKey, normalizeEndpointType, supportsGroupTest } from './utils';
 import { GroupMode, type GroupUpdateRequest } from '@/api/endpoints/group';
 import { getModelIcon } from '@/lib/model-icons';
@@ -92,15 +91,6 @@ function EditDialogContent({
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        {group.id && supportsGroupTest(group.endpoint_type) ? (
-                            <AIRouteButton
-                                scope="group"
-                                groupId={group.id}
-                                variant="default"
-                                className="h-10 rounded-lg px-3"
-                                onSuccess={() => setIsOpen(false)}
-                            />
-                        ) : null}
                         {group.id && supportsGroupTest(group.endpoint_type) && !isTestingAvailability && !availabilitySummary ? (
                             <button
                                 type="button"
@@ -214,7 +204,7 @@ export function GroupCard({ group }: { group: Group }) {
                     name: item.model_name,
                     enabled: enabledByKey.get(key) ?? true,
                     channel_id: item.channel_id,
-                    channel_name: channelNameByKey.get(key) ?? t('aiRoute.progress.channelFallbackName', { id: item.channel_id }),
+                    channel_name: channelNameByKey.get(key) ?? t('channelFallbackName', { id: item.channel_id }),
                     item_id: item.id,
                     weight: item.weight,
                     upstream_price: channelModel?.upstream_price,

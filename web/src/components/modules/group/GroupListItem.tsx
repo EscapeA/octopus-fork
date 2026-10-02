@@ -40,7 +40,6 @@ import {
 import type { SelectedMember } from './ItemList';
 import { MemberList } from './ItemList';
 import { GroupEditor, type GroupEditorValues } from './Editor';
-import { AIRouteButton } from './AIRouteButton';
 import {
     buildChannelNameByModelKey,
     modelChannelKey,
@@ -119,15 +118,6 @@ function EditDialogContent({
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        {group.id && supportsGroupTest(group.endpoint_type) ? (
-                            <AIRouteButton
-                                scope="group"
-                                groupId={group.id}
-                                variant="default"
-                                className="h-10 rounded-lg px-3"
-                                onSuccess={() => setIsOpen(false)}
-                            />
-                        ) : null}
                         {group.id && supportsGroupTest(group.endpoint_type) && !isTestingAvailability && !availabilitySummary ? (
                             <button
                                 type="button"
@@ -238,7 +228,7 @@ export function GroupListItem({ group }: { group: Group }) {
                     channel_id: item.channel_id,
                     channel_name:
                         channelNameByKey.get(key) ??
-                        t('aiRoute.progress.channelFallbackName', {
+                        t('channelFallbackName', {
                             id: item.channel_id,
                         }),
                     item_id: item.id,

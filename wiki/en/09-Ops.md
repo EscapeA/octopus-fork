@@ -10,7 +10,7 @@ The Ops module focuses on runtime posture and operational diagnostics:
 | Quota | API key limit posture across RPM, TPM, max-cost, and per-model quota settings, merged with total tokens + success rate + "view key detail" jump |
 | Health | Database reachability, task-runtime sanity, recent error count, and failing groups (with jump to Analytics → Route Health) |
 | Maintenance | Actionable runtime tuning: Retry, Circuit Breaker, and Response Filter settings consolidated in one tab (moved out of the Settings page) |
-| System | Build metadata, database type, public API base URL, proxy, retention intervals, AI route mode, and AI route services |
+| System | Build metadata, database type, public API base URL, proxy, and retention intervals |
 | Audit | Paginated audit history for management-side write operations |
 
 **Provider Prompt Cache Analytics:**
@@ -19,7 +19,7 @@ The Telemetry tab includes provider-side prompt cache monitoring, tracking upstr
 
 **Audit scope:**
 
-- Covers selected management write routes such as channel / group / model / setting / API key / alert / user mutations, AI route generation, log clearing, price refresh, import, and self-update
+- Covers selected management write routes such as channel / group / model / setting / API key / alert / user mutations, log clearing, price refresh, import, and self-update
 - Does not record public `/v1/...` relay traffic
 
 ---
