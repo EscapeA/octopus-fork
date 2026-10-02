@@ -747,6 +747,14 @@ export function ChannelForm({
         : 'space-y-4 rounded-lg bg-card/70 p-4 md:p-5';
     const labelClassName = 'text-sm font-medium text-card-foreground';
     const fieldGroupClassName = 'space-y-2';
+    // ⚠️ overscroll-contain 只能挂在「自身真的会滚动」的容器上。
+    // 创建弹窗里本 div 受弹窗高度约束、自身即滚动容器，属性有效；
+    // 编辑弹窗（卡片详情内的编辑页签）中它位于 MorphingDialogDescription 之内、
+    // 高度等于内容高度（不可滚动），此时 overscroll-behavior: contain 会吞掉滚轮/触摸
+    // 滚动并阻止冒泡给外层容器 → 表现为整页无法滑动。故编辑分支不得带该属性。
+    const scrollContainerClassName = isCreateLayout
+        ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain grid content-start gap-5 px-4 py-5 sm:px-6 md:grid-cols-2 md:gap-x-6 [&_input]:h-11 [&_[data-slot=select-trigger]]:h-11 [&_[data-slot=select-trigger]]:min-w-0'
+        : 'min-h-0 flex-1 overflow-y-auto space-y-4 pb-2';
 
     const globalKeyStrategy = settings?.find((s) => s.key === SettingKey.KeySelectionStrategy)?.value ?? 'cost';
     const effectiveKeyStrategy = formData.key_selection_strategy || globalKeyStrategy;
@@ -1116,12 +1124,7 @@ export function ChannelForm({
 
     return (
         <form onSubmit={onSubmit} className="flex h-full min-h-0 flex-col">
-            <div className={cn(
-                'min-h-0 flex-1 overflow-y-auto overscroll-contain',
-                isCreateLayout
-                    ? 'grid content-start gap-5 px-4 py-5 sm:px-6 md:grid-cols-2 md:gap-x-6 [&_input]:h-11 [&_[data-slot=select-trigger]]:h-11 [&_[data-slot=select-trigger]]:min-w-0'
-                    : 'space-y-4 pb-2',
-            )}>
+            <div className={scrollContainerClassName}>
             {showTemplatePicker ? (
                 <section className={sectionClassName}>
                     <SectionHeader icon={Sparkles} title={t('template.label')} hint={t('template.hint')} />
