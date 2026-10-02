@@ -8,8 +8,9 @@ import (
 	"testing"
 )
 
-// TestFetchTokenRhythmWallet 校验钱包明细三个端点的字段映射：
-// 金额字符串/数字两种格式、expiresAt 可空、累计到账/消费口径。
+// TestFetchTokenRhythmWallet 校验资金明细三个端点的字段映射与口径：
+// 赠送额度账本（逐笔到账 + 本金行 + 汇总）、金额字符串/数字两种格式、
+// expiresAt 可空、累计获赠取账本 summary（不是 wallet/summary.giftTotalCny）。
 func TestFetchTokenRhythmWallet(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -19,21 +20,31 @@ func TestFetchTokenRhythmWallet(t *testing.T) {
 				`"rechargeBalanceCny":"0.00000000","debtBalanceCny":"0.00000000",` +
 				`"frozenBalanceCny":"0.00000000","giftTotalCny":"220.82454716",` +
 				`"asOf":"2026-09-24T05:03:35.577Z"}}`))
-		case "/api/wallet/transactions":
-			if got := r.URL.Query().Get("pageSize"); got != "20" {
-				t.Errorf("pageSize = %q, want 20", got)
+		case "/api/wallet/expiring-credits":
+			if got := r.URL.Query().Get("page"); got != "1" {
+				t.Errorf("page = %q, want 1", got)
 			}
-			_, _ = w.Write([]byte(`{"code":0,"message":"ok","data":{"items":[` +
-				`{"transactionId":"t1","type":"INVITE_REWARD","direction":"CREDIT","status":"POSTED",` +
-				`"amountCny":"68.00000000","description":"邀请奖励",` +
-				`"occurredAt":"2026-09-06T14:36:17.193Z","expiresAt":"2026-10-07T14:36:17.193Z",` +
-				`"balanceAfterCny":"66.82454716","debtDeltaCny":"-1.17545284",` +
-				`"giftDeltaCny":"66.82454716","rechargeDeltaCny":"0.00000000"},` +
-				`{"transactionId":"t2","type":"MODEL_USAGE","direction":"DEBIT","status":"POSTED",` +
-				`"amountCny":0.019507,"description":"模型调用扣费",` +
-				`"occurredAt":"2026-08-31T23:49:50.000Z","expiresAt":null,` +
-				`"balanceAfterCny":-1.17545284,"debtDeltaCny":0}` +
-				`],"nextCursor":"eyJjcm"}}`))
+			if got := r.URL.Query().Get("pageSize"); got != "50" {
+				t.Errorf("pageSize = %q, want 50", got)
+			}
+			if got := r.URL.Query().Get("includeInactive"); got != "true" {
+				t.Errorf("includeInactive = %q, want true", got)
+			}
+			_, _ = w.Write([]byte(`{"code":0,"message":"ok","data":{` +
+				`"asOf":"2026-09-24T05:03:35.577Z","total":2,"page":1,"pageSize":50,` +
+				`"summary":{"expiringBalanceCny":"3.20142724",` +
+				`"nextExpiryAt":"2026-10-25T12:03:46.813Z","cumulativeGiftGrantedCny":"766.00000000"},` +
+				`"rechargePrincipal":{"id":"recharge_principal","source":"RECHARGE","sourceLabel":"充值本金",` +
+				`"grantedCny":"128.00000000","consumedCny":"0.00000000","remainingCny":"128.00000000",` +
+				`"status":"ACTIVE","expiresAt":null},` +
+				`"list":[` +
+				`{"id":"c1","source":"IDENTITY_VERIFICATION_REWARD","sourceLabel":"实名认证奖励",` +
+				`"grantedCny":"18.00000000","consumedCny":"14.79857276","remainingCny":"3.20142724",` +
+				`"status":"ACTIVE","grantedAt":"2026-09-24T12:03:46.813Z","expiresAt":"2026-10-25T12:03:46.813Z"},` +
+				`{"id":"c2","source":"INVITE_REWARD","sourceLabel":"邀请奖励",` +
+				`"grantedCny":68,"consumedCny":68,"remainingCny":0,` +
+				`"status":"USED_UP","grantedAt":"2026-08-21T06:32:22.072Z","expiresAt":"2026-09-21T06:32:22.072Z"}` +
+				`]}}`))
 		case "/api/usage-summary":
 			_, _ = w.Write([]byte(`{"code":0,"data":{"costCny":"1.19545284","balanceCny":"220.82454716"}}`))
 		default:
@@ -55,45 +66,53 @@ func TestFetchTokenRhythmWallet(t *testing.T) {
 	if got.AvailableBalanceCNY != 220.82454716 {
 		t.Errorf("available = %v, want 220.82454716", got.AvailableBalanceCNY)
 	}
-	if got.TotalReceivedCNY != 220.82454716 {
-		t.Errorf("total received = %v, want 220.82454716 (giftTotalCny)", got.TotalReceivedCNY)
+	// 累计获赠取账本 summary.cumulativeGiftGrantedCny（不是 wallet/summary.giftTotalCny）。
+	if got.TotalReceivedCNY != 766 {
+		t.Errorf("total received = %v, want 766 (cumulativeGiftGrantedCny)", got.TotalReceivedCNY)
 	}
 	if got.TotalConsumedCNY != 1.19545284 {
 		t.Errorf("total consumed = %v, want 1.19545284 (usage-summary costCny)", got.TotalConsumedCNY)
 	}
-	if len(got.Transactions) != 2 {
-		t.Fatalf("transactions len = %d, want 2", len(got.Transactions))
+	if got.ExpiringBalanceCNY != 3.20142724 {
+		t.Errorf("expiring balance = %v, want 3.20142724", got.ExpiringBalanceCNY)
 	}
-	if got.Transactions[0].ExpiresAt == nil || *got.Transactions[0].ExpiresAt != "2026-10-07T14:36:17.193Z" {
-		t.Errorf("tx0 expiresAt = %v, want 2026-10-07T14:36:17.193Z", got.Transactions[0].ExpiresAt)
+	if got.NextExpiryAt != "2026-10-25T12:03:46.813Z" {
+		t.Errorf("next expiry = %q, want 2026-10-25T12:03:46.813Z", got.NextExpiryAt)
 	}
-	// 官网「余额」「已消费」两列的数据源（保留上游原始精度，展示层按官网口径 ceil 到 2 位）。
-	if got.Transactions[0].BalanceAfterCNY != 66.82454716 {
-		t.Errorf("tx0 balanceAfter = %v, want 66.82454716", got.Transactions[0].BalanceAfterCNY)
+	if got.Total != 2 || got.Page != 1 || got.PageSize != 50 {
+		t.Errorf("pagination = total %d page %d pageSize %d, want 2/1/50", got.Total, got.Page, got.PageSize)
 	}
-	if got.Transactions[0].DebtDeltaCNY != -1.17545284 {
-		t.Errorf("tx0 debtDelta = %v, want -1.17545284", got.Transactions[0].DebtDeltaCNY)
+	if len(got.Credits) != 2 {
+		t.Fatalf("credits len = %d, want 2", len(got.Credits))
 	}
-	if got.Transactions[1].BalanceAfterCNY != -1.17545284 {
-		t.Errorf("tx1 balanceAfter = %v, want -1.17545284", got.Transactions[1].BalanceAfterCNY)
+	first := got.Credits[0]
+	if first.SourceLabel != "实名认证奖励" || first.IsPrincipal {
+		t.Errorf("credit0 = %+v, want 实名认证奖励 非本金", first)
 	}
-	// 「实际入账」= giftDelta + rechargeDelta（净额，抵扣欠费后 68 − 1.17545284 = 66.82454716）。
-	if got.Transactions[0].GiftDeltaCNY != 66.82454716 {
-		t.Errorf("tx0 giftDelta = %v, want 66.82454716", got.Transactions[0].GiftDeltaCNY)
+	if first.GrantedCNY != 18 || first.ConsumedCNY != 14.79857276 || first.RemainingCNY != 3.20142724 {
+		t.Errorf("credit0 amounts = %v/%v/%v, want 18/14.79857276/3.20142724",
+			first.GrantedCNY, first.ConsumedCNY, first.RemainingCNY)
 	}
-	if got.Transactions[0].RechargeDeltaCNY != 0 {
-		t.Errorf("tx0 rechargeDelta = %v, want 0", got.Transactions[0].RechargeDeltaCNY)
+	if first.Status != "ACTIVE" || first.GrantedAt != "2026-09-24T12:03:46.813Z" {
+		t.Errorf("credit0 status/grantedAt = %q/%q", first.Status, first.GrantedAt)
+	}
+	if first.ExpiresAt == nil || *first.ExpiresAt != "2026-10-25T12:03:46.813Z" {
+		t.Errorf("credit0 expiresAt = %v, want 2026-10-25T12:03:46.813Z", first.ExpiresAt)
 	}
 	// 数字格式（非字符串）金额同样要能解析。
-	if got.Transactions[1].AmountCNY != 0.019507 {
-		t.Errorf("tx1 amount = %v, want 0.019507", got.Transactions[1].AmountCNY)
+	if got.Credits[1].GrantedCNY != 68 || got.Credits[1].Status != "USED_UP" {
+		t.Errorf("credit1 = %+v, want granted 68 / USED_UP", got.Credits[1])
 	}
-	if got.Transactions[1].ExpiresAt != nil {
-		t.Errorf("tx1 expiresAt = %v, want nil", *got.Transactions[1].ExpiresAt)
+	// 本金行：单独返回、无 grantedAt（官网显示「长期有效」）。
+	if got.RechargePrincipal == nil {
+		t.Fatal("recharge principal = nil, want a row")
 	}
-	if got.Transactions[1].Direction != "DEBIT" || got.Transactions[1].Type != "MODEL_USAGE" {
-		t.Errorf("tx1 type/direction = %s/%s, want MODEL_USAGE/DEBIT",
-			got.Transactions[1].Type, got.Transactions[1].Direction)
+	if !got.RechargePrincipal.IsPrincipal || got.RechargePrincipal.GrantedAt != "" {
+		t.Errorf("principal = %+v, want IsPrincipal 且无 grantedAt", got.RechargePrincipal)
+	}
+	if got.RechargePrincipal.GrantedCNY != 128 || got.RechargePrincipal.Status != "ACTIVE" {
+		t.Errorf("principal amounts = %v/%s, want 128/ACTIVE",
+			got.RechargePrincipal.GrantedCNY, got.RechargePrincipal.Status)
 	}
 }
 
@@ -132,13 +151,13 @@ func TestFetchTokenRhythmWalletAPIError(t *testing.T) {
 
 // swapTokenRhythmWalletURLs 把三个上游 URL 指向 mock server，返回恢复函数。
 func swapTokenRhythmWalletURLs(base string) func() {
-	oldSummary, oldTx, oldUsage := tokenRhythmWalletSummaryURL, tokenRhythmWalletTransactionsURL, tokenRhythmUsageSummaryURL
+	oldSummary, oldCredits, oldUsage := tokenRhythmWalletSummaryURL, tokenRhythmWalletCreditsURL, tokenRhythmUsageSummaryURL
 	tokenRhythmWalletSummaryURL = base + "/api/wallet/summary"
-	tokenRhythmWalletTransactionsURL = base + "/api/wallet/transactions"
+	tokenRhythmWalletCreditsURL = base + "/api/wallet/expiring-credits"
 	tokenRhythmUsageSummaryURL = base + "/api/usage-summary"
 	return func() {
 		tokenRhythmWalletSummaryURL = oldSummary
-		tokenRhythmWalletTransactionsURL = oldTx
+		tokenRhythmWalletCreditsURL = oldCredits
 		tokenRhythmUsageSummaryURL = oldUsage
 	}
 }

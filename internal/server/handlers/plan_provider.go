@@ -66,9 +66,10 @@ func getTokenPlanCategories(c *gin.Context) {
 	resp.Success(c, categories)
 }
 
-// getTokenRhythmWallet 基元律动钱包明细（资金明细）。
-// 对应官网「用户中心 → 费用管理 → 钱包明细」，只对 tokenrhythm 类 balance provider 生效；
-// 明细取上游首屏 20 条（不分页），汇总口径见 planprovider.TokenRhythmWallet 注释。
+// getTokenRhythmWallet 基元律动资金明细。
+// 口径与官网「用户中心 → 账户」页（/account/account）的「资金明细」表一致：
+// 赠送额度账本（逐笔赠金 + 充值本金行，含已用尽/已到期历史）+ 账户余额 + 累计消费；
+// 只对 tokenrhythm 类 balance provider 生效，字段见 planprovider.TokenRhythmWallet 注释。
 func getTokenRhythmWallet(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {

@@ -10,7 +10,12 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { useTokenRhythmWallet, type PlanProvider } from '@/api/endpoints/plan-provider';
+import { Hint } from '@/components/ui/hint';
+import {
+    useTokenRhythmWallet,
+    type PlanProvider,
+    type TokenRhythmWalletCredit,
+} from '@/api/endpoints/plan-provider';
 
 // 金额格式：与基元律动官网一致 —— 分位向上取整（ceil 到 2 位小数）。
 // 依据（官网显示值 vs 上游原始值实测）：
@@ -28,42 +33,41 @@ const formatMoney = (val: number) => {
     });
 };
 
-// signedMoney 带符号金额（0 时不显示 +0.00/-0.00）
-const signedMoney = (val: number, sign: '+' | '-') => (val > 0 ? `${sign}${formatMoney(val)}` : formatMoney(0));
-
-// M月D日 HH:mm
-const formatDateTime = (val: string | null) => {
+// YYYY/MM/DD（官网资金明细「有效期」列的写法，北京时间）
+const formatDate = (val: string | null | undefined) => {
     if (!val) return '';
     const d = new Date(val);
     if (Number.isNaN(d.getTime())) return val;
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getMonth() + 1}月${d.getDate()}日 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return new Intl.DateTimeFormat('zh-CN', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    })
+        .format(d)
+        .replaceAll('-', '/');
 };
 
-// YYYY-MM-DD
-const formatDate = (val: string | null) => {
-    if (!val) return '';
-    const d = new Date(val);
-    if (Number.isNaN(d.getTime())) return val;
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
-
-// 明细列宽（桌面端 7 列）：时间 | 类型 | 到账金额 | 已消费 | 余额 | 状态 | 过期时间
-const GRID_COLS = 'grid-cols-[132px_1fr_84px_76px_88px_60px_96px]';
+// 明细列宽（桌面端 6 列）：来源 | 到账金额 | 已消费 | 剩余可用 | 状态 | 有效期
+const GRID_COLS = 'grid-cols-[minmax(0,1fr)_92px_92px_92px_76px_168px]';
 
 /**
  * TokenRhythmWalletDialog 基元律动「资金明细」弹窗。
  *
- * 数据源：后端 /api/v1/plan-provider/wallet/transactions/:id（代理基元律动
- * wallet/summary + wallet/transactions + usage-summary）。
- * 只在弹窗打开时拉取，展示上游首屏 20 条（不分页）。
+ * 数据源与官网「用户中心 → 账户」页（/account/account）的「资金明细」表一致：
+ * 后端 /api/v1/plan-provider/wallet/transactions/:id 代理
+ * wallet/summary（账户余额）+ wallet/expiring-credits（赠送额度账本：逐笔赠金 + 充值本金行）
+ * + usage-summary（累计消费）。
  *
- * 口径（2026-09-24 与用户确认）：
- *   - 顶部汇总：累计到账 = 官方赠送总额；累计消费 = 累计成本（与卡片「已用额度」同源）
- *   - 明细只列到账/赠送类记录（CREDIT），模型调用扣费等消费记录不进本弹窗
- *   - 每行金额三项：到账金额（amountCny）｜已消费（该笔到账中抵扣欠费的部分 |debtDeltaCny|）
- *     ｜实际入账（giftDeltaCny + rechargeDeltaCny，抵扣欠费后的净入账）
+ * ⚠️ 不要改回 wallet/transactions 全量流水口径：那个接口按时间倒序返回**所有**余额变动，
+ * 活跃账号首屏 20 条几乎全是「模型调用扣费」，到账记录被埋在数百条之后（实测 635 / 220 条），
+ * 过滤 DEBIT 后列表为空（曾长期显示「暂无资金明细」）。赠送额度账本本身就是逐笔到账列表。
+ *
+ * 口径（与官网账户页一致）：
+ *   - 顶部：剩余可用（summary.availableBalanceCny）、累计获赠（账本 cumulativeGiftGrantedCny）、
+ *     累计消费（usage-summary.costCny，与卡片「已用额度」同源）
+ *   - 明细：来源 / 到账金额 / 已消费 / 剩余可用 / 状态 / 有效期，含已用尽与已到期的历史记录
+ *   - 充值本金行仅当 granted_cny > 0 时展示，有效期显示「长期有效」
  */
 export function TokenRhythmWalletDialog({
     provider,
@@ -78,55 +82,79 @@ export function TokenRhythmWalletDialog({
     // 未打开 / 无 provider 时传 null → hook 不发请求
     const { data, isLoading, error } = useTokenRhythmWallet(open && provider ? provider.id : null);
 
-    // 类型映射；未知枚举回退 description（上游中文说明）再回退原文，避免新增类型被吞掉
-    const typeLabel = (type: string, description: string) => {
-        switch (type) {
-            case 'INVITE_REWARD':
-                return t('plan.wallet.typeInviteReward') || '邀请奖励';
-            case 'MODEL_USAGE':
-                return t('plan.wallet.typeModelUsage') || '模型调用扣费';
+    // 来源标签：已知枚举走 i18n，未知回退上游中文标签（source_label），再回退 source
+    const sourceLabel = (credit: TokenRhythmWalletCredit) => {
+        switch (credit.source) {
             case 'RECHARGE':
-                return t('plan.wallet.typeRecharge') || '充值';
-            case 'GIFT':
-                return t('plan.wallet.typeGift') || '赠送';
-            case 'REFUND':
-                return t('plan.wallet.typeRefund') || '退款';
-            case 'OTHER':
-                return description || t('plan.wallet.typeOther') || '其他';
+            case 'TOPUP':
+                return t('plan.wallet.sourceRecharge') || '充值本金';
+            case 'INITIAL_BALANCE':
+                return t('plan.wallet.sourceInitialBalance') || '新用户赠送额度';
+            case 'IDENTITY_VERIFICATION_REWARD':
+                return t('plan.wallet.sourceIdentityReward') || '实名认证奖励';
+            case 'INVITE_REWARD':
+                return t('plan.wallet.sourceInviteReward') || '邀请奖励';
             default:
-                return description || type || '-';
+                return credit.source_label || credit.source || '-';
         }
     };
 
-    // 状态映射；未知枚举回退原文
+    // 状态映射（官网：生效中 / 暂停中 / 已用尽 / 已到期）；未知枚举回退原文
     const statusLabel = (status: string) => {
         switch (status) {
-            case 'POSTED':
-                return t('plan.wallet.statusPosted') || '已到账';
-            case 'PENDING':
-                return t('plan.wallet.statusPending') || '处理中';
+            case 'ACTIVE':
+                return t('plan.wallet.statusActive') || '生效中';
+            case 'PAUSED':
+                return t('plan.wallet.statusPaused') || '暂停中';
+            case 'USED_UP':
+                return t('plan.wallet.statusUsedUp') || '已用尽';
             case 'EXPIRED':
-                return t('plan.wallet.statusExpired') || '已过期';
-            case 'FAILED':
-                return t('plan.wallet.statusFailed') || '失败';
-            case 'VOIDED':
-                return t('plan.wallet.statusVoided') || '已作废';
+                return t('plan.wallet.statusExpired') || '已到期';
             default:
                 return status || '-';
         }
     };
 
-    // 只保留到账/赠送类记录：模型调用扣费等消费记录（direction=DEBIT）不混进资金明细
-    const transactions = (data?.transactions ?? []).filter((tx) => tx.direction !== 'DEBIT');
+    const statusTone = (status: string) => {
+        switch (status) {
+            case 'ACTIVE':
+                return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400';
+            case 'PAUSED':
+                return 'bg-amber-500/10 text-amber-600 dark:text-amber-400';
+            case 'EXPIRED':
+                return 'bg-destructive/10 text-destructive';
+            default:
+                return 'bg-muted text-muted-foreground';
+        }
+    };
+
+    // 行序与官网一致：充值本金行（仅当有金额）插在最前，其后是逐笔赠金（最新在前）。
+    const principal = data?.recharge_principal ?? null;
+    const showPrincipal = !!principal && principal.granted_cny > 0;
+    const rows: TokenRhythmWalletCredit[] = [
+        ...(showPrincipal && principal ? [principal] : []),
+        ...(data?.credits ?? []),
+    ];
+    const totalRows = (data?.total ?? 0) + (showPrincipal ? 1 : 0);
+
+    const validityText = (credit: TokenRhythmWalletCredit) => {
+        if (!credit.granted_at) return t('plan.wallet.principalLongTerm') || '长期有效';
+        const from = formatDate(credit.granted_at);
+        const to = credit.expires_at ? formatDate(credit.expires_at) : '—';
+        return `${from} 至 ${to}`;
+    };
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-3xl">
+            <DialogContent className="sm:max-w-4xl">
                 <DialogHeader>
-                    <DialogTitle>{t('plan.wallet.title') || '资金明细'}</DialogTitle>
+                    <DialogTitle className="flex items-center gap-1.5">
+                        {t('plan.wallet.title') || '资金明细'}
+                        <Hint text={t('plan.wallet.hint')} side="bottom" />
+                    </DialogTitle>
                     <DialogDescription>
                         {provider?.name ? `${provider.name} · ` : ''}
-                        {t('plan.wallet.desc') || '基元律动控制台钱包余额变动'}
+                        {t('plan.wallet.desc') || '基元律动账户余额与逐笔赠金'}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -144,14 +172,22 @@ export function TokenRhythmWalletDialog({
                     </div>
                 ) : (
                     <>
-                        {/* 汇总：累计到账（官方赠送总额）/ 累计消费（累计成本） */}
-                        <div className="grid grid-cols-2 gap-3">
+                        {/* 汇总：剩余可用 / 累计获赠 / 累计消费 */}
+                        <div className="grid grid-cols-3 gap-3">
                             <div className="rounded-lg bg-muted/50 p-3">
                                 <p className="mb-1 text-xs text-muted-foreground">
-                                    {t('plan.wallet.totalReceived') || '累计到账'}
+                                    {t('plan.wallet.balanceAvailable') || '剩余可用'}
+                                </p>
+                                <p className="text-lg font-bold tabular-nums">
+                                    {formatMoney(data?.available_balance_cny ?? 0)}
+                                </p>
+                            </div>
+                            <div className="rounded-lg bg-muted/50 p-3">
+                                <p className="mb-1 text-xs text-muted-foreground">
+                                    {t('plan.wallet.totalReceived') || '累计获赠'}
                                 </p>
                                 <p className="text-lg font-bold tabular-nums text-emerald-600">
-                                    {signedMoney(data?.total_received_cny ?? 0, '+')}
+                                    +{formatMoney(data?.total_received_cny ?? 0)}
                                 </p>
                             </div>
                             <div className="rounded-lg bg-muted/50 p-3">
@@ -159,12 +195,12 @@ export function TokenRhythmWalletDialog({
                                     {t('plan.wallet.totalConsumed') || '累计消费'}
                                 </p>
                                 <p className="text-lg font-bold tabular-nums text-destructive">
-                                    {signedMoney(data?.total_consumed_cny ?? 0, '-')}
+                                    -{formatMoney(data?.total_consumed_cny ?? 0)}
                                 </p>
                             </div>
                         </div>
 
-                        {/* 明细列表：桌面 7 列 / 移动端堆叠 */}
+                        {/* 明细表：桌面 6 列 / 移动端堆叠 */}
                         <div className="overflow-hidden rounded-lg border border-border">
                             <div
                                 className={cn(
@@ -172,88 +208,118 @@ export function TokenRhythmWalletDialog({
                                     GRID_COLS,
                                 )}
                             >
-                                <span>{t('plan.wallet.colTime') || '时间'}</span>
-                                <span>{t('plan.wallet.colType') || '类型'}</span>
-                                <span className="text-right">{t('plan.wallet.colReceived') || '到账金额'}</span>
+                                <span>{t('plan.wallet.colSource') || '来源'}</span>
+                                <span className="text-right">{t('plan.wallet.colGranted') || '到账金额'}</span>
                                 <span className="text-right">{t('plan.wallet.colConsumed') || '已消费'}</span>
-                                <span className="text-right">{t('plan.wallet.colNetCredit') || '实际入账'}</span>
-                                <span>{t('plan.wallet.colStatus') || '状态'}</span>
-                                <span>{t('plan.wallet.colExpires') || '过期时间'}</span>
+                                <span className="text-right">{t('plan.wallet.colRemaining') || '剩余可用'}</span>
+                                <span className="text-center">{t('plan.wallet.colStatus') || '状态'}</span>
+                                <span className="text-right">{t('plan.wallet.colValidity') || '有效期'}</span>
                             </div>
                             <div className="max-h-[46vh] divide-y divide-border overflow-y-auto">
-                                {transactions.length === 0 ? (
+                                {rows.length === 0 ? (
                                     <p className="py-8 text-center text-sm text-muted-foreground">
                                         {t('plan.wallet.empty') || '暂无资金明细'}
                                     </p>
                                 ) : (
-                                    transactions.map((tx) => {
-                                        // 已消费 = 该笔到账中用于抵扣欠费的部分（上游为负值）
-                                        const debtUsed = Math.abs(tx.debt_delta_cny ?? 0);
-                                        // 实际入账 = 赠送余额变动 + 充值余额变动（抵扣欠费后的净额，如 68 − 1.18 = 66.83）
-                                        const netCredited =
-                                            (tx.gift_delta_cny ?? 0) + (tx.recharge_delta_cny ?? 0);
-                                        return (
-                                            <div key={tx.transaction_id} className="px-3 py-2 hover:bg-muted/30">
-                                                <div
-                                                    className={cn(
-                                                        'hidden items-center gap-2 text-xs sm:grid',
-                                                        GRID_COLS,
-                                                    )}
-                                                >
-                                                    <span className="tabular-nums text-muted-foreground">
-                                                        {formatDateTime(tx.occurred_at)}
+                                    rows.map((credit) => (
+                                        <div key={credit.id} className="px-3 py-2 hover:bg-muted/30">
+                                            <div
+                                                className={cn(
+                                                    'hidden items-center gap-2 text-xs sm:grid',
+                                                    GRID_COLS,
+                                                )}
+                                            >
+                                                <span className="flex min-w-0 items-center gap-1.5">
+                                                    <span
+                                                        className={cn(
+                                                            'size-1.5 shrink-0 rounded-full',
+                                                            credit.is_principal ? 'bg-primary' : 'bg-emerald-500',
+                                                        )}
+                                                    />
+                                                    <span className="truncate">{sourceLabel(credit)}</span>
+                                                </span>
+                                                <span className="text-right font-medium tabular-nums text-emerald-600">
+                                                    +{formatMoney(credit.granted_cny)}
+                                                </span>
+                                                <span className="text-right tabular-nums text-destructive">
+                                                    {credit.consumed_cny > 0
+                                                        ? `-${formatMoney(credit.consumed_cny)}`
+                                                        : '—'}
+                                                </span>
+                                                <span className="text-right font-medium tabular-nums">
+                                                    {formatMoney(credit.remaining_cny)}
+                                                </span>
+                                                <span className="text-center">
+                                                    <span
+                                                        className={cn(
+                                                            'inline-block rounded px-1.5 py-0.5 text-[11px] leading-tight',
+                                                            statusTone(credit.status),
+                                                        )}
+                                                    >
+                                                        {statusLabel(credit.status)}
                                                     </span>
-                                                    <span className="truncate">{typeLabel(tx.type, tx.description)}</span>
-                                                    <span className="text-right font-medium tabular-nums text-emerald-600">
-                                                        {signedMoney(tx.amount_cny, '+')}
+                                                </span>
+                                                <span className="text-right tabular-nums text-muted-foreground">
+                                                    {validityText(credit)}
+                                                </span>
+                                            </div>
+
+                                            {/* 移动端：堆叠卡片 */}
+                                            <div className="space-y-1.5 sm:hidden">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className="flex min-w-0 items-center gap-1.5">
+                                                        <span
+                                                            className={cn(
+                                                                'size-1.5 shrink-0 rounded-full',
+                                                                credit.is_principal
+                                                                    ? 'bg-primary'
+                                                                    : 'bg-emerald-500',
+                                                            )}
+                                                        />
+                                                        <span className="truncate text-sm font-medium">
+                                                            {sourceLabel(credit)}
+                                                        </span>
                                                     </span>
-                                                    <span className="text-right tabular-nums text-destructive">
-                                                        {debtUsed > 0 ? formatMoney(debtUsed) : '—'}
-                                                    </span>
-                                                    <span className="text-right font-medium tabular-nums">
-                                                        {formatMoney(netCredited)}
-                                                    </span>
-                                                    <span>{statusLabel(tx.status)}</span>
-                                                    <span className="tabular-nums text-muted-foreground">
-                                                        {tx.expires_at ? formatDate(tx.expires_at) : '—'}
+                                                    <span
+                                                        className={cn(
+                                                            'shrink-0 rounded px-1.5 py-0.5 text-[11px] leading-tight',
+                                                            statusTone(credit.status),
+                                                        )}
+                                                    >
+                                                        {statusLabel(credit.status)}
                                                     </span>
                                                 </div>
-                                                <div className="space-y-1 sm:hidden">
-                                                    <div className="flex items-center justify-between gap-2">
-                                                        <span className="truncate text-sm">
-                                                            {typeLabel(tx.type, tx.description)}
-                                                        </span>
-                                                        <span className="shrink-0 text-sm font-semibold tabular-nums text-emerald-600">
-                                                            {signedMoney(tx.amount_cny, '+')}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
-                                                        <span>{formatDateTime(tx.occurred_at)}</span>
-                                                        <span>{statusLabel(tx.status)}</span>
-                                                        {debtUsed > 0 && (
-                                                            <span>
-                                                                {t('plan.wallet.colConsumed') || '已消费'}{' '}
-                                                                {formatMoney(debtUsed)}
-                                                            </span>
-                                                        )}
-                                                        <span>
-                                                            {t('plan.wallet.colNetCredit') || '实际入账'}{' '}
-                                                            {formatMoney(netCredited)}
-                                                        </span>
-                                                        {tx.expires_at && (
-                                                            <span>
-                                                                {t('plan.wallet.expiresShort') || '过期'}{' '}
-                                                                {formatDate(tx.expires_at)}
-                                                            </span>
-                                                        )}
-                                                    </div>
+                                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs tabular-nums text-muted-foreground">
+                                                    <span className="font-medium text-emerald-600">
+                                                        {t('plan.wallet.colGranted') || '到账金额'} +
+                                                        {formatMoney(credit.granted_cny)}
+                                                    </span>
+                                                    <span className="text-destructive">
+                                                        {t('plan.wallet.colConsumed') || '已消费'}{' '}
+                                                        {credit.consumed_cny > 0
+                                                            ? `-${formatMoney(credit.consumed_cny)}`
+                                                            : '—'}
+                                                    </span>
+                                                    <span className="text-foreground/80">
+                                                        {t('plan.wallet.colRemaining') || '剩余可用'}{' '}
+                                                        {formatMoney(credit.remaining_cny)}
+                                                    </span>
+                                                </div>
+                                                <div className="text-xs text-muted-foreground">
+                                                    {validityText(credit)}
                                                 </div>
                                             </div>
-                                        );
-                                    })
+                                        </div>
+                                    ))
                                 )}
                             </div>
                         </div>
+
+                        <p className="text-right text-xs text-muted-foreground">
+                            {data && data.total + (showPrincipal ? 1 : 0) > rows.length
+                                ? t('plan.wallet.countLimited', { count: totalRows, shown: rows.length })
+                                : t('plan.wallet.count', { count: totalRows })}
+                        </p>
                     </>
                 )}
             </DialogContent>

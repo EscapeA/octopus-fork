@@ -192,27 +192,26 @@ export function useDeletePlanProvider() {
 
 // --- 基元律动钱包明细（资金明细） ---
 
-// 单条余额变动记录（后端 planprovider.TokenRhythmWalletTransaction）
-export interface TokenRhythmWalletTransaction {
-    transaction_id: string;
-    // INVITE_REWARD / MODEL_USAGE / RECHARGE / OTHER ...
-    type: string;
-    // CREDIT 到账 / DEBIT 支出
-    direction: string;
+// 单笔到账额度（后端 planprovider.TokenRhythmWalletCredit）。
+// 口径与官网「账户」页资金明细表一致：来源 / 到账金额 / 已消费 / 剩余可用 / 状态 / 有效期。
+export interface TokenRhythmWalletCredit {
+    id: string;
+    // RECHARGE（充值本金）/ IDENTITY_VERIFICATION_REWARD / INVITE_REWARD / INITIAL_BALANCE ...
+    source: string;
+    // 上游中文标签：充值本金 / 实名认证奖励 / 邀请奖励 ...
+    source_label: string;
+    granted_cny: number;
+    consumed_cny: number;
+    remaining_cny: number;
+    // ACTIVE 生效中 / PAUSED 暂停中 / USED_UP 已用尽 / EXPIRED 已到期
     status: string;
-    amount_cny: number;
-    description: string;
-    occurred_at: string;
+    // 本金行上游不返回 → 空串，前端显示「长期有效」
+    granted_at: string;
     expires_at: string | null;
-    // 该笔变动后余额（账户总余额）；该笔到账中抵扣欠费的部分（「已消费」列 = |debt_delta_cny|）
-    balance_after_cny: number;
-    debt_delta_cny: number;
-    // 该笔带来的赠送 / 充值余额净变动（「实际入账」列 = 两者之和）
-    gift_delta_cny: number;
-    recharge_delta_cny: number;
+    is_principal: boolean;
 }
 
-// 钱包明细查询结果（后端 planprovider.TokenRhythmWallet）
+// 资金明细查询结果（后端 planprovider.TokenRhythmWallet）
 export interface TokenRhythmWallet {
     currency: string;
     available_balance_cny: number;
@@ -220,11 +219,20 @@ export interface TokenRhythmWallet {
     recharge_balance_cny: number;
     debt_balance_cny: number;
     frozen_balance_cny: number;
-    // 累计到账 = 官方赠送总额；累计消费 = 累计成本（与卡片「已用额度」同源）
+    // 累计获赠（账本 cumulativeGiftGrantedCny）；累计消费 = usage-summary 成本（与卡片「已用额度」同源）
     total_received_cny: number;
     total_consumed_cny: number;
+    // 即将到期余额与最近到期时间（账本 summary）
+    expiring_balance_cny: number;
+    next_expiry_at: string;
     as_of: string;
-    transactions: TokenRhythmWalletTransaction[];
+    // 账本条目总数（不含本金行）；credits 为本次返回的一页（最多 50 笔，最新在前）
+    total: number;
+    page: number;
+    page_size: number;
+    credits: TokenRhythmWalletCredit[];
+    // 充值本金行（granted_cny > 0 时官网才展示）
+    recharge_principal: TokenRhythmWalletCredit | null;
 }
 
 // useTokenRhythmWallet 拉取基元律动钱包明细。
