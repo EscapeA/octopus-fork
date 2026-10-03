@@ -1193,21 +1193,23 @@ export function ChannelForm({
             </section>
 
             <section className={cn(sectionClassName, isCreateLayout && 'md:col-span-2')}>
-                <SectionHeader icon={Cable} title={t('baseUrlConfig')} hint={t('baseUrlHint')} />
-                <div className="flex items-center justify-end gap-2">
-                    <Badge variant="secondary" className="rounded-full">
-                        {formData.base_urls.length}
-                    </Badge>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleAddBaseUrl}
-                        className="h-10 rounded-lg px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-                    >
-                        <Plus className="h-3 w-3 mr-1" />
-                        {t('add')}
-                    </Button>
+                <div className="flex min-w-0 items-center justify-between gap-2">
+                    <SectionHeader icon={Cable} title={t('baseUrlConfig')} hint={t('baseUrlHint')} />
+                    <div className="flex shrink-0 items-center gap-2">
+                        <Badge variant="secondary" className="rounded-full">
+                            {formData.base_urls.length}
+                        </Badge>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleAddBaseUrl}
+                            className="h-10 rounded-lg px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                        >
+                            <Plus className="h-3 w-3 mr-1" />
+                            {t('add')}
+                        </Button>
+                    </div>
                 </div>
                 <div className="space-y-2">
                     {(formData.base_urls ?? []).map((u, idx) => (
@@ -1267,13 +1269,13 @@ export function ChannelForm({
             </section>
 
             <section className={cn(sectionClassName, isCreateLayout && 'md:col-span-2')}>
-                <SectionHeader icon={Layers3} title={t('modelConfig')} />
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex min-w-0 items-center justify-between gap-2">
+                    <SectionHeader icon={Layers3} title={t('modelConfig')} />
                     <MorphingDialog onOpen={handleRefreshModels}>
                         <MorphingDialogTrigger
                             ariaLabel={t('modelRefresh')}
                             disabled={!formData.base_urls?.[0]?.url || !effectiveKey || isFetchingModels}
-                            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-border px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-border px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         >
                             <RefreshCw className={`size-4 ${isFetchingModels ? 'animate-spin' : ''}`} />
                             {t('modelRefresh')}
@@ -1353,36 +1355,38 @@ export function ChannelForm({
 
             {formData.pool_id === 0 && (
             <section className={cn(sectionClassName, isCreateLayout && 'md:col-span-2')}>
-                <SectionHeader icon={KeyRound} title={t('apiKeyConfig')} />
-                <div className="flex items-center justify-end gap-2">
-                    <Badge variant="secondary" className="rounded-full">
-                        {formData.keys.length}
-                    </Badge>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleTestChannel}
-                        disabled={testChannel.isPending || !(formData.base_urls?.some((u) => u.url.trim()) && formData.keys?.some((k) => k.channel_key.trim()))}
-                        className="h-10 rounded-lg px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-                    >
-                        {testChannel.isPending ? (
-                            <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                        ) : (
-                            <FlaskConical className="h-3 w-3 mr-1" />
-                        )}
-                        {t('test.button')}
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleAddKey}
-                        className="h-10 rounded-lg px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-                    >
-                        <Plus className="h-3 w-3 mr-1" />
-                        {t('add')}
-                    </Button>
+                <div className="flex min-w-0 items-center justify-between gap-2">
+                    <SectionHeader icon={KeyRound} title={t('apiKeyConfig')} />
+                    <div className="flex shrink-0 items-center gap-2">
+                        <Badge variant="secondary" className="rounded-full">
+                            {formData.keys.length}
+                        </Badge>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleTestChannel}
+                            disabled={testChannel.isPending || !(formData.base_urls?.some((u) => u.url.trim()) && formData.keys?.some((k) => k.channel_key.trim()))}
+                            className="h-10 rounded-lg px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                        >
+                            {testChannel.isPending ? (
+                                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                            ) : (
+                                <FlaskConical className="h-3 w-3 mr-1" />
+                            )}
+                            {t('test.button')}
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleAddKey}
+                            className="h-10 rounded-lg px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                        >
+                            <Plus className="h-3 w-3 mr-1" />
+                            {t('add')}
+                        </Button>
+                    </div>
                 </div>
                 <div className="space-y-2">
                     {(formData.keys ?? []).map((k, idx) => (
