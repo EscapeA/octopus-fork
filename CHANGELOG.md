@@ -16,6 +16,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Continue saving independent caches after an earlier save failure.
 - Abort release builds on platform or artifact failures, freeze frontend dependencies, and test release failure handling in CI.
 
+## [v2.6.2-fix7] - 2026-10-04
+
+### Fixed
+
+- Show the deduplicated union of models from all enabled keys in the channel model picker, preserving successful results when another key fails.
+- Keep model refresh loading indicators and result counts consistent with per-key fetching.
+- Widen the home ranking panel and align its height with the activity heatmap, with internal list scrolling and fully visible long names and sorting tabs.
+
+### Changed
+
+- Add per-key select-all and deselect-all controls to the channel model picker, sharing selection state with the all-models view.
+- Align Base URL, model, and API key actions with their section headings in channel creation and editing forms.
+- Align application, frontend package, and Docker Compose versions to v2.6.2-fix7.
+
 ## [v2.6.2-fix6] - 2026-10-03
 
 ### Fixed
