@@ -94,6 +94,14 @@ const (
 // 账号走 Cloud Code Assist（cloudcode-pa）而非官方 Generative Language API。
 const OAuthTypeCodeAssist = "code_assist"
 
+// OAuthTypeAIStudio 是 PoolAccountExtra.OAuthType 的取值，标记 gemini OAuth 账号
+// 走官方 Generative Language API（AI Studio 模式，免 project_id）。
+const OAuthTypeAIStudio = "ai_studio"
+
+// OAuthTypeGoogleOne 是 PoolAccountExtra.OAuthType 的取值，标记 Google One 渠道
+// 授权的 gemini OAuth 账号。接受并存储该值；出站回落 code_assist 行为（不硬拒）。
+const OAuthTypeGoogleOne = "google_one"
+
 // PoolAccountExtra 平台附加字段（Extra JSON 反序列化后的结构）
 // 敏感键（含 key/token/secret/cookie 字样的 header value）在写库前单独脱敏存储，
 // 但本 struct 只承载平台标识与路由相关字段，不直接放凭据。
@@ -280,14 +288,20 @@ func (c PoolCredential) EffectiveKeyWithExtra(platform string, extra PoolAccount
 			})
 			return string(b)
 		}
-		// gemini 平台的 OAuth 账号走 Cloud Code Assist：出站需要 project_id，
-		// 且必须与官方 API key 区分开（后者用 ?key=，前者用 Bearer）。
-		// 裸 access_token 承载不了这两点，故与 openai 一样透传 JSON。
+		// gemini 平台的 OAuth 账号走 OAuth 出站：出站需要 oauth_type（决定
+		// cloudcode-pa 还是官方 /v1beta 端点）与 project_id，且必须与官方
+		// API key 区分开（后者用 ?key=，前者用 Bearer）。
+		// B3-#5: 透传 extra.OAuthType（ai_studio/google_one 等）；空值回落
+		// code_assist，保持存量账号行为不变。
 		if platform == PoolPlatformGemini {
+			oauthType := extra.OAuthType
+			if oauthType == "" {
+				oauthType = OAuthTypeCodeAssist
+			}
 			b, _ := json.Marshal(map[string]string{
 				"access_token": c.AccessToken,
 				"project_id":   extra.ProjectID,
-				"oauth_type":   OAuthTypeCodeAssist,
+				"oauth_type":   oauthType,
 			})
 			return string(b)
 		}

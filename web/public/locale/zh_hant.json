@@ -1400,7 +1400,9 @@
       "schedulerWeightReset": "調度權重：重置就緒",
       "schedulerWeightResetHint": "預設 0 關閉。大於 0 時，額度/重置窗口更快到來的賬號更優先，按 7 天地平線歸一化。",
       "schedulerWeightQuota": "調度權重：額度餘量",
-      "schedulerWeightQuotaHint": "預設 0 關閉。大於 0 時，剩餘額度佔比更高的賬號更優先，需要已同步額度快照。"
+      "schedulerWeightQuotaHint": "預設 0 關閉。大於 0 時，剩餘額度佔比更高的賬號更優先，需要已同步額度快照。",
+      "geminiClientSecret": "Gemini OAuth 客戶端密鑰",
+      "geminiClientSecretHint": "覆蓋內置 Gemini CLI OAuth 客戶端的 client secret。留空時依次回退：GEMINI_CLI_OAUTH_CLIENT_SECRET 環境變數 → 內置公開憑證。"
     },
     "proxyPool": {
       "title": "代理池"
@@ -3839,6 +3841,7 @@
       "tierId": "Tier ID",
       "oauthType": "OAuth Type",
       "oauthTypeNone": "無",
+      "oauthTypeHint": "選擇 gemini OAuth 出站模式。code_assist 走 Cloud Code Assist（需探測 project）；ai_studio 走官方 Generative Language API，免 project；google_one 回落 code_assist 行為。",
       "authMode": "Auth Mode",
       "authModeDefault": "默認",
       "tlsFingerprint": "TLS 指紋",

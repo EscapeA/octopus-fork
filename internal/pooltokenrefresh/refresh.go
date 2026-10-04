@@ -22,6 +22,8 @@ import (
 
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op/pool"
+	"github.com/lingyuins/octopus/internal/op/setting"
+	"github.com/lingyuins/octopus/internal/pkg/geminicli"
 	"github.com/lingyuins/octopus/internal/relay/poolscheduler"
 	"github.com/lingyuins/octopus/internal/utils/httpx"
 	"github.com/lingyuins/octopus/internal/utils/log"
@@ -393,11 +395,13 @@ func refreshOpenAI(ctx context.Context, client *http.Client, cred model.PoolCred
 }
 
 func refreshGemini(ctx context.Context, client *http.Client, cred model.PoolCredential) (model.PoolCredential, int64, error) {
-	clientID := "681255809395-oo8ft2oprdrnp9e3aqf6av3hmdib135j.apps.googleusercontent.com"
-	clientSecret := strings.TrimSpace(getEnvDefault("GEMINI_CLI_OAUTH_CLIENT_SECRET", ""))
-	if clientSecret == "" {
-		return cred, 0, fmt.Errorf("gemini refresh requires GEMINI_CLI_OAUTH_CLIENT_SECRET env")
-	}
+	// B3-#5: the client secret is resolved through a three-level fallback
+	// chain — settings (pool_gemini_client_secret) -> environment
+	// (GEMINI_CLI_OAUTH_CLIENT_SECRET) -> built-in public credential — so a
+	// deployment with zero configuration can still refresh gemini accounts.
+	// Both code_assist and ai_studio accounts share the same token endpoint.
+	clientID := geminicli.GeminiCLIOAuthClientID
+	clientSecret := geminiClientSecret()
 	form := url.Values{
 		"grant_type":    {"refresh_token"},
 		"client_id":     {clientID},
@@ -418,6 +422,31 @@ func refreshGemini(ctx context.Context, client *http.Client, cred model.PoolCred
 	}
 	expiresAt := time.Now().Unix() + r.ExpiresIn
 	return newCred, expiresAt, nil
+}
+
+// geminiSettingsSecretFunc resolves the settings-level Gemini OAuth client
+// secret override (pool_gemini_client_secret). Read failures degrade to ""
+// so the fallback chain continues; overridable in tests.
+var geminiSettingsSecretFunc = func() string {
+	v, err := setting.GetString(model.SettingKeyPoolGeminiClientSecret)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(v)
+}
+
+// geminiClientSecret resolves the Gemini OAuth client secret through the
+// B3-#5 fallback chain: settings > environment > built-in public credential.
+// The built-in constant guarantees a non-empty result, so refresh never fails
+// merely because no secret was configured.
+func geminiClientSecret() string {
+	if v := geminiSettingsSecretFunc(); v != "" {
+		return v
+	}
+	if v := strings.TrimSpace(getEnvDefault(geminicli.GeminiCLIOAuthClientSecretEnv, "")); v != "" {
+		return v
+	}
+	return geminicli.GeminiCLIOAuthClientSecret
 }
 
 func refreshGrok(ctx context.Context, client *http.Client, cred model.PoolCredential) (model.PoolCredential, int64, error) {

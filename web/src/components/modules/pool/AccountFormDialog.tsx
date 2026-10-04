@@ -202,11 +202,19 @@ export function AccountFormDialog({ poolId, account, open, onOpenChange }: Accou
         if (!platformSupportsOAuth(platform) || authorizing || isPending) return;
         setAuthorizing(true);
         try {
+            // B3-#5: gemini 的授权模式跟随 extra.oauth_type（ai_studio / code_assist），
+            // 空值由后端回落 code_assist；其他平台不带该参数。
+            const parsed = parseJsonObject(form.extra);
+            const oauthType = parsed.ok ? (parsed.value as PoolAccountExtra).oauth_type : undefined;
             // 先通过管理 API 发起 initiate（带 JWT），拿到 auth_url 后再跳转授权页。
             // 授权回调走既有流程创建账号；本弹窗手动保存仍要求凭据非空。
             const data = await apiClient.get<{ auth_url: string }>(
                 '/api/v1/pool/oauth/initiate',
-                { platform, pool_id: poolId },
+                {
+                    platform,
+                    pool_id: poolId,
+                    ...(platform === 'gemini' && oauthType ? { oauth_type: oauthType } : {}),
+                },
             );
             if (!data?.auth_url) {
                 throw new Error(t('oauthInitiateFailed'));
@@ -754,7 +762,10 @@ function ExtrasEditor({ platform, acctType, extra, onExtraChange, disabled, head
                         />
                     </div>
                     <div className="min-w-0">
-                        <Label htmlFor={`${prefix}-extras-oauth-type`} className="text-xs">{t('extras.oauthType')}</Label>
+                        <Label htmlFor={`${prefix}-extras-oauth-type`} className="text-xs">
+                            {t('extras.oauthType')}
+                            <Hint text={t('extras.oauthTypeHint')} />
+                        </Label>
                         <Select
                             value={toSelectSentinel(extra.oauth_type ?? '')}
                             onValueChange={(v) => onExtraChange({ oauth_type: fromSelectSentinel(v) })}
@@ -764,6 +775,7 @@ function ExtrasEditor({ platform, acctType, extra, onExtraChange, disabled, head
                             <SelectContent>
                                 <SelectItem value={SELECT_NONE_SENTINEL}>{t('extras.oauthTypeNone')}</SelectItem>
                                 <SelectItem value="code_assist">code_assist</SelectItem>
+                                <SelectItem value="ai_studio">ai_studio</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

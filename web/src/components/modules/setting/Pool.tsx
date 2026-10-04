@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Database, Layers, Timer, Gauge, Filter, TrendingDown } from 'lucide-react';
+import { Database, Layers, Timer, Gauge, Filter, TrendingDown, KeyRound } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Hint } from '@/components/ui/hint';
 import { Switch } from '@/components/ui/switch';
@@ -24,6 +24,7 @@ export function SettingPool() {
     const [stickyEscapeTTFTMs, setStickyEscapeTTFTMs] = useState('');
     const [weightReset, setWeightReset] = useState('');
     const [weightQuota, setWeightQuota] = useState('');
+    const [geminiSecret, setGeminiSecret] = useState('');
 
     const initInterval = useRef('');
     const initThreshold = useRef('');
@@ -35,6 +36,7 @@ export function SettingPool() {
     const initStickyEscapeTTFTMs = useRef('');
     const initWeightReset = useRef('');
     const initWeightQuota = useRef('');
+    const initGeminiSecret = useRef('');
 
     useEffect(() => {
         if (!settings) return;
@@ -49,6 +51,7 @@ export function SettingPool() {
         const st = get(SettingKey.PoolStickyEscapeTTFTMs);
         const wr = get(SettingKey.PoolSchedulerWeightReset);
         const wq = get(SettingKey.PoolSchedulerWeightQuota);
+        const gs = get(SettingKey.PoolGeminiClientSecret);
         queueMicrotask(() => {
             if (im !== undefined) { setIntervalMin(im); initInterval.current = im; }
             if (ft !== undefined) { setFailThreshold(ft); initThreshold.current = ft; }
@@ -60,6 +63,7 @@ export function SettingPool() {
             if (st !== undefined) { setStickyEscapeTTFTMs(st); initStickyEscapeTTFTMs.current = st; }
             if (wr !== undefined) { setWeightReset(wr); initWeightReset.current = wr; }
             if (wq !== undefined) { setWeightQuota(wq); initWeightQuota.current = wq; }
+            if (gs !== undefined) { setGeminiSecret(gs); initGeminiSecret.current = gs; }
         });
     }, [settings]);
 
@@ -75,6 +79,7 @@ export function SettingPool() {
                 else if (key === SettingKey.PoolStickyEscapeTTFTMs) initStickyEscapeTTFTMs.current = value;
                 else if (key === SettingKey.PoolSchedulerWeightReset) initWeightReset.current = value;
                 else if (key === SettingKey.PoolSchedulerWeightQuota) initWeightQuota.current = value;
+                else if (key === SettingKey.PoolGeminiClientSecret) initGeminiSecret.current = value;
             },
         });
     };
@@ -261,6 +266,24 @@ export function SettingPool() {
                             placeholder="0"
                         />
                     </div>
+                </div>
+
+                {/* Gemini OAuth client secret override (empty = env -> built-in credential) */}
+                <div>
+                    <label className="text-xs text-muted-foreground flex items-center gap-1">
+                        <KeyRound className="h-3 w-3" />
+                        {t('pool.geminiClientSecret')}
+                        <Hint text={t('pool.geminiClientSecretHint')} />
+                    </label>
+                    <Input
+                        className="mt-1"
+                        type="password"
+                        autoComplete="off"
+                        value={geminiSecret}
+                        onChange={(e) => setGeminiSecret(e.target.value)}
+                        onBlur={() => saveValue(SettingKey.PoolGeminiClientSecret, geminiSecret, initGeminiSecret.current)}
+                        placeholder="GOCSPX-..."
+                    />
                 </div>
             </div>
         </div>

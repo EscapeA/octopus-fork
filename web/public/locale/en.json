@@ -1444,7 +1444,9 @@
       "schedulerWeightReset": "Scheduler weight: reset readiness",
       "schedulerWeightResetHint": "Off by default (0). When > 0, accounts whose quota/reset window renews sooner are preferred, normalized over a 7-day horizon.",
       "schedulerWeightQuota": "Scheduler weight: quota headroom",
-      "schedulerWeightQuotaHint": "Off by default (0). When > 0, accounts with more remaining quota are preferred. Requires a synced quota snapshot."
+      "schedulerWeightQuotaHint": "Off by default (0). When > 0, accounts with more remaining quota are preferred. Requires a synced quota snapshot.",
+      "geminiClientSecret": "Gemini OAuth client secret",
+      "geminiClientSecretHint": "Overrides the client secret of the built-in Gemini CLI OAuth client. Empty = GEMINI_CLI_OAUTH_CLIENT_SECRET env -> built-in public credential."
     },
     "proxyPool": {
       "title": "Proxy Pool"
@@ -3839,6 +3841,7 @@
       "tierId": "Tier ID",
       "oauthType": "OAuth Type",
       "oauthTypeNone": "None",
+      "oauthTypeHint": "Selects the gemini OAuth outbound mode. code_assist uses Cloud Code Assist (project discovery); ai_studio uses the official Generative Language API without a project; google_one falls back to code_assist behavior.",
       "authMode": "Auth Mode",
       "authModeDefault": "Default",
       "tlsFingerprint": "TLS Fingerprint",

@@ -52,6 +52,7 @@ const (
 	SettingKeyPoolStickyEscapeTTFTMs               SettingKey = "pool_sticky_escape_ttft_ms"               // Pool sticky escape TTFT threshold (ms; escape when EWMA TTFT exceeds it; 0 disables the dimension)
 	SettingKeyPoolSchedulerWeightReset             SettingKey = "pool_scheduler_weight_reset"              // Pool EWMA factor weight: reset inverse-readiness factor (default 0 = off, no behavior change)
 	SettingKeyPoolSchedulerWeightQuota             SettingKey = "pool_scheduler_weight_quota"              // Pool EWMA factor weight: quota-headroom factor (default 0 = off, no behavior change)
+	SettingKeyPoolGeminiClientSecret               SettingKey = "pool_gemini_client_secret"                // Gemini OAuth client secret override for the built-in client (empty = env -> built-in public credential)
 	SettingKeyPoolHealthCheckEnabled               SettingKey = "pool_health_check_enabled"                // 号池账号健康巡检开关
 	SettingKeyPoolHealthCheckInterval              SettingKey = "pool_health_check_interval_minutes"       // 号池账号健康巡检间隔（分钟）
 	SettingKeyPoolHealthCheckFailThreshold         SettingKey = "pool_health_check_fail_threshold"         // 号池账号健康巡检失败阈值（连续 N 次后 SetError）
@@ -246,6 +247,7 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyPoolStickyEscapeTTFTMs, Value: "15000"},         // Default escape TTFT threshold 15000ms
 		{Key: SettingKeyPoolSchedulerWeightReset, Value: "0"},           // Default 0 = reset factor off (mirrors sub2api: default 0 keeps existing behavior)
 		{Key: SettingKeyPoolSchedulerWeightQuota, Value: "0"},           // Default 0 = quota-headroom factor off (also avoids per-candidate quota snapshot decryption)
+		{Key: SettingKeyPoolGeminiClientSecret, Value: ""},              // Default empty: env GEMINI_CLI_OAUTH_CLIENT_SECRET -> built-in public credential (B3-#5)
 		{Key: SettingKeyPoolHealthCheckEnabled, Value: "false"},         // 默认关闭号池巡检
 		{Key: SettingKeyPoolHealthCheckInterval, Value: "30"},           // 默认 30 分钟巡检
 		{Key: SettingKeyPoolHealthCheckFailThreshold, Value: "3"},       // 默认 3 次失败后 SetError
