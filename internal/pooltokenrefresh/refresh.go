@@ -142,6 +142,26 @@ func refreshAccountImpl(ctx context.Context, poolID, accountID int) error {
 	newCred, expiresAt, err := refreshByPlatformFunc(ctx, acct.Platform, cred)
 	now := time.Now()
 	if err != nil {
+		// B2-#3: an invalid_grant rejection against our snapshot usually means
+		// another instance already rotated the refresh_token (multi-instance
+		// deployments share the DB but have no cross-process locks; in-process
+		// there is no manual-vs-loop race because RefreshAccount's singleflight
+		// is the single entry point for both). Re-read the stored credentials
+		// and, when they differ from our snapshot, retry exactly once with the
+		// rotated credential before giving up.
+		if isInvalidGrantError(err) {
+			recovered, retryErr := retryRefreshWithRotatedCredentials(ctx, poolID, accountID, priorCredentials)
+			if recovered {
+				if retryErr == nil {
+					return nil
+				}
+				// The one-shot retry failed too: route its error through the
+				// normal backoff path below so the failure is recorded.
+				err = retryErr
+			}
+			// recovered == false: stored credentials unchanged (or unreadable) —
+			// a genuine invalid_grant; fall through to the normal backoff path.
+		}
 		// 失败：写入 error_message + 退避窗口（供 RefreshLoop/triggerRefresh 跳过）。
 		extra := acct.GetExtra()
 		extra.RefreshFailureCount++
@@ -190,6 +210,71 @@ func persistRefreshSuccess(poolID, accountID int, acct *model.PoolAccount, store
 		"extra":            acct.Extra,
 	}
 	return pool.UpdateAccountCredentialsIfUnchanged(poolID, accountID, storedCredentialsSnapshot, updates)
+}
+
+// isInvalidGrantError reports whether an upstream refresh failure is an
+// invalid_grant rejection (sub2api-style string check: providers surface the
+// OAuth error with varying HTTP status codes, so the response body text is the
+// reliable signal).
+func isInvalidGrantError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "invalid_grant")
+}
+
+// retryRefreshWithRotatedCredentials implements the invalid_grant race
+// recovery (B2-#3): re-read the account and, when the stored credentials no
+// longer match the snapshot this attempt started from, another writer
+// (typically another octopus instance in a multi-instance deployment) already
+// rotated them — retry refreshByPlatform exactly once with the rotated
+// credential.
+//
+// Returns (true, nil) when the retry succeeded (the normal success path —
+// backoff reset + CAS write-back — has already run); (true, err) when the
+// one-shot retry itself failed (the caller routes the error into the normal
+// backoff path); (false, nil) when recovery does not apply — the stored
+// credentials are unchanged (a genuine invalid_grant rejection), the rotated
+// credential carries no refresh_token, or the re-read failed.
+//
+// In-process there is no manual-vs-loop race: RefreshAccount's singleflight
+// (key poolID:accountID) is the single entry point for both the refresh loop
+// and the manual refresh endpoint. The recovery deliberately targets only
+// multi-instance deployments; no cross-process locking is added here
+// (single-instance is the deployment assumption).
+func retryRefreshWithRotatedCredentials(ctx context.Context, poolID, accountID int, priorCredentials string) (bool, error) {
+	fresh, err := pool.GetAccount(poolID, accountID)
+	if err != nil {
+		log.Warnf("pooltokenrefresh: invalid_grant recovery re-read of account %d/%d failed: %v", poolID, accountID, err)
+		return false, nil
+	}
+	if fresh.Credentials == priorCredentials {
+		// Stored credentials unchanged: the invalid_grant is a genuine
+		// rejection of the current refresh_token.
+		return false, nil
+	}
+	// Someone else stored a rotated credential; retry once with it.
+	rotatedCiphertext := fresh.Credentials
+	_ = pool.DecryptAccountCredentials(fresh)
+	cred := model.ParsePoolCredential(fresh.Credentials)
+	if cred.RefreshToken == "" {
+		log.Warnf("pooltokenrefresh: invalid_grant recovery of account %d/%d skipped: rotated credential has no refresh_token", poolID, accountID)
+		return false, nil
+	}
+	newCred, expiresAt, retryErr := refreshByPlatformFunc(ctx, fresh.Platform, cred)
+	if retryErr != nil {
+		return true, retryErr
+	}
+	applied, err := persistRefreshSuccess(poolID, accountID, fresh, rotatedCiphertext, newCred, expiresAt)
+	if err != nil {
+		return true, err
+	}
+	if !applied {
+		// The rotated credential was replaced again while we refreshed — the
+		// newest token wins, same discard rule as the main success path.
+		log.Warnf("pooltokenrefresh: invalid_grant recovery write-back of account %d/%d discarded: credentials changed concurrently", poolID, accountID)
+	}
+	return true, nil
 }
 
 // computeNextBackoff 根据失败次数计算下一次允许刷新的时间（unix 秒）。
