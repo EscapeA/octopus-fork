@@ -24,29 +24,34 @@ func (AccountPool) TableName() string { return "account_pools" }
 
 // PoolAccount 号池内的单个上游账号。
 type PoolAccount struct {
-	ID               int        `json:"id" gorm:"primaryKey"`
-	PoolID           int        `json:"pool_id" gorm:"index;not null"`
-	Name             string     `json:"name" gorm:"size:128"`
-	Platform         string     `json:"platform" gorm:"type:varchar(32);not null;default:'custom'"`
-	Type             string     `json:"type" gorm:"type:varchar(32);not null;default:'apikey'"`
-	Models           string     `json:"models" gorm:"type:text"`      // 逗号分隔模型列表，空=不限
-	Credentials      string     `json:"credentials" gorm:"type:text"` // 加密存储（crypto.Encrypt）
-	BaseURL          string     `json:"base_url" gorm:"size:512"`
-	Quota            string     `json:"quota" gorm:"type:text"` // JSON 额度快照缓存（加密存储）
-	Status           string     `json:"status" gorm:"type:varchar(32);not null;default:'active'"`
-	Schedulable      bool       `json:"schedulable" gorm:"default:true"`
-	Priority         int        `json:"priority" gorm:"default:0"`
-	Concurrency      int        `json:"concurrency" gorm:"default:0"`
-	ProxyConfigID    *int       `json:"proxy_config_id"`
-	RateLimitResetAt int64      `json:"rate_limit_reset_at" gorm:"default:0"`
-	OverloadUntil    int64      `json:"overload_until" gorm:"default:0"`
-	TokenExpiresAt   int64      `json:"token_expires_at" gorm:"default:0"` // OAuth access_token 过期 unix 秒
-	TotalRequests    int64      `json:"total_requests" gorm:"default:0"`
-	TotalErrors      int64      `json:"total_errors" gorm:"default:0"`
-	TotalTokens      int64      `json:"total_tokens" gorm:"default:0"`
-	LastUsedAt       *time.Time `json:"last_used_at"`
-	ErrorMessage     string     `json:"error_message" gorm:"type:text"`
-	Notes            string     `json:"notes" gorm:"size:512"`
+	ID            int    `json:"id" gorm:"primaryKey"`
+	PoolID        int    `json:"pool_id" gorm:"index;not null"`
+	Name          string `json:"name" gorm:"size:128"`
+	Platform      string `json:"platform" gorm:"type:varchar(32);not null;default:'custom'"`
+	Type          string `json:"type" gorm:"type:varchar(32);not null;default:'apikey'"`
+	Models        string `json:"models" gorm:"type:text"`      // 逗号分隔模型列表，空=不限
+	Credentials   string `json:"credentials" gorm:"type:text"` // 加密存储（crypto.Encrypt）
+	BaseURL       string `json:"base_url" gorm:"size:512"`
+	Quota         string `json:"quota" gorm:"type:text"` // JSON 额度快照缓存（加密存储）
+	Status        string `json:"status" gorm:"type:varchar(32);not null;default:'active'"`
+	Schedulable   bool   `json:"schedulable" gorm:"default:true"`
+	Priority      int    `json:"priority" gorm:"default:0"`
+	Concurrency   int    `json:"concurrency" gorm:"default:0"`
+	ProxyConfigID *int   `json:"proxy_config_id"`
+	// ProxyFallbackOriginID non-nil means the account currently runs on its
+	// backup proxy; the value is the pre-fallback proxy_config_id (B4-#13,
+	// column added by migration 056, same semantics as sub2api
+	// ent/schema/account.go:93-96).
+	ProxyFallbackOriginID *int       `json:"proxy_fallback_origin_id"`
+	RateLimitResetAt      int64      `json:"rate_limit_reset_at" gorm:"default:0"`
+	OverloadUntil         int64      `json:"overload_until" gorm:"default:0"`
+	TokenExpiresAt        int64      `json:"token_expires_at" gorm:"default:0"` // OAuth access_token 过期 unix 秒
+	TotalRequests         int64      `json:"total_requests" gorm:"default:0"`
+	TotalErrors           int64      `json:"total_errors" gorm:"default:0"`
+	TotalTokens           int64      `json:"total_tokens" gorm:"default:0"`
+	LastUsedAt            *time.Time `json:"last_used_at"`
+	ErrorMessage          string     `json:"error_message" gorm:"type:text"`
+	Notes                 string     `json:"notes" gorm:"size:512"`
 
 	// P0 调度健壮性：临时不可调度（频控/鉴权失败，窗口截止前不参与调度）
 	TempUnschedUntil     int64  `json:"temp_unsched_until" gorm:"default:0"`
@@ -125,6 +130,11 @@ type PoolAccountExtra struct {
 	// P2 刷新失败退避（写入 Extra JSON，不加列）
 	RefreshFailureCount  int   `json:"refresh_failure_count,omitempty"`
 	NextRefreshAllowedAt int64 `json:"next_refresh_allowed_at,omitempty"`
+	// B4-#13 backup proxy (Extra JSON extension, no extra column): when the
+	// account's proxy dial fails, traffic switches to this proxy config.
+	// Empty = not configured (default off; never an automatic direct
+	// connection). Per-account opt-in.
+	BackupProxyConfigID *int `json:"backup_proxy_config_id,omitempty"`
 }
 
 // PoolUnschedRule is a pool temp-unsched rule (B4-#12): when an upstream
