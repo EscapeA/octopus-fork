@@ -2,6 +2,7 @@ package pool
 
 import (
 	"errors"
+	"time"
 
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
@@ -127,10 +128,12 @@ func UpdateAccount(poolID, accountID int, updates map[string]interface{}) error 
 	return nil
 }
 
-// ClearTempUnschedIfTrigger 原子清除临时不可调度，但仅当 temp_unsched_reason
-// 仍携带指定 trigger 标记（JSON "trigger" 字段的精确子串匹配，单条 UPDATE 实现，
-// 无 read-check-clear 竞态）。RowsAffected==0 表示当前块由并发来源持有
-//（401 刷新窗口 / 403 冷却 / 管理员手动块），保持原样不动。返回清除是否发生。
+// ClearTempUnschedIfTrigger atomically clears the temporary unschedulable flag
+// only when temp_unsched_reason still carries the given trigger tag (exact
+// substring match on the JSON "trigger" field, implemented as a single UPDATE
+// with no read-check-clear race). RowsAffected==0 means the block is currently
+// held by a concurrent source (401 refresh window / 403 cooldown / manual admin
+// block) and is left untouched. Returns whether a clear happened.
 func ClearTempUnschedIfTrigger(poolID, accountID int, trigger string) (bool, error) {
 	if trigger == "" {
 		return false, nil
@@ -148,11 +151,13 @@ func ClearTempUnschedIfTrigger(poolID, accountID int, trigger string) (bool, err
 	return result.RowsAffected > 0, nil
 }
 
-// ClearAuthErrorMirrorIfNotNewer 条件清零账号的鉴权错误 DB 镜像列
-//（auth_error_count / auth_error_window_start）：仅当存储证据不新于快照
-//（count <= snapshotCount 且 window_start <= snapshotWindowStart）时清除，
-// 单条 UPDATE 原子执行。RowsAffected==0 表示 DB 存在比快照更新的证据，保持不动。
-// 用于防止异步延迟到达的成功上报擦掉其后新产生的 401/403 证据（B1-#7）。
+// ClearAuthErrorMirrorIfNotNewer conditionally zeroes the account's auth-error
+// DB mirror columns (auth_error_count / auth_error_window_start): only when
+// the stored evidence is not newer than the snapshot (count <= snapshotCount
+// AND window_start <= snapshotWindowStart), as a single atomic UPDATE.
+// RowsAffected==0 means the DB holds evidence newer than the snapshot and it
+// is left untouched. Prevents an asynchronously delayed success report from
+// erasing 401/403 evidence produced after its snapshot (B1-#7).
 func ClearAuthErrorMirrorIfNotNewer(poolID, accountID int, snapshotCount int, snapshotWindowStart int64) error {
 	result := db.GetDB().Model(&model.PoolAccount{}).
 		Where("pool_id = ? AND id = ? AND auth_error_count <= ? AND auth_error_window_start <= ?",
@@ -162,6 +167,29 @@ func ClearAuthErrorMirrorIfNotNewer(poolID, accountID int, snapshotCount int, sn
 			"auth_error_window_start": int64(0),
 		})
 	return result.Error
+}
+
+// AcquireTempUnschedIfFree atomically sets a temporary scheduling block only
+// when the account is not currently blocked: the single UPDATE matches rows
+// whose temp_unsched_until is in the past (expired or never set), so a block
+// created concurrently by another source — 401 window / 403 cooldown / manual
+// flag — between the caller's account snapshot and this call is never
+// overwritten. Returns true when this call acquired the block (the caller owns
+// the cleanup); false means an active block already holds the account.
+// Time comparison happens in the Go-passed parameter (unix seconds), keeping
+// the predicate portable across SQLite / MySQL / PostgreSQL.
+func AcquireTempUnschedIfFree(poolID, accountID int, until time.Time, reason string) (bool, error) {
+	result := db.GetDB().Model(&model.PoolAccount{}).
+		Where("pool_id = ? AND id = ? AND (temp_unsched_until IS NULL OR temp_unsched_until <= ?)",
+			poolID, accountID, time.Now().Unix()).
+		Updates(map[string]interface{}{
+			"temp_unsched_until":  until.Unix(),
+			"temp_unsched_reason": reason,
+		})
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return result.RowsAffected > 0, nil
 }
 
 func DeleteAccount(poolID, accountID int) error {

@@ -47,19 +47,22 @@ const (
 	failureBackoffMax  = 2 * time.Hour
 )
 
-// refreshUnschedTrigger 是刷新在途期间写入 temp_unsched_reason 的 trigger 标记
-//（B1-#4：token 刷新进行中临时不可调度，留出刷新窗口）。
+// refreshUnschedTrigger is the trigger tag written into temp_unsched_reason
+// while a refresh is in flight (B1-#4: temp-unschedule during token refresh to
+// reserve a refresh window).
 const refreshUnschedTrigger = "token_refresh_inflight"
 
-// refreshUnschedBlockState 刷新在途块的 reason JSON 形状。与 relay 包私有
-// tempUnschedState（status_code/trigger/at，无 ruleID）保持兼容——只携带
-// 刷新语义所需的 trigger + at；条件清除按 "trigger" 字段匹配。
+// refreshUnschedBlockState is the reason JSON shape of the in-flight refresh
+// block. It stays compatible with the relay package's private tempUnschedState
+// (status_code/trigger/at, no ruleID) — it only carries the trigger + at fields
+// the refresh semantics need; the conditional clear matches on "trigger".
 type refreshUnschedBlockState struct {
 	Trigger string `json:"trigger"`
 	At      int64  `json:"at"`
 }
 
-// refreshByPlatformFunc 允许测试替换平台刷新实现（观察刷新在途窗口）。
+// refreshByPlatformFunc lets tests replace the per-platform refresh
+// implementation (to observe the in-flight refresh window).
 var refreshByPlatformFunc = refreshByPlatform
 
 func init() {
@@ -97,25 +100,37 @@ func refreshAccountImpl(ctx context.Context, poolID, accountID int) error {
 	_ = pool.DecryptAccountCredentials(acct)
 	cred := model.ParsePoolCredential(acct.Credentials)
 	if cred.RefreshToken == "" {
-		// 无 refresh_token 的早返回发生在设块之前，不会留下孤儿块。
+		// The no-refresh_token early return happens before the block is set, so
+		// no orphan block is left behind.
 		return fmt.Errorf("account %d has no refresh_token", accountID)
 	}
 
-	// B1-#4：刷新在途期间临时不可调度（refreshLeadTime + 1min 余量）。
-	// 仅在账号当前未被临时禁用时设块——避免覆盖并发的 401 窗口 / 403 冷却 /
-	// 管理员手动块（那类块应在自身到期前保持语义）。
-	if !acct.IsTempUnsched() {
-		now := time.Now()
-		b, _ := json.Marshal(refreshUnschedBlockState{Trigger: refreshUnschedTrigger, At: now.Unix()})
-		poolscheduler.SetTempUnsched(poolID, accountID, now.Add(refreshLeadTime+time.Minute), string(b))
+	// B1-#4: temporarily unschedule the account while the refresh is in flight
+	// (refreshLeadTime + 1min margin). The block is acquired with a
+	// DB-conditional update (only rows whose temp_unsched_until has expired or
+	// is unset match), so a concurrent block created after the account snapshot
+	// above — 401 window / 403 cooldown / manual flag — is never overwritten;
+	// a snapshot IsTempUnsched precheck cannot close that race.
+	acquireAt := time.Now()
+	b, _ := json.Marshal(refreshUnschedBlockState{Trigger: refreshUnschedTrigger, At: acquireAt.Unix()})
+	acquired, acqErr := poolscheduler.AcquireTempUnschedIfFree(poolID, accountID, acquireAt.Add(refreshLeadTime+time.Minute), string(b))
+	if acqErr != nil {
+		log.Warnf("pooltokenrefresh: acquire temp-unsched block %d/%d failed: %v", poolID, accountID, acqErr)
+		acquired = false
 	}
-	// 条件清除：仅当 reason 仍是本流程写入的 token_refresh_inflight 时才清，
-	// defer 保证成功/失败路径都会清；不会擦掉并发 401/403/手动块。
-	defer func() {
-		if _, err := poolscheduler.ClearTempUnschedIfTrigger(poolID, accountID, refreshUnschedTrigger); err != nil {
-			log.Warnf("pooltokenrefresh: clear temp-unsched block %d/%d failed: %v", poolID, accountID, err)
-		}
-	}()
+	// Owner-precise cleanup: only registered when this flow actually acquired
+	// the block, and the trigger-conditional clear only fires while the stored
+	// reason still carries token_refresh_inflight — concurrent 401/403/manual
+	// blocks are never erased. When acquisition loses (including a stale
+	// inflight block left by a crashed refresh), the existing block is left
+	// untouched and expires on its own.
+	if acquired {
+		defer func() {
+			if _, err := poolscheduler.ClearTempUnschedIfTrigger(poolID, accountID, refreshUnschedTrigger); err != nil {
+				log.Warnf("pooltokenrefresh: clear temp-unsched block %d/%d failed: %v", poolID, accountID, err)
+			}
+		}()
+	}
 
 	newCred, expiresAt, err := refreshByPlatformFunc(ctx, acct.Platform, cred)
 	now := time.Now()
