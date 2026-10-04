@@ -127,6 +127,31 @@ type PoolAccountExtra struct {
 	NextRefreshAllowedAt int64 `json:"next_refresh_allowed_at,omitempty"`
 }
 
+// PoolUnschedRule is a pool temp-unsched rule (B4-#12): when an upstream
+// failure matches, the account becomes temporarily unschedulable for
+// duration_minutes. The first enabled rule by sort_order wins; a rule matches
+// on status-code equality (when MatchStatusCode is set) or on a response-body
+// keyword hit (when MatchKeyword is set and the body is non-empty). With no
+// matching rule the historical default cooldown behavior is preserved.
+// The table is created explicitly by migration 055 (pool tables are not in
+// the main AutoMigrate list).
+type PoolUnschedRule struct {
+	ID   int    `json:"id" gorm:"primaryKey"`
+	Name string `json:"name" gorm:"size:128"`
+	// MatchStatusCode nil = do not match on status code; when set it must be
+	// within 400-599. Enabled carries no default tag for the same reason as
+	// PoolScheduledTest.Enabled (GORM zero-value + default tag INSERT trap).
+	MatchStatusCode *int      `json:"match_status_code"`
+	MatchKeyword    string    `json:"match_keyword" gorm:"size:256"` // empty = no keyword matching
+	DurationMinutes int       `json:"duration_minutes"`
+	Enabled         bool      `json:"enabled"`
+	SortOrder       int       `json:"sort_order" gorm:"default:0"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+func (PoolUnschedRule) TableName() string { return "pool_unsched_rules" }
+
 // PoolScheduledTest is a pool scheduled connectivity test plan (B4-#11).
 // A nil AccountID targets every account in the pool; a non-nil one targets a
 // single account. Pool tables are not part of the main AutoMigrate list —
