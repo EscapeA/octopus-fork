@@ -174,9 +174,15 @@ var auditedManagementWriteRoutes = map[string]struct{}{
 	// NOTE: export must stay a POST. isPotentialAuditRequest short-circuits
 	// every non-POST/PUT/PATCH/DELETE method before this whitelist is ever
 	// consulted, so a GET entry here would audit nothing.
-	"POST /api/v1/pool/:id/account/export":        {},
-	"DELETE /api/v1/pool/:id/account/delete/:aid": {},
-	"PUT /api/v1/plan-provider/credentials/:id":   {},
+	"POST /api/v1/pool/:id/account/export":               {},
+	"DELETE /api/v1/pool/:id/account/delete/:aid":        {},
+	"POST /api/v1/pool/:id/scheduled-test/create":        {},
+	"POST /api/v1/pool/:id/scheduled-test/update/:tid":   {},
+	"DELETE /api/v1/pool/:id/scheduled-test/delete/:tid": {},
+	"POST /api/v1/pool/unsched-rules/create":             {},
+	"POST /api/v1/pool/unsched-rules/update/:id":         {},
+	"DELETE /api/v1/pool/unsched-rules/delete/:id":       {},
+	"PUT /api/v1/plan-provider/credentials/:id":          {},
 }
 
 func AuditManagementWrite() gin.HandlerFunc {

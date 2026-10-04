@@ -24,6 +24,7 @@ export type PoolAccountExtra = {
     tls_fingerprint_profile?: string;
     refresh_failure_count?: number;
     next_refresh_allowed_at?: number;
+    backup_proxy_config_id?: number;
 };
 
 export type PoolAccount = {
@@ -60,8 +61,43 @@ export type PoolAccount = {
     extra: string;
     weight: number;
     load_factor: number;
+    // B4-#13 proxy fallback: non-null means the account currently runs on its
+    // backup proxy and this holds the original proxy_config_id.
+    proxy_fallback_origin_id?: number | null;
     created_at: string;
     updated_at: string;
+};
+
+// --- Scheduled tests (B4-#11) ---
+
+export type PoolScheduledTest = {
+    id: number;
+    pool_id: number;
+    account_id?: number | null;
+    cron_expr: string;
+    enabled: boolean;
+    auto_recover: boolean;
+    last_run_at: number;
+    next_run_at: number;
+    created_at: string;
+    updated_at: string;
+};
+
+export type PoolScheduledTestResult = {
+    id: number;
+    test_id: number;
+    account_id: number;
+    success: boolean;
+    detail: string;
+    duration_ms: number;
+    created_at: string;
+};
+
+export type PoolScheduledTestRequest = {
+    account_id?: number | null;
+    cron_expr: string;
+    enabled?: boolean;
+    auto_recover?: boolean;
 };
 
 export type CreatePoolRequest = {
@@ -296,5 +332,65 @@ export function useImportPoolAccounts() {
         mutationFn: ({ poolId, accounts }: { poolId: number; accounts: string }) =>
             apiClient.post<{ imported: number }>('/api/v1/pool/import', { pool_id: poolId, accounts }),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pools'] }),
+    });
+}
+
+// --- Scheduled test plan mutations (B4-#11) ---
+
+export function usePoolScheduledTests(poolId: number | null) {
+    return useQuery({
+        queryKey: ['pools', poolId, 'scheduled-tests'],
+        queryFn: () => apiClient.get<PoolScheduledTest[]>(`/api/v1/pool/${poolId}/scheduled-test/list`),
+        enabled: poolId !== null,
+    });
+}
+
+export function usePoolScheduledTestResults(poolId: number | null, testId: number | null) {
+    return useQuery({
+        queryKey: ['pools', poolId, 'scheduled-tests', testId, 'results'],
+        queryFn: () => apiClient.get<PoolScheduledTestResult[]>(`/api/v1/pool/${poolId}/scheduled-test/results/${testId}`),
+        enabled: poolId !== null && testId !== null,
+    });
+}
+
+function invalidateScheduledTests(queryClient: ReturnType<typeof useQueryClient>, poolId: number) {
+    void queryClient.invalidateQueries({ queryKey: ['pools', poolId, 'scheduled-tests'] });
+    void queryClient.invalidateQueries({ queryKey: ['pools', poolId, 'accounts'] });
+}
+
+export function useCreatePoolScheduledTest(poolId: number) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: PoolScheduledTestRequest) =>
+            apiClient.post<PoolScheduledTest>(`/api/v1/pool/${poolId}/scheduled-test/create`, data),
+        onSuccess: () => invalidateScheduledTests(queryClient, poolId),
+    });
+}
+
+export function useUpdatePoolScheduledTest(poolId: number) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ testId, data }: { testId: number; data: PoolScheduledTestRequest }) =>
+            apiClient.post<PoolScheduledTest>(`/api/v1/pool/${poolId}/scheduled-test/update/${testId}`, data),
+        onSuccess: () => invalidateScheduledTests(queryClient, poolId),
+    });
+}
+
+export function useDeletePoolScheduledTest(poolId: number) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (testId: number) => apiClient.delete(`/api/v1/pool/${poolId}/scheduled-test/delete/${testId}`),
+        onSuccess: () => invalidateScheduledTests(queryClient, poolId),
+    });
+}
+
+// --- Proxy fallback (B4-#13) ---
+
+export function useRestorePoolAccountProxy(poolId: number) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (accountId: number) =>
+            apiClient.post(`/api/v1/pool/${poolId}/account/restore-proxy/${accountId}`, {}),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pools', poolId, 'accounts'] }),
     });
 }

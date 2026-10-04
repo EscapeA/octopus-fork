@@ -32,3 +32,52 @@ func TestShouldAuditManagementWrite_PoolAccountExportRoute(t *testing.T) {
 		t.Fatalf("GET must never match the audit whitelist")
 	}
 }
+
+// TestShouldAuditManagementWrite_PoolScheduledTestRoutes locks in the audit
+// coverage of the pool scheduled-test write routes (B4-#11). All three are
+// POST/DELETE, so plain whitelist entries are sufficient (the method filter
+// passes them through to the list lookup, unlike the GET export case).
+func TestShouldAuditManagementWrite_PoolScheduledTestRoutes(t *testing.T) {
+	fullPaths := []string{
+		"/api/v1/pool/:id/scheduled-test/create",
+		"/api/v1/pool/:id/scheduled-test/update/:tid",
+		"/api/v1/pool/:id/scheduled-test/delete/:tid",
+	}
+	for _, fullPath := range fullPaths {
+		method := http.MethodPost
+		if fullPath == "/api/v1/pool/:id/scheduled-test/delete/:tid" {
+			method = http.MethodDelete
+		}
+		if !ShouldAuditManagementWrite(method, fullPath) {
+			t.Fatalf("%s %s must be covered by the audit whitelist", method, fullPath)
+		}
+	}
+	// The read routes must stay out of the audit whitelist.
+	if ShouldAuditManagementWrite(http.MethodGet, "/api/v1/pool/:id/scheduled-test/list") {
+		t.Fatalf("GET list route must not be audited")
+	}
+	if ShouldAuditManagementWrite(http.MethodGet, "/api/v1/pool/:id/scheduled-test/results/:tid") {
+		t.Fatalf("GET results route must not be audited")
+	}
+}
+
+// TestShouldAuditManagementWrite_PoolUnschedRuleRoutes locks in the audit
+// coverage of the temp-unsched rule CRUD write routes (B4-#12).
+func TestShouldAuditManagementWrite_PoolUnschedRuleRoutes(t *testing.T) {
+	cases := []struct {
+		method string
+		path   string
+	}{
+		{http.MethodPost, "/api/v1/pool/unsched-rules/create"},
+		{http.MethodPost, "/api/v1/pool/unsched-rules/update/:id"},
+		{http.MethodDelete, "/api/v1/pool/unsched-rules/delete/:id"},
+	}
+	for _, tc := range cases {
+		if !ShouldAuditManagementWrite(tc.method, tc.path) {
+			t.Fatalf("%s %s must be covered by the audit whitelist", tc.method, tc.path)
+		}
+	}
+	if ShouldAuditManagementWrite(http.MethodGet, "/api/v1/pool/unsched-rules/list") {
+		t.Fatalf("GET list route must not be audited")
+	}
+}

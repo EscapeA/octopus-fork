@@ -3951,6 +3951,23 @@
       "editPool": "编辑号池",
       "updated": "号池已更新",
       "refresh": "刷新"
-    }
+    },
+    "scheduledTests": "定时测试",
+    "scheduledTestsHint": "按计划对号池账号做连通性测试，测试通过可自动恢复账号。",
+    "schedTestCreate": "新建计划",
+    "schedTestCron": "Cron 表达式",
+    "schedTestAutoRecover": "成功后自动恢复",
+    "schedTestScope": "测试范围",
+    "schedTestScopePool": "整池",
+    "schedTestLastRun": "上次执行",
+    "schedTestNextRun": "下次执行",
+    "schedTestResults": "测试结果",
+    "schedTestNoResults": "暂无测试结果",
+    "schedTestCreated": "计划已创建",
+    "schedTestUpdated": "计划已更新",
+    "schedTestDeleted": "计划已删除",
+    "schedTestInvalidCron": "不支持的 Cron 表达式（例如 */30 * * * * 或 0 9,21 * * *）",
+    "schedTestEnabled": "启用",
+    "schedTestNoPlans": "暂无定时测试计划"
   }
 }

@@ -3951,6 +3951,23 @@
       "editPool": "Edit pool",
       "updated": "Pool updated",
       "refresh": "Refresh"
-    }
+    },
+    "scheduledTests": "Scheduled Tests",
+    "scheduledTestsHint": "Run connectivity tests on a schedule and optionally auto-recover accounts whose test passes.",
+    "schedTestCreate": "New Plan",
+    "schedTestCron": "Cron Expression",
+    "schedTestAutoRecover": "Auto-recover on success",
+    "schedTestScope": "Scope",
+    "schedTestScopePool": "Whole pool",
+    "schedTestLastRun": "Last run",
+    "schedTestNextRun": "Next run",
+    "schedTestResults": "Results",
+    "schedTestNoResults": "No results yet",
+    "schedTestCreated": "Plan created",
+    "schedTestUpdated": "Plan updated",
+    "schedTestDeleted": "Plan deleted",
+    "schedTestInvalidCron": "Unsupported cron expression (use e.g. */30 * * * * or 0 9,21 * * *)",
+    "schedTestEnabled": "Enabled",
+    "schedTestNoPlans": "No scheduled test plans yet"
   }
 }

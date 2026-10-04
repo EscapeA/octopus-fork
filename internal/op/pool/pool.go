@@ -70,6 +70,16 @@ func DeletePool(id int) error {
 		tx.Rollback()
 		return err
 	}
+	// Delete the pool's scheduled test plans and their results (B4-#11) so
+	// orphaned plans cannot keep firing.
+	if err := tx.Where("pool_id = ?", id).Delete(&model.PoolScheduledTest{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	if err := tx.Where("pool_id = ?", id).Delete(&model.PoolScheduledTestResult{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
 	// 解除渠道关联。
 	if err := tx.Model(&model.Channel{}).Where("pool_id = ?", id).Update("pool_id", 0).Error; err != nil {
 		tx.Rollback()
@@ -222,6 +232,21 @@ func DeleteAccount(poolID, accountID int) error {
 	}
 	if result.RowsAffected == 0 {
 		return gorm.ErrRecordNotFound
+	}
+	// Delete scheduled test plans scoped to this account plus their results (B4-#11).
+	var planIDs []int
+	if err := db.GetDB().Model(&model.PoolScheduledTest{}).
+		Where("pool_id = ? AND account_id = ?", poolID, accountID).
+		Pluck("id", &planIDs).Error; err != nil {
+		return err
+	}
+	if len(planIDs) > 0 {
+		if err := db.GetDB().Where("id IN ?", planIDs).Delete(&model.PoolScheduledTest{}).Error; err != nil {
+			return err
+		}
+		if err := db.GetDB().Where("test_id IN ?", planIDs).Delete(&model.PoolScheduledTestResult{}).Error; err != nil {
+			return err
+		}
 	}
 	for _, hook := range OnPoolAccountDeletedHooks {
 		hook(poolID, accountID)
