@@ -1440,7 +1440,11 @@
       "stickyEscapeErrorRate": "Escape error rate threshold",
       "stickyEscapeErrorRateHint": "Escape when the account's EWMA error rate exceeds this value (0-1].",
       "stickyEscapeTTFTMs": "Escape TTFT threshold (ms)",
-      "stickyEscapeTTFTMsHint": "Escape when the account's EWMA TTFT exceeds this value. 0 disables the TTFT dimension."
+      "stickyEscapeTTFTMsHint": "Escape when the account's EWMA TTFT exceeds this value. 0 disables the TTFT dimension.",
+      "schedulerWeightReset": "Scheduler weight: reset readiness",
+      "schedulerWeightResetHint": "Off by default (0). When > 0, accounts whose quota/reset window renews sooner are preferred, normalized over a 7-day horizon.",
+      "schedulerWeightQuota": "Scheduler weight: quota headroom",
+      "schedulerWeightQuotaHint": "Off by default (0). When > 0, accounts with more remaining quota are preferred. Requires a synced quota snapshot."
     },
     "proxyPool": {
       "title": "Proxy Pool"

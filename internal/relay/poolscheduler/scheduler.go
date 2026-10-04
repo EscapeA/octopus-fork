@@ -636,7 +636,42 @@ func selectByLeastLoaded(candidates []model.PoolAccount, poolID int) model.PoolA
 	return candidates[bestIdx]
 }
 
+// B1-#8 调度因子（镜像 sub2api GatewayOpenAIWSSchedulerScoreWeights 的
+// "默认 0 不改变现有行为"策略，config.go:1362-1382）。
+const (
+	// resetFactorHorizon 归一化地平线：reset 剩余时长按 7 天折算为逆就绪因子。
+	resetFactorHorizon = 7 * 24 * time.Hour
+)
+
+// quotaSnapshotParser 允许测试注入观测点（golden 测试断言权重为 0 时不触发
+// 解密）；生产指向 pool.ParseQuotaSnapshot。
+var quotaSnapshotParser = pool.ParseQuotaSnapshot
+
+// loadSchedulerFactorWeights 读取两个因子权重（每次 selectByEWMA 调用读取一次，
+// 设置走进程内缓存；读取失败按 0=关闭处理）。
+func loadSchedulerFactorWeights() (wReset, wQuota float64) {
+	return schedulerFactorWeight(model.SettingKeyPoolSchedulerWeightReset),
+		schedulerFactorWeight(model.SettingKeyPoolSchedulerWeightQuota)
+}
+
+func schedulerFactorWeight(key model.SettingKey) float64 {
+	raw, err := setting.GetString(key)
+	if err != nil {
+		return 0
+	}
+	w, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
+	if err != nil || w < 0 {
+		return 0
+	}
+	return w
+}
+
 func selectByEWMA(candidates []model.PoolAccount, poolID int) model.PoolAccount {
+	// B1-#8：两权重均为 0（默认）时在入口短路——不做任何因子计算，不触发
+	// quota 快照解密，不产生额外 DB 访问，行为与旧实现逐字节一致（golden 测试锁定）。
+	wReset, wQuota := loadSchedulerFactorWeights()
+	factorsEnabled := wReset > 0 || wQuota > 0
+
 	bestIdx := 0
 	bestScore := math.MaxFloat64
 	for i := range candidates {
@@ -650,6 +685,18 @@ func selectByEWMA(candidates []model.PoolAccount, poolID int) model.PoolAccount 
 			score = stats.errorRate*0.7 + (stats.ttftMs/10000.0)*0.3
 			stats.mu.Unlock()
 		}
+		if factorsEnabled {
+			// 因子为减分项（分数越低越优）：reset 越近（逆就绪因子越高）与
+			// 额度余量越大（headroom 越高）的候选得分越低、越优先。
+			// 各因子按自身权重独立守卫：wQuota=0 时绝不解密额度快照，
+			// wReset=0 时不做 reset 计算。
+			if wReset > 0 {
+				score -= wReset * resetReadinessFactor(&candidates[i])
+			}
+			if wQuota > 0 {
+				score -= wQuota * quotaHeadroomFactor(&candidates[i])
+			}
+		}
 		// weight 先于 priority 作为 tiebreaker：权重越高得分越低（越容易选中）。
 		score -= float64(candidates[i].Weight) * 0.001
 		// priority 作为第二 tiebreaker：高优先级减分。
@@ -660,6 +707,48 @@ func selectByEWMA(candidates []model.PoolAccount, poolID int) model.PoolAccount 
 		}
 	}
 	return candidates[bestIdx]
+}
+
+// resetReadinessFactor 逆就绪因子（B1-#8）：
+// 取候选在未来最近一次 reset 时刻（ExpiresAt / RateLimitResetAt 的最小正差；
+// 刻意不纳入 TokenExpiresAt——token 过期已有独立的调度排除与刷新路径）的剩余
+// 时长，剩余越短因子越高（减分越多、越优先），按 resetFactorHorizon 归一化。
+// 无未来 reset（未设置 0 或已过期）→ 中性 0，不参与因子比较。
+func resetReadinessFactor(a *model.PoolAccount) float64 {
+	now := time.Now().Unix()
+	remaining := int64(0)
+	for _, t := range []int64{a.ExpiresAt, a.RateLimitResetAt} {
+		if d := t - now; d > 0 && (remaining == 0 || d < remaining) {
+			remaining = d
+		}
+	}
+	if remaining == 0 {
+		return 0
+	}
+	factor := 1 - float64(remaining)/float64(int64(resetFactorHorizon/time.Second))
+	if factor < 0 {
+		return 0
+	}
+	return factor
+}
+
+// quotaHeadroomFactor 额度余量因子（B1-#8）：解密并解析账号缓存额度快照
+//（QuotaResult used/total/reset_at 形状），返回 1-used/total 的 [0,1] 截断值。
+// 快照缺失/解析失败/total<=0 → 中性 0。仅在 quota 权重非 0 时才会走到这里
+//（selectByEWMA 入口短路），默认路径无任何解密开销。
+func quotaHeadroomFactor(a *model.PoolAccount) float64 {
+	used, total, ok := quotaSnapshotParser(a)
+	if !ok || total <= 0 {
+		return 0
+	}
+	headroom := 1 - used/total
+	if headroom < 0 {
+		return 0
+	}
+	if headroom > 1 {
+		return 1
+	}
+	return headroom
 }
 
 func acquireSlot(poolID, accountID int) {

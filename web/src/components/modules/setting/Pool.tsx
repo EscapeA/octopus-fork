@@ -22,6 +22,8 @@ export function SettingPool() {
     const [stickyEscapeEnabled, setStickyEscapeEnabled] = useState(false);
     const [stickyEscapeErrorRate, setStickyEscapeErrorRate] = useState('');
     const [stickyEscapeTTFTMs, setStickyEscapeTTFTMs] = useState('');
+    const [weightReset, setWeightReset] = useState('');
+    const [weightQuota, setWeightQuota] = useState('');
 
     const initInterval = useRef('');
     const initThreshold = useRef('');
@@ -31,6 +33,8 @@ export function SettingPool() {
     const initStickyEscapeEnabled = useRef(false);
     const initStickyEscapeErrorRate = useRef('');
     const initStickyEscapeTTFTMs = useRef('');
+    const initWeightReset = useRef('');
+    const initWeightQuota = useRef('');
 
     useEffect(() => {
         if (!settings) return;
@@ -43,6 +47,8 @@ export function SettingPool() {
         const se = get(SettingKey.PoolStickyEscapeEnabled);
         const sr = get(SettingKey.PoolStickyEscapeErrorRate);
         const st = get(SettingKey.PoolStickyEscapeTTFTMs);
+        const wr = get(SettingKey.PoolSchedulerWeightReset);
+        const wq = get(SettingKey.PoolSchedulerWeightQuota);
         queueMicrotask(() => {
             if (im !== undefined) { setIntervalMin(im); initInterval.current = im; }
             if (ft !== undefined) { setFailThreshold(ft); initThreshold.current = ft; }
@@ -52,6 +58,8 @@ export function SettingPool() {
             if (se !== undefined) { const v = se === 'true'; setStickyEscapeEnabled(v); initStickyEscapeEnabled.current = v; }
             if (sr !== undefined) { setStickyEscapeErrorRate(sr); initStickyEscapeErrorRate.current = sr; }
             if (st !== undefined) { setStickyEscapeTTFTMs(st); initStickyEscapeTTFTMs.current = st; }
+            if (wr !== undefined) { setWeightReset(wr); initWeightReset.current = wr; }
+            if (wq !== undefined) { setWeightQuota(wq); initWeightQuota.current = wq; }
         });
     }, [settings]);
 
@@ -65,6 +73,8 @@ export function SettingPool() {
                 else if (key === SettingKey.PoolMinPriority) initMinPriority.current = value;
                 else if (key === SettingKey.PoolStickyEscapeErrorRate) initStickyEscapeErrorRate.current = value;
                 else if (key === SettingKey.PoolStickyEscapeTTFTMs) initStickyEscapeTTFTMs.current = value;
+                else if (key === SettingKey.PoolSchedulerWeightReset) initWeightReset.current = value;
+                else if (key === SettingKey.PoolSchedulerWeightQuota) initWeightQuota.current = value;
             },
         });
     };
@@ -213,6 +223,42 @@ export function SettingPool() {
                             onChange={(e) => setStickyEscapeTTFTMs(e.target.value)}
                             onBlur={() => saveValue(SettingKey.PoolStickyEscapeTTFTMs, stickyEscapeTTFTMs, initStickyEscapeTTFTMs.current)}
                             placeholder="15000"
+                        />
+                    </div>
+                </div>
+
+                {/* 调度因子权重（默认 0 = 关闭） */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="text-xs text-muted-foreground flex items-center gap-1">
+                            {t('pool.schedulerWeightReset')}
+                            <Hint text={t('pool.schedulerWeightResetHint')} />
+                        </label>
+                        <Input
+                            className="mt-1"
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            value={weightReset}
+                            onChange={(e) => setWeightReset(e.target.value)}
+                            onBlur={() => saveValue(SettingKey.PoolSchedulerWeightReset, weightReset, initWeightReset.current)}
+                            placeholder="0"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs text-muted-foreground flex items-center gap-1">
+                            {t('pool.schedulerWeightQuota')}
+                            <Hint text={t('pool.schedulerWeightQuotaHint')} />
+                        </label>
+                        <Input
+                            className="mt-1"
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            value={weightQuota}
+                            onChange={(e) => setWeightQuota(e.target.value)}
+                            onBlur={() => saveValue(SettingKey.PoolSchedulerWeightQuota, weightQuota, initWeightQuota.current)}
+                            placeholder="0"
                         />
                     </div>
                 </div>

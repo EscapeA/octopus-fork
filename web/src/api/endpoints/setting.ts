@@ -40,6 +40,8 @@ export const SettingKey = {
     PoolStickyEscapeEnabled: 'pool_sticky_escape_enabled',
     PoolStickyEscapeErrorRate: 'pool_sticky_escape_error_rate',
     PoolStickyEscapeTTFTMs: 'pool_sticky_escape_ttft_ms',
+    PoolSchedulerWeightReset: 'pool_scheduler_weight_reset',
+    PoolSchedulerWeightQuota: 'pool_scheduler_weight_quota',
     PoolHealthCheckEnabled: 'pool_health_check_enabled',
     PoolHealthCheckInterval: 'pool_health_check_interval_minutes',
     PoolHealthCheckFailThreshold: 'pool_health_check_fail_threshold',

@@ -1396,7 +1396,11 @@
       "stickyEscapeErrorRate": "逃逸错误率阈值",
       "stickyEscapeErrorRateHint": "账号 EWMA 错误率超过该值（0-1] 时触发逃逸。",
       "stickyEscapeTTFTMs": "逃逸 TTFT 阈值（毫秒）",
-      "stickyEscapeTTFTMsHint": "账号 EWMA TTFT 超过该值时触发逃逸，0 表示禁用该维度。"
+      "stickyEscapeTTFTMsHint": "账号 EWMA TTFT 超过该值时触发逃逸，0 表示禁用该维度。",
+      "schedulerWeightReset": "调度权重：重置就绪",
+      "schedulerWeightResetHint": "默认 0 关闭。大于 0 时，额度/重置窗口更快到来的账号更优先，按 7 天地平线归一化。",
+      "schedulerWeightQuota": "调度权重：额度余量",
+      "schedulerWeightQuotaHint": "默认 0 关闭。大于 0 时，剩余额度占比更高的账号更优先，需要已同步额度快照。"
     },
     "proxyPool": {
       "title": "代理池"
