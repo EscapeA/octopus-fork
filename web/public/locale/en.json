@@ -3983,6 +3983,12 @@
     "unschedRuleUpdated": "Rule updated",
     "unschedRuleDeleted": "Rule deleted",
     "unschedRuleNoRules": "No rules yet (failures keep the default 10-minute cooldown)",
-    "unschedRuleInvalidInput": "A rule needs a status code between 400 and 599 or a body keyword, and a positive duration."
+    "unschedRuleInvalidInput": "A rule needs a status code between 400 and 599 or a body keyword, and a positive duration.",
+    "backupProxy": "Backup proxy (on failure)",
+    "backupProxyHint": "When the account's proxy dial fails, traffic switches to this backup proxy. The original proxy is remembered and can be restored from the account actions.",
+    "backupProxyNone": "No backup proxy",
+    "proxyFallbackBadge": "Proxy fallback active",
+    "proxyFallbackRestored": "Original proxy restored",
+    "restoreProxy": "Restore original proxy"
   }
 }

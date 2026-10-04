@@ -1840,6 +1840,13 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 					if !result.Decision.SkipFailureAccounting {
 						handlePoolAuthError(poolAccount, poolCredType, result.Decision.Code, result.Decision.BodySnippet)
 					}
+					// B4-#13: proxy-layer dial failures switch the account to its
+					// configured backup proxy (no-op without one — never an
+					// automatic direct connection). The guarded update in
+					// op/pool preserves the origin id against concurrent writers.
+					if isProxyLayerFailure(result.Err) {
+						maybeEnterProxyFallback(channel.PoolID, poolAccount.ID)
+					}
 				}
 
 				// 熔断器和 Auto 策略：在所有 adapter 类型（如 Responses→Chat）均失败后才记录，

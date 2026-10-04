@@ -3983,6 +3983,12 @@
     "unschedRuleUpdated": "規則已更新",
     "unschedRuleDeleted": "規則已刪除",
     "unschedRuleNoRules": "暫無規則（失敗保持默認 10 分鐘冷卻）",
-    "unschedRuleInvalidInput": "規則需要填寫 400-599 的狀態碼或響應體關鍵詞，且時長必須為正。"
+    "unschedRuleInvalidInput": "規則需要填寫 400-599 的狀態碼或響應體關鍵詞，且時長必須為正。",
+    "backupProxy": "備用代理（失敗時切換）",
+    "backupProxyHint": "當賬號代理撥號失敗時，出口自動切換到該備用代理；原始代理會被記錄，可在賬號操作中恢復。",
+    "backupProxyNone": "不使用備用代理",
+    "proxyFallbackBadge": "代理已回退",
+    "proxyFallbackRestored": "已恢復原始代理",
+    "restoreProxy": "恢復原始代理"
   }
 }

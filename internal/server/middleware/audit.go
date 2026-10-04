@@ -168,6 +168,7 @@ var auditedManagementWriteRoutes = map[string]struct{}{
 	"POST /api/v1/pool/:id/account/refresh-token/:aid":                               {},
 	"POST /api/v1/pool/:id/account/recover/:aid":                                     {},
 	"POST /api/v1/pool/:id/account/temp-unsched/:aid":                                {},
+	"POST /api/v1/pool/:id/account/restore-proxy/:aid":                               {},
 	"POST /api/v1/pool/:id/account/batch-refresh":                                    {},
 	"POST /api/v1/pool/:id/account/batch-clear-error":                                {},
 	"POST /api/v1/pool/:id/account/batch-test":                                       {},

@@ -81,3 +81,12 @@ func TestShouldAuditManagementWrite_PoolUnschedRuleRoutes(t *testing.T) {
 		t.Fatalf("GET list route must not be audited")
 	}
 }
+
+// TestShouldAuditManagementWrite_PoolRestoreProxyRoute locks in the audit
+// coverage of the B4-#13 proxy-fallback restore endpoint.
+func TestShouldAuditManagementWrite_PoolRestoreProxyRoute(t *testing.T) {
+	const fullPath = "/api/v1/pool/:id/account/restore-proxy/:aid"
+	if !ShouldAuditManagementWrite(http.MethodPost, fullPath) {
+		t.Fatalf("POST %s must be covered by the audit whitelist", fullPath)
+	}
+}

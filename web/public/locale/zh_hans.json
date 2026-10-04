@@ -3983,6 +3983,12 @@
     "unschedRuleUpdated": "规则已更新",
     "unschedRuleDeleted": "规则已删除",
     "unschedRuleNoRules": "暂无规则（失败保持默认 10 分钟冷却）",
-    "unschedRuleInvalidInput": "规则需要填写 400-599 的状态码或响应体关键词，且时长必须为正。"
+    "unschedRuleInvalidInput": "规则需要填写 400-599 的状态码或响应体关键词，且时长必须为正。",
+    "backupProxy": "备用代理（失败时切换）",
+    "backupProxyHint": "当账号代理拨号失败时，出口自动切换到该备用代理；原始代理会被记录，可在账号操作中恢复。",
+    "backupProxyNone": "不使用备用代理",
+    "proxyFallbackBadge": "代理已回退",
+    "proxyFallbackRestored": "已恢复原始代理",
+    "restoreProxy": "恢复原始代理"
   }
 }
