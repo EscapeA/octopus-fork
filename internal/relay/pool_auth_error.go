@@ -10,8 +10,9 @@ import (
 	"github.com/lingyuins/octopus/internal/relay/poolscheduler"
 )
 
-// poolBaseCooldown 返回号池的基础冷却时长（AccountPool.CooldownBaseSec，默认 300s）。
-// 仅在冷却事件（如 429 反馈缺 reset 头证据）时调用，每事件读一次，非每请求。
+// poolBaseCooldown returns the pool's base cooldown duration
+// (AccountPool.CooldownBaseSec, default 300s). Called once per cooldown event
+// (e.g. a 429 feedback lacking reset-header evidence), not per request.
 func poolBaseCooldown(poolID int) time.Duration {
 	sec := 300
 	if p, err := pool.GetPool(poolID); err == nil && p != nil && p.CooldownBaseSec > 0 {

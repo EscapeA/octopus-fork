@@ -177,7 +177,7 @@ export function SettingPool() {
                     />
                 </div>
 
-                {/* 粘性逃逸 */}
+                {/* Sticky escape */}
                 <div className="flex items-center justify-between rounded-lg border border-border/50 p-3">
                     <div className="space-y-1">
                         <div className="text-sm font-medium flex items-center gap-2">
@@ -227,7 +227,7 @@ export function SettingPool() {
                     </div>
                 </div>
 
-                {/* 调度因子权重（默认 0 = 关闭） */}
+                {/* Scheduler factor weights (default 0 = off) */}
                 <div className="grid grid-cols-2 gap-3">
                     <div>
                         <label className="text-xs text-muted-foreground flex items-center gap-1">
