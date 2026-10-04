@@ -127,6 +127,43 @@ type PoolAccountExtra struct {
 	NextRefreshAllowedAt int64 `json:"next_refresh_allowed_at,omitempty"`
 }
 
+// PoolScheduledTest is a pool scheduled connectivity test plan (B4-#11).
+// A nil AccountID targets every account in the pool; a non-nil one targets a
+// single account. Pool tables are not part of the main AutoMigrate list —
+// the table is created explicitly by migration 054.
+type PoolScheduledTest struct {
+	ID     int `json:"id" gorm:"primaryKey"`
+	PoolID int `json:"pool_id" gorm:"index;not null"`
+	// AccountID nil = whole pool; non-nil = that account only.
+	// Enabled deliberately carries no default tag: GORM replaces zero-valued
+	// fields that carry a default tag with the DDL default on INSERT, which
+	// would turn a disabled-at-create plan into an enabled one.
+	AccountID   *int      `json:"account_id"`
+	CronExpr    string    `json:"cron_expr" gorm:"type:varchar(64);not null"`
+	Enabled     bool      `json:"enabled" gorm:"index:idx_pool_sched_enabled_next,priority:1"`
+	AutoRecover bool      `json:"auto_recover" gorm:"default:false"`
+	LastRunAt   int64     `json:"last_run_at" gorm:"default:0"`
+	NextRunAt   int64     `json:"next_run_at" gorm:"default:0;index:idx_pool_sched_enabled_next,priority:2"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+func (PoolScheduledTest) TableName() string { return "pool_scheduled_tests" }
+
+// PoolScheduledTestResult is one execution outcome of a scheduled test plan
+// (history trimmed to the newest 100 rows per plan).
+type PoolScheduledTestResult struct {
+	ID         int64     `json:"id" gorm:"primaryKey"`
+	TestID     int       `json:"test_id" gorm:"index"`
+	AccountID  int       `json:"account_id"`
+	Success    bool      `json:"success"`
+	Detail     string    `json:"detail" gorm:"type:text"`
+	DurationMS int64     `json:"duration_ms"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+func (PoolScheduledTestResult) TableName() string { return "pool_scheduled_test_results" }
+
 // IsSchedulable 判断账号当前是否可参与调度。
 func (a *PoolAccount) IsSchedulable() bool {
 	if a.Status != "active" || !a.Schedulable {
