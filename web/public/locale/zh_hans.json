@@ -1020,7 +1020,8 @@
       "cost_threshold": "成本阈值",
       "error_rate": "错误率",
       "quota_exceeded": "额度耗尽",
-      "channel_down": "渠道离线"
+      "channel_down": "渠道离线",
+      "pool_account_error": "号池账号出错"
     },
     "channelTypes": {
       "webhook": "Webhook",
@@ -1055,13 +1056,19 @@
           "cost_threshold": "当日累计费用超过该金额时触发告警（元）",
           "error_rate": "滑动窗口内错误率超过该百分比时，对作用域目标触发告警",
           "quota_exceeded": "配额使用率超过该百分比时触发告警",
-          "channel_down": "渠道连续不可用次数超过该值时触发告警"
+          "channel_down": "渠道连续不可用次数超过该值时触发告警",
+          "pool_account_error": "当任一（或指定）号池账号处于 error 状态时触发；账号恢复后自动解除"
         },
         "window": "窗口（秒）",
         "windowPlaceholder": "滑动窗口秒数",
         "windowHint": "用于计算条件的滑动窗口时长；仅对错误率告警生效",
         "scopeGroupId": "作用域分组 ID",
-        "scopeModelName": "作用域模型名称"
+        "scopeModelName": "作用域模型名称",
+        "scopePoolAccountId": "作用域号池账号",
+        "selectPool": "选择号池…",
+        "scopeAnyPoolAccount": "所有号池账号（任一出错即触发）",
+        "scopeChannelId": "作用域渠道 ID",
+        "scopeApiKeyId": "作用域 API Key ID"
       }
     },
     "channels": {
