@@ -1382,7 +1382,7 @@
     },
     "pool": {
       "title": "号池配置",
-      "description": "号池账号健康巡检与分层调度过滤。",
+      "description": "号池账号健康巡检、分层调度过滤、粘性逃逸与调度权重。",
       "healthCheckEnabled": "启用健康巡检",
       "healthCheckEnabledHint": "定期调用 TestAccount 探测账号连通性，连续失败后自动 SetError。",
       "healthCheckInterval": "巡检间隔（分钟）",
@@ -1390,7 +1390,13 @@
       "layeredFilterEnabled": "启用分层过滤",
       "layeredFilterEnabledHint": "仅选择 priority ≥ min_priority 的账号。",
       "minPriority": "最小优先级（默认 -9999 关闭）",
-      "minPriorityHint": "优先级低于该值的账号被调度跳过。"
+      "minPriorityHint": "优先级低于该值的账号被调度跳过。",
+      "stickyEscapeEnabled": "启用粘性逃逸",
+      "stickyEscapeEnabledHint": "账号 EWMA 错误率或 TTFT 超过阈值时临时绕过粘性绑定（默认关闭，sub2api 默认开启）。原绑定保留，统计恢复后会话自动回归原账号。",
+      "stickyEscapeErrorRate": "逃逸错误率阈值",
+      "stickyEscapeErrorRateHint": "账号 EWMA 错误率超过该值（0-1] 时触发逃逸。",
+      "stickyEscapeTTFTMs": "逃逸 TTFT 阈值（毫秒）",
+      "stickyEscapeTTFTMsHint": "账号 EWMA TTFT 超过该值时触发逃逸，0 表示禁用该维度。"
     },
     "proxyPool": {
       "title": "代理池"

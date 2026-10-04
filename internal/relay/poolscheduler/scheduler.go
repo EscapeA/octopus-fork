@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 	"math/rand/v2"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -92,9 +94,17 @@ func stickyKey(poolID int, sessionHash string) string {
 // 返回选中的账号（已 acquire 并发槽位），调用方完成后必须调用 ReleaseSlot。
 func SelectAccount(poolID int, sessionHash string, excludeIDs []int, poolDefaultConcurrency int, modelName string) (*model.PoolAccount, error) {
 	// L1: 粘性会话
+	escapedStickyID := 0
 	if sessionHash != "" {
-		if acct, ok := trySticky(poolID, sessionHash, excludeIDs, poolDefaultConcurrency, modelName); ok {
+		acct, ok, escapedID := trySticky(poolID, sessionHash, excludeIDs, poolDefaultConcurrency, modelName)
+		if ok {
 			return acct, nil
+		}
+		if escapedID > 0 {
+			// B1-#9 粘性逃逸：本次选号排除逃逸账号（避免 round_robin/ewma 立刻
+			// 再选中它），但保留原粘性条目不改绑——统计恢复后会话回归原绑定。
+			escapedStickyID = escapedID
+			excludeIDs = append(append([]int(nil), excludeIDs...), escapedID)
 		}
 	}
 
@@ -124,7 +134,8 @@ func SelectAccount(poolID int, sessionHash string, excludeIDs []int, poolDefault
 
 	// L5: acquire 槽位 + 绑定粘性
 	acquireSlot(poolID, selected.ID)
-	if sessionHash != "" {
+	// B1-#9：逃逸会话本次不改绑（保留原粘性条目，统计恢复后回归原账号）。
+	if sessionHash != "" && escapedStickyID == 0 {
 		globalPoolSticky.Store(stickyKey(poolID, sessionHash), &stickyEntry{
 			AccountID:    selected.ID,
 			LastActivity: time.Now(),
@@ -381,41 +392,103 @@ func PurgeStaleSticky(idleThreshold time.Duration) int {
 	return removed
 }
 
-func trySticky(poolID int, sessionHash string, excludeIDs []int, poolDefaultConcurrency int, modelName string) (*model.PoolAccount, bool) {
+// trySticky 命中粘性会话时返回 (account, true, 0)。未命中返回 (nil, false, 0)；
+// 粘性账号因 EWMA 统计劣化被逃逸时返回 (nil, false, escapedID>0)——此时粘性条目
+// 保留（与 excludeIDs 命中 / ModelMatches 不匹配分支同样不 Delete），会话在账号
+// 统计恢复后重新回归原绑定。
+func trySticky(poolID int, sessionHash string, excludeIDs []int, poolDefaultConcurrency int, modelName string) (*model.PoolAccount, bool, int) {
 	key := stickyKey(poolID, sessionHash)
 	val, ok := globalPoolSticky.Load(key)
 	if !ok {
-		return nil, false
+		return nil, false, 0
 	}
 	entry, ok := val.(*stickyEntry)
 	if !ok {
 		globalPoolSticky.Delete(key)
-		return nil, false
+		return nil, false, 0
 	}
 	accountID := entry.AccountID
 	for _, id := range excludeIDs {
 		if id == accountID {
-			return nil, false
+			return nil, false, 0
 		}
 	}
 	acct, err := pool.GetAccount(poolID, accountID)
 	if err != nil || !acct.IsSchedulable() {
 		globalPoolSticky.Delete(key)
-		return nil, false
+		return nil, false, 0
 	}
 	if !model.ModelMatches(acct.Models, modelName) {
-		return nil, false
+		return nil, false, 0
+	}
+	// B1-#9 粘性逃逸：EWMA 统计劣化（错误率 / TTFT 超阈值）时临时绕过粘性绑定。
+	// 条目保留，不改绑；逃逸开关默认关闭，关闭时行为与之前逐字节一致。
+	if shouldEscapeStickyAccount(poolID, accountID) {
+		return nil, false, accountID
 	}
 	limit := acct.EffectiveLoadFactor()
 	if limit <= 0 {
 		limit = acct.EffectiveConcurrency(poolDefaultConcurrency)
 	}
 	if !tryAcquireSlot(poolID, accountID, limit) {
-		return nil, false
+		return nil, false, 0
 	}
 	// 粘性命中，刷新 LastActivity（活跃会话续期，与 balancer.SetSticky 一致）。
 	entry.LastActivity = time.Now()
-	return acct, true
+	return acct, true, 0
+}
+
+// shouldEscapeStickyAccount 判断账号 EWMA 统计是否劣化到需要临时逃逸粘性绑定
+//（B1-#9，对齐 sub2api openai_account_scheduler.go shouldEscapeStickyAccount：
+// TTFT 维度优先，其次错误率；两阈值均取严格大于）。
+// 统计缺失（账号从无 ReportResult 记录）或开关关闭时不逃逸，行为与禁用一致。
+func shouldEscapeStickyAccount(poolID, accountID int) bool {
+	enabled, err := setting.GetBool(model.SettingKeyPoolStickyEscapeEnabled)
+	if err != nil || !enabled {
+		return false
+	}
+	errorRateThreshold, ttftThresholdMs, err := stickyEscapeThresholds()
+	if err != nil {
+		return false
+	}
+	val, ok := globalPoolStats.Load(statsKey(poolID, accountID))
+	if !ok {
+		return false
+	}
+	stats := val.(*accountStats)
+	stats.mu.Lock()
+	errorRate, ttftMs := stats.errorRate, stats.ttftMs
+	stats.mu.Unlock()
+	// ttftMs==0 表示尚无 TTFT 样本；阈值 <=0 表示管理员禁用 TTFT 维度。
+	if ttftMs > 0 && ttftThresholdMs > 0 && ttftMs > ttftThresholdMs {
+		return true
+	}
+	if errorRate > errorRateThreshold {
+		return true
+	}
+	return false
+}
+
+// stickyEscapeThresholds 读取逃逸阈值（设置走进程内缓存，与
+// filterLayeredByPriority 的 SettingKeyPoolLayeredFilterEnabled 读取同模式）。
+func stickyEscapeThresholds() (errorRate float64, ttftThresholdMs float64, err error) {
+	rawRate, err := setting.GetString(model.SettingKeyPoolStickyEscapeErrorRate)
+	if err != nil {
+		return 0, 0, err
+	}
+	errorRate, err = strconv.ParseFloat(strings.TrimSpace(rawRate), 64)
+	if err != nil || errorRate <= 0 || errorRate > 1 {
+		return 0, 0, fmt.Errorf("invalid pool_sticky_escape_error_rate: %q", rawRate)
+	}
+	rawTTFT, err := setting.GetString(model.SettingKeyPoolStickyEscapeTTFTMs)
+	if err != nil {
+		return 0, 0, err
+	}
+	ttftThresholdMs, err = strconv.ParseFloat(strings.TrimSpace(rawTTFT), 64)
+	if err != nil || ttftThresholdMs < 0 {
+		return 0, 0, fmt.Errorf("invalid pool_sticky_escape_ttft_ms: %q", rawTTFT)
+	}
+	return errorRate, ttftThresholdMs, nil
 }
 
 // filterByModel 按账号绑定的模型列表过滤候选。models 为空表示不限。

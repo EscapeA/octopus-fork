@@ -47,6 +47,9 @@ const (
 	SettingKeyPlanProviderRefreshInterval          SettingKey = "plan_provider_refresh_interval"           // 额度监控自动刷新默认间隔（分钟）
 	SettingKeyPoolMinPriority                      SettingKey = "pool_min_priority"                        // 号池分层过滤 minPriority 阈值（默认 -9999 表示关闭）
 	SettingKeyPoolLayeredFilterEnabled             SettingKey = "pool_layered_filter_enabled"              // 号池分层过滤开关：开启后 SelectAccount 过滤掉 priority < min_priority 的候选
+	SettingKeyPoolStickyEscapeEnabled              SettingKey = "pool_sticky_escape_enabled"               // 号池粘性逃逸开关：账号 EWMA 劣化时临时绕过粘性绑定（默认关闭）
+	SettingKeyPoolStickyEscapeErrorRate            SettingKey = "pool_sticky_escape_error_rate"            // 号池粘性逃逸错误率阈值（EWMA errorRate 超过即逃逸）
+	SettingKeyPoolStickyEscapeTTFTMs               SettingKey = "pool_sticky_escape_ttft_ms"               // 号池粘性逃逸 TTFT 阈值（毫秒，EWMA TTFT 超过即逃逸；0=禁用该维度）
 	SettingKeyPoolHealthCheckEnabled               SettingKey = "pool_health_check_enabled"                // 号池账号健康巡检开关
 	SettingKeyPoolHealthCheckInterval              SettingKey = "pool_health_check_interval_minutes"       // 号池账号健康巡检间隔（分钟）
 	SettingKeyPoolHealthCheckFailThreshold         SettingKey = "pool_health_check_fail_threshold"         // 号池账号健康巡检失败阈值（连续 N 次后 SetError）
@@ -236,6 +239,9 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyPlanProviderRefreshInterval, Value: "30"},       // 默认 30 分钟自动刷新额度监控
 		{Key: SettingKeyPoolMinPriority, Value: "-9999"},                // 默认关闭分层过滤
 		{Key: SettingKeyPoolLayeredFilterEnabled, Value: "false"},       // 默认关闭号池分层过滤
+		{Key: SettingKeyPoolStickyEscapeEnabled, Value: "false"},        // 默认关闭粘性逃逸（sub2api 默认开启；octopus 约束：新行为默认关闭）
+		{Key: SettingKeyPoolStickyEscapeErrorRate, Value: "0.5"},        // 默认逃逸错误率阈值 0.5
+		{Key: SettingKeyPoolStickyEscapeTTFTMs, Value: "15000"},         // 默认逃逸 TTFT 阈值 15000ms
 		{Key: SettingKeyPoolHealthCheckEnabled, Value: "false"},         // 默认关闭号池巡检
 		{Key: SettingKeyPoolHealthCheckInterval, Value: "30"},           // 默认 30 分钟巡检
 		{Key: SettingKeyPoolHealthCheckFailThreshold, Value: "3"},       // 默认 3 次失败后 SetError
@@ -286,7 +292,8 @@ func (s *Setting) Validate() error {
 		SettingKeyFailureHintTTLUnauthorized, SettingKeyFailureHintTTLRateLimit, SettingKeyFailureHintTTLNetwork,
 		SettingKeyKeyHealthCheckInterval, SettingKeyKeyHealthCheckFailThreshold, SettingKeyKeyHealthCheckNotifyCooldown,
 		SettingKeyPoolTokenRefreshInterval, SettingKeyPoolQuotaSyncInterval, SettingKeyPlanProviderRefreshInterval,
-		SettingKeyPoolMinPriority, SettingKeyPoolHealthCheckInterval, SettingKeyPoolHealthCheckFailThreshold:
+		SettingKeyPoolMinPriority, SettingKeyPoolHealthCheckInterval, SettingKeyPoolHealthCheckFailThreshold,
+		SettingKeyPoolStickyEscapeTTFTMs:
 		v, err := strconv.Atoi(s.Value)
 		if err != nil {
 			return fmt.Errorf("setting value must be an integer")
@@ -377,9 +384,15 @@ func (s *Setting) Validate() error {
 			}
 		}
 	case SettingKeyRelayLogKeepEnabled, SettingKeyRelayLogContentEnabled, SettingKeyStreamSessionReplayEnabled, SettingKeySemanticCacheEnabled, SettingKeyModelNormalizeMarketDedupeDefault, SettingKeyRetryEmptyOutput, SettingKeyRateLimitHoldEnabled, SettingKeyKeyHealthCheckEnabled, SettingKeyKeyHealthCheckNotifyEnabled, SettingKeyKeyHealthCheckRecoveryNotify,
-		SettingKeyPoolLayeredFilterEnabled, SettingKeyPoolHealthCheckEnabled:
+		SettingKeyPoolLayeredFilterEnabled, SettingKeyPoolHealthCheckEnabled, SettingKeyPoolStickyEscapeEnabled:
 		if s.Value != "true" && s.Value != "false" {
 			return fmt.Errorf("setting value must be true or false")
+		}
+		return nil
+	case SettingKeyPoolStickyEscapeErrorRate:
+		v, err := strconv.ParseFloat(s.Value, 64)
+		if err != nil || v <= 0 || v > 1 {
+			return fmt.Errorf("pool_sticky_escape_error_rate must be a float in (0, 1]")
 		}
 		return nil
 	case SettingKeyReasoningBufferStrategy:
