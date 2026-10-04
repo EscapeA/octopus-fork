@@ -3773,8 +3773,7 @@
       "oauth": "OAuth",
       "apikey": "API Key",
       "cookie": "Cookie",
-      "upstream": "上游中轉",
-      "setup-token": "Setup Token"
+      "upstream": "上游中轉"
     },
     "platformLabels": {
       "anthropic": "Anthropic",

@@ -83,10 +83,15 @@ const (
 
 // 号池账号凭据类型常量
 const (
-	PoolTypeOAuth      = "oauth"
-	PoolTypeAPIKey     = "apikey"
-	PoolTypeCookie     = "cookie"
-	PoolTypeUpstream   = "upstream"
+	PoolTypeOAuth    = "oauth"
+	PoolTypeAPIKey   = "apikey"
+	PoolTypeCookie   = "cookie"
+	PoolTypeUpstream = "upstream"
+
+	// Deprecated: setup-token is a compatibility constant only (guide card
+	// B3-#6, route A). The frontend entry was removed — no test, outbound or
+	// refresh implementation ever existed. Historical rows still load and
+	// render through the unknown-type fallbacks.
 	PoolTypeSetupToken = "setup-token"
 )
 

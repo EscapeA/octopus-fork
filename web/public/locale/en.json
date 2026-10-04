@@ -3773,8 +3773,7 @@
       "oauth": "OAuth",
       "apikey": "API Key",
       "cookie": "Cookie",
-      "upstream": "Upstream Relay",
-      "setup-token": "Setup Token"
+      "upstream": "Upstream Relay"
     },
     "platformLabels": {
       "anthropic": "Anthropic",
