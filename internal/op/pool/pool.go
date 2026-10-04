@@ -148,6 +148,22 @@ func ClearTempUnschedIfTrigger(poolID, accountID int, trigger string) (bool, err
 	return result.RowsAffected > 0, nil
 }
 
+// ClearAuthErrorMirrorIfNotNewer 条件清零账号的鉴权错误 DB 镜像列
+//（auth_error_count / auth_error_window_start）：仅当存储证据不新于快照
+//（count <= snapshotCount 且 window_start <= snapshotWindowStart）时清除，
+// 单条 UPDATE 原子执行。RowsAffected==0 表示 DB 存在比快照更新的证据，保持不动。
+// 用于防止异步延迟到达的成功上报擦掉其后新产生的 401/403 证据（B1-#7）。
+func ClearAuthErrorMirrorIfNotNewer(poolID, accountID int, snapshotCount int, snapshotWindowStart int64) error {
+	result := db.GetDB().Model(&model.PoolAccount{}).
+		Where("pool_id = ? AND id = ? AND auth_error_count <= ? AND auth_error_window_start <= ?",
+			poolID, accountID, snapshotCount, snapshotWindowStart).
+		Updates(map[string]interface{}{
+			"auth_error_count":        0,
+			"auth_error_window_start": int64(0),
+		})
+	return result.Error
+}
+
 func DeleteAccount(poolID, accountID int) error {
 	result := db.GetDB().Where("pool_id = ? AND id = ?", poolID, accountID).Delete(&model.PoolAccount{})
 	if result.Error != nil {

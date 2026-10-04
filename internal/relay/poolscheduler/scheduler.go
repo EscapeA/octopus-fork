@@ -57,6 +57,11 @@ type poolReportJob struct {
 	accountID    int
 	success      bool
 	outputTokens int64
+	// authErrorCount / authErrorWindowStart 是成功上报瞬间内存鉴权错误计数器的
+	// 快照（B1-#7）：worker 清 DB 镜像前按快照做条件更新，防止"延迟到达的成功
+	// 任务"擦掉快照之后新产生的 401/403 证据。
+	authErrorCount       int
+	authErrorWindowStart int64
 }
 
 type accountStats struct {
@@ -150,13 +155,17 @@ func ReportResult(poolID, accountID int, success bool, ttftMs float64, outputTok
 	stats.mu.Unlock()
 
 	// 成功请求后清零鉴权错误计数（等价 sub2api clear-error 于测试成功）。
+	job := poolReportJob{poolID: poolID, accountID: accountID, success: success, outputTokens: outputTokens}
 	if success {
+		// B1-#7：先抓镜像快照再清内存。ResetAuthError 会把窗口起点刷成本次
+		// 成功时刻，因此其后新 401/403 的镜像写入必然携带更新的 window_start，
+		// worker 的条件清除会识别为"更新证据"而跳过。
+		job.authErrorCount, job.authErrorWindowStart = authErrorSnapshot(poolID, accountID)
 		ResetAuthError(poolID, accountID)
 	}
 
 	// 异步更新 DB 累计（best-effort，不阻塞请求路径）。经有界 worker pool 执行，
 	// 入队非阻塞，队列满则丢弃当前 job（计数降级，下次请求会再累积）。
-	job := poolReportJob{poolID: poolID, accountID: accountID, success: success, outputTokens: outputTokens}
 	select {
 	case poolReportCh <- job:
 	default:
@@ -177,11 +186,10 @@ func applyReportToDB(job poolReportJob) {
 	}
 	_ = pool.UpdateAccount(job.poolID, job.accountID, updates)
 	if job.success {
-		// 同步清零 auth_error_count 窗口数据库列，供恢复面板与统计查看。
-		_ = pool.UpdateAccount(job.poolID, job.accountID, map[string]interface{}{
-			"auth_error_count":        0,
-			"auth_error_window_start": int64(0),
-		})
+		// B1-#7：条件清零鉴权错误镜像——仅当 DB 证据不新于成功上报时的快照
+		//（单条原子 UPDATE）。防延迟成功擦新证据：快照之后的新 401/403 镜像
+		// 写入会携带更大的 count 或更新的 window_start，条件不满足则保持不动。
+		_ = pool.ClearAuthErrorMirrorIfNotNewer(job.poolID, job.accountID, job.authErrorCount, job.authErrorWindowStart)
 	}
 }
 
@@ -258,11 +266,19 @@ func ClearTempUnschedIfTrigger(poolID, accountID int, trigger string) (cleared b
 	return pool.ClearTempUnschedIfTrigger(poolID, accountID, trigger)
 }
 
-// ReportAuthErrorCount 上报当前鉴权错误计数到 DB（供管理员查看当前窗口计数）。
-// 同时刷新窗口起点 best-effort（本身不明示窗口起点，仅写入计数）。
+// ReportAuthErrorCount 上报当前鉴权错误计数到 DB 镜像（供管理员查看当前窗口
+// 计数，并在进程重启后由 IncrementAuthError 懒加载播种继承，B1-#7）。
+// 同时写入窗口起点：取内存计数器条目的 windowStart（条目不存在时取 now），
+// 该值同时是延迟成功清除的证据新旧判定依据。
 func ReportAuthErrorCount(poolID, accountID int, count int) error {
+	windowStart := time.Now().Unix()
+	if val, ok := globalAuthErrors.Load(authErrorKey(poolID, accountID)); ok {
+		entry := val.(*authErrorEntry)
+		windowStart = atomic.LoadInt64(&entry.windowStart)
+	}
 	return pool.UpdateAccount(poolID, accountID, map[string]interface{}{
-		"auth_error_count": count,
+		"auth_error_count":        count,
+		"auth_error_window_start": windowStart,
 	})
 }
 
