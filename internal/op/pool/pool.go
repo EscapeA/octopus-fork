@@ -127,6 +127,27 @@ func UpdateAccount(poolID, accountID int, updates map[string]interface{}) error 
 	return nil
 }
 
+// ClearTempUnschedIfTrigger 原子清除临时不可调度，但仅当 temp_unsched_reason
+// 仍携带指定 trigger 标记（JSON "trigger" 字段的精确子串匹配，单条 UPDATE 实现，
+// 无 read-check-clear 竞态）。RowsAffected==0 表示当前块由并发来源持有
+//（401 刷新窗口 / 403 冷却 / 管理员手动块），保持原样不动。返回清除是否发生。
+func ClearTempUnschedIfTrigger(poolID, accountID int, trigger string) (bool, error) {
+	if trigger == "" {
+		return false, nil
+	}
+	pattern := `%"trigger":"` + trigger + `"%`
+	result := db.GetDB().Model(&model.PoolAccount{}).
+		Where("pool_id = ? AND id = ? AND temp_unsched_reason LIKE ?", poolID, accountID, pattern).
+		Updates(map[string]interface{}{
+			"temp_unsched_until":  int64(0),
+			"temp_unsched_reason": "",
+		})
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return result.RowsAffected > 0, nil
+}
+
 func DeleteAccount(poolID, accountID int) error {
 	result := db.GetDB().Where("pool_id = ? AND id = ?", poolID, accountID).Delete(&model.PoolAccount{})
 	if result.Error != nil {

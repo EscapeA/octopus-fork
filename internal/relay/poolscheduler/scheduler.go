@@ -250,6 +250,14 @@ func ClearTempUnsched(poolID, accountID int) {
 	SetTempUnsched(poolID, accountID, time.Time{}, "")
 }
 
+// ClearTempUnschedIfTrigger 仅当 DB 中 temp_unsched_reason 仍携带指定 trigger
+// 标记时原子清除临时不可调度（B1-#4）。用于"条件清理自己写的块"：
+// 并发来源（401 窗口 / 403 冷却 / 管理员手动块）持有的块不会被擦掉。
+// cleared=false 表示当前块不属于该 trigger（或已清空）。
+func ClearTempUnschedIfTrigger(poolID, accountID int, trigger string) (cleared bool, err error) {
+	return pool.ClearTempUnschedIfTrigger(poolID, accountID, trigger)
+}
+
 // ReportAuthErrorCount 上报当前鉴权错误计数到 DB（供管理员查看当前窗口计数）。
 // 同时刷新窗口起点 best-effort（本身不明示窗口起点，仅写入计数）。
 func ReportAuthErrorCount(poolID, accountID int, count int) error {
