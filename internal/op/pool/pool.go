@@ -128,6 +128,29 @@ func UpdateAccount(poolID, accountID int, updates map[string]interface{}) error 
 	return nil
 }
 
+// UpdateAccountCredentialsIfUnchanged performs a compare-and-set update of a
+// pool account: the update is applied only when the stored credentials blob
+// still equals expectedOld. The comparison happens on the ciphertext (the DB
+// storage form), never on the decrypted struct — serializing a decrypted
+// credential back to JSON is not byte-stable, so a plaintext comparison would
+// produce false CAS negatives.
+//
+// Returns false (with a nil error) when the condition did not match, which
+// covers both "a concurrent writer already rotated the credentials" and "the
+// account row no longer exists". Callers that lose the race must discard their
+// write and re-read — the newer credential wins. Intended for the token
+// refresh write-back path (B2-#2) so a stale refresh_token can never overwrite
+// a freshly rotated one.
+func UpdateAccountCredentialsIfUnchanged(poolID, accountID int, expectedOld string, updates map[string]interface{}) (bool, error) {
+	result := db.GetDB().Model(&model.PoolAccount{}).
+		Where("pool_id = ? AND id = ? AND credentials = ?", poolID, accountID, expectedOld).
+		Updates(updates)
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return result.RowsAffected > 0, nil
+}
+
 // ClearTempUnschedIfTrigger atomically clears the temporary unschedulable flag
 // only when temp_unsched_reason still carries the given trigger tag (exact
 // substring match on the JSON "trigger" field, implemented as a single UPDATE

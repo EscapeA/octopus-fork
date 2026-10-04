@@ -96,6 +96,13 @@ func refreshAccountImpl(ctx context.Context, poolID, accountID int) error {
 	if acct.Type != model.PoolTypeOAuth {
 		return fmt.Errorf("account %d is not oauth type", accountID)
 	}
+	// B2-#2: snapshot the raw credentials ciphertext BEFORE decryption mutates
+	// acct.Credentials in place. This snapshot is the CAS expectation of the
+	// success write-back: the refresh result is persisted only when the stored
+	// blob is still the one this attempt loaded, so a credential rotated
+	// concurrently (e.g. by another instance) is never overwritten with a
+	// stale token.
+	priorCredentials := acct.Credentials
 	// 解密凭据。
 	_ = pool.DecryptAccountCredentials(acct)
 	cred := model.ParsePoolCredential(acct.Credentials)
@@ -147,6 +154,27 @@ func refreshAccountImpl(ctx context.Context, poolID, accountID int) error {
 		return err
 	}
 
+	// 成功路径：退避清零 + CAS 写回（见 persistRefreshSuccess）。
+	applied, err := persistRefreshSuccess(poolID, accountID, acct, priorCredentials, newCred, expiresAt)
+	if err != nil {
+		return err
+	}
+	if !applied {
+		// B2-#2: a concurrent writer rotated the credentials while our refresh
+		// was in flight — discard our result, the newer token wins. Retrying
+		// the whole impl would only burn upstream quota for the same outcome.
+		log.Warnf("pooltokenrefresh: refresh result of account %d/%d discarded: credentials changed concurrently, keeping the newer token", poolID, accountID)
+	}
+	return nil
+}
+
+// persistRefreshSuccess builds the success updates (re-encrypted credentials,
+// new expiry, cleared error_message, reset backoff counters) and writes them
+// through the CAS variant, matching against storedCredentialsSnapshot — the
+// raw ciphertext the refresh attempt loaded. Returns applied=false when a
+// concurrent writer changed the credentials after the snapshot (the newer
+// token wins; our write is discarded).
+func persistRefreshSuccess(poolID, accountID int, acct *model.PoolAccount, storedCredentialsSnapshot string, newCred model.PoolCredential, expiresAt int64) (bool, error) {
 	// 成功：重置退避计数。
 	extra := acct.GetExtra()
 	extra.RefreshFailureCount = 0
@@ -161,7 +189,7 @@ func refreshAccountImpl(ctx context.Context, poolID, accountID int) error {
 		"error_message":    "",
 		"extra":            acct.Extra,
 	}
-	return pool.UpdateAccount(poolID, accountID, updates)
+	return pool.UpdateAccountCredentialsIfUnchanged(poolID, accountID, storedCredentialsSnapshot, updates)
 }
 
 // computeNextBackoff 根据失败次数计算下一次允许刷新的时间（unix 秒）。

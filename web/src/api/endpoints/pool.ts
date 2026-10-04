@@ -283,8 +283,10 @@ export type PoolAccountExport = {
 };
 
 export function useExportPoolAccounts(poolId: number) {
+    // POST (not GET): the backend audit middleware short-circuits every
+    // non-writing method, so the export route is only auditable as POST.
     return useMutation({
-        mutationFn: () => apiClient.get<PoolAccountExport[]>(`/api/v1/pool/${poolId}/account/export`),
+        mutationFn: () => apiClient.post<PoolAccountExport[]>(`/api/v1/pool/${poolId}/account/export`),
     });
 }
 

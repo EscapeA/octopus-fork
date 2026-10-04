@@ -35,6 +35,13 @@ type tempUnschedState struct {
 // 403 → 计数 + 临时禁用（阈值满 → SetError）
 // 401 oauth → 临时禁用留刷新窗口（无 refresh_token 则 SetError）
 // 401 非 oauth → SetError
+//
+// Frozen invariant (B2-#2): this path (and everything it calls) only ever
+// writes scheduling/status columns — temp_unsched_*, auth-error mirror
+// counters and error state. It must NEVER write the credentials column:
+// credential writes belong exclusively to the token refresh flow's CAS path
+// (pool.UpdateAccountCredentialsIfUnchanged), the only writer that can prove
+// it is not overwriting a newer credential.
 func handlePoolAuthError(acct *dbmodel.PoolAccount, credType string, code int) {
 	if acct == nil {
 		return

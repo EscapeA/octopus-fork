@@ -99,7 +99,12 @@ func init() {
 				Handle(batchTestPoolAccounts),
 		).
 		AddRoute(
-			router.NewRoute("/:id/account/export", http.MethodGet).
+			// Export is POST rather than GET: the audit middleware
+			// (isPotentialAuditRequest) short-circuits every non-POST/PUT/PATCH/
+			// DELETE method before the whitelist lookup, so a GET export could
+			// never be audited. The handler reads no body, so POST is compatible
+			// with all clients.
+			router.NewRoute("/:id/account/export", http.MethodPost).
 				Use(middleware.RequirePermission(auth.PermChannelsWrite)).
 				Handle(exportPoolAccounts),
 		).
