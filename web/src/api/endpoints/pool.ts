@@ -394,3 +394,62 @@ export function useRestorePoolAccountProxy(poolId: number) {
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pools', poolId, 'accounts'] }),
     });
 }
+
+// --- Temp-unsched rules (B4-#12) ---
+
+export type PoolUnschedRule = {
+    id: number;
+    name: string;
+    match_status_code?: number | null;
+    match_keyword: string;
+    duration_minutes: number;
+    enabled: boolean;
+    sort_order: number;
+    created_at: string;
+    updated_at: string;
+};
+
+export type PoolUnschedRuleRequest = {
+    name?: string;
+    match_status_code?: number | null;
+    match_keyword?: string;
+    duration_minutes: number;
+    enabled?: boolean;
+    sort_order?: number;
+};
+
+export function usePoolUnschedRules() {
+    return useQuery({
+        queryKey: ['pools', 'unsched-rules'],
+        queryFn: () => apiClient.get<PoolUnschedRule[]>('/api/v1/pool/unsched-rules/list'),
+    });
+}
+
+function invalidateUnschedRules(queryClient: ReturnType<typeof useQueryClient>) {
+    void queryClient.invalidateQueries({ queryKey: ['pools', 'unsched-rules'] });
+}
+
+export function useCreatePoolUnschedRule() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: PoolUnschedRuleRequest) => apiClient.post<PoolUnschedRule>('/api/v1/pool/unsched-rules/create', data),
+        onSuccess: () => invalidateUnschedRules(queryClient),
+    });
+}
+
+export function useUpdatePoolUnschedRule() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, data }: { id: number; data: PoolUnschedRuleRequest }) =>
+            apiClient.post(`/api/v1/pool/unsched-rules/update/${id}`, data),
+        onSuccess: () => invalidateUnschedRules(queryClient),
+    });
+}
+
+export function useDeletePoolUnschedRule() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id: number) => apiClient.delete(`/api/v1/pool/unsched-rules/delete/${id}`),
+        onSuccess: () => invalidateUnschedRules(queryClient),
+    });
+}

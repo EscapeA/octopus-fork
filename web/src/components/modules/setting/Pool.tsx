@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Hint } from '@/components/ui/hint';
 import { Switch } from '@/components/ui/switch';
 import { useSettingList, useSetSetting, SettingKey } from '@/api/endpoints/setting';
+import { PoolUnschedRulesCard } from '@/components/modules/pool/PoolUnschedRulesCard';
 import { toast } from '@/components/common/Toast';
 
 export function SettingPool() {
@@ -286,6 +287,9 @@ export function SettingPool() {
                     />
                 </div>
             </div>
+
+            {/* Temp-unsched rules (B4-#12): rule-driven pool cooldowns, global scope. */}
+            <PoolUnschedRulesCard />
         </div>
     );
 }

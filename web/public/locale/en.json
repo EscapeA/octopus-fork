@@ -3968,6 +3968,21 @@
     "schedTestDeleted": "Plan deleted",
     "schedTestInvalidCron": "Unsupported cron expression (use e.g. */30 * * * * or 0 9,21 * * *)",
     "schedTestEnabled": "Enabled",
-    "schedTestNoPlans": "No scheduled test plans yet"
+    "schedTestNoPlans": "No scheduled test plans yet",
+    "unschedRules": "Temp-Unsched Rules",
+    "unschedRulesHint": "When an upstream failure matches a rule, the account is temporarily unschedulable for the rule's duration. Rules are evaluated in order; the first match wins.",
+    "unschedRuleCreate": "New Rule",
+    "unschedRuleEdit": "Edit",
+    "unschedRuleName": "Rule name",
+    "unschedRuleStatusCode": "Status code (e.g. 529)",
+    "unschedRuleKeyword": "Body keyword (optional)",
+    "unschedRuleDuration": "Duration (minutes)",
+    "unschedRuleSortOrder": "Sort order",
+    "unschedRuleEnabled": "Enabled",
+    "unschedRuleCreated": "Rule created",
+    "unschedRuleUpdated": "Rule updated",
+    "unschedRuleDeleted": "Rule deleted",
+    "unschedRuleNoRules": "No rules yet (failures keep the default 10-minute cooldown)",
+    "unschedRuleInvalidInput": "A rule needs a status code between 400 and 599 or a body keyword, and a positive duration."
   }
 }

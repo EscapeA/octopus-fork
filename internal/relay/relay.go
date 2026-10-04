@@ -1835,8 +1835,10 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 					// P0 调度健壮性：OpenAI 403 阈值禁用 / OAuth 401 临时禁用（对齐 sub2api ratelimit_service）。
 					// 客户端主动停止 / 内容拦截不是鉴权失败，显式排除，避免把健康账号
 					// 打成 IncrementAuthError + 临时禁用甚至账号级 SetError。
+					// B4-#12: the error-body snippet feeds the temp-unsched rule
+					// keyword matching (rules run after the 403-counter logic).
 					if !result.Decision.SkipFailureAccounting {
-						handlePoolAuthError(poolAccount, poolCredType, result.Decision.Code)
+						handlePoolAuthError(poolAccount, poolCredType, result.Decision.Code, result.Decision.BodySnippet)
 					}
 				}
 

@@ -3968,6 +3968,21 @@
     "schedTestDeleted": "计划已删除",
     "schedTestInvalidCron": "不支持的 Cron 表达式（例如 */30 * * * * 或 0 9,21 * * *）",
     "schedTestEnabled": "启用",
-    "schedTestNoPlans": "暂无定时测试计划"
+    "schedTestNoPlans": "暂无定时测试计划",
+    "unschedRules": "临时禁用规则",
+    "unschedRulesHint": "上游失败命中规则时，账号将按规则时长被临时禁用调度。规则按顺序匹配，命中第一条即生效。",
+    "unschedRuleCreate": "新建规则",
+    "unschedRuleEdit": "编辑",
+    "unschedRuleName": "规则名称",
+    "unschedRuleStatusCode": "状态码（如 529）",
+    "unschedRuleKeyword": "响应体关键词（可选）",
+    "unschedRuleDuration": "时长（分钟）",
+    "unschedRuleSortOrder": "排序",
+    "unschedRuleEnabled": "启用",
+    "unschedRuleCreated": "规则已创建",
+    "unschedRuleUpdated": "规则已更新",
+    "unschedRuleDeleted": "规则已删除",
+    "unschedRuleNoRules": "暂无规则（失败保持默认 10 分钟冷却）",
+    "unschedRuleInvalidInput": "规则需要填写 400-599 的状态码或响应体关键词，且时长必须为正。"
   }
 }

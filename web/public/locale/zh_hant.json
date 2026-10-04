@@ -3968,6 +3968,21 @@
     "schedTestDeleted": "計劃已刪除",
     "schedTestInvalidCron": "不支持的 Cron 表達式（例如 */30 * * * * 或 0 9,21 * * *）",
     "schedTestEnabled": "啟用",
-    "schedTestNoPlans": "暫無定時測試計劃"
+    "schedTestNoPlans": "暫無定時測試計劃",
+    "unschedRules": "臨時禁用規則",
+    "unschedRulesHint": "上游失敗命中規則時，賬號將按規則時長被臨時禁用調度。規則按順序匹配，命中第一條即生效。",
+    "unschedRuleCreate": "新建規則",
+    "unschedRuleEdit": "編輯",
+    "unschedRuleName": "規則名稱",
+    "unschedRuleStatusCode": "狀態碼（如 529）",
+    "unschedRuleKeyword": "響應體關鍵詞（可選）",
+    "unschedRuleDuration": "時長（分鐘）",
+    "unschedRuleSortOrder": "排序",
+    "unschedRuleEnabled": "啟用",
+    "unschedRuleCreated": "規則已創建",
+    "unschedRuleUpdated": "規則已更新",
+    "unschedRuleDeleted": "規則已刪除",
+    "unschedRuleNoRules": "暫無規則（失敗保持默認 10 分鐘冷卻）",
+    "unschedRuleInvalidInput": "規則需要填寫 400-599 的狀態碼或響應體關鍵詞，且時長必須為正。"
   }
 }
