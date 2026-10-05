@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
 import { getModelIcon } from '@/lib/model-icons';
-import { GroupMode } from '@/api/endpoints/group';
+import { GroupMode, type ThinkingMode } from '@/api/endpoints/group';
 import type { SelectedMember } from './ItemList';
 import { MemberList } from './ItemList';
 import { CHAT_ENDPOINT_PROVIDER_OPTIONS, OUTBOUND_FORMAT_OPTIONS, matchesGroupName, memberKey, MODE_LABELS, MUSIC_ENDPOINT_PROVIDER_OPTIONS, VIDEO_ENDPOINT_PROVIDER_OPTIONS, IMAGE_ENDPOINT_PROVIDER_OPTIONS, AUDIO_SPEECH_ENDPOINT_PROVIDER_OPTIONS, ENDPOINT_TYPE_OPTIONS, filterEnabledModelChannels, normalizeEndpointProvider, normalizeEndpointType, normalizeOutboundFormat, normalizeKey } from './utils';
@@ -31,6 +31,7 @@ export type GroupEditorValues = {
     first_token_time_out: number;
     attempt_time_out: number;
     session_keep_time: number;
+    thinking_mode?: ThinkingMode;
     reasoning_buffer_strategy?: string; // "" | "buffer" | "immediate"
     members: SelectedMember[];
 };
@@ -300,6 +301,7 @@ export function GroupEditor({
     const [firstTokenTimeOut, setFirstTokenTimeOut] = useState<number>(initial?.first_token_time_out ?? 0);
     const [attemptTimeOut, setAttemptTimeOut] = useState<number>(initial?.attempt_time_out ?? 0);
     const [sessionKeepTime, setSessionKeepTime] = useState<number>(initial?.session_keep_time ?? 0);
+    const [thinkingMode, setThinkingMode] = useState<ThinkingMode>(initial?.thinking_mode ?? 'auto');
     const [reasoningBufferStrategy, setReasoningBufferStrategy] = useState<string>(initial?.reasoning_buffer_strategy ?? '');
     const [condition, setCondition] = useState(initial?.condition ?? '');
     const [selectedMembers, setSelectedMembers] = useState<SelectedMember[]>(dedupeSelectedMembers(initial?.members ?? []));
@@ -395,6 +397,7 @@ export function GroupEditor({
             attempt_time_out: attemptTimeOut,
             session_keep_time: sessionKeepTime,
             condition,
+            thinking_mode: thinkingMode,
             reasoning_buffer_strategy: reasoningBufferStrategy,
             members: dedupeSelectedMembers(selectedMembers),
         });
@@ -689,6 +692,25 @@ export function GroupEditor({
                         className="h-10 rounded-lg text-sm md:h-11"
                     />
                 </Field>
+                {supportsOutboundFormat && (
+                    <Field>
+                        <FieldLabel htmlFor="group-thinking-mode">
+                            {t('form.thinkingMode.label')}
+                            <Hint text={t('form.thinkingMode.hint')} />
+                        </FieldLabel>
+                        <select
+                            id="group-thinking-mode"
+                            value={thinkingMode}
+                            onChange={(e) => setThinkingMode(e.target.value as ThinkingMode)}
+                            disabled={outboundFormat === 'passthrough' || outboundFormat === 'raw'}
+                            className="h-10 w-full rounded-lg border border-border/40 bg-card px-3 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-50 md:h-11"
+                        >
+                            <option value="auto">{t('form.thinkingMode.auto')}</option>
+                            <option value="off">{t('form.thinkingMode.off')}</option>
+                            <option value="on">{t('form.thinkingMode.on')}</option>
+                        </select>
+                    </Field>
+                )}
                 <Field>
                     <FieldLabel htmlFor="group-reasoning-buffer-strategy">
                         {t('form.reasoningBufferStrategy.label')}

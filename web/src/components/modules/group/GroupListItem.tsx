@@ -161,6 +161,7 @@ function EditDialogContent({
                             first_token_time_out: group.first_token_time_out ?? 0,
                             attempt_time_out: group.attempt_time_out ?? 0,
                             session_keep_time: group.session_keep_time ?? 0,
+                            thinking_mode: group.thinking_mode ?? 'auto',
                             members: editMembers,
                         }}
                         submitText={t('detail.actions.save')}
@@ -541,6 +542,7 @@ export function GroupListItem({ group }: { group: Group }) {
             )
                 .trim()
                 .toLowerCase();
+            const nextThinkingMode = values.thinking_mode ?? 'auto';
             const nextCondition = values.condition.trim();
             const nextFirstTokenTimeOut =
                 values.first_token_time_out ?? 0;
@@ -588,6 +590,8 @@ export function GroupListItem({ group }: { group: Group }) {
                 (group.session_keep_time ?? 0)
             )
                 payload.session_keep_time = nextSessionKeepTime;
+            if (nextThinkingMode !== (group.thinking_mode ?? 'auto'))
+                payload.thinking_mode = nextThinkingMode;
             if (items_to_add.length) payload.items_to_add = items_to_add;
             if (items_to_update.length)
                 payload.items_to_update = items_to_update;
@@ -615,6 +619,7 @@ export function GroupListItem({ group }: { group: Group }) {
             group.first_token_time_out,
             group.attempt_time_out,
             group.session_keep_time,
+            group.thinking_mode,
             group.id,
             group.items,
             group.match_regex,
@@ -686,6 +691,7 @@ export function GroupListItem({ group }: { group: Group }) {
             first_token_time_out: group.first_token_time_out ?? 0,
             attempt_time_out: group.attempt_time_out ?? 0,
             session_keep_time: group.session_keep_time ?? 0,
+            thinking_mode: group.thinking_mode ?? 'auto',
             members: nextMembers,
         };
 
@@ -708,6 +714,7 @@ export function GroupListItem({ group }: { group: Group }) {
         group.name,
         group.outbound_format,
         group.session_keep_time,
+        group.thinking_mode,
         handleSubmitEdit,
         members,
         t,

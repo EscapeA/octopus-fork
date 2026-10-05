@@ -9,7 +9,7 @@ import (
 	"github.com/lingyuins/octopus/internal/utils/log"
 )
 
-func prepareInternalRequestForOutbound(channel *appmodel.Channel, request *transmodel.InternalLLMRequest, groupEndpointType string) (*transmodel.InternalLLMRequest, *rewrite.EffectiveConfig, error) {
+func prepareInternalRequestForOutbound(channel *appmodel.Channel, request *transmodel.InternalLLMRequest, group *appmodel.Group) (*transmodel.InternalLLMRequest, *rewrite.EffectiveConfig, error) {
 	if channel == nil {
 		return nil, nil, fmt.Errorf("channel is nil")
 	}
@@ -22,6 +22,12 @@ func prepareInternalRequestForOutbound(channel *appmodel.Channel, request *trans
 		return nil, nil, err
 	}
 
+	cloned := *request
+	cloned.TransformerMetadata = make(map[string]string, len(request.TransformerMetadata))
+	for key, value := range request.TransformerMetadata {
+		cloned.TransformerMetadata[key] = value
+	}
+	request = &cloned
 	var target *transmodel.InternalLLMRequest
 	if !enabled {
 		target = request
@@ -34,7 +40,14 @@ func prepareInternalRequestForOutbound(channel *appmodel.Channel, request *trans
 	}
 
 	applyParamOverride(channel, target)
-	attachRelayGroupEndpointMetadata(target, groupEndpointType)
+	if group != nil {
+		target = transmodel.WithThinkingMode(target, group.ThinkingMode)
+		attachRelayGroupEndpointMetadata(target, group.EndpointType)
+		provider := group.EndpointProvider
+		if (target.ThinkingMode == "off" || target.ThinkingMode == "on") && (provider == "deepseek" || provider == "mimo") {
+			attachRelayGroupEndpointMetadata(target, provider)
+		}
+	}
 	return target, effectiveRewrite, nil
 }
 

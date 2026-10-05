@@ -609,7 +609,11 @@ func (ra *relayAttempt) forward() (int, error) {
 	// 跳过 param_override 与改写引擎，避免请求体被二次加工。
 	if ra.adapterType != outbound.OutboundTypePassthrough && ra.adapterType != outbound.OutboundTypeRaw {
 		var err error
-		requestForOutbound, effectiveRewrite, err = prepareInternalRequestForOutbound(ra.channel, ra.internalRequest, ra.groupEndpointType)
+		group := ra.group
+		if group == nil {
+			group = &dbmodel.Group{EndpointType: ra.groupEndpointType}
+		}
+		requestForOutbound, effectiveRewrite, err = prepareInternalRequestForOutbound(ra.channel, ra.internalRequest, group)
 		if err != nil {
 			log.Warnf("failed to prepare outbound request data: %v", err)
 			return 0, fmt.Errorf("failed to prepare outbound request data: %w", err)
