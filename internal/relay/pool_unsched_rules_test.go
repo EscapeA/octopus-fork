@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -27,9 +28,17 @@ func setupUnschedRuleRelayDB(t *testing.T) {
 	}
 }
 
+// poolTestSeq makes every pool name unique within one test process even when
+// the OS clock granularity returns identical nanosecond timestamps twice.
+var poolTestSeq int64
+
+func nextPoolTestName(prefix string, t *testing.T) string {
+	return fmt.Sprintf("%s-%s-%d", prefix, sanitizePoolTestName(t.Name()), atomic.AddInt64(&poolTestSeq, 1))
+}
+
 func unschedRuleTestAccount(t *testing.T, platform string) *model.PoolAccount {
 	t.Helper()
-	p := &model.AccountPool{Name: fmt.Sprintf("rule-relay-%d", time.Now().UnixNano()), Enabled: true}
+	p := &model.AccountPool{Name: nextPoolTestName("rule-relay", t), Enabled: true}
 	if err := pool.CreatePool(p); err != nil {
 		t.Fatalf("create pool: %v", err)
 	}
@@ -54,6 +63,12 @@ func tempUnschedOf(t *testing.T, acct *model.PoolAccount) (until int64, reason s
 		t.Fatalf("get account: %v", err)
 	}
 	return fresh.TempUnschedUntil, fresh.TempUnschedReason
+}
+
+// sanitizePoolTestName strips characters SQLite forbids in shared in-memory
+// DSNs so the test name can be reused as the pool name seed.
+func sanitizePoolTestName(name string) string {
+	return strings.NewReplacer("/", "-", "\\", "-", " ", "-", ":", "-").Replace(name)
 }
 
 func statusCodePtr(v int) *int { return &v }

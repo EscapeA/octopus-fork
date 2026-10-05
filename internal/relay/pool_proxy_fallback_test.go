@@ -2,9 +2,7 @@ package relay
 
 import (
 	"errors"
-	"fmt"
 	"testing"
-	"time"
 
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op/pool"
@@ -48,7 +46,7 @@ func TestMaybeEnterProxyFallbackFromRelayHook(t *testing.T) {
 
 	newAccount := func(t *testing.T, withBackup bool) (*model.PoolAccount, *int) {
 		t.Helper()
-		p := &model.AccountPool{Name: fmt.Sprintf("relay-fallback-%d", time.Now().UnixNano()), Enabled: true}
+		p := &model.AccountPool{Name: nextPoolTestName("relay-fallback", t), Enabled: true}
 		if err := pool.CreatePool(p); err != nil {
 			t.Fatalf("create pool: %v", err)
 		}
