@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.6.3-fix] - 2026-10-06
+
+### Fixed
+
+- Enforce API key model allowlists for all media and utility relay endpoints, including multipart requests.
+- Remove the obsolete 512-byte limit from per-key model synchronization while preserving existing restrictions on failed or empty fetch results.
+- Select model-compatible keys for group availability tests instead of probing unsupported keys.
+- Show loading, error, and empty states consistently on the analytics latency view.
+- Correct account-pool scheduled-test edit labels and preserve pool dialog layout guards after formatting.
+- Add accessible names to expandable log candidate diagnostics.
+
+### Changed
+
+- Standardize account-pool and analytics selectors with the shared Select component and improve pool operation dialog readability.
+- Align application, frontend package, and Docker Compose versions to v2.6.3-fix.
+
 ## [v2.6.3] - 2026-10-05
 
 ### Added

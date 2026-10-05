@@ -1,6 +1,6 @@
 {
   "name": "octopus",
-  "version": "2.6.3",
+  "version": "2.6.3-fix",
   "private": true,
   "packageManager": "pnpm@10.22.0",
   "scripts": {
