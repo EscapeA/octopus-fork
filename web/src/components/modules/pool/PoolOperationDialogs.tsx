@@ -77,10 +77,7 @@ export function PoolOperationDialogs({
     return (
         <>
             {/* 删除账号确认 */}
-            <AlertDialog
-                open={deleteTarget !== null}
-                onOpenChange={(open) => { if (!open && !deleteAccount.isPending) onDeleteTargetChange(null); }}
-            >
+            <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open && !deleteAccount.isPending) onDeleteTargetChange(null); }}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>{t('ui.deleteAccountTitle')}</AlertDialogTitle>
@@ -111,10 +108,7 @@ export function PoolOperationDialogs({
             </AlertDialog>
 
             {/* 临时禁用账号 */}
-            <Dialog
-                open={pauseTarget !== null}
-                onOpenChange={(open) => { if (!open && !pause.isPending) onPauseTargetChange(null); }}
-            >
+            <Dialog open={pauseTarget !== null} onOpenChange={(open) => { if (!open && !pause.isPending) onPauseTargetChange(null); }}>
                 <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden">
                     <DialogHeader className="shrink-0 pr-6 text-left">
                         <DialogTitle>{t('tempUnschedDialog.title')}</DialogTitle>
@@ -162,12 +156,7 @@ export function PoolOperationDialogs({
                             </div>
                         </div>
                         <DialogFooter className="shrink-0 pb-[env(safe-area-inset-bottom)]">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                disabled={pause.isPending}
-                                onClick={() => onPauseTargetChange(null)}
-                            >
+                            <Button type="button" variant="outline" disabled={pause.isPending} onClick={() => onPauseTargetChange(null)}>
                                 {t('cancel')}
                             </Button>
                             <Button type="submit" disabled={!validMinutes || pause.isPending}>
@@ -180,10 +169,7 @@ export function PoolOperationDialogs({
             </Dialog>
 
             {/* 批量导入账号 */}
-            <Dialog
-                open={importOpen}
-                onOpenChange={(open) => { if (!importAccounts.isPending) onImportOpenChange(open); }}
-            >
+            <Dialog open={importOpen} onOpenChange={(open) => { if (!importAccounts.isPending) onImportOpenChange(open); }}>
                 <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden sm:max-w-2xl">
                     <DialogHeader className="shrink-0 pr-6 text-left">
                         <DialogTitle>{t('importAccounts')}</DialogTitle>
@@ -230,12 +216,7 @@ export function PoolOperationDialogs({
                             </p>
                         </div>
                         <DialogFooter className="shrink-0 pb-[env(safe-area-inset-bottom)]">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                disabled={importAccounts.isPending}
-                                onClick={() => onImportOpenChange(false)}
-                            >
+                            <Button type="button" variant="outline" disabled={importAccounts.isPending} onClick={() => onImportOpenChange(false)}>
                                 {t('cancel')}
                             </Button>
                             <Button type="submit" disabled={!importResult.valid || importAccounts.isPending}>
@@ -248,10 +229,7 @@ export function PoolOperationDialogs({
             </Dialog>
 
             {/* 导出账号二次确认 */}
-            <AlertDialog
-                open={exportOpen}
-                onOpenChange={(open) => { if (!exporting) onExportOpenChange(open); }}
-            >
+            <AlertDialog open={exportOpen} onOpenChange={(open) => { if (!exporting) onExportOpenChange(open); }}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle className="flex items-center gap-2">
