@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -152,6 +151,18 @@ func resolveCandidateModelName(requestModel string, item dbmodel.GroupItem) stri
 	return item.ModelName
 }
 
+func apiKeyAllowsModel(supportedModels string, requestModel string) bool {
+	if supportedModels == "" {
+		return true
+	}
+	for _, supported := range strings.Split(supportedModels, ",") {
+		if strings.TrimSpace(supported) == requestModel {
+			return true
+		}
+	}
+	return false
+}
+
 func apiKeyAllowsGroupCategory(allowedCategories string, groupCategory string) bool {
 	allowedCategories = strings.TrimSpace(allowedCategories)
 	if allowedCategories == "" {
@@ -178,16 +189,9 @@ func Handler(endpointType string, inboundType inbound.InboundType, c *gin.Contex
 	if err != nil {
 		return
 	}
-	supportedModels := c.GetString("supported_models")
-	if supportedModels != "" {
-		supportedModelsArray := strings.Split(supportedModels, ",")
-		for i := range supportedModelsArray {
-			supportedModelsArray[i] = strings.TrimSpace(supportedModelsArray[i])
-		}
-		if !slices.Contains(supportedModelsArray, internalRequest.Model) {
-			resp.Error(c, http.StatusBadRequest, "model not supported")
-			return
-		}
+	if !apiKeyAllowsModel(c.GetString("supported_models"), internalRequest.Model) {
+		resp.Error(c, http.StatusBadRequest, "model not supported")
+		return
 	}
 
 	requestModel := internalRequest.Model
