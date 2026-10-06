@@ -37,11 +37,11 @@ func TestPrepareInternalRequestForOutbound_IsScopedPerChannelAttempt(t *testing.
 		Type: outbound.OutboundTypeOpenAIChat,
 	}
 
-	rewritten, _, err := prepareInternalRequestForOutbound(rewriteChannel, baseRequest, appmodel.EndpointTypeDeepSeek)
+	rewritten, _, err := prepareInternalRequestForOutbound(rewriteChannel, baseRequest, &appmodel.Group{EndpointType: appmodel.EndpointTypeDeepSeek})
 	if err != nil {
 		t.Fatalf("prepareInternalRequestForOutbound() rewrite channel error = %v", err)
 	}
-	plain, _, err := prepareInternalRequestForOutbound(plainChannel, baseRequest, appmodel.EndpointTypeChat)
+	plain, _, err := prepareInternalRequestForOutbound(plainChannel, baseRequest, &appmodel.Group{EndpointType: appmodel.EndpointTypeChat})
 	if err != nil {
 		t.Fatalf("prepareInternalRequestForOutbound() plain channel error = %v", err)
 	}

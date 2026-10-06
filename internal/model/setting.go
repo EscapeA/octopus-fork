@@ -3,6 +3,7 @@ package model
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net"
 	"net/url"
 	"strconv"
@@ -45,6 +46,13 @@ const (
 	SettingKeyPoolTokenRefreshInterval          SettingKey = "pool_token_refresh_interval"           // 号池 OAuth token 刷新检查间隔（分钟）
 	SettingKeyPoolQuotaSyncInterval             SettingKey = "pool_quota_sync_interval"              // 号池额度同步间隔（分钟）
 	SettingKeyPlanProviderRefreshInterval       SettingKey = "plan_provider_refresh_interval"        // 额度监控自动刷新默认间隔（分钟）
+
+	SettingKeyPoolStickyEscapeEnabled              SettingKey = "pool_sticky_escape_enabled"               // Pool sticky escape switch: temporarily bypass the sticky binding when the account's EWMA stats degrade (off by default)
+	SettingKeyPoolStickyEscapeErrorRate            SettingKey = "pool_sticky_escape_error_rate"            // Pool sticky escape error-rate threshold (escape when EWMA errorRate exceeds it)
+	SettingKeyPoolStickyEscapeTTFTMs               SettingKey = "pool_sticky_escape_ttft_ms"               // Pool sticky escape TTFT threshold (ms; escape when EWMA TTFT exceeds it; 0 disables the dimension)
+	SettingKeyPoolSchedulerWeightReset             SettingKey = "pool_scheduler_weight_reset"              // Pool EWMA factor weight: reset inverse-readiness factor (default 0 = off, no behavior change)
+	SettingKeyPoolSchedulerWeightQuota             SettingKey = "pool_scheduler_weight_quota"              // Pool EWMA factor weight: quota-headroom factor (default 0 = off, no behavior change)
+	SettingKeyPoolGeminiClientSecret               SettingKey = "pool_gemini_client_secret"                // Gemini OAuth client secret override for the built-in client (empty = env -> built-in public credential)
 	SettingKeyPoolMinPriority                   SettingKey = "pool_min_priority"                     // 号池分层过滤 minPriority 阈值（默认 -9999 表示关闭）
 	SettingKeyPoolLayeredFilterEnabled          SettingKey = "pool_layered_filter_enabled"           // 号池分层过滤开关：开启后 SelectAccount 过滤掉 priority < min_priority 的候选
 	SettingKeyPoolHealthCheckEnabled            SettingKey = "pool_health_check_enabled"             // 号池账号健康巡检开关
@@ -211,10 +219,27 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyPlanProviderRefreshInterval, Value: "30"},       // 默认 30 分钟自动刷新额度监控
 		{Key: SettingKeyPoolMinPriority, Value: "-9999"},                // 默认关闭分层过滤
 		{Key: SettingKeyPoolLayeredFilterEnabled, Value: "false"},       // 默认关闭号池分层过滤
+		{Key: SettingKeyPoolStickyEscapeEnabled, Value: "false"},        // Sticky escape off by default (sub2api defaults to on; octopus policy: new behavior is off by default)
+		{Key: SettingKeyPoolStickyEscapeErrorRate, Value: "0.5"},        // Default escape error-rate threshold 0.5
+		{Key: SettingKeyPoolStickyEscapeTTFTMs, Value: "15000"},         // Default escape TTFT threshold 15000ms
+		{Key: SettingKeyPoolSchedulerWeightReset, Value: "0"},           // Default 0 = reset factor off (mirrors sub2api: default 0 keeps existing behavior)
+		{Key: SettingKeyPoolSchedulerWeightQuota, Value: "0"},           // Default 0 = quota-headroom factor off (also avoids per-candidate quota snapshot decryption)
+		{Key: SettingKeyPoolGeminiClientSecret, Value: ""},              // Default empty: env GEMINI_CLI_OAUTH_CLIENT_SECRET -> built-in public credential (B3-#5)
 		{Key: SettingKeyPoolHealthCheckEnabled, Value: "false"},         // 默认关闭号池巡检
 		{Key: SettingKeyPoolHealthCheckInterval, Value: "30"},           // 默认 30 分钟巡检
 		{Key: SettingKeyPoolHealthCheckFailThreshold, Value: "3"},       // 默认 3 次失败后 SetError
 	}
+}
+
+// DefaultSettingValue 返回指定设置键在 DefaultSettings 中登记的默认值；
+// 未登记的键返回 ("", false)。
+func DefaultSettingValue(key SettingKey) (string, bool) {
+	for _, s := range DefaultSettings() {
+		if s.Key == key {
+			return s.Value, true
+		}
+	}
+	return "", false
 }
 
 func (s *Setting) Validate() error {
@@ -229,6 +254,7 @@ func (s *Setting) Validate() error {
 		}
 		return nil
 	case SettingKeyModelInfoUpdateInterval, SettingKeySyncLLMInterval, SettingKeyRelayLogKeepPeriod, SettingKeyRelayLogKeepCount,
+		SettingKeyStatsSaveInterval, SettingKeySiteSyncInterval, SettingKeySiteCheckinInterval,
 		SettingKeyRelayRetryCount, SettingKeyRelayRouteRetries, SettingKeyCircuitBreakerThreshold, SettingKeyCircuitBreakerCooldown,
 		SettingKeyCircuitBreakerMaxCooldown, SettingKeyCircuitBreakerHalfOpenProbeTimeout, SettingKeyRatelimitCooldown, SettingKeyRelayMaxTotalAttempts,
 		SettingKeyRateLimitHoldInterval, SettingKeyRateLimitHoldMaxWait,
@@ -243,9 +269,10 @@ func (s *Setting) Validate() error {
 		SettingKeyStreamSessionMaxSessions,
 		SettingKeyNotifyHTTPTimeoutSeconds,
 		SettingKeyFailureHintTTLUnauthorized, SettingKeyFailureHintTTLRateLimit, SettingKeyFailureHintTTLNetwork,
+		SettingKeyKeyHealthCheckInterval, SettingKeyKeyHealthCheckFailThreshold, SettingKeyKeyHealthCheckNotifyCooldown,
 		SettingKeyPoolTokenRefreshInterval, SettingKeyPoolQuotaSyncInterval, SettingKeyPlanProviderRefreshInterval,
 		SettingKeyPoolMinPriority, SettingKeyPoolHealthCheckInterval, SettingKeyPoolHealthCheckFailThreshold,
-		SettingKeyKeyAutoDisableThreshold, SettingKeyKeyAutoDisableProbeInterval:
+		SettingKeyKeyAutoDisableThreshold, SettingKeyKeyAutoDisableProbeInterval, SettingKeyPoolStickyEscapeTTFTMs:
 		v, err := strconv.Atoi(s.Value)
 		if err != nil {
 			return fmt.Errorf("setting value must be an integer")
@@ -288,6 +315,8 @@ func (s *Setting) Validate() error {
 			SettingKeyLoginRateLimitWindow, SettingKeyLoginRateLimitMaxFailed,
 			SettingKeyStreamSessionTTLMinutes, SettingKeyStreamSessionMaxEvents, SettingKeyStreamSessionMaxBytesMB,
 			SettingKeyFailureHintTTLUnauthorized, SettingKeyFailureHintTTLRateLimit, SettingKeyFailureHintTTLNetwork,
+			SettingKeyStatsSaveInterval, SettingKeyModelInfoUpdateInterval, SettingKeySyncLLMInterval,
+			SettingKeySiteSyncInterval, SettingKeySiteCheckinInterval,
 			SettingKeyKeyHealthCheckInterval, SettingKeyKeyHealthCheckFailThreshold, SettingKeyKeyHealthCheckNotifyCooldown,
 			SettingKeyKeyAutoDisableThreshold,
 			SettingKeyPoolTokenRefreshInterval, SettingKeyPoolQuotaSyncInterval, SettingKeyPlanProviderRefreshInterval,
@@ -296,10 +325,40 @@ func (s *Setting) Validate() error {
 				return fmt.Errorf("setting value must be greater than 0")
 			}
 		}
+		// 周期类设置换算成 time.Duration 时必须不能溢出（否则回绕成负数/极小值，
+		// 周期任务行为不可预期）。上界 = MaxInt64 纳秒 / 单位纳秒。
+		switch s.Key {
+		case SettingKeyModelInfoUpdateInterval, SettingKeySyncLLMInterval, SettingKeySiteSyncInterval, SettingKeySiteCheckinInterval:
+			if int64(v) > math.MaxInt64/int64(time.Hour) {
+				return fmt.Errorf("setting value is too large")
+			}
+		case SettingKeyStatsSaveInterval, SettingKeyKeyHealthCheckInterval,
+			SettingKeyPoolTokenRefreshInterval, SettingKeyPoolQuotaSyncInterval, SettingKeyPlanProviderRefreshInterval,
+			SettingKeyPoolHealthCheckInterval:
+			if int64(v) > math.MaxInt64/int64(time.Minute) {
+				return fmt.Errorf("setting value is too large")
+			}
+		case SettingKeyKeyHealthCheckNotifyCooldown:
+			if int64(v) > math.MaxInt64/int64(time.Second) {
+				return fmt.Errorf("setting value is too large")
+			}
+		}
 	case SettingKeyRelayLogKeepEnabled, SettingKeyRelayLogContentEnabled, SettingKeyStreamSessionReplayEnabled, SettingKeyModelNormalizeMarketDedupeDefault, SettingKeyRetryEmptyOutput, SettingKeyRateLimitHoldEnabled, SettingKeyKeyHealthCheckEnabled, SettingKeyKeyHealthCheckNotifyEnabled, SettingKeyKeyHealthCheckRecoveryNotify,
-		SettingKeyPoolLayeredFilterEnabled, SettingKeyPoolHealthCheckEnabled, SettingKeyKeyAutoDisableEnabled:
+		SettingKeyPoolLayeredFilterEnabled, SettingKeyPoolHealthCheckEnabled, SettingKeyKeyAutoDisableEnabled, SettingKeyPoolStickyEscapeEnabled:
 		if s.Value != "true" && s.Value != "false" {
 			return fmt.Errorf("setting value must be true or false")
+		}
+		return nil
+	case SettingKeyPoolStickyEscapeErrorRate:
+		v, err := strconv.ParseFloat(s.Value, 64)
+		if err != nil || v <= 0 || v > 1 {
+			return fmt.Errorf("pool_sticky_escape_error_rate must be a float in (0, 1]")
+		}
+		return nil
+	case SettingKeyPoolSchedulerWeightReset, SettingKeyPoolSchedulerWeightQuota:
+		v, err := strconv.ParseFloat(s.Value, 64)
+		if err != nil || v < 0 {
+			return fmt.Errorf("pool scheduler weight must be a float >= 0")
 		}
 		return nil
 	case SettingKeyReasoningBufferStrategy:
@@ -374,9 +433,28 @@ func (s *Setting) Validate() error {
 		}
 		return nil
 	case SettingKeyWebDAVConfig:
-		var cfg map[string]any
+		// 与专用保存端点（POST /api/v1/backup/webdav/config）对齐：interval_hours
+		// 必须是 1..168 的整数，max_backups >= 1（专用端点把 <1 归一化为 10），
+		// 其余字段仅做类型校验。用 typed struct 反序列化，非整数（如 1.5）直接失败。
+		var cfg struct {
+			Enabled       *bool   `json:"enabled"`
+			BaseURL       *string `json:"base_url"`
+			Username      *string `json:"username"`
+			Password      *string `json:"password"`
+			RemotePath    *string `json:"remote_path"`
+			IntervalHours *int    `json:"interval_hours"`
+			IncludeStats  *bool   `json:"include_stats"`
+			IncludeLogs   *bool   `json:"include_logs"`
+			MaxBackups    *int    `json:"max_backups"`
+		}
 		if err := json.Unmarshal([]byte(s.Value), &cfg); err != nil {
-			return fmt.Errorf("webdav config must be a valid JSON object")
+			return fmt.Errorf("webdav config is invalid: %v", err)
+		}
+		if cfg.IntervalHours == nil || *cfg.IntervalHours < 1 || *cfg.IntervalHours > 168 {
+			return fmt.Errorf("webdav config interval_hours must be an integer between 1 and 168")
+		}
+		if cfg.MaxBackups != nil && *cfg.MaxBackups < 1 {
+			return fmt.Errorf("webdav config max_backups must be greater than or equal to 1")
 		}
 		return nil
 	case SettingKeyResponseFilterEnabled, SettingKeyGroupUpstreamMetaDisplayEnabled:

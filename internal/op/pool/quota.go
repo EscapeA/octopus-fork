@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/lingyuins/octopus/internal/model"
+	"github.com/lingyuins/octopus/internal/utils/crypto"
 )
 
 // QuotaResult 号池账号额度查询结果（前端展示用）。
@@ -61,6 +62,32 @@ func SyncAllQuotas(ctx context.Context) {
 
 // RefreshAccountTokenFunc 由 pooltokenrefresh 包注入。
 var RefreshAccountTokenFunc func(ctx context.Context, poolID, accountID int) error
+
+// ParseQuotaSnapshot read-only parses the quota snapshot cached on the account
+// (PoolAccount.Quota: encrypted JSON in the QuotaResult shape used/total/reset_at).
+// No DB access, no network calls; meant to be consumed in place by the
+// scheduler on candidate structs (B1-#8; callers must ensure it is only invoked
+// when the quota weight is non-zero, avoiding AES decryption on the default
+// path). Missing snapshot / decrypt failure / invalid JSON / total<=0 → ok=false.
+func ParseQuotaSnapshot(acct *model.PoolAccount) (used, total float64, ok bool) {
+	if acct == nil || acct.Quota == "" {
+		return 0, 0, false
+	}
+	raw := acct.Quota
+	if crypto.IsEncrypted(raw) {
+		if plain, err := crypto.Decrypt(raw); err == nil {
+			raw = plain
+		}
+	}
+	var snapshot QuotaResult
+	if err := json.Unmarshal([]byte(raw), &snapshot); err != nil {
+		return 0, 0, false
+	}
+	if snapshot.Total <= 0 {
+		return 0, 0, false
+	}
+	return snapshot.Used, snapshot.Total, true
+}
 
 // RefreshAccountToken 手动/调度触发单账号 token 刷新。
 func RefreshAccountToken(ctx context.Context, poolID, accountID int) error {

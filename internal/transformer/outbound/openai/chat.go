@@ -103,7 +103,11 @@ func SanitizeRequestForOpenAICompat(request *model.InternalLLMRequest, baseURL s
 	if !isReasoningCompatRequest(baseURL, request, isMimoChannel) {
 		// deepseek-* aliases on strict OpenAI-compat relays (FuturePPO etc.)
 		// reject reasoning_effort even though the model id contains "deepseek".
-		if looksLikeDeepSeekModelName(request.Model) {
+		if request.ThinkingMode == "off" {
+			request.ReasoningEffort = "none"
+		} else if request.ThinkingMode == "on" {
+			request.ReasoningEffort = "high"
+		} else if looksLikeDeepSeekModelName(request.Model) {
 			request.ReasoningEffort = ""
 		} else {
 			request.ReasoningEffort = normalizeOpenAICompatReasoningEffort(request.ReasoningEffort)
@@ -125,8 +129,12 @@ func SanitizeRequestForOpenAICompat(request *model.InternalLLMRequest, baseURL s
 	request.Include = nil
 }
 
-// marshalOpenAICompatRequest serializes the OpenAI-compat chat body and flattens
+// MarshalOpenAICompatRequest serializes the OpenAI-compat chat body and flattens
 // ExtraBody into top-level JSON keys. ExtraBody is an SDK-only concept.
+func MarshalOpenAICompatRequest(request *model.InternalLLMRequest) ([]byte, error) {
+	return marshalOpenAICompatRequest(request)
+}
+
 func marshalOpenAICompatRequest(request *model.InternalLLMRequest) ([]byte, error) {
 	if request == nil {
 		return nil, fmt.Errorf("request is nil")

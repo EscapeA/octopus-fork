@@ -86,8 +86,10 @@ func redactSettingsURLsForViewer(settings []model.Setting) {
 		case model.SettingKeyProxyURL,
 			model.SettingKeyPublicAPIBaseURL:
 			settings[settingIndex].Value = maskURLDomainForViewer(settings[settingIndex].Value)
-		case model.SettingKeyWebDAVConfig:
-			// 密钥类设置（WebDAV 密码）对 viewer 整体遮蔽，避免明文凭据经设置列表泄露。
+		case model.SettingKeyWebDAVConfig,
+			model.SettingKeyPoolGeminiClientSecret:
+			// 密钥类设置（WebDAV 密码、Gemini client secret）对 viewer 整体遮蔽，
+			// 避免明文凭据经设置列表泄露。
 			settings[settingIndex].Value = viewerMaskedDomain
 		}
 	}

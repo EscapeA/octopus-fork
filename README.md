@@ -18,7 +18,7 @@
 - ⚡ **Smart Selection** - Multiple endpoints per channel, smart selection of the endpoint with the shortest delay
 - ⚖️ **Load Balancing** - Support round robin, random, failover, weighted, and auto strategies
 - 🤖 **Auto Strategy** - Explore candidates first, then prefer higher in-window success rate automatically
-- 🧠 **AI Routing, Auto Grouping & Conditional Groups** - Generate the full routing table from the route page, fill a single group from the edit dialog, and gate groups with JSON conditions
+- 🧠 **Auto Grouping & Conditional Groups** - Group models automatically by rules and gate groups with JSON conditions
 - 🔄 **Protocol Conversion** - Seamless conversion between OpenAI Chat / OpenAI Responses / OpenAI Embeddings / Anthropic API formats
 - 🌐 **Multi-Provider Support** - Built-in support for OpenAI-compatible, Anthropic, Cloudflare, Gemini, Volcengine, MiMo, Codex, and passthrough channels
 - 🛰️ **Media & Utility Relay** - Relay OpenAI Images, audio, video, search, rerank, and moderation endpoints through the same group / retry / circuit-breaker infrastructure
@@ -28,9 +28,9 @@
 - 🚨 **Alerts & Notification Center** - Unified notification center aggregating system events, alert firings, and plan notifications with SSE streaming; alert rules for error rate (with scope + sliding window), cost threshold, quota exceeded, and channel down, delivered via webhook, Gotify, email, Telegram, Feishu, DingTalk, WeCom, and ntfy
 - 📦 **Plan Provider Monitoring** - Track upstream subscription quota/usage (Codex, MiMo, StepFun, SenseNova, and balance-type providers like DeepSeek / Kimi / OpenRouter) and auto-create dedicated forwarding channels under the "Plan" channel group
 - 📅 **Usage Reports** - Schedule daily / weekly / monthly usage reports delivered through notification channels
-- 💎 **Model Market** - Unified model catalog with pricing, channel coverage, enabled key counts, latency, and success metrics, plus create / edit / delete / refresh price workflows
+- 💎 **Model Market** - Unified model catalog with pricing, channel coverage, enabled key counts, latency, and success metrics, multi-dimension filtering with normalized dedupe, available-endpoint and price-category views, plus create / edit / delete / refresh price workflows
 - 🔃 **Model Sync** - Automatic synchronization of available model lists with channels
-- 📊 **Analytics** - Overview, provider / model / API key utilization, route health, latency distribution, and provider prompt-cache analytics
+- 📊 **Analytics & Evaluation** - Overview, provider / model / API key utilization, route health, latency distribution, provider prompt-cache analytics, and a live entry point for group testing
 - 🛠️ **Ops & Audit** - Telemetry, quota, health, system, and audit dashboards for daily operations, plus a management-write audit trail
 - 🧭 **Configurable Navigation** - Persist top-level console page order and visibility in settings and reuse it across browsers
 - 💾 **Runtime State Persistence** - Persist auto strategy windows and circuit breaker state to the database
@@ -47,6 +47,8 @@
 ## 🚀 Quick Start
 
 ### 🐳 Docker
+
+The examples below use `latest`. For a pinned version, use the image tag recorded in `docker-compose.yml` after that image has been published. Tag pushes start the release workflow; wait for it to finish before pulling the pinned image.
 
 Run directly:
 
@@ -224,7 +226,6 @@ Most operational knobs are not stored in `config.json`. Retry policy, circuit br
 | `server.host` | Listen address | `0.0.0.0` |
 | `server.port` | Server port | `8080` |
 | `server.trusted_proxies` | Comma-separated trusted reverse-proxy CIDRs/IPs for resolving real client IP from `X-Forwarded-For`. Empty = trust none (safe default; `c.ClientIP()` returns the direct TCP address). `*` = trust all (dev only; XFF spoofing risk). | empty |
-| `server.static_dir` | Directory holding the frontend static assets (absolute, or relative to the process working directory). Decouples the web build from the binary: replacing files takes effect immediately, with no rebuild or restart; an invalid value (no `index.html`) logs a warning and falls back to the embedded assets. Env `OCTOPUS_STATIC_DIR` takes precedence. | empty (embedded assets) |
 | `database.type` | Database type | `sqlite` |
 | `database.path` | Database connection string | `data/data.db` |
 | `database.sqlite.cache_size` | SQLite `PRAGMA cache_size` (negative = KB, e.g. `-20000` ≈ 20 MB; positive = pages). Only used when `database.type` is `sqlite`. | `-20000` (≈ 20 MB) |
@@ -304,7 +305,6 @@ All configuration options can be overridden via environment variables using the 
 | `OCTOPUS_SERVER_PORT` | `server.port` |
 | `OCTOPUS_SERVER_HOST` | `server.host` |
 | `OCTOPUS_SERVER_TRUSTED_PROXIES` | `server.trusted_proxies` |
-| `OCTOPUS_STATIC_DIR` | `server.static_dir` (overrides config.json) |
 | `OCTOPUS_DATABASE_TYPE` | `database.type` |
 | `OCTOPUS_DATABASE_PATH` | `database.path` |
 | `OCTOPUS_DATABASE_SQLITE_CACHE_SIZE` | `database.sqlite.cache_size` (SQLite page cache; negative = KB, e.g. `-20000` ≈ 20MB) |
@@ -386,10 +386,11 @@ The embedded management UI currently ships with these top-level modules:
 | Home | Version, runtime status, high-level summaries, trend chart, activity heatmap, and ranking panel |
 | Hub | Upstream relay platform management with 5 tabs: Sites (multi-account cards with inline balance / sync / check-in status, archive/restore, batch edit, and bulk import from AllAPIHub / MetAPI), Site Channels (projected channel bindings), Automation (auto-sync and auto-checkin intervals), Balance (plan balance charts), and TokenPlan (token plan monitoring) |
 | Channel | Upstream provider configuration, keys, headers, sync, latency probing, proxy mode, and request rewrite profiles |
-| Group | Model routing, load-balancing strategies, sticky sessions, group test, endpoint provider, zashboard-style collapsible group list, and CC Switch deep link |
-| Model Market | Model catalog, custom pricing, channel coverage, enabled key counts, latency, success metrics, and capabilities dual-view |
-| Analytics | Channel × Model (default), Usage Breakdown, Route Health, Latency distribution, Cache (provider prompt cache), and share snapshot |
-| Log | Relay request history, error details, token usage, and cost records |
+| Account Pool | Account pools for relay scheduling: searchable pool list with create/edit (name, description, strategy, default concurrency, cooldown, enabled) and delete confirmation; detail view with account keyword / platform / status filters, OAuth account authorization, batch operations, and credential import/export |
+| Group | Model routing, load-balancing strategies, sticky sessions, group test, group thinking mode (auto / off / on), endpoint provider, zashboard-style collapsible group list, and CC Switch deep link |
+| Model Market | Model catalog with market / available endpoints / price categories views, custom pricing, channel coverage, enabled key counts, latency, success metrics, multi-dimension filters with normalized dedupe, and fallback pricing plus peak/off-peak billing rules |
+| Analytics | Channel × Model (default), Usage Breakdown, Route Health, Latency distribution, Evaluation, Cache (provider prompt cache), and share snapshot |
+| Log | Relay request history with Group / Request Body tabs, model/channel candidate statuses alongside the response, expandable attempt diagnostics, token usage, and cost records |
 | Notification | Unified notification center with 4 groups: Messages (inbox / archived), Alerts (rules / history), Delivery (channels / policies / preferences), and Reports (schedules / history). Alert rules, notification channels (webhook, Gotify, email, Telegram, Feishu, DingTalk, WeCom, ntfy), and usage report scheduling all live here |
 | Ops | Telemetry (hero metrics, P95 latency, provider health, prompt-cache analytics), Quota, Health, Maintenance (retry / circuit breaker / response filter), System, and Audit trail |
 | APIKey | API key create, edit, delete, supported-model allowlists, expiry, max-cost caps, RPM / TPM quotas, IP allowlists, and per-model quotas |
@@ -596,6 +597,7 @@ Groups aggregate multiple channels into a unified external model name.
 - **Condition (JSON)**: optional AND rules currently evaluated in the main LLM relay path; the built-in request context currently includes `model`, `api_key_id`, and `hour`
 - **Endpoint Provider**: provider-aware request rewriting that adapts requests for upstream compatibility per endpoint type. Chat providers (`openai`, `deepseek`, `mimo`, `siliconflow`, `newapi`) strip incompatible reasoning fields; music providers (`newapi`, `minimax`) rewrite the request body and path; video provider (`agnes`) rewrites the upstream path; audio speech provider (`mimo`) converts the request format and path
 - **Outbound Format**: controls cross-format adapter fallback. `""` (auto), `chat`, and `responses` set the Chat/Responses attempt order; `chat_only` and `responses_only` disable the fallback entirely — useful for upstreams (e.g. public-welfare relays) that reject the other format with 400/404
+- **Thinking Mode**: configure `thinking_mode` in the group editor's advanced settings. `auto` (default) preserves client/upstream behavior; `off` / `on` override client reasoning controls even when the client sends none. Adapters use provider-specific fields for DeepSeek/MiMo, OpenAI Chat/Responses (including Codex), Anthropic, Gemini, and Volcengine. For a DeepSeek/MiMo-compatible proxy with a generic URL, set the corresponding API type or endpoint provider. This requires upstream model support; raw/passthrough formats leave the original body unchanged and skip the policy. It does not add a FIM or `/v1/completions` endpoint.
 - **Key Cooldown**: rate-limit cooldown is tracked per `(keyID, model)` (issue #94), so a single model's 429 no longer blocks the same key's other models. Per-channel retry count can be set to `0` (try once, then move to the next channel); the max-total-attempts quota counts only real upstream forwards (cooldown/circuit-breaker skips do not consume it)
 
 **Load Balancing Modes:**
@@ -628,26 +630,56 @@ The group toolbar includes a CC Switch deep link generator that creates provider
 
 ### 💎 Model Market & Pricing
 
-The `Model` route is a model market view with a dual-tab interface: **Market** (pricing and coverage) and **Capabilities** (endpoint support declarations).
+The `Model` route (Model Market) provides three switchable toolbar views: **Market** (pricing and coverage cards), **Available Endpoints** (endpoint → model grouping), and **Price Categories** (fallback pricing rules plus peak/off-peak billing).
 
-**Market tab data merged on each card:**
+**Market view data merged on each card:**
 
-- Custom or synced pricing from the LLM price catalog
+- Custom or synced pricing from the LLM price catalog (input / output / cache read / cache write)
 - Channel coverage and enabled key counts from channel-model relationships
-- Average latency and success / failure counts from recorded model stats
+- Average latency, success rate, and success / failure request counts from recorded model stats
+- A peak-billing badge when the model is covered by a peak/off-peak billing schedule (directory price is the peak price; the idle price is discounted)
+
+**Multi-dimension filtering (Market view):**
+
+- Name search shared with the toolbar search box
+- Capability chips (chat, embeddings, rerank, …) — conversation-style endpoints count toward the chat capability
+- Vendor chips inferred from the model name
+- Pricing filter: all / priced / free
+- Normalized-name dedupe: merges naming variants of the same base model (e.g. `kimi-k2.5`, `moonshotai/kimi-k2.5`, `dmxapi-kimi-k2.5-cc`). Rules come from the Settings `Normalize` card (router prefixes, functional suffixes, explicit variant→canonical mappings), and dedupe can be turned on by default via a dedicated setting
+- The collapsible filter bar shows the live result count (visible / total), the number of active filters, and a one-click reset that clears search, capability, provider, pricing, and dedupe
 
 **Summary metrics:**
 
+The toolbar summary strip shows four metrics plus the last price-update time and a refresh-prices button. The numbers come from the market endpoint's summary over the **full** dataset — they do **not** change with search or filters (only the card list is filtered). When the default-dedupe setting is on, the market endpoint itself aggregates naming variants server-side, so cards and summary counts already show merged entries:
+
 | Metric | Meaning |
 |--------|---------|
-| Models | Number of currently visible model cards |
-| Coverage | Total channel-to-model coverage count in the current result set |
-| Unique Channels | Distinct channels represented by the visible cards |
-| Average Latency | Weighted average latency derived from model request stats |
+| Models | Total models aggregated in the market |
+| Channel Coverage | Total channel-to-model coverage entries across the market |
+| Unique Channels | Distinct channels across all models |
+| Average Latency | Request-weighted average latency across the market |
 
-**Capabilities tab:**
+**Cards and dialogs:**
 
-The Capabilities panel shows per-model endpoint support declarations, conversation flag, availability status, and auto-endpoint detection indicators. Models can be searched and filtered by name with status badges (Active, Down, Non-conversation).
+- Responsive virtualized cards (grid / list / compact layouts on desktop, single-column list on mobile), sorted by success rate or request count
+- Expand a card for price pairs (input / cache-read and output / cache-write, with optional CNY conversion), runtime metrics, and per-channel rows (enabled state and enabled key count); channel tags fold into a `+N` chip when there are too many
+- Standard edit dialog with strict price validation (non-negative decimals; invalid fields are highlighted inline instead of being silently zeroed) and a delete confirmation dialog
+
+**Available Endpoints view:**
+
+Aggregated from valid route groups and inverted into endpoint → model groups. Conversation-family endpoints (chat / deepseek / mimo / responses / messages / auto) are merged into a single "Chat" group shown first; models with no declared endpoint fall under the auto (`*`) group. This view shares the toolbar search box with the market view — a search matches endpoint names/labels or model names, forces all groups expanded, and reveals every matched chip. Each group card is collapsible with a model count, vendor-icon chips, and a "show more" control for large model sets.
+
+**Price Categories view:**
+
+- Fallback pricing by rule for models without an exact price; rules are matched in sort order and the first hit wins
+- Rule table: name, rule type (exact / prefix / contains), rule value, the four prices, sort order, and an enabled badge
+- Create / edit dialog with validation: name and rule value required, prices must be finite non-negative numbers, sort order must be an integer. Errors appear after the first submit attempt and clear as the input is fixed
+- Peak/Off-peak Billing section (currently for DeepSeek): off-peak multiplier, weekend off-peak switch, and two Beijing-time windows (an empty window is closed; both windows closed means all-day off-peak; overlapping windows are allowed with a hint)
+- Rule changes invalidate the market price cache; this view has no search box
+
+**Query gating:**
+
+Views stay mounted when you switch pages (keep-alive), so every query is gated: the market and capabilities queries only run while the Model module is active and the matching view is selected, and switching views stops the query for the view you left.
 
 **Data Sources:**
 
@@ -669,14 +701,14 @@ The Capabilities panel shows per-model endpoint support declarations, conversati
 - Create a custom model price record
 - Edit input / output / cache prices for an existing model
 - Delete a custom model entry
-- Refresh upstream pricing from the page header
-- Keep the scheduled price refresh policy in the Settings `LLM Price` card
+- Refresh upstream pricing from the toolbar summary strip
+- Keep the scheduled price refresh policy in the Settings `LLM Sync` card
 
 ---
 
 ### 📈 Analytics
 
-The Analytics module is a read-oriented operations view with five tabs. The default tab is **Channel × Model** so the most-watched data shows first:
+The Analytics module is a read-oriented operations view with six tabs. The default tab is **Channel × Model** so the most-watched data shows first:
 
 | Tab | What it shows |
 |-----|---------------|
@@ -684,16 +716,18 @@ The Analytics module is a read-oriented operations view with five tabs. The defa
 | Usage Breakdown | Provider, model, and API key breakdowns for the selected time range (renamed from "Utilization" with a no-billing hint when cost data is empty) |
 | Route Health | Health score, enabled / disabled item counts, and recent failure pressure for each group |
 | Latency | Request latency metrics (Avg, P50, P95, P99), first-token-user-time (FTUT) metrics, and latency distribution histogram |
+| Evaluation | Group readiness and group test progress |
 | Cache | Provider-side prompt-cache analytics (cache rate, reuse ratio, estimated cost savings per provider) |
 
 **Time ranges:** `1d`, `7d`, `30d`, `90d`, `ytd`, and `all`
 
 The overview metrics API still exists as `/api/v1/analytics/overview`, but the primary UI entry point for those summary cards is now the Home page. Home also carries an independent `7d / 30d / 90d` overview-range switch, plus a daily hero summary, trend chart, GitHub-style activity heatmap, and ranking panel.
 
+The Evaluation tab is intentionally lightweight: it acts as an entry point into group testing and cache analytics instead of duplicating those full workflows.
 
 **Share Snapshot:**
 
-The Analytics page includes a Share button that generates a visual PNG snapshot of the current analytics state, which can be downloaded or copied to the clipboard. The snapshot includes key stats (requests, tokens, cost, providers) and a timestamp.
+The Analytics page includes a Share button that generates a visual PNG snapshot of the current analytics state, which can be downloaded or copied to the clipboard. The snapshot includes key stats (requests, tokens, cost, providers, cache hit rate) and a timestamp.
 
 ---
 
@@ -705,14 +739,14 @@ The Ops module focuses on runtime posture and operational diagnostics:
 |-----|---------------|
 | Telemetry | Hero metrics (uptime, total requests, avg latency, error rate, active connections, memory usage), P95 latency, throughput RPS, database health, session & quota activity, provider health table (sortable columns + mini bar charts) |
 | Quota | API key limit posture across RPM, TPM, max-cost, and per-model quota settings, merged with total tokens + success rate + "view key detail" jump |
-| Health | Database reachability, task-runtime sanity, recent error count, and failing groups (with jump to Analytics → Route Health) |
+| Health | Database reachability, cache readiness, task-runtime sanity, recent error count, and failing groups (with jump to Analytics → Route Health) |
 | Maintenance | Actionable runtime tuning: Retry, Circuit Breaker, and Response Filter settings consolidated in one tab (moved out of the Settings page) |
 | System | Build metadata, database type, public API base URL, proxy, and retention intervals |
 | Audit | Paginated audit history for management-side write operations |
 
 **Provider Prompt Cache Analytics:**
 
-The Telemetry tab includes provider-side prompt cache monitoring, tracking upstream provider prompt caching effectiveness: cache rate, cache reuse ratio, cache read / write tokens, estimated cost savings per channel, and a 24-hour cache trend chart.
+The Telemetry tab includes provider-side prompt cache monitoring, tracking upstream provider prompt caching effectiveness: cache rate, cache reuse ratio, cache read / write tokens, estimated cost savings per channel, and a 24-hour cache trend chart. This panel is separate from the provider health table.
 
 **Audit scope:**
 
@@ -740,7 +774,7 @@ Since the program handles numerous statistics, writing to the database on every 
 - Both are saved periodically using the same interval as statistics persistence
 - Both are also saved during graceful shutdown
 
-**Key settings cards in the current UI (13 cards):**
+**Key settings cards in the current UI:**
 
 | Card | Purpose |
 |------|---------|
@@ -776,11 +810,11 @@ The Backup settings card includes a live database migration feature beyond simpl
 
 - The Settings page provides **Delete All Route Groups**
 - The action requires a second confirmation before execution
-- It deletes all groups and group items, then resets the default target group for single-group AI routing to `0` to avoid dangling references
+- It deletes all groups and group items, to avoid dangling references
 
 **Settings Card Order:**
 
-The Settings page supports drag-and-drop reordering of its 13 card sections, with order persisted to local storage. A "Reset to Default" button restores the original order.
+The Settings page supports drag-and-drop reordering of its 14 card sections, with order persisted to local storage. A "Reset to Default" button restores the original order.
 
 > ⚠️ **Important**: When exiting the program, use proper shutdown methods (like `Ctrl+C` or sending `SIGTERM` signal) to ensure in-memory statistics are correctly written to the database. **Do NOT use `kill -9` or other forced termination methods**, as this may result in statistics data loss.
 
@@ -977,7 +1011,7 @@ internal/
 ├── model/              # Domain types (Channel, Group, APIKey, User, Site, ProxyConfiguration, ModelMapping, …)
 ├── op/                 # Business logic operations split by domain
 │   ├── alert/          # Alert rule evaluation and notification dispatch
-│   ├── analytics/      # Dashboard, utilization, route-health, and latency queries
+│   ├── analytics/      # Dashboard, utilization, route-health, evaluation, and latency queries
 │   ├── apikey/         # API key CRUD and validation
 │   ├── audit/          # Audit log persistence
 │   ├── backup/         # Database export/import, WebDAV cloud backup scheduler

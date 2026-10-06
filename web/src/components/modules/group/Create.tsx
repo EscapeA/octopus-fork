@@ -41,7 +41,7 @@ export function CreateDialogContent() {
     const t = useTranslations('group');
 
     return (
-        <div className="relative flex h-full min-h-0 w-full max-w-full flex-col">
+        <div className="relative flex h-full min-h-0 w-full max-w-full flex-1 flex-col 2xl:h-auto">
             <MorphingDialogTitle className="shrink-0">
                 <header className="relative mb-5 flex items-start justify-between gap-4">
                     <div className="space-y-3">
@@ -66,12 +66,13 @@ export function CreateDialogContent() {
                     />
                 </header>
             </MorphingDialogTitle>
-            <MorphingDialogDescription className="relative flex-1 min-h-0 overflow-hidden">
+            <MorphingDialogDescription className="relative flex flex-1 min-h-0 overflow-hidden">
                 <GroupEditor
+                    className="flex-1 min-h-0"
                     submitText={t('create.submit')}
                     submittingText={t('create.submitting')}
                     isSubmitting={createGroup.isPending}
-                    onSubmit={({ name, category, endpoint_type, endpoint_provider, outbound_format, match_regex, condition, mode, first_token_time_out, attempt_time_out, session_keep_time, reasoning_buffer_strategy, members }) => {
+                    onSubmit={({ name, category, endpoint_type, endpoint_provider, outbound_format, match_regex, condition, mode, first_token_time_out, attempt_time_out, session_keep_time, thinking_mode, reasoning_buffer_strategy, members }) => {
                         const items = buildCreateItems(members.map((member) => ({
                             channel_id: member.channel_id,
                             model_name: member.name,
@@ -92,6 +93,7 @@ export function CreateDialogContent() {
                                 first_token_time_out: first_token_time_out ?? 0,
                                 attempt_time_out: attempt_time_out ?? 0,
                                 session_keep_time: session_keep_time ?? 0,
+                                thinking_mode: thinking_mode ?? 'auto',
                                 reasoning_buffer_strategy: reasoning_buffer_strategy ?? '',
                                 items,
                             },

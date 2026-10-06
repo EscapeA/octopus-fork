@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
@@ -181,5 +182,195 @@ func TestPoolStrategyWhitelist_RejectsUnknown(t *testing.T) {
 	p := &model.AccountPool{Name: "bad", Strategy: "nonsense"}
 	if err := pool.CreatePool(p); err == nil {
 		t.Fatalf("expected unsupported pool strategy error")
+	}
+}
+
+// setStickyEscapeForTest sets the three sticky-escape keys and restores the
+// defaults (off) after the test.
+func setStickyEscapeForTest(t *testing.T, enabled, errorRate, ttftMs string) {
+	t.Helper()
+	set := func(key model.SettingKey, value string) {
+		if err := setting.SetString(key, value); err != nil {
+			t.Fatalf("set %s=%s: %v", key, value, err)
+		}
+	}
+	set(model.SettingKeyPoolStickyEscapeEnabled, enabled)
+	set(model.SettingKeyPoolStickyEscapeErrorRate, errorRate)
+	set(model.SettingKeyPoolStickyEscapeTTFTMs, ttftMs)
+	t.Cleanup(func() {
+		_ = setting.SetString(model.SettingKeyPoolStickyEscapeEnabled, "false")
+		_ = setting.SetString(model.SettingKeyPoolStickyEscapeErrorRate, "0.5")
+		_ = setting.SetString(model.SettingKeyPoolStickyEscapeTTFTMs, "15000")
+	})
+}
+
+// seedStickyForTest writes a sticky entry into globalPoolSticky directly and
+// registers cleanup.
+func seedStickyForTest(t *testing.T, poolID, accountID int, sessionHash string) {
+	t.Helper()
+	globalPoolSticky.Store(stickyKey(poolID, sessionHash), &stickyEntry{AccountID: accountID, LastActivity: time.Now()})
+	t.Cleanup(func() { globalPoolSticky.Delete(stickyKey(poolID, sessionHash)) })
+}
+
+// seedStatsForTest writes EWMA stats into globalPoolStats directly and
+// registers cleanup.
+func seedStatsForTest(t *testing.T, poolID, accountID int, errorRate, ttftMs float64) {
+	t.Helper()
+	globalPoolStats.Store(statsKey(poolID, accountID), &accountStats{errorRate: errorRate, ttftMs: ttftMs, lastActivity: time.Now()})
+	t.Cleanup(func() { globalPoolStats.Delete(statsKey(poolID, accountID)) })
+}
+
+func TestStickyEscapeFallsBackWithoutAnAvailableAlternative(t *testing.T) {
+	for _, scenario := range []string{"single", "excluded", "model", "busy"} {
+		t.Run(scenario, func(t *testing.T) {
+			poolID, _ := setupSchedulerPoolDB(t)
+			setStickyEscapeForTest(t, "true", "0.5", "15000")
+			a1 := addAccount(t, poolID, &model.PoolAccount{Name: "sticky-last"})
+			seedStickyForTest(t, poolID, a1, "last-session")
+			seedStatsForTest(t, poolID, a1, 0.6, 0)
+			var excluded []int
+			if scenario != "single" {
+				spare := &model.PoolAccount{Name: "unavailable-spare"}
+				if scenario == "model" {
+					spare.Models = "other-model"
+				}
+				a2 := addAccount(t, poolID, spare)
+				if scenario == "excluded" {
+					excluded = []int{a2}
+				}
+				if scenario == "busy" {
+					acquireSlot(poolID, a2)
+					defer ReleaseSlot(poolID, a2)
+				}
+			}
+			got, err := SelectAccount(poolID, "last-session", excluded, 1, "requested-model")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer ReleaseSlot(poolID, got.ID)
+			if got.ID != a1 {
+				t.Fatalf("selected %d, want last usable account %d", got.ID, a1)
+			}
+			if scenario == "single" {
+				if _, err := SelectAccount(poolID, "last-session", []int{a1}, 1, "requested-model"); err == nil {
+					t.Fatal("caller exclusion must not be bypassed")
+				}
+			}
+		})
+	}
+}
+
+// TestStickyEscape_EscapeExcludesButPreservesEntry (B1-#9 core acceptance):
+// with escape enabled the degraded account is excluded from this selection
+// (round_robin will not re-pick it either) while the original sticky entry is
+// preserved and not rebound.
+func TestStickyEscape_EscapeExcludesButPreservesEntry(t *testing.T) {
+	poolID, _ := setupSchedulerPoolDB(t)
+	setStickyEscapeForTest(t, "true", "0.5", "15000")
+
+	a1 := addAccount(t, poolID, &model.PoolAccount{Name: "sticky-bad"})
+	a2 := addAccount(t, poolID, &model.PoolAccount{Name: "spare"})
+	seedStickyForTest(t, poolID, a1, "sess-escape")
+	seedStatsForTest(t, poolID, a1, 0.6, 0)
+
+	// Verifies the exclusion semantics under the round_robin strategy (otherwise
+	// RR could immediately rotate back to the degraded account).
+	if err := pool.UpdatePool(poolID, map[string]interface{}{"strategy": "round_robin"}); err != nil {
+		t.Fatalf("set strategy: %v", err)
+	}
+
+	got, err := SelectAccount(poolID, "sess-escape", nil, 1, "")
+	if err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	if got.ID == a1 {
+		t.Fatalf("escaped account %d must not be selected", a1)
+	}
+	if got.ID != a2 {
+		t.Fatalf("expected spare account %d, got %d", a2, got.ID)
+	}
+
+	// The original sticky entry survives (not rebound to a2, not deleted).
+	val, ok := globalPoolSticky.Load(stickyKey(poolID, "sess-escape"))
+	if !ok {
+		t.Fatalf("sticky entry must survive escape")
+	}
+	if entry := val.(*stickyEntry); entry.AccountID != a1 {
+		t.Fatalf("sticky entry must keep original binding %d, got %d", a1, entry.AccountID)
+	}
+
+	_ = a2
+}
+
+// TestStickyEscape_RecoveredStatsReconverge: once the stats recover the session
+// returns to the original sticky binding.
+func TestStickyEscape_RecoveredStatsReconverge(t *testing.T) {
+	poolID, _ := setupSchedulerPoolDB(t)
+	setStickyEscapeForTest(t, "true", "0.5", "15000")
+
+	a1 := addAccount(t, poolID, &model.PoolAccount{Name: "sticky-recover"})
+	addAccount(t, poolID, &model.PoolAccount{Name: "spare-recover"})
+	seedStickyForTest(t, poolID, a1, "sess-recover")
+	seedStatsForTest(t, poolID, a1, 0.6, 0)
+
+	if _, err := SelectAccount(poolID, "sess-recover", nil, 1, ""); err != nil {
+		t.Fatalf("select during degrade: %v", err)
+	}
+
+	// Stats recover: errorRate back to zero.
+	globalPoolStats.Store(statsKey(poolID, a1), &accountStats{errorRate: 0, ttftMs: 0, lastActivity: time.Now()})
+
+	got, err := SelectAccount(poolID, "sess-recover", nil, 1, "")
+	if err != nil {
+		t.Fatalf("select after recovery: %v", err)
+	}
+	if got.ID != a1 {
+		t.Fatalf("session should re-converge to original binding %d, got %d", a1, got.ID)
+	}
+}
+
+// TestStickyEscape_DisabledKeepsOldBehavior (golden): with the default off, a
+// sticky hit behaves byte-identically to the old logic even when the error rate
+// exceeds the threshold.
+func TestStickyEscape_DisabledKeepsOldBehavior(t *testing.T) {
+	poolID, _ := setupSchedulerPoolDB(t)
+	// No keys set: the default enabled=false applies.
+	setStickyEscapeForTest(t, "false", "0.5", "15000")
+
+	a1 := addAccount(t, poolID, &model.PoolAccount{Name: "sticky-default"})
+	seedStickyForTest(t, poolID, a1, "sess-disabled")
+	seedStatsForTest(t, poolID, a1, 0.9, 0)
+
+	got, err := SelectAccount(poolID, "sess-disabled", nil, 1, "")
+	if err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	if got.ID != a1 {
+		t.Fatalf("disabled escape must keep sticky hit on %d, got %d", a1, got.ID)
+	}
+}
+
+// TestStickyEscape_TTFTDimension: a TTFT above the threshold escapes; a
+// threshold <=0 disables the dimension.
+func TestStickyEscape_TTFTDimension(t *testing.T) {
+	poolID, _ := setupSchedulerPoolDB(t)
+
+	a1 := addAccount(t, poolID, &model.PoolAccount{Name: "sticky-ttft"})
+	addAccount(t, poolID, &model.PoolAccount{Name: "spare-ttft"})
+	seedStickyForTest(t, poolID, a1, "sess-ttft")
+	seedStatsForTest(t, poolID, a1, 0, 20000)
+
+	setStickyEscapeForTest(t, "true", "0.5", "15000")
+	if got, err := SelectAccount(poolID, "sess-ttft", nil, 1, ""); err != nil || got.ID == a1 {
+		t.Fatalf("high TTFT should escape sticky, got %v err=%v", got, err)
+	}
+
+	// Threshold 0 = TTFT dimension disabled (error rate below threshold -> no
+	// escape; the sticky hit applies).
+	globalPoolSticky.Store(stickyKey(poolID, "sess-ttft"), &stickyEntry{AccountID: a1, LastActivity: time.Now()})
+	globalPoolSlots.Delete(statsKey(poolID, a1))
+	setStickyEscapeForTest(t, "true", "0.5", "0")
+	if got, err := SelectAccount(poolID, "sess-ttft", nil, 1, ""); err != nil || got.ID != a1 {
+		t.Fatalf("ttft threshold 0 must disable ttft escape, got %v err=%v", got, err)
 	}
 }

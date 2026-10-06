@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -293,6 +294,17 @@ type relayAttempt struct {
 	// poolAccount 号池账号指针（号池模式时使用），供 applyPoolCredentialHeaders 读取 extra。
 	poolAccount *dbmodel.PoolAccount
 
+	// respHeaders snapshots the upstream response headers (B1-#1). Captured in
+	// forward() after sendRequest succeeds and attached to
+	// RetryDecision.Headers for 429 reset-header parsing. nil means no upstream
+	// response (e.g. dial failure, request build failure).
+	respHeaders http.Header
+	// errBodySnippet holds the first 2KB of the upstream error response body
+	// (B1-#1; reused by B4-#12 rule matching). Taken from the already-read
+	// in-memory body inside handleForwardResponse; response.Body is not
+	// consumed any further.
+	errBodySnippet string
+
 	// filterCfg 缓存本次尝试的响应关键词过滤配置，避免在流式响应的每个
 	// chunk 上重复读取 setting 并解析关键词 JSON。通过 getResponseFilterConfig
 	// 懒加载，仅在首次需要时计算一次。
@@ -353,6 +365,17 @@ type RetryDecision struct {
 	// 契约由 attempt() 声明（见 relay.go 的 client disconnected / response filter 分支），
 	// 由 executeRelay 的熔断守卫执行。零值 false 保持全部现存构造点语义不变。
 	SkipFailureAccounting bool
+
+	// Headers snapshots the upstream response headers (B1-#1) for 429-branch
+	// reset-header parsing (x-codex-* / Retry-After /
+	// anthropic-ratelimit-unified-reset). Zero value nil means no upstream
+	// response evidence; the feedback segment falls back to the pool-level base
+	// cooldown, matching the old hardcoded behavior.
+	Headers http.Header
+	// BodySnippet holds the first 2KB of the upstream error response body
+	// (captured in B1-#1; reused by B4-#12 TempUnsched keyword matching).
+	// Zero value empty string means no error-body evidence.
+	BodySnippet string
 }
 
 // String 返回决策的描述字符串，用于日志

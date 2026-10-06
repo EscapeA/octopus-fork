@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { registerSettingStoreGetter } from '../../lib/utils.ts';
 
-import { formatAPIKeyStatsResponse } from './apikey-format.ts';
+import { formatAPIKeyStatsResponse, getAPIKeyCostProgress } from './apikey-format.ts';
 
 // 单位风格跟随语言：本用例断言 K/M/B 风格，显式固定为英文（默认语言是简中 → 万/亿）。
 registerSettingStoreGetter(() => 'en');
@@ -47,4 +47,19 @@ test('formatAPIKeyStatsResponse formats nested stats response without flattening
     assert.equal(formatted.stats.request_count.formatted.unit, '');
     assert.equal(formatted.info.name, 'dashboard key');
     assert.equal(formatted.info.supported_models, 'gpt-4o');
+});
+
+// fork: 币种固定人民币（store 已删 chinaMode/exchangeRate），因此一律以 chinaMode=true、汇率=1 调用。
+test('getAPIKeyCostProgress guards unlimited quota and clamps to range', () => {
+    assert.equal(getAPIKeyCostProgress(50, 0, true, 1), 0);
+    assert.equal(getAPIKeyCostProgress(Number.NaN, 100, true, 1), 0);
+    assert.equal(getAPIKeyCostProgress(-1, 100, true, 1), 0);
+    assert.equal(getAPIKeyCostProgress(150, 100, true, 1), 100);
+    assert.ok(Math.abs(getAPIKeyCostProgress(25, 100, true, 1) - 25) < 1e-10);
+});
+test('API Key quota progress uses matching currency units at any exchange rate', () => {
+    const usedCost = 14; // RMB 原值，无换算
+    assert.ok(Math.abs(getAPIKeyCostProgress(usedCost, 100, true, 1) - 14) < 1e-10);
+    // 非人民币模式（历史传入）依旧按原值处理，不因汇率放大/缩小
+    assert.ok(Math.abs(getAPIKeyCostProgress(usedCost, 100, false, 7.2) - 14) < 1e-10);
 });

@@ -404,7 +404,7 @@ func testGroupModelItem(ctx context.Context, endpointType string, item appmodel.
 
 	// 按被测模型选 key：与真实转发一致——key 的 supported_models 非空时只在
 	// 这些模型上被选用。否则「模型只对某个 key 开放」的场景下，测试会挑中
-	// 对该模型无权限的 key（如成本最低但不在灰度名单里）而误报 403。
+	// 对该模型无权限的 key（如成本最低但不在灰度名单里）而误报 403.
 	usedKey := channel.GetChannelKeyWithCooldown(item.ModelName, 300)
 	if strings.TrimSpace(usedKey.ChannelKey) == "" {
 		result.Message = "no available key"

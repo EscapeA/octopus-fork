@@ -290,6 +290,7 @@ func normalizeGroup(group model.Group) model.Group {
 	group.EndpointProvider = strings.ToLower(strings.TrimSpace(group.EndpointProvider))
 	group.OutboundFormat = strings.ToLower(strings.TrimSpace(group.OutboundFormat))
 	group.MatchRegex = strings.TrimSpace(group.MatchRegex)
+	group.ThinkingMode = model.NormalizeThinkingMode(group.ThinkingMode)
 	for i := range group.Items {
 		group.Items[i].ModelName = strings.TrimSpace(group.Items[i].ModelName)
 		if group.Items[i].Weight <= 0 {
@@ -627,7 +628,11 @@ func GroupCreate(group *model.Group, ctx context.Context) error {
 	group.EndpointProvider = strings.ToLower(strings.TrimSpace(group.EndpointProvider))
 	group.OutboundFormat = strings.ToLower(strings.TrimSpace(group.OutboundFormat))
 	group.MatchRegex = strings.TrimSpace(group.MatchRegex)
+	group.ThinkingMode = model.NormalizeThinkingMode(group.ThinkingMode)
 	group.Items = NormalizeItems(group.Items)
+	if !model.IsValidThinkingMode(group.ThinkingMode) {
+		return fmt.Errorf("invalid thinking mode: must be 'auto', 'off', or 'on'")
+	}
 	if err := db.GetDB().WithContext(ctx).Create(group).Error; err != nil {
 		return err
 	}
@@ -640,6 +645,10 @@ func GroupUpdate(req *model.GroupUpdateRequest, ctx context.Context) (*model.Gro
 	group, ok := groupCache.Get(req.ID)
 	if !ok {
 		return nil, fmt.Errorf("group not found")
+	}
+
+	if req.ThinkingMode != nil && !model.IsValidThinkingMode(*req.ThinkingMode) {
+		return nil, fmt.Errorf("invalid thinking mode: must be 'auto', 'off', or 'on'")
 	}
 
 	normalizedItemsToUpdate := normalizeGroupItemUpdateRequests(group.Items, req.ItemsToUpdate)
@@ -703,6 +712,10 @@ func GroupUpdate(req *model.GroupUpdateRequest, ctx context.Context) (*model.Gro
 	if req.Condition != nil {
 		selectFields = append(selectFields, "condition")
 		updates.Condition = strings.TrimSpace(*req.Condition)
+	}
+	if req.ThinkingMode != nil {
+		selectFields = append(selectFields, "thinking_mode")
+		updates.ThinkingMode = model.NormalizeThinkingMode(*req.ThinkingMode)
 	}
 	if req.ReasoningBufferStrategy != nil {
 		selectFields = append(selectFields, "reasoning_buffer_strategy")

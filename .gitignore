@@ -71,6 +71,10 @@ patch_channel_import.cjs
 web/_patch2.mjs
 octopus
 
+# ad-hoc scroll/layout debug harness (not for CI)
+web/scroll-test*.html
+web/test-server*.js
+
 # Reasonix tooling
 .reasonix/
 

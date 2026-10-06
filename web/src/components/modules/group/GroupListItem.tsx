@@ -32,6 +32,7 @@ import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/common/Toast';
 import { CopyIconButton } from '@/components/common/CopyButton';
+import { Button } from '@/components/ui/button';
 import {
     Tooltip,
     TooltipContent,
@@ -102,10 +103,10 @@ function EditDialogContent({
     const { setIsOpen } = useMorphingDialog();
     const t = useTranslations('group');
     return (
-        <div className="relative flex h-full min-h-0 w-full max-w-full flex-col">
+        <div className="relative flex h-full min-h-0 w-full max-w-full flex-1 flex-col 2xl:h-auto">
             <MorphingDialogTitle className="shrink-0">
-                <header className="relative mb-4 flex items-start justify-between gap-4">
-                    <div className="space-y-3">
+                <header className="relative mb-4 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
+                    <div className="min-w-0 space-y-3">
                         <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-card px-3 py-1 text-[0.68rem] font-semibold text-primary">
                             <Waves className="size-3.5" />
                             {t('detail.actions.edit')}
@@ -114,26 +115,27 @@ function EditDialogContent({
                             <h2 className="text-2xl font-bold text-card-foreground">
                                 {t('detail.actions.edit')}
                             </h2>
-                            <p className="text-sm text-muted-foreground">{group.name}</p>
+                            <p className="truncate text-sm text-muted-foreground" title={group.name}>{group.name}</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="col-span-2 row-start-2 flex min-w-0 flex-wrap items-center gap-2 empty:hidden sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:justify-end">
                         {group.id && supportsGroupTest(group.endpoint_type) && !isTestingAvailability && !availabilitySummary ? (
-                            <button
+                            <Button
                                 type="button"
+                                variant="ghost"
                                 onClick={onTestAvailability}
-                                className="inline-flex h-10 items-center gap-2 rounded-lg border border-primary/20 bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:opacity-90"
+                                className="h-11 max-w-full gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 text-xs font-medium text-muted-foreground shadow-none transition-colors duration-150 hover:translate-y-0 hover:border-border hover:bg-muted hover:text-foreground dark:hover:bg-muted sm:h-9 [&>span]:truncate"
                             >
                                 <TestTubeDiagonal className="size-4" />
-                                {t('detail.availability.testAll')}
-                            </button>
+                                <span>{t('detail.availability.testAll')}</span>
+                            </Button>
                         ) : null}
-                        <MorphingDialogClose className="relative right-0 top-0" />
                     </div>
+                    <MorphingDialogClose className="relative col-start-2 row-start-1 right-auto top-auto size-11 shrink-0 rounded-lg border-transparent bg-transparent p-2 text-muted-foreground hover:bg-muted sm:col-start-3 sm:right-auto sm:top-auto sm:size-9 sm:p-2 [&>svg]:size-4" />
                 </header>
             </MorphingDialogTitle>
             <MorphingDialogDescription className="flex min-h-0 flex-1 overflow-hidden">
-                <div className={cn('min-h-0 min-w-0 flex-1', group.id && (isTestingAvailability || availabilitySummary) ? 'hidden' : 'block')}>
+                <div className={cn('min-h-0 min-w-0 flex-1', group.id && (isTestingAvailability || availabilitySummary) ? 'hidden' : 'flex')}>
                     <GroupEditor
                         key={`edit-group-${group.id}`}
                         className="flex-1 min-h-0"
@@ -149,6 +151,7 @@ function EditDialogContent({
                             first_token_time_out: group.first_token_time_out ?? 0,
                             attempt_time_out: group.attempt_time_out ?? 0,
                             session_keep_time: group.session_keep_time ?? 0,
+                            thinking_mode: group.thinking_mode ?? 'auto',
                             members: editMembers,
                         }}
                         submitText={t('detail.actions.save')}
@@ -529,6 +532,7 @@ export function GroupListItem({ group }: { group: Group }) {
             )
                 .trim()
                 .toLowerCase();
+            const nextThinkingMode = values.thinking_mode ?? 'auto';
             const nextCondition = values.condition.trim();
             const nextFirstTokenTimeOut =
                 values.first_token_time_out ?? 0;
@@ -576,6 +580,8 @@ export function GroupListItem({ group }: { group: Group }) {
                 (group.session_keep_time ?? 0)
             )
                 payload.session_keep_time = nextSessionKeepTime;
+            if (nextThinkingMode !== (group.thinking_mode ?? 'auto'))
+                payload.thinking_mode = nextThinkingMode;
             if (items_to_add.length) payload.items_to_add = items_to_add;
             if (items_to_update.length)
                 payload.items_to_update = items_to_update;
@@ -603,6 +609,7 @@ export function GroupListItem({ group }: { group: Group }) {
             group.first_token_time_out,
             group.attempt_time_out,
             group.session_keep_time,
+            group.thinking_mode,
             group.id,
             group.items,
             group.match_regex,
@@ -674,6 +681,7 @@ export function GroupListItem({ group }: { group: Group }) {
             first_token_time_out: group.first_token_time_out ?? 0,
             attempt_time_out: group.attempt_time_out ?? 0,
             session_keep_time: group.session_keep_time ?? 0,
+            thinking_mode: group.thinking_mode ?? 'auto',
             members: nextMembers,
         };
 
@@ -696,6 +704,7 @@ export function GroupListItem({ group }: { group: Group }) {
         group.name,
         group.outbound_format,
         group.session_keep_time,
+        group.thinking_mode,
         handleSubmitEdit,
         members,
         t,
@@ -1058,7 +1067,7 @@ export function GroupListItem({ group }: { group: Group }) {
                                     </MorphingDialogTrigger>
 
                                     <MorphingDialogContainer>
-                                        <MorphingDialogContent className="max-h-[calc(100dvh-6rem)] sm:max-h-[calc(100dvh-3rem)] lg:max-h-[calc(100dvh-1.5rem)] max-w-full sm:max-w-[92rem] lg:max-w-full relative flex h-[calc(100dvh-6rem)] w-[min(100vw-2rem,92rem)] lg:w-full lg:h-[calc(100dvh-1.5rem)] flex-col overflow-hidden rounded-xl border border-border/35 bg-card px-4 py-4 text-card-foreground shadow-md md:h-[calc(100dvh-3rem)] md:w-[min(100vw-2rem,92rem)] md:px-6">
+                                        <MorphingDialogContent className="max-h-[calc(100dvh-6rem)] sm:max-h-[calc(100dvh-3rem)] lg:max-h-[calc(100dvh-1.5rem)] max-w-full sm:max-w-[92rem] lg:max-w-full relative flex h-[calc(100dvh-6rem)] w-[min(100vw-2rem,92rem)] lg:w-full lg:h-[calc(100dvh-1.5rem)] 2xl:h-auto flex-col overflow-hidden rounded-xl border border-border/35 bg-card px-4 py-4 text-card-foreground shadow-md md:h-[calc(100dvh-3rem)] md:w-[min(100vw-2rem,92rem)] md:px-6">
                                             <EditDialogContent
                                                 group={group}
                                                 editMembers={members}

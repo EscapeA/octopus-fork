@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/lingyuins/octopus/internal/db"
@@ -13,6 +14,7 @@ import (
 	"github.com/lingyuins/octopus/internal/op/alert"
 	"github.com/lingyuins/octopus/internal/op/channel"
 	"github.com/lingyuins/octopus/internal/op/notification"
+	porop "github.com/lingyuins/octopus/internal/op/pool"
 	"github.com/lingyuins/octopus/internal/op/setting"
 	"github.com/lingyuins/octopus/internal/op/stats"
 	"github.com/lingyuins/octopus/internal/utils/log"
@@ -28,13 +30,18 @@ const (
 	alertStateResolved         = "resolved"
 )
 
+var alertEvaluationMu sync.Mutex
+
 type alertEvaluation struct {
 	Firing       bool
 	CurrentValue float64
 	Detail       string
+	AccountIDs   []int
 }
 
 func EvaluateAlertRules() {
+	alertEvaluationMu.Lock()
+	defer alertEvaluationMu.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -61,6 +68,12 @@ func EvaluateAlertRules() {
 
 		currentState := alert.StateGet(rule.ID)
 		eval := evaluateRule(ctx, &rule)
+		if rule.ConditionType == model.AlertConditionPoolAccountError && eval.Firing {
+			if claimPoolAccountAlerts(rule, eval.AccountIDs, poolAlertNow()) {
+				firePoolAccountAlert(&rule, channelMap, eval)
+			}
+			continue
+		}
 		prevState := currentState.State
 
 		switch {
@@ -110,9 +123,48 @@ func evaluateRule(ctx context.Context, rule *model.AlertRule) alertEvaluation {
 		return evaluateChannelDown(ctx, rule)
 	case model.AlertConditionQuotaExceeded:
 		return evaluateQuotaExceeded(rule)
+	case model.AlertConditionPoolAccountError:
+		return evaluatePoolAccountError(rule)
 	default:
 		return alertEvaluation{}
 	}
+}
+
+// Periodic evaluation reconciles persisted errors after restart or dropped
+// events. Event delivery and this scan share the same per-account dedup window.
+func evaluatePoolAccountError(rule *model.AlertRule) alertEvaluation {
+	accounts, err := porop.ListAllAccounts()
+	if err != nil {
+		return alertEvaluation{Detail: err.Error()}
+	}
+	errored := make([]string, 0)
+	accountIDs := make([]int, 0)
+	for i := range accounts {
+		acct := &accounts[i]
+		if acct.Status != "error" {
+			continue
+		}
+		if rule.ScopePoolAccountID > 0 && acct.ID != rule.ScopePoolAccountID {
+			continue
+		}
+		accountIDs = append(accountIDs, acct.ID)
+		if len(errored) < 10 {
+			errored = append(errored, fmt.Sprintf("%.128s (pool %d, account %d)", acct.Name, acct.PoolID, acct.ID))
+		}
+	}
+	if len(errored) > 0 {
+		return alertEvaluation{
+			Firing:       true,
+			CurrentValue: float64(len(accountIDs)),
+			Detail:       fmt.Sprintf("pool accounts in error (%d): %s", len(accountIDs), strings.Join(errored, ", ")),
+			AccountIDs:   accountIDs,
+		}
+	}
+	scope := "any pool account"
+	if rule.ScopePoolAccountID > 0 {
+		scope = fmt.Sprintf("pool account %d", rule.ScopePoolAccountID)
+	}
+	return alertEvaluation{CurrentValue: 0, Detail: fmt.Sprintf("%s is active", scope)}
 }
 
 func evaluateErrorRate(ctx context.Context, rule *model.AlertRule) alertEvaluation {
@@ -356,19 +408,20 @@ func createAlertNotification(ctx context.Context, rule *model.AlertRule, state m
 		severity = model.NotificationSeveritySuccess
 	}
 	metadata, _ := json.Marshal(map[string]any{
-		"rule_id":          rule.ID,
-		"rule_name":        rule.Name,
-		"condition_type":   rule.ConditionType,
-		"threshold":        rule.Threshold,
-		"current_value":    eval.CurrentValue,
-		"detail":           eval.Detail,
-		"scope_channel_id": rule.ScopeChannelID,
-		"scope_api_key_id": rule.ScopeAPIKeyID,
-		"scope_group_id":   rule.ScopeGroupID,
-		"scope_model_name": rule.ScopeModelName,
-		"window_sec":       rule.WindowSec,
-		"state":            state,
-		"notification":     notify,
+		"rule_id":               rule.ID,
+		"rule_name":             rule.Name,
+		"condition_type":        rule.ConditionType,
+		"threshold":             rule.Threshold,
+		"current_value":         eval.CurrentValue,
+		"detail":                eval.Detail,
+		"scope_channel_id":      rule.ScopeChannelID,
+		"scope_api_key_id":      rule.ScopeAPIKeyID,
+		"scope_group_id":        rule.ScopeGroupID,
+		"scope_model_name":      rule.ScopeModelName,
+		"scope_pool_account_id": rule.ScopePoolAccountID,
+		"window_sec":            rule.WindowSec,
+		"state":                 state,
+		"notification":          notify,
 	})
 	n := &model.Notification{
 		Type:         model.NotificationTypeAlert,
