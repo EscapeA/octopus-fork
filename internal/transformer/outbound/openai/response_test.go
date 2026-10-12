@@ -22,7 +22,7 @@ func TestConvertAssistantMessageToResponses_MarksToolCallsCompletedAndSkipsEmpty
 		},
 	}
 
-	items := convertAssistantMessageToResponses(msg)
+	items := convertAssistantMessageToResponses(msg, model.APIFormatOpenAIResponse)
 	if len(items) != 1 {
 		t.Fatalf("expected only function_call item, got %#v", items)
 	}
@@ -42,7 +42,7 @@ func TestConvertAssistantMessageToResponses_KeepsNonEmptyTextMessage(t *testing.
 		Role:    "assistant",
 		Content: model.MessageContent{Content: strPtr("done")},
 	}
-	items := convertAssistantMessageToResponses(msg)
+	items := convertAssistantMessageToResponses(msg, model.APIFormatOpenAIResponse)
 	if len(items) != 1 || items[0].Type != "message" {
 		t.Fatalf("expected one message item, got %#v", items)
 	}
