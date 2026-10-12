@@ -107,7 +107,7 @@ func isRetryEmptyOutputEnabled() bool {
 // getReasoningBufferStrategy 返回有效的推理缓冲策略：
 // 1. 优先使用分组的 reasoning_buffer_strategy（非空时）
 // 2. 回退到全局设置 reasoning_buffer_strategy
-// 3. 最终默认 "buffer"（兼容旧行为）
+// 3. 最终默认 "immediate"
 // 返回 "buffer" 或 "immediate"。
 func getReasoningBufferStrategy(group *dbmodel.Group) string {
 	if group != nil && group.ReasoningBufferStrategy != "" {
@@ -123,14 +123,17 @@ func getReasoningBufferStrategy(group *dbmodel.Group) string {
 			return strategy
 		}
 	}
-	return "buffer" // 默认缓冲策略，保持向后兼容
+	return "immediate"
 }
 
-// messageHasVisibleContent 检查 Message 是否包含可见内容（文本、多模态、工具调用、音频）。
+// messageHasVisibleContent 检查 Message 是否包含可见内容（文本、拒答、多模态、工具调用、音频）。
 // reasoning_content / reasoning 不算可见内容（issue #155）。
 func messageHasVisibleContent(msg *model.Message) bool {
 	if msg == nil {
 		return false
+	}
+	if strings.TrimSpace(msg.Refusal) != "" {
+		return true
 	}
 	if msg.Content.Content != nil && strings.TrimSpace(*msg.Content.Content) != "" {
 		return true
@@ -214,6 +217,8 @@ type relayRequest struct {
 	clientCtx         context.Context
 	operationCtx      context.Context
 	inAdapter         model.Inbound
+	newInAdapter      func() model.Inbound
+	inAdapterUsed     bool
 	internalRequest   *model.InternalLLMRequest
 	metrics           *RelayMetrics
 	apiKeyID          int
@@ -490,7 +495,7 @@ func classifyHTTPError(statusCode int, err error) RetryDecision {
 	case statusCode == 403:
 		return RetryDecision{
 			Scope:   ScopeSameChannel,
-			Reason:  "forbidden, key permission issue",
+			Reason:  "forbidden, key permission denied",
 			Code:    statusCode,
 			IsError: true,
 		}

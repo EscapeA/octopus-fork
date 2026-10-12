@@ -4,7 +4,7 @@
 
 The configuration file is located at `data/config.json` by default and is automatically generated on first startup.
 
-**Complete Configuration Example:**
+**Minimal Configuration Example:**
 
 ```json
 {
@@ -36,6 +36,7 @@ Most operational knobs are not stored in `config.json`. Retry policy, circuit br
 |--------|-------------|---------|
 | `server.host` | Listen address | `0.0.0.0` |
 | `server.port` | Server port | `8080` |
+| `server.trusted_proxies` | Comma-separated trusted reverse-proxy CIDRs/IPs for resolving real client IP from `X-Forwarded-For`. Empty = trust none (safe default; `c.ClientIP()` returns the direct TCP address). `*` = trust all (dev only; XFF spoofing risk). Applied once at startup — restart to apply changes; a DB setting of the same name overrides config/env when present. | empty |
 | `server.trusted_proxies` | Comma-separated trusted reverse-proxy CIDRs/IPs for resolving real client IP from `X-Forwarded-For`. Empty = trust none (safe default; `c.ClientIP()` returns the direct TCP address). `*` = trust all (dev only; XFF spoofing risk). | empty |
 | `server.static_dir` | Directory holding the frontend static assets (absolute, or relative to the process working directory). Decouples the web build from the binary: replacing files takes effect immediately, with no rebuild or restart; an invalid value (no `index.html`) logs a warning and falls back to the embedded assets. Env `OCTOPUS_STATIC_DIR` takes precedence. | empty (embedded assets) |
 | `database.type` | Database type | `sqlite` |
@@ -44,7 +45,9 @@ Most operational knobs are not stored in `config.json`. Retry policy, circuit br
 | `database.sqlite.mmap_size` | SQLite `PRAGMA mmap_size` in bytes. `0` disables mmap (safe default for low-memory hosts). | `0` (disabled) |
 | `log.level` | Log level | `info` |
 | `auth.jwt_secret` | JWT signing secret | empty (ephemeral secret generated at startup if unset) |
-| `security.encryption_key` | Encryption key for sensitive stored data (credential profiles, site passwords, etc.) | empty (falls back to JWT secret) |
+| `security.encryption_key` | Encryption key for sensitive stored data (credential profiles, site passwords, etc.) | empty (falls back to `auth.jwt_secret`; if that secret is ephemeral, startup is refused) |
+| `database.log_type` | Optional dedicated log database type (SQLite / MySQL / PostgreSQL). Empty = relay logs are stored in the main database | empty |
+| `database.log_path` | Log database connection string (used together with `database.log_type`) | empty |
 | `relay.max_json_body_bytes` | Maximum JSON request body size | `67108864` (64 MB) |
 | `relay.max_multipart_body_bytes` | Maximum multipart request body size | `67108864` (64 MB) |
 
@@ -130,6 +133,7 @@ All configuration options can be overridden via environment variables using the 
 | `OCTOPUS_INITIAL_ADMIN_PASSWORD` | Bootstrap the initial admin password at startup |
 | `OCTOPUS_GITHUB_PAT` | For rate limiting when getting the latest version (optional) |
 | `OCTOPUS_RELAY_MAX_SSE_EVENT_SIZE` | Maximum SSE event size (optional) |
+| `OCTOPUS_DEBUG` | Enable debug mode: when `true`, the backend serves frontend assets from disk (`web/out` or `static/out`, whichever contains `index.html`) instead of the embedded UI | unset |
 
 ---
 

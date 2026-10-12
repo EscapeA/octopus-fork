@@ -595,7 +595,7 @@ export function Toolbar() {
                     ) : null}
 
                     {/* 创建按钮 */}
-                    <MorphingDialog>
+                    <MorphingDialog disableSharedLayout={toolbarItem === 'channel'}>
                         <MorphingDialogTrigger
                             ariaLabel={createAriaLabel}
                             className={cn(

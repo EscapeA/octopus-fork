@@ -16,6 +16,16 @@ The public relay API supports both OpenAI-style and Anthropic-style clients:
 
 JSON media endpoints can also proxy upstream SSE streams when the provider supports `stream=true`.
 
+**Log module: two views**
+
+The Log module has two switchable views:
+
+- **Relay logs** — one record per forwarded request, with candidates, retries, and cost details (see below)
+- **Error logs** — collects backend panics and errors (with request method / path, client IP, and user agent) and frontend exceptions (uncaught errors / unhandled rejections, with page URL and stack). Entries are stored in the main database and retained up to an internal cap, with the oldest half cleaned up periodically; the view also offers one-click clearing
+
+**Relay log details:**
+
+The Log module opens a two-panel detail view: Group / Request Body tabs on the left and the response JSON on the right, with usage, timing, and cost in the footer. Candidate rows show model logos, channel/key names, and recorded success / failure / skip / circuit-break statuses. Expand a row to inspect individual retries and their messages. Cooldown seconds are shown only when explicitly recorded in the log; they are not a live countdown. Current items from an exact-name group supplement recorded candidates and are marked as unrecorded. Deleted, renamed, or mapped groups may only show the recorded candidates. Narrow screens stack the panels vertically.
 **Zen Direct Model Routing:**
 
 Requests with model name prefixed `zen/<model>` bypass group model mapping and route directly to the upstream model. Octopus performs smart channel-type detection based on the model name (e.g., Claude → Anthropic, Gemini → Gemini, GPT → OpenAI).
