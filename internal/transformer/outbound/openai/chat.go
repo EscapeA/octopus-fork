@@ -12,7 +12,12 @@ import (
 	"github.com/lingyuins/octopus/internal/transformer/model"
 )
 
-type ChatOutbound struct{}
+type ChatOutbound struct {
+	// dsml 是流式响应的跨 chunk DSML 剥离状态机。
+	// ChatOutbound 实例在单次尝试内复用（relay 对每个 attempt 只 Get 一次），
+	// 因此状态能跨 chunk 正确延续。
+	dsml dsmlStreamStripper
+}
 
 func (o *ChatOutbound) TransformRequest(ctx context.Context, request *model.InternalLLMRequest, baseUrl, key string) (*http.Request, error) {
 	compatRequest := CloneRequestForOpenAICompat(request)
@@ -381,6 +386,7 @@ func (o *ChatOutbound) TransformResponse(ctx context.Context, response *http.Res
 
 func (o *ChatOutbound) TransformStream(ctx context.Context, eventData []byte) (*model.InternalLLMResponse, error) {
 	if bytes.HasPrefix(eventData, []byte("[DONE]")) {
+		o.dsml.reset()
 		return &model.InternalLLMResponse{
 			Object: "[DONE]",
 		}, nil
@@ -400,7 +406,9 @@ func (o *ChatOutbound) TransformStream(ctx context.Context, eventData []byte) (*
 		return nil, fmt.Errorf("failed to unmarshal stream chunk: %w", err)
 	}
 	normalizeOpenAICompatUsage(&resp)
-	stripToolCallDSMLFromResponse(&resp)
+	// 流式 DSML 剥离：标记会被上游切成多个 delta 且先于 tool_calls /
+	// finish_reason 到达，必须用跨 chunk 状态机（见 dsml.go）。
+	o.dsml.stripResponse(&resp)
 	return &resp, nil
 }
 
