@@ -72,16 +72,23 @@ func dsmlMarkerAt(s string) int {
 }
 
 // isPartialDSMLPrefix 判断 s（从 '<' 开始）是否是「尚未闭合的标记前缀」，
-// 需要留到下一 chunk 再判定。至少已见 2 个 rune（"<｜"/"<|"）才算，避免
-// 把正文里孤立的 '<' 卡住。
+// 需要留到下一 chunk 再判定。
+//
+// ⚠️ 必须覆盖「本 chunk 恰好以孤立 '<' 结尾」的情形：NV 实测会把标记切在
+// 首字符之后（chunk A = "\n\n<"、chunk B = "｜DSML｜ calls>\n"）。若此处
+// 因 rune 数不足而放行 '<'，下一个 chunk 不含 '<'，标记就会被原样拼进正文
+// （2026-10-13 线上泄漏 1/35 的根因）。
+//
+// 只要 remainder 以 '<' 开头且尚未出现 '>'，且与标记开头相容，就扣留；
+// 若下一 chunk 证明它不是标记（普通文本如 "< b"），会在下一轮立即放行。
 func isPartialDSMLPrefix(s string) bool {
-	if len([]rune(s)) < 2 || s[0] != '<' {
+	if s == "" || s[0] != '<' {
 		return false
 	}
 	if strings.Contains(s, ">") {
-		return false // 已出现 '>'，是完整标记或普通文本
+		return false // 已出现 '>'，是完整标记或不含标记的普通文本
 	}
-	// s 必须是 dsmlFullPrefix 或 dsmlAsciiPrefix 的前缀。
+	// s 与标记开头必须相容：或 s 是标记开头的前缀，或 s 以标记开头起头。
 	return strings.HasPrefix(dsmlFullMarkerStart, s) ||
 		strings.HasPrefix(s, dsmlFullMarkerStart) ||
 		strings.HasPrefix(dsmlAsciiMarkerStart, s) ||
@@ -253,10 +260,16 @@ func (s *dsmlStreamStripper) stripResponse(resp *model.InternalLLMResponse) {
 		// 正常文本轮次收尾：放回扣留文本，绝不误删正文。
 		if choice.FinishReason != nil && *choice.FinishReason == "stop" {
 			if released := s.release(); released != "" {
-				if choice.Delta != nil {
-					choice.Delta.Content = model.MessageContent{Content: &released}
-				} else if choice.Message != nil {
-					choice.Message.Content = model.MessageContent{Content: &released}
+				target := choice.Delta
+				if target == nil {
+					target = choice.Message
+				}
+				if target != nil {
+					// 追加而不是覆盖：末条 chunk 自带 content 时不能丢。
+					if target.Content.Content != nil {
+						released = *target.Content.Content + released
+					}
+					target.Content.Content = &released
 				}
 			}
 		}

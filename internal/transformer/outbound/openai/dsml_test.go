@@ -143,6 +143,78 @@ func TestDSMLStreamStripper_PlainTextUnaffected(t *testing.T) {
 	}
 }
 
+func TestDSMLStreamStripper_SplitAtLessThan(t *testing.T) {
+	// 线上泄漏根因（2026-10-13）：NV 把标记切在首字符之后
+	s := &dsmlStreamStripper{}
+	a := s.process("\n\n<")
+	if a != "\n\n" {
+		t.Fatalf("chunk A = %q, want %q", a, "\n\n")
+	}
+	b := s.process("\uff5cDSML\uff5c calls")
+	if b != "" {
+		t.Fatalf("chunk B = %q, want empty", b)
+	}
+	c := s.process(">\n")
+	if strings.Contains(c, "DSML") {
+		t.Fatalf("chunk C leaks marker: %q", c)
+	}
+	if got := a + b + c; got != "\n\n\n" {
+		t.Fatalf("concat = %q, want %q", got, "\n\n\n")
+	}
+}
+
+func TestDSMLStreamStripper_LoneLessThanAtChunkEndIsRecovered(t *testing.T) {
+	// 正文里的孤立 '<' 若恰好在 chunk 末尾被扣留，下一 chunk 证明非标记时必须放行
+	s := &dsmlStreamStripper{}
+	if got := s.process("a <"); got != "a " {
+		t.Fatalf("chunk A = %q, want %q", got, "a ")
+	}
+	if got := s.process(" b"); got != "< b" {
+		t.Fatalf("chunk B = %q, want %q", got, "< b")
+	}
+}
+
+func TestDSMLStreamStripper_StopTurnKeepsHeldOrdering(t *testing.T) {
+	// 正文里的 '<' 恰在 chunk 末尾被扣留，下一 chunk 证明非标记 → 按原顺序复原
+	s := &dsmlStreamStripper{}
+	if got := s.process("前言 <"); got != "前言 " {
+		t.Fatalf("chunk A = %q, want %q", got, "前言 ")
+	}
+	stop := "stop"
+	resp := &model.InternalLLMResponse{Choices: []model.Choice{{
+		FinishReason: &stop,
+		Delta:        &model.Message{Content: model.MessageContent{Content: strp(" 收尾")}},
+	}}}
+	s.stripResponse(resp)
+	if got := *resp.Choices[0].Delta.Content.Content; got != "< 收尾" {
+		t.Fatalf("got %q, want %q", got, "< 收尾")
+	}
+}
+
+func TestDSMLStreamStripper_StopTurnAppendsHeldToExistingContent(t *testing.T) {
+	// 完整标记被扣留后，末条 stop chunk 自带正文：放回时必须追加而非覆盖
+	s := &dsmlStreamStripper{}
+	if got := s.process("\n\n<｜DSML｜ calls>"); got != "\n\n" {
+		t.Fatalf("marker chunk = %q, want %q", got, "\n\n")
+	}
+	if s.held == "" {
+		t.Fatal("expected marker held")
+	}
+	stop := "stop"
+	resp := &model.InternalLLMResponse{Choices: []model.Choice{{
+		FinishReason: &stop,
+		Delta:        &model.Message{Content: model.MessageContent{Content: strp("结论")}},
+	}}}
+	s.stripResponse(resp)
+	got := *resp.Choices[0].Delta.Content.Content
+	if !strings.Contains(got, "结论") {
+		t.Fatalf("existing content lost: %q", got)
+	}
+	if !strings.Contains(got, "DSML") {
+		t.Fatalf("held marker not released on stop: %q", got)
+	}
+}
+
 func TestDSMLStreamStripper_Reset(t *testing.T) {
 	s := &dsmlStreamStripper{}
 	s.process("\n\n<｜DSML｜ calls")
