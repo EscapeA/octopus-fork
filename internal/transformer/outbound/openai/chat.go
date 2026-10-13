@@ -375,6 +375,7 @@ func (o *ChatOutbound) TransformResponse(ctx context.Context, response *http.Res
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 	normalizeOpenAICompatUsage(&resp)
+	stripToolCallDSMLFromResponse(&resp)
 	return &resp, nil
 }
 
@@ -399,6 +400,7 @@ func (o *ChatOutbound) TransformStream(ctx context.Context, eventData []byte) (*
 		return nil, fmt.Errorf("failed to unmarshal stream chunk: %w", err)
 	}
 	normalizeOpenAICompatUsage(&resp)
+	stripToolCallDSMLFromResponse(&resp)
 	return &resp, nil
 }
 
