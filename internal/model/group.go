@@ -77,6 +77,17 @@ type GroupItem struct {
 	ModelName string `json:"model_name" gorm:"not null;index:idx_group_channel_model,unique;size:191"`
 	Priority  int    `json:"priority"`
 	Weight    int    `json:"weight"`
+	// Enabled 是该「模型 + 渠道」行的启用开关（模型限流/欠费时快速摘除该行，
+	// 不必删除再重新添加）。nil = 启用，同时兼容两条历史路径：
+	//   1) 加列前的存量行（ALTER ADD COLUMN 后为 NULL，不应被当成禁用）；
+	//   2) 更新请求未携带该字段时「不改动」的语义。
+	// 判定一律走 IsEnabled()，不要直接比较该指针。
+	Enabled *bool `json:"enabled,omitempty" gorm:"column:enabled"`
+}
+
+// IsEnabled 判定分组项当前是否参与选路。nil 视为启用（存量行 / 未显式设置）。
+func (i GroupItem) IsEnabled() bool {
+	return i.Enabled == nil || *i.Enabled
 }
 
 // GroupUpdateRequest 分组更新请求 - 仅包含变更的数据
@@ -106,13 +117,19 @@ type GroupItemAddRequest struct {
 	ModelName string `json:"model_name" binding:"required"`
 	Priority  int    `json:"priority,omitempty"`
 	Weight    int    `json:"weight,omitempty"`
+	// Enabled 可选：nil = 启用（新增行默认启用）。
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
-// GroupItemUpdateRequest 更新 item 请求
+// GroupItemUpdateRequest 更新 item 请求。
+// Priority / Weight / Enabled 三者都可选：只发需要改的字段，
+// 未携带（= nil / 0）的字段保持原值。例：只切换启用状态发
+// {"id":123,"enabled":false} 即可，不会把 priority/weight 归零。
 type GroupItemUpdateRequest struct {
-	ID       int `json:"id" binding:"required"`
-	Priority int `json:"priority,omitempty"`
-	Weight   int `json:"weight,omitempty"`
+	ID       int   `json:"id" binding:"required"`
+	Priority int   `json:"priority,omitempty"`
+	Weight   int   `json:"weight,omitempty"`
+	Enabled  *bool `json:"enabled,omitempty"`
 }
 
 // GroupIDAndLLMName is a DTO for batch operations.

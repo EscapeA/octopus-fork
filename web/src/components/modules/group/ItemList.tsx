@@ -9,6 +9,7 @@ import { getModelIcon } from '@/lib/model-icons';
 import type { LLMChannel } from '@/api/endpoints/model';
 import { SettingKey, useSettingList } from '@/api/endpoints/setting';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/animate-ui/components/animate/tooltip';
+import { Switch } from '@/components/ui/switch';
 import { useTranslations } from 'next-intl';
 import { UpstreamPerfBadges, UpstreamPriceBadges } from './UpstreamPriceBadges';
 
@@ -16,6 +17,11 @@ export interface SelectedMember extends LLMChannel {
     id: string;
     item_id?: number;
     weight?: number;
+    /**
+     * 该「模型 + 渠道」行自身的启用开关（与 LLMChannel.enabled = 渠道级开关区分）。
+     * undefined = 启用；false = 该行不参与选路。
+     */
+    item_enabled?: boolean;
 }
 
 export type MemberAvailabilityStatus = 'idle' | 'testing' | 'available' | 'unavailable';
@@ -42,6 +48,7 @@ function MemberItem({
     member,
     onRemove,
     onWeightChange,
+    onToggleEnabled,
     isRemoving,
     index,
     showWeight = false,
@@ -55,6 +62,8 @@ function MemberItem({
     member: SelectedMember;
     onRemove: (id: string) => void;
     onWeightChange?: (id: string, weight: number) => void;
+    /** 切换该「模型 + 渠道」行的启用开关（undefined = 未提供时不渲染开关） */
+    onToggleEnabled?: (id: string, enabled: boolean) => void;
     isRemoving?: boolean;
     index: number;
     showWeight?: boolean;
@@ -68,7 +77,11 @@ function MemberItem({
     const { Avatar: ModelAvatar } = getModelIcon(member.name);
     const t = useTranslations('group');
     const [confirmDelete, setConfirmDelete] = useState(false);
-    const isDisabled = member.enabled === false;
+    // 渠道级禁用（LLMChannel.enabled）
+    const isChannelDisabled = member.enabled === false;
+    // 行级禁用（该「模型 + 渠道」不参与选路）
+    const isItemDisabled = member.item_enabled === false;
+    const isDisabled = isChannelDisabled || isItemDisabled;
     const availabilityStatus = availability?.status ?? 'idle';
 
     return (
@@ -161,6 +174,28 @@ function MemberItem({
                     </span>
                 </div>
 
+                {onToggleEnabled && (
+                    <Tooltip side="top" sideOffset={10} align="center">
+                        <TooltipTrigger asChild>
+                            <span className="relative inline-flex shrink-0 items-center">
+                                <Switch
+                                    size="sm"
+                                    checked={!isItemDisabled}
+                                    onCheckedChange={(checked) => onToggleEnabled(member.id, checked)}
+                                    aria-label={isItemDisabled ? t('form.enableItem') : t('form.disableItem')}
+                                    className={cn(
+                                        'cursor-pointer',
+                                        isChannelDisabled && 'opacity-60'
+                                    )}
+                                />
+                            </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            {isItemDisabled ? t('form.enableItem') : t('form.disableItem')}
+                        </TooltipContent>
+                    </Tooltip>
+                )}
+
                 {showWeight && (
                     <input
                         type="number"
@@ -224,6 +259,11 @@ export interface MemberListProps {
     onRemove: (id: string) => void;
     onWeightChange?: (id: string, weight: number) => void;
     /**
+     * 切换某行「模型 + 渠道」的启用开关。未提供时不渲染开关
+     * （编辑弹窗等「点保存才生效」的场景不传）。
+     */
+    onToggleEnabled?: (id: string, enabled: boolean) => void;
+    /**
      * When true, auto-scroll the list to bottom when a *new visible* member appears
      * (i.e. a new member id is added). Useful in "editor" flows. Defaults to true.
      */
@@ -260,6 +300,7 @@ export function MemberList({
     onReorder,
     onRemove,
     onWeightChange,
+    onToggleEnabled,
     autoScrollOnAdd = true,
     onDragStart,
     onDrop,
@@ -379,6 +420,7 @@ export function MemberList({
                                                 member={member}
                                                 onRemove={onRemove}
                                                 onWeightChange={onWeightChange}
+                                                onToggleEnabled={onToggleEnabled}
                                                 isRemoving={removingIds.has(member.id)}
                                                 index={index}
                                                 showWeight={showWeight}

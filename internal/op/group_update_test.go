@@ -90,3 +90,108 @@ func TestGroupUpdateNormalizesItemsToAdd(t *testing.T) {
 		t.Fatalf("unexpected fourth persisted item: %+v", itemsAfterUpdate[3])
 	}
 }
+
+// 「模型 + 渠道」行启用开关：只发 {id, enabled} 的更新必须
+//   1) 改到该行的启用状态；
+//   2) 不改动该行的 priority / weight（零值 = 保持原值）；
+//   3) 不影响同批次里未携带 enabled 的其它行。
+func TestGroupUpdateItemEnabledToggle(t *testing.T) {
+	ctx := context.Background()
+	if err := db.InitDB("sqlite", "file:group-update-item-enabled?mode=memory&cache=shared", false); err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = db.Close()
+		groupCache.Clear()
+		groupMap.Clear()
+		rebuildGroupIndexesFromCache()
+	})
+
+	groupCache.Clear()
+	groupMap.Clear()
+	rebuildGroupIndexesFromCache()
+
+	group := &model.Group{
+		Name:         "test-group-item-enabled",
+		EndpointType: model.EndpointTypeChat,
+		Mode:         model.GroupModeFailover,
+		Items: []model.GroupItem{
+			{ChannelID: 1, ModelName: "deepseek-flash", Priority: 1, Weight: 5},
+			{ChannelID: 2, ModelName: "deepseek-flash", Priority: 2, Weight: 3},
+		},
+	}
+	if err := GroupCreate(group, ctx); err != nil {
+		t.Fatalf("create group: %v", err)
+	}
+
+	items, err := GroupItemList(group.ID, ctx)
+	if err != nil {
+		t.Fatalf("list items: %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(items))
+	}
+	if !items[0].IsEnabled() || !items[1].IsEnabled() {
+		t.Fatalf("items must default to enabled, got %+v / %+v", items[0], items[1])
+	}
+
+	// 只切换第一行为禁用：priority / weight 一律不携带。
+	disabled := false
+	req := &model.GroupUpdateRequest{
+		ID: group.ID,
+		ItemsToUpdate: []model.GroupItemUpdateRequest{
+			{ID: items[0].ID, Enabled: &disabled},
+		},
+	}
+	if _, err := GroupUpdate(req, ctx); err != nil {
+		t.Fatalf("update group: %v", err)
+	}
+
+	after, err := GroupItemList(group.ID, ctx)
+	if err != nil {
+		t.Fatalf("list items after update: %v", err)
+	}
+	var first, second model.GroupItem
+	for _, it := range after {
+		switch it.ID {
+		case items[0].ID:
+			first = it
+		case items[1].ID:
+			second = it
+		}
+	}
+
+	if first.IsEnabled() {
+		t.Fatalf("item %d must be disabled", first.ID)
+	}
+	if first.Priority != 1 || first.Weight != 5 {
+		t.Fatalf("priority/weight must be preserved on toggle-only update, got priority=%d weight=%d", first.Priority, first.Weight)
+	}
+	if !second.IsEnabled() {
+		t.Fatalf("item %d must stay enabled (not carried in this batch)", second.ID)
+	}
+	if second.Priority != 2 || second.Weight != 3 {
+		t.Fatalf("untouched item changed: priority=%d weight=%d", second.Priority, second.Weight)
+	}
+
+	// 重新启用同样只发 enabled。
+	enabled := true
+	req2 := &model.GroupUpdateRequest{
+		ID: group.ID,
+		ItemsToUpdate: []model.GroupItemUpdateRequest{
+			{ID: items[0].ID, Enabled: &enabled},
+		},
+	}
+	if _, err := GroupUpdate(req2, ctx); err != nil {
+		t.Fatalf("re-enable group item: %v", err)
+	}
+	afterReenable, err := GroupItemList(group.ID, ctx)
+	if err != nil {
+		t.Fatalf("list items after re-enable: %v", err)
+	}
+	for _, it := range afterReenable {
+		if it.ID == items[0].ID && !it.IsEnabled() {
+			t.Fatalf("item %d must be enabled again", it.ID)
+		}
+	}
+}

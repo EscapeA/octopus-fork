@@ -2337,7 +2337,9 @@
       },
       "advancedSettings": "進階設定",
       "nameRequired": "請輸入分組名稱",
-      "membersRequired": "請至少選擇一個模型"
+      "membersRequired": "請至少選擇一個模型",
+      "enableItem": "啟用該模型渠道",
+      "disableItem": "停用該模型渠道（不再參與選路）"
     },
     "mode": {
       "roundRobin": "輪詢",

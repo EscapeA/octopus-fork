@@ -274,6 +274,105 @@ func contains(slice []string, s string) bool {
 	return false
 }
 
+// --- GroupItem 启用开关（模型 + 渠道 行）测试 ---
+
+// 分组内该模型只有一行且被禁用 → 模型不再出现在 /v1/models。
+func TestGroupListModel_DisabledItemNotListed(t *testing.T) {
+	groupCache.Clear()
+	chCache := channel.GetCache()
+	chCache.Clear()
+
+	chCache.Set(300, model.Channel{ID: 300, Name: "enabled-ch", Enabled: true})
+	disabled := false
+	groupCache.Set(4, model.Group{
+		ID:           4,
+		Name:         "rate-limited-model",
+		EndpointType: model.EndpointTypeChat,
+		Items: []model.GroupItem{
+			{ID: 3, GroupID: 4, ChannelID: 300, ModelName: "rate-limited-model", Priority: 1, Weight: 1, Enabled: &disabled},
+		},
+	})
+
+	models, err := GroupListModel(context.Background())
+	if err != nil {
+		t.Fatalf("GroupListModel returned error: %v", err)
+	}
+	if contains(models, "rate-limited-model") {
+		t.Errorf("disabled item should be excluded from /v1/models, got: %v", models)
+	}
+
+	chCache.Clear()
+}
+
+// 组内一行禁用、另一行启用 → 模型仍可见（部分禁用不影响整体可用性）。
+func TestGroupListModel_PartiallyDisabledItemsStillListed(t *testing.T) {
+	groupCache.Clear()
+	chCache := channel.GetCache()
+	chCache.Clear()
+
+	chCache.Set(400, model.Channel{ID: 400, Name: "ch-a", Enabled: true})
+	chCache.Set(401, model.Channel{ID: 401, Name: "ch-b", Enabled: true})
+	disabled := false
+	groupCache.Set(5, model.Group{
+		ID:           5,
+		Name:         "deepseek-flash",
+		EndpointType: model.EndpointTypeChat,
+		Items: []model.GroupItem{
+			{ID: 4, GroupID: 5, ChannelID: 400, ModelName: "deepseek-flash", Priority: 1, Weight: 1, Enabled: &disabled},
+			{ID: 5, GroupID: 5, ChannelID: 401, ModelName: "deepseek-flash", Priority: 2, Weight: 1},
+		},
+	})
+
+	models, err := GroupListModel(context.Background())
+	if err != nil {
+		t.Fatalf("GroupListModel returned error: %v", err)
+	}
+	if !contains(models, "deepseek-flash") {
+		t.Errorf("model should stay visible while a sibling item is enabled, got: %v", models)
+	}
+
+	chCache.Clear()
+}
+
+// finalizeMatchedGroup 是选路收窄的唯一入口：禁用行必须被摘掉，
+// 且不影响同组内启用的行。
+func TestFinalizeMatchedGroup_DropsDisabledItems(t *testing.T) {
+	chCache := channel.GetCache()
+	chCache.Clear()
+
+	chCache.Set(500, model.Channel{ID: 500, Name: "ch-a", Enabled: true})
+	chCache.Set(501, model.Channel{ID: 501, Name: "ch-b", Enabled: true})
+	disabled := false
+	enabled := true
+
+	group := model.Group{
+		ID:           6,
+		Name:         "g",
+		EndpointType: model.EndpointTypeChat,
+		Items: []model.GroupItem{
+			{ID: 10, GroupID: 6, ChannelID: 500, ModelName: "m", Priority: 1, Weight: 1, Enabled: &disabled},
+			{ID: 11, GroupID: 6, ChannelID: 501, ModelName: "m", Priority: 2, Weight: 1, Enabled: &enabled},
+			// nil = 存量行语义，必须保留。
+			{ID: 12, GroupID: 6, ChannelID: 500, ModelName: "m2", Priority: 3, Weight: 1},
+		},
+	}
+
+	finalized := finalizeMatchedGroup(group)
+	if len(finalized.Items) != 2 {
+		t.Fatalf("expected 2 surviving items (disabled dropped), got %d: %+v", len(finalized.Items), finalized.Items)
+	}
+	for _, item := range finalized.Items {
+		if item.ID == 10 {
+			t.Errorf("disabled item 10 must not survive routing narrowing")
+		}
+	}
+	if finalized.Items[0].ID != 11 || finalized.Items[1].ID != 12 {
+		t.Errorf("expected surviving items [11,12], got [%d,%d]", finalized.Items[0].ID, finalized.Items[1].ID)
+	}
+
+	chCache.Clear()
+}
+
 // --- GroupListModelCapabilities tests ---
 
 func TestGroupListModelCapabilities_ChatOnly(t *testing.T) {

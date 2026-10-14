@@ -2388,7 +2388,9 @@
       },
       "advancedSettings": "Advanced Settings",
       "nameRequired": "Please enter a group name",
-      "membersRequired": "Please select at least one model"
+      "membersRequired": "Please select at least one model",
+      "enableItem": "Enable this model channel",
+      "disableItem": "Disable this model channel (removed from routing)"
     },
     "mode": {
       "roundRobin": "Round Robin",

@@ -15,6 +15,11 @@ export interface GroupItem {
     model_name: string;
     priority: number;
     weight: number;
+    /**
+     * 该「模型 + 渠道」行的启用开关。
+     * undefined = 启用（存量行 / 未显式设置），false = 该行不参与选路。
+     */
+    enabled?: boolean;
 }
 
 /**
@@ -149,15 +154,19 @@ export interface GroupItemAddRequest {
     model_name: string;
     priority: number;
     weight: number;
+    /** 可选：不传 = 启用（新增行默认启用） */
+    enabled?: boolean;
 }
 
 /**
- * 更新 item 请求 (仅 priority)
+ * 更新 item 请求（priority / weight / enabled 均可选，
+ * 未携带的字段保持原值；只切换启用状态发 { id, enabled } 即可）
  */
 export interface GroupItemUpdateRequest {
     id: number;
-    priority: number;
-    weight: number;
+    priority?: number;
+    weight?: number;
+    enabled?: boolean;
 }
 
 /**

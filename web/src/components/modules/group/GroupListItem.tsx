@@ -228,6 +228,7 @@ export function GroupListItem({ group }: { group: Group }) {
                     id: key,
                     name: item.model_name,
                     enabled: enabledByKey.get(key) ?? true,
+                    item_enabled: item.enabled,
                     channel_id: item.channel_id,
                     channel_name:
                         channelNameByKey.get(key) ??
@@ -420,7 +421,7 @@ export function GroupListItem({ group }: { group: Group }) {
         [group.id, priorityByItemId, updateGroup, onSuccess, onError],
     );
 
-    // ---- Remove / Weight ----
+    // ---- Remove / Weight / Item enabled ----
     const handleRemoveMember = useCallback(
         (id: string) => {
             const member = members.find((m) => m.id === id);
@@ -454,6 +455,41 @@ export function GroupListItem({ group }: { group: Group }) {
             }, 500);
         },
         [group.id, priorityByItemId, updateGroup, onSuccess, onError],
+    );
+
+    /**
+     * 行内「模型 + 渠道」启用开关：即刻写回（不等编辑弹窗保存）。
+     * 只发 { id, enabled }，后端对缺省的 priority/weight 保持原值。
+     * 本地乐观更新 members，避免等 refetch 造成开关回弹。
+     */
+    const handleToggleItemEnabled = useCallback(
+        (id: string, enabled: boolean) => {
+            const member = membersRef.current.find((m) => m.id === id);
+            if (!member?.item_id) return;
+            setMembers((prev) =>
+                prev.map((m) =>
+                    m.id === id ? { ...m, item_enabled: enabled } : m,
+                ),
+            );
+            updateGroup.mutate(
+                { id: group.id!, items_to_update: [{ id: member.item_id, enabled }] },
+                {
+                    onSuccess,
+                    onError: (error: Error) => {
+                        // 写回失败则把开关还原，避免界面与后端不一致。
+                        setMembers((prev) =>
+                            prev.map((m) =>
+                                m.id === id
+                                    ? { ...m, item_enabled: !enabled }
+                                    : m,
+                            ),
+                        );
+                        onError(error);
+                    },
+                },
+            );
+        },
+        [group.id, updateGroup, onSuccess, onError],
     );
 
     // ---- Edit submit ----
@@ -1032,6 +1068,7 @@ export function GroupListItem({ group }: { group: Group }) {
                                         onReorder={setMembers}
                                         onRemove={handleRemoveMember}
                                         onWeightChange={handleWeightChange}
+                                        onToggleEnabled={handleToggleItemEnabled}
                                         onDragStart={handleDragStart}
                                         onDrop={handleDropReorder}
                                         onDragFinish={handleDragFinish}

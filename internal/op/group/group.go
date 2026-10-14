@@ -202,6 +202,7 @@ func normalizeGroupItemUpdateRequests(existingItems []model.GroupItem, itemsToUp
 				item.Weight = 1
 			}
 		}
+		// Enabled 为 nil 表示本次不改动该字段（指针直传，无需回填）。
 
 		normalized = append(normalized, item)
 	}
@@ -320,6 +321,17 @@ func normalizeGroup(group model.Group) model.Group {
 	return group
 }
 
+// groupItemEnabledAndUsable 报告某个分组项是否可用于选路：
+// 行自身的启用开关打开（Enabled 为 nil 视为启用），且其引用的渠道存在并已启用。
+// 禁用行与被禁用渠道同语义——既不参与转发，也不计入「模型可见性」。
+func groupItemEnabledAndUsable(item model.GroupItem) bool {
+	if !item.IsEnabled() {
+		return false
+	}
+	ch, ok := channel.GetCache().Get(item.ChannelID)
+	return ok && ch.Enabled
+}
+
 func finalizeMatchedGroup(group model.Group) model.Group {
 	group = normalizeGroup(group)
 	if len(group.Items) == 0 {
@@ -329,8 +341,7 @@ func finalizeMatchedGroup(group model.Group) model.Group {
 
 	enabledItems := make([]model.GroupItem, 0, len(group.Items))
 	for _, item := range group.Items {
-		ch, ok := channel.GetCache().Get(item.ChannelID)
-		if !ok || !ch.Enabled {
+		if !groupItemEnabledAndUsable(item) {
 			continue
 		}
 		enabledItems = append(enabledItems, item)
@@ -441,8 +452,8 @@ func GroupListModel(ctx context.Context) ([]string, error) {
 	return models, nil
 }
 
-// groupHasValidItem checks whether a group has at least one item whose
-// referenced channel exists and is enabled.
+// groupHasValidItem checks whether a group has at least one item that is
+// enabled and whose referenced channel exists and is enabled.
 func groupHasValidItem(group model.Group) bool {
 	if len(group.Items) == 0 {
 		return false
@@ -451,8 +462,7 @@ func groupHasValidItem(group model.Group) bool {
 		if item.ChannelID <= 0 || item.ModelName == "" {
 			continue
 		}
-		ch, ok := channel.GetCache().Get(item.ChannelID)
-		if !ok || !ch.Enabled {
+		if !groupItemEnabledAndUsable(item) {
 			continue
 		}
 		return true
@@ -746,20 +756,39 @@ func GroupUpdate(req *model.GroupUpdateRequest, ctx context.Context) (*model.Gro
 		ids := make([]int, len(normalizedItemsToUpdate))
 		priorityCase := "CASE id"
 		weightCase := "CASE id"
+		hasEnabledUpdate := false
+		enabledCase := "CASE id"
 		for i, item := range normalizedItemsToUpdate {
 			ids[i] = item.ID
 			priorityCase += fmt.Sprintf(" WHEN %d THEN %d", item.ID, item.Priority)
 			weightCase += fmt.Sprintf(" WHEN %d THEN %d", item.ID, item.Weight)
+			if item.Enabled == nil {
+				continue
+			}
+			hasEnabledUpdate = true
+			flag := 0
+			if *item.Enabled {
+				flag = 1
+			}
+			enabledCase += fmt.Sprintf(" WHEN %d THEN %d", item.ID, flag)
 		}
 		priorityCase += " END"
 		weightCase += " END"
 
+		updatesMap := map[string]interface{}{
+			"priority": gorm.Expr(priorityCase),
+			"weight":   gorm.Expr(weightCase),
+		}
+		// Enabled 只在本次显式携带时才写：同一批次里改了开关的行不能把
+		// 未携带该字段的同伴一起改写，故用 CASE ... ELSE enabled END 保留原值。
+		if hasEnabledUpdate {
+			enabledCase += " ELSE enabled END"
+			updatesMap["enabled"] = gorm.Expr(enabledCase)
+		}
+
 		if err := tx.Model(&model.GroupItem{}).
 			Where("id IN ? AND group_id = ?", ids, req.ID).
-			Updates(map[string]interface{}{
-				"priority": gorm.Expr(priorityCase),
-				"weight":   gorm.Expr(weightCase),
-			}).Error; err != nil {
+			Updates(updatesMap).Error; err != nil {
 			tx.Rollback()
 			return nil, fmt.Errorf("failed to update items: %w", err)
 		}
@@ -775,6 +804,7 @@ func GroupUpdate(req *model.GroupUpdateRequest, ctx context.Context) (*model.Gro
 				ModelName: item.ModelName,
 				Priority:  item.Priority,
 				Weight:    item.Weight,
+				Enabled:   item.Enabled,
 			}
 		}
 		if err := tx.Create(&newItems).Error; err != nil {

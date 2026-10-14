@@ -2344,7 +2344,9 @@
       },
       "advancedSettings": "高级配置",
       "nameRequired": "请输入分组名称",
-      "membersRequired": "请至少选择一个模型"
+      "membersRequired": "请至少选择一个模型",
+      "enableItem": "启用该模型渠道",
+      "disableItem": "禁用该模型渠道 (不再参与选路)"
     },
     "mode": {
       "roundRobin": "轮询",
