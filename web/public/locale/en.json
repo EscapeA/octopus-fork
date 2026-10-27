@@ -877,7 +877,6 @@
         "syncLlmInterval": "Model Sync Interval",
         "modelInfoInterval": "Price Refresh Interval",
         "importExport": "Import / Export",
-        "aiRouteGroup": "AI Route Target Group",
         "aiRouteTimeout": "AI Route Timeout",
         "aiRouteParallelism": "AI Route Parallelism",
         "aiRouteMode": "AI Route Mode",
@@ -1628,11 +1627,6 @@
     "aiRoute": {
       "title": "AI Routing Settings",
       "badge": "Command Habitat",
-      "group": {
-        "label": "Default Target Group for Single-Group AI Routing",
-        "placeholder": "Select a default target group",
-        "hint": "Used by the compatibility single-group AI routing flow. Clicking “AI Route” on the route page generates the full routing table directly."
-      },
       "baseUrl": {
         "label": "AI Base URL",
         "placeholder": "Enter an OpenAI-compatible base URL"
@@ -1643,7 +1637,15 @@
       },
       "model": {
         "label": "AI Model",
-        "placeholder": "Enter the model used for route analysis"
+        "placeholder": "Enter the model used for route analysis",
+        "fetching": "Fetching models...",
+        "fetchFailed": "Could not fetch models. Check the Base URL and API Key.",
+        "available": "{count} models available",
+        "empty": "No models returned; you can still enter one manually",
+        "noMatches": "No matching models; you can use the entered name",
+        "refresh": "Refresh",
+        "showModels": "Show model list",
+        "listLabel": "Available models"
       },
       "timeoutSeconds": {
         "label": "AI Timeout (seconds)",
@@ -1870,7 +1872,7 @@
       "button": "Delete All Route Groups",
       "deleting": "Deleting...",
       "confirmTitle": "Delete all route groups?",
-      "confirmDescription": "This will permanently delete {count, plural, =0 {all route groups} one {# route group} other {# route groups}} and all route items.\nThe default target group for single-group AI routing will also be reset.\nThis action cannot be undone.\nContinue?",
+      "confirmDescription": "This will permanently delete {count, plural, =0 {all route groups} one {# route group} other {# route groups}} and all route items.\nThis action cannot be undone.\nContinue?",
       "cancel": "Cancel",
       "confirm": "Delete All",
       "success": "Deleted {count} route groups",
@@ -2364,7 +2366,7 @@
       "aiRouteGroupSuccess": "AI group sync completed: generated {routes} routes and updated {items} route items in the current group",
       "aiRouteFailed": "AI routing failed",
       "aiRouteEmptyResult": "AI route result is empty",
-      "aiRouteMissingGroup": "Please select the default target group for single-group AI routing in settings first",
+      "aiRouteMissingGroup": "Start single-group AI routing from the group you want to sync",
       "removedFailedModels": "Failed models removed",
       "autoAddFailed": "Auto add failed",
       "testAllPassed": "All models in this group are available",
@@ -2388,6 +2390,20 @@
       "categoryHint": "Optional. New groups created by auto grouping will use this category for API key access control."
     },
     "aiRoute": {
+      "categoryStrategy": {
+        "label": "Group Category",
+        "options": {
+          "none": "Do Not Generate",
+          "vendor": "By Vendor",
+          "channel_tier": "By Free / Paid Tier"
+        },
+        "descriptions": {
+          "none": "Leave group categories unchanged. Existing manual categories are preserved.",
+          "vendor": "Let AI identify vendors such as DeepSeek, OpenAI (GPT), GLM, and Kimi from model names. Only new or currently uncategorized groups are filled.",
+          "channel_tier": "Identify free and paid tiers from channel group names: community and 野key groups count as free; official, 酒馆/酒館, and Plan groups (including Token/Coding plan) count as paid. Split the tiers into separate routes; clients must use the new model names. First separate these channels under Channels → Channel Groups; unrecognized channels are not classified. Existing manual categories are preserved."
+        },
+        "conflict": "An AI route task with a different category strategy is already running. Wait for it to finish."
+      },
       "table": {
         "confirmTitle": "Generate the Full AI Routing Table?",
         "confirmDescription": "This will send all models to the AI for analysis and generate the full routing table in batch.\nExisting groups with the same name will have their route items synchronized, and stale route items will be removed; other groups will not be deleted.\nContinue?",

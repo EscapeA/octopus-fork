@@ -143,5 +143,5 @@ Cross-cutting constraints and conventions (module structure lives in Key Directo
 - Top-level page order and visibility are edited inside the `Appearance` card, persisted through the `nav_order` and `nav_visible` settings, and normalized against `DEFAULT_NAV_ORDER`, so missing routes are appended automatically and unknown routes are dropped.
 - Group `thinking_mode` forced modes (`off` / `on`) require upstream model support; raw/passthrough channels leave the body unchanged and skip the policy.
 - Viewer accounts see masked domains (`***`) for Hub-related management data across sites, remote sites, credentials, channels, and URL settings.
-- The AI Route setting is the default target group for the single-group compatibility flow, not the target for full-table generation.
+- AI Route settings automatically fetch model suggestions from the configured OpenAI-compatible service for both the main service and service-pool rows; model names can still be entered manually. Main-service selection or blur saves directly, while service-pool rows still require **Save Service Pool**. Single-group AI routing requires an explicit current group and has no default target group setting.
 - When backend API surfaces or top-level modules change, update both `web/README.md` and the root README files so the embedded-console docs remain consistent.

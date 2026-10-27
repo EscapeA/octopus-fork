@@ -639,9 +639,10 @@ Groups aggregate multiple channels into a unified external model name.
 **AI Routing Behavior:**
 
 - Clicking **AI Route** on the route page sends all models to AI and generates the full routing table in batch
-- Existing groups with the same name only receive missing route items; existing groups are not cleared or replaced
-- Clicking **AI Fill Current Group** in the edit dialog sends all models to AI and appends only the matched route items to that group
-- The setting previously named AI route target group now acts as the default target group for the single-group compatibility flow only
+- Same-name groups synchronize their route items to the generated result; category conflicts or unreliable tier detection are reported without changing the original group or its items
+- Clicking **AI Fill Current Group** in the edit dialog sends all models to AI and synchronizes the current group's items to the matched route
+- Category strategies can preserve existing categories, classify by model vendor, or split free/paid routes by channel tier. Manual categories are preserved, and conflicting routes cannot write channels across tiers
+- Single-group AI routing starts from the target group and requires its explicit group ID; there is no default target group setting
 - AI route tasks are persistent with heartbeat, progress tracking, batch management, and interruption recovery
 
 **CC Switch Integration:**
@@ -847,7 +848,7 @@ The Backup settings card includes a live database migration feature beyond simpl
 
 - The Settings page provides **Delete All Route Groups**
 - The action requires a second confirmation before execution
-- It deletes all groups and group items, then resets the default target group for single-group AI routing to `0` to avoid dangling references
+- It deletes all groups and group items without changing other settings
 
 **Settings Card Order:**
 

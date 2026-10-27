@@ -16,6 +16,7 @@ import (
 	"github.com/lingyuins/octopus/internal/conf"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op"
+	"github.com/lingyuins/octopus/internal/op/airoute"
 	"github.com/lingyuins/octopus/internal/op/backup"
 	"github.com/lingyuins/octopus/internal/op/dbmigration"
 	notifop "github.com/lingyuins/octopus/internal/op/notification"
@@ -42,6 +43,12 @@ func init() {
 		AddRoute(
 			router.NewRoute("/list", http.MethodGet).
 				Handle(getSettingList),
+		).
+		AddRoute(
+			router.NewRoute("/ai-route/models", http.MethodPost).
+				Use(middleware.RequirePermission(auth.PermSettingsWrite)).
+				Use(middleware.RequireJSON()).
+				Handle(fetchAIRouteModels),
 		).
 		AddRoute(
 			router.NewRoute("/set", http.MethodPost).
@@ -87,6 +94,24 @@ func init() {
 				Use(middleware.RequireJSON()).
 				Handle(saveCacheConfig),
 		)
+}
+
+func fetchAIRouteModels(c *gin.Context) {
+	var req struct {
+		BaseURL string `json:"base_url" binding:"required"`
+		APIKey  string `json:"api_key" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.Error(c, http.StatusBadRequest, resp.ErrInvalidJSON)
+		return
+	}
+	models, err := airoute.FetchModels(c.Request.Context(), req.BaseURL, req.APIKey)
+	if err != nil {
+		resp.ErrorWithKey(c, http.StatusBadGateway, "failed to fetch AI route models", "setting.aiRoute.model.fetchFailed", nil)
+		log.Warnf("fetch AI route models failed: %v", err)
+		return
+	}
+	resp.Success(c, models)
 }
 
 func getSettingList(c *gin.Context) {

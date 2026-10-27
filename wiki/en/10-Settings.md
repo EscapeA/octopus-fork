@@ -25,7 +25,7 @@ Since the program handles numerous statistics, writing to the database on every 
 |------|---------|
 | Info | Current version, latest release lookup, cache-mismatch detection, and in-place self-update entry with version mismatch notification |
 | Appearance | Theme, locale, alert language, drag-and-drop top-level navigation order, and per-page visibility toggles |
-| AI Route | Default compatibility group, timeout, parallelism, and service-pool configuration |
+| AI Route | Primary analysis service, timeout, parallelism, models per batch, and service-pool configuration; model suggestions save on main-service selection/blur, while service-pool edits require explicit save |
 | Auto Strategy | Auto strategy tuning (minimum samples, time window, sliding window size, latency weight) |
 | Account | Login-session/account preferences and application timezone selection |
 | Semantic Cache | Enablement, TTL, similarity threshold, max entries, embedding base URL / API key / model / timeout |
@@ -68,7 +68,7 @@ The Backup settings card includes a live database migration feature beyond simpl
 
 - The Settings page provides **Delete All Route Groups**
 - The action requires a second confirmation before execution
-- It deletes all groups and group items, then resets the default target group for single-group AI routing to `0` to avoid dangling references
+- It deletes all groups and group items without changing other settings
 
 **Settings Card Order:**
 

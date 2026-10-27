@@ -3,11 +3,13 @@ package helper
 import (
 	"context"
 	"errors"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lingyuins/octopus/internal/apperror"
 	"github.com/lingyuins/octopus/internal/conf"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op/airoute"
@@ -37,6 +39,7 @@ func StartGenerateAIRoute(req model.GenerateAIRouteRequest) (*model.GenerateAIRo
 			ID:               uuid.NewString(),
 			Scope:            req.Scope,
 			GroupID:          req.GroupID,
+			CategoryStrategy: req.CategoryStrategy,
 			Status:           model.AIRouteTaskStatusCompleted,
 			CurrentStep:      model.AIRouteTaskStepCompleted,
 			ProgressPercent:  100,
@@ -70,6 +73,9 @@ func StartGenerateAIRoute(req model.GenerateAIRouteRequest) (*model.GenerateAIRo
 		return nil, err
 	}
 	if existingProgress != nil {
+		if existingProgress.CategoryStrategy != req.CategoryStrategy {
+			return nil, apperror.New("group.aiRoute.categoryStrategy.conflict", "已有使用其他分类策略的 AI 路由任务正在执行，请等待其完成").WithStatus(http.StatusConflict)
+		}
 		storeAIRouteProgress(existingProgress)
 		cloned := cloneAIRouteProgress(existingProgress)
 		return &cloned, nil
@@ -78,18 +84,19 @@ func StartGenerateAIRoute(req model.GenerateAIRouteRequest) (*model.GenerateAIRo
 	id := uuid.NewString()
 	now := aiRouteProgressNow()
 	progress := &model.GenerateAIRouteProgress{
-		ID:              id,
-		Scope:           req.Scope,
-		GroupID:         req.GroupID,
-		Status:          model.AIRouteTaskStatusQueued,
-		CurrentStep:     model.AIRouteTaskStepQueued,
-		ProgressPercent: 0,
-		Message:         "AI 路由任务已创建，等待开始",
-		MessageKey:      "group.aiRoute.progress.runtime.taskCreated",
-		StartedAt:       cloneTimePtr(&now),
-		UpdatedAt:       cloneTimePtr(&now),
-		HeartbeatAt:     cloneTimePtr(&now),
-		EventSequence:   1,
+		ID:               id,
+		Scope:            req.Scope,
+		GroupID:          req.GroupID,
+		CategoryStrategy: req.CategoryStrategy,
+		Status:           model.AIRouteTaskStatusQueued,
+		CurrentStep:      model.AIRouteTaskStepQueued,
+		ProgressPercent:  0,
+		Message:          "AI 路由任务已创建，等待开始",
+		MessageKey:       "group.aiRoute.progress.runtime.taskCreated",
+		StartedAt:        cloneTimePtr(&now),
+		UpdatedAt:        cloneTimePtr(&now),
+		HeartbeatAt:      cloneTimePtr(&now),
+		EventSequence:    1,
 	}
 	storeAIRouteProgress(progress)
 	if err := persistAIRouteProgress(progress, true); err != nil {
