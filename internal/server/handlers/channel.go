@@ -580,6 +580,7 @@ func classifyChannelMutationError(err error) (int, string, bool) {
 		strings.Contains(msg, "unsupported request rewrite profile"),
 		strings.Contains(msg, "unsupported tool role strategy"),
 		strings.Contains(msg, "unsupported system message strategy"),
+		strings.Contains(msg, "prompt rewrite pattern"),
 		strings.Contains(msg, "request rewrite profile") && strings.Contains(msg, "is not supported for channel type"):
 		return http.StatusBadRequest, err.Error(), true
 	case strings.Contains(msg, "request_rewrite") &&

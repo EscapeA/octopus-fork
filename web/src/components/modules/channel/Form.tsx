@@ -116,6 +116,7 @@ export function createDefaultRequestRewriteFormData(): RequestRewriteConfig {
         tool_role_strategy: ToolRoleStrategy.Keep,
         system_message_strategy: SystemMessageStrategy.Keep,
         header_profile: RequestRewriteHeaderProfile.None,
+        prompt_rules: [],
     };
 }
 
@@ -126,22 +127,47 @@ export function normalizeRequestRewriteFormData(config?: RequestRewriteConfig | 
         tool_role_strategy: config?.tool_role_strategy ?? ToolRoleStrategy.Keep,
         system_message_strategy: config?.system_message_strategy ?? SystemMessageStrategy.Keep,
         header_profile: config?.header_profile ?? RequestRewriteHeaderProfile.None,
+        prompt_rules: (config?.prompt_rules ?? []).map((rule) => ({
+            pattern: rule.pattern ?? '',
+            replacement: rule.replacement ?? '',
+        })),
     };
 }
 
 export function isRequestRewriteSupportedChannelType(channelType: ChannelType): boolean {
-    return channelType === ChannelType.OpenAIChat || channelType === ChannelType.MiMoChat || channelType === ChannelType.OpenAIResponse;
+    switch (channelType) {
+        case ChannelType.OpenAIChat:
+        case ChannelType.OpenAIResponse:
+        case ChannelType.Anthropic:
+        case ChannelType.Gemini:
+        case ChannelType.Volcengine:
+        case ChannelType.MiMoChat:
+        case ChannelType.Cloudflare:
+            return true;
+        default:
+            return false;
+    }
+}
+
+export function isOpenAIChatCompatRewriteSupportedChannelType(channelType: ChannelType): boolean {
+    return channelType === ChannelType.OpenAIChat
+        || channelType === ChannelType.MiMoChat
+        || channelType === ChannelType.OpenAIResponse;
 }
 
 export function getEffectiveRequestRewriteFormData(channelType: ChannelType, config?: RequestRewriteConfig | null): RequestRewriteConfig {
     const normalized = normalizeRequestRewriteFormData(config);
     if (isRequestRewriteSupportedChannelType(channelType)) {
-        return normalized;
+        return {
+            ...normalized,
+            prompt_rules: normalized.prompt_rules?.filter((rule) => rule.pattern.trim() !== ''),
+        };
     }
 
     return {
         ...normalized,
         enabled: false,
+        prompt_rules: [],
     };
 }
 
@@ -687,6 +713,7 @@ export function ChannelForm({
     const { data: notifChannels = [] } = useAlertNotifChannelList();
     const { data: pools = [] } = usePoolList();
     const requestRewriteSupported = isRequestRewriteSupportedChannelType(formData.type);
+    const openAIChatCompatSupported = isOpenAIChatCompatRewriteSupportedChannelType(formData.type);
     const isCreateLayout = layout === 'create';
     const sectionClassName = isCreateLayout
         ? 'min-w-0 space-y-3 border-b border-border pb-5'
@@ -699,6 +726,37 @@ export function ChannelForm({
     const showPriorityInput = effectiveKeyStrategy === 'priority';
     // 号池绑定渠道不在表单里编辑 key，此时不提供“回填到 key”操作（表单里没有可写的 key）
     const canFillPerKeyModels = formData.pool_id === 0;
+    const promptRules = formData.request_rewrite.prompt_rules ?? [];
+    const updatePromptRule = (index: number, field: 'pattern' | 'replacement', value: string) => {
+        const nextRules = promptRules.map((rule, ruleIndex) =>
+            ruleIndex === index ? { ...rule, [field]: value } : rule,
+        );
+        onFormDataChange({
+            ...formData,
+            request_rewrite: {
+                ...formData.request_rewrite,
+                prompt_rules: nextRules,
+            },
+        });
+    };
+    const addPromptRule = () => {
+        onFormDataChange({
+            ...formData,
+            request_rewrite: {
+                ...formData.request_rewrite,
+                prompt_rules: [...promptRules, { pattern: '', replacement: '' }],
+            },
+        });
+    };
+    const removePromptRule = (index: number) => {
+        onFormDataChange({
+            ...formData,
+            request_rewrite: {
+                ...formData.request_rewrite,
+                prompt_rules: promptRules.filter((_, ruleIndex) => ruleIndex !== index),
+            },
+        });
+    };
 
     // Ensure the form always shows at least 1 row for base_urls / keys / custom_header.
     // This avoids "empty list" UI and also keeps URL + APIKEY layout consistent.
@@ -1723,7 +1781,9 @@ export function ChannelForm({
                                         </SelectTrigger>
                                         <SelectContent className="rounded-lg">
                                             <SelectItem className="rounded-xl" value={RequestRewriteProfile.Preserve}>保留</SelectItem>
-                                            <SelectItem className="rounded-xl" value={RequestRewriteProfile.OpenAIChatCompat}>{t('requestRewriteProfileOpenAIChatCompat')}</SelectItem>
+                                            {openAIChatCompatSupported && (
+                                                <SelectItem className="rounded-xl" value={RequestRewriteProfile.OpenAIChatCompat}>{t('requestRewriteProfileOpenAIChatCompat')}</SelectItem>
+                                            )}
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -1802,6 +1862,77 @@ export function ChannelForm({
                                         </SelectContent>
                                     </Select>
                                 </div>
+                            </div>
+
+                            <div className="space-y-3 rounded-lg border border-border/30 bg-muted/10 p-3 sm:p-4">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-medium text-card-foreground">
+                                            {t('promptRewriteRules')}
+                                            <Hint text={t('promptRewriteRulesHint')} />
+                                        </p>
+                                        <p className="mt-1 text-xs text-muted-foreground">{t('promptRewriteRulesDescription')}</p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={addPromptRule}
+                                        disabled={!requestRewriteSupported || !formData.request_rewrite.enabled}
+                                        className="shrink-0 gap-1.5 rounded-lg"
+                                    >
+                                        <Plus className="size-3.5" />
+                                        {t('promptRewriteAdd')}
+                                    </Button>
+                                </div>
+
+                                {promptRules.length === 0 ? (
+                                    <p className="text-xs text-muted-foreground">{t('promptRewriteRulesEmpty')}</p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {promptRules.map((rule, index) => (
+                                            <div key={`${idPrefix}-prompt-rule-${index}`} className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                                                <div className="min-w-0 space-y-1">
+                                                    <label htmlFor={`${idPrefix}-prompt-rule-pattern-${index}`} className="text-xs text-muted-foreground">
+                                                        {t('promptRewritePattern')}
+                                                    </label>
+                                                    <Input
+                                                        id={`${idPrefix}-prompt-rule-pattern-${index}`}
+                                                        value={rule.pattern}
+                                                        onChange={(event) => updatePromptRule(index, 'pattern', event.target.value)}
+                                                        placeholder={t('promptRewritePatternPlaceholder')}
+                                                        disabled={!requestRewriteSupported || !formData.request_rewrite.enabled}
+                                                        className="rounded-lg font-mono text-xs"
+                                                    />
+                                                </div>
+                                                <div className="min-w-0 space-y-1">
+                                                    <label htmlFor={`${idPrefix}-prompt-rule-replacement-${index}`} className="text-xs text-muted-foreground">
+                                                        {t('promptRewriteReplacement')}
+                                                    </label>
+                                                    <Input
+                                                        id={`${idPrefix}-prompt-rule-replacement-${index}`}
+                                                        value={rule.replacement}
+                                                        onChange={(event) => updatePromptRule(index, 'replacement', event.target.value)}
+                                                        placeholder={t('promptRewriteReplacementPlaceholder')}
+                                                        disabled={!requestRewriteSupported || !formData.request_rewrite.enabled}
+                                                        className="rounded-lg font-mono text-xs"
+                                                    />
+                                                </div>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => removePromptRule(index)}
+                                                    disabled={!requestRewriteSupported || !formData.request_rewrite.enabled}
+                                                    aria-label={t('promptRewriteRemove')}
+                                                    className="size-9 shrink-0 text-muted-foreground hover:text-destructive"
+                                                >
+                                                    <Trash2 className="size-4" />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                         </div>

@@ -55,12 +55,18 @@ export enum SystemMessageStrategy {
     Merge = 'merge',
 }
 
+export type PromptRewriteRule = {
+    pattern: string;
+    replacement: string;
+};
+
 export type RequestRewriteConfig = {
     enabled: boolean;
     profile?: RequestRewriteProfile | null;
     tool_role_strategy?: ToolRoleStrategy | null;
     system_message_strategy?: SystemMessageStrategy | null;
     header_profile?: RequestRewriteHeaderProfile | '' | null;
+    prompt_rules?: PromptRewriteRule[] | null;
 };
 
 export type BaseUrl = {
