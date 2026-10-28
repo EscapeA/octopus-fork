@@ -8,6 +8,8 @@ import (
 	"github.com/lingyuins/octopus/internal/conf"
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/op"
+	"github.com/lingyuins/octopus/internal/op/modelnormalizeai"
+	"github.com/lingyuins/octopus/internal/op/ratelimitstore"
 	"github.com/lingyuins/octopus/internal/relay/balancer"
 	"github.com/lingyuins/octopus/internal/server"
 	"github.com/lingyuins/octopus/internal/store"
@@ -97,6 +99,11 @@ func runStart() error {
 	} else if interruptedCount > 0 {
 		log.Warnf("marked %d stale ai route task(s) as interrupted on startup", interruptedCount)
 	}
+	if interruptedCount, err := modelnormalizeai.RecoverInterrupted(startupTaskCtx); err != nil {
+		log.Warnf("model normalization task recovery failed: %v", err)
+	} else if interruptedCount > 0 {
+		log.Warnf("marked %d stale model normalization task(s) as interrupted on startup", interruptedCount)
+	}
 	startupTaskCancel()
 
 	if err := op.InitCache(); err != nil {
@@ -155,6 +162,11 @@ func runStart() error {
 		return nil
 	})
 	shutdown.Register(op.SaveCache)
+	shutdown.Register(func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		return ratelimitstore.WaitForSettlements(ctx)
+	})
 	shutdown.Register(func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
