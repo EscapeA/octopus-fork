@@ -19,6 +19,7 @@ import (
 	"github.com/lingyuins/octopus/internal/op/airoute"
 	"github.com/lingyuins/octopus/internal/op/backup"
 	"github.com/lingyuins/octopus/internal/op/dbmigration"
+	"github.com/lingyuins/octopus/internal/op/modelnormalize"
 	notifop "github.com/lingyuins/octopus/internal/op/notification"
 	"github.com/lingyuins/octopus/internal/op/ops"
 	stg "github.com/lingyuins/octopus/internal/op/setting"
@@ -136,9 +137,16 @@ func setSetting(c *gin.Context) {
 		resp.ErrorWithKey(c, http.StatusBadRequest, err.Error(), "errors.inputValidationFailed", nil)
 		return
 	}
-	if err := stg.SetString(setting.Key, setting.Value); err != nil {
-		resp.InternalError(c)
-		return
+	if isModelNormalizeSettingKey(setting.Key) {
+		if err := saveModelNormalizeSetting(c.Request.Context(), setting); err != nil {
+			resp.ErrorWithKey(c, http.StatusBadRequest, err.Error(), "errors.inputValidationFailed", nil)
+			return
+		}
+	} else {
+		if err := stg.SetString(setting.Key, setting.Value); err != nil {
+			resp.InternalError(c)
+			return
+		}
 	}
 	// Setting is now persisted. All downstream effects are best-effort:
 	// log failures but do not return an error status to the client,
@@ -251,6 +259,64 @@ func shouldInvalidateModelMarket(key model.SettingKey) bool {
 	default:
 		return false
 	}
+}
+
+func isModelNormalizeSettingKey(key model.SettingKey) bool {
+	switch key {
+	case model.SettingKeyModelNormalizeRouterPrefixes,
+		model.SettingKeyModelNormalizeFunctionalSuffixes,
+		model.SettingKeyModelNormalizeExplicitMappings,
+		model.SettingKeyModelNormalizeMarketDedupeDefault:
+		return true
+	default:
+		return false
+	}
+}
+
+func saveModelNormalizeSetting(ctx context.Context, incoming model.Setting) error {
+	var prefixes []string
+	var suffixes []string
+	var mappings []modelnormalize.ExplicitMapping
+	dedupe, err := stg.GetBool(model.SettingKeyModelNormalizeMarketDedupeDefault)
+	if err != nil {
+		dedupe = true
+	}
+	if raw, getErr := stg.GetString(model.SettingKeyModelNormalizeRouterPrefixes); getErr == nil {
+		_ = utilsjson.Unmarshal([]byte(raw), &prefixes)
+	}
+	if raw, getErr := stg.GetString(model.SettingKeyModelNormalizeFunctionalSuffixes); getErr == nil {
+		_ = utilsjson.Unmarshal([]byte(raw), &suffixes)
+	}
+	if raw, getErr := stg.GetString(model.SettingKeyModelNormalizeExplicitMappings); getErr == nil {
+		_ = utilsjson.Unmarshal([]byte(raw), &mappings)
+	}
+
+	switch incoming.Key {
+	case model.SettingKeyModelNormalizeRouterPrefixes:
+		if err := utilsjson.Unmarshal([]byte(incoming.Value), &prefixes); err != nil {
+			return fmt.Errorf("model normalize router prefixes must be a valid JSON array")
+		}
+	case model.SettingKeyModelNormalizeFunctionalSuffixes:
+		if err := utilsjson.Unmarshal([]byte(incoming.Value), &suffixes); err != nil {
+			return fmt.Errorf("model normalize functional suffixes must be a valid JSON array")
+		}
+	case model.SettingKeyModelNormalizeExplicitMappings:
+		if err := utilsjson.Unmarshal([]byte(incoming.Value), &mappings); err != nil {
+			return fmt.Errorf("model normalize explicit mappings must be a valid JSON array")
+		}
+	case model.SettingKeyModelNormalizeMarketDedupeDefault:
+		dedupe, err = strconv.ParseBool(strings.TrimSpace(incoming.Value))
+		if err != nil {
+			return fmt.Errorf("model normalize market dedupe default must be true or false")
+		}
+	}
+
+	return modelnormalize.SaveRuleSet(ctx, modelnormalize.RuleSet{
+		RouterPrefixes:      prefixes,
+		FunctionalSuffixes:  suffixes,
+		ExplicitMappings:    mappings,
+		MarketDedupeDefault: dedupe,
+	})
 }
 
 // exportDB 导出全库数据为 JSON 文件下载。
