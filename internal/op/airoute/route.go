@@ -326,13 +326,12 @@ func generateAIRouteTable(
 		return nil, err
 	}
 
-	groupByName := make(map[string]model.Group, len(existingGroups))
+	groupByKey := make(map[string]model.Group, len(existingGroups))
 	for _, group := range existingGroups {
-		name := strings.ToLower(strings.TrimSpace(group.Name))
-		if name == "" {
-			continue
+		name := strings.TrimSpace(group.Name)
+		if name != "" {
+			groupByKey[airouteGroupKey(group.EndpointType, name)] = group
 		}
-		groupByName[name] = group
 	}
 
 	affectedGroups := 0
@@ -345,6 +344,7 @@ func generateAIRouteTable(
 		validatedItems, err := validateAIRouteItems(route, inputModelSet)
 		if err != nil {
 			log.Warnf("ai route skipped invalid route: requested_model=%q err=%v", route.RequestedModel, err)
+			syncErrors = append(syncErrors, fmt.Errorf("路由 %q 校验失败: %w", route.RequestedModel, err))
 			continue
 		}
 
@@ -353,8 +353,15 @@ func generateAIRouteTable(
 			continue
 		}
 
-		groupKey := strings.ToLower(groupName)
-		if existing, ok := groupByName[groupKey]; ok {
+		routeEndpointType := normalizeAIRouteGroupEndpointType(route.EndpointType)
+		groupKey, ambiguous := airouteGroupLookupKey(groupByKey, routeEndpointType, groupName)
+		if ambiguous {
+			err := fmt.Errorf("AI 路由分组名称大小写存在歧义: %q", groupName)
+			log.Warnf("ai route skipped ambiguous group name: group=%q endpoint=%s", groupName, routeEndpointType)
+			syncErrors = append(syncErrors, err)
+			continue
+		}
+		if existing, ok := groupByKey[groupKey]; ok {
 			if strategy == model.AIRouteCategoryChannelTier {
 				if err := checkAIRouteTableGroupCategory(existing, route, resolver); err != nil {
 					log.Warnf("ai route skipped category-incompatible group: group=%q err=%v", existing.Name, err)
@@ -376,7 +383,7 @@ func generateAIRouteTable(
 				}
 			}
 			if updatedGroup, getErr := group.GroupGet(existing.ID, ctx); getErr == nil && updatedGroup != nil {
-				groupByName[groupKey] = *updatedGroup
+				groupByKey[groupKey] = *updatedGroup
 			}
 			addedItems += addedCount
 			affectedGroups++
@@ -386,20 +393,24 @@ func generateAIRouteTable(
 		createdGroup, addedCount, err := createAIRouteGroup(ctx, groupName, route.EndpointType, route.MatchRegex, route.Category, validatedItems)
 		if err != nil {
 			log.Warnf("ai route failed to create group: group=%q err=%v", groupName, err)
+			syncErrors = append(syncErrors, fmt.Errorf("分组 %q 写入失败: %w", groupName, err))
 			continue
 		}
 
-		groupByName[groupKey] = *createdGroup
+		createdKey, _ := airouteGroupLookupKey(groupByKey, routeEndpointType, createdGroup.Name)
+		groupByKey[createdKey] = *createdGroup
 		addedItems += addedCount
 		affectedGroups++
 	}
 
 	if affectedGroups == 0 {
-		if len(syncErrors) > 0 {
-			return nil, errors.Join(syncErrors...)
-		}
+		causes := make([]error, 0, len(syncErrors)+1)
 		if routesErr != nil {
-			return nil, fmt.Errorf("%s；且未成功写入任何分组", routesErr.Error())
+			causes = append(causes, routesErr)
+		}
+		causes = append(causes, syncErrors...)
+		if len(causes) > 0 {
+			return nil, fmt.Errorf("AI 路由未成功写入任何分组: %w", errors.Join(causes...))
 		}
 		return nil, fmt.Errorf("AI 返回结果为空，未写入任何路由")
 	}
@@ -721,6 +732,25 @@ func generateAIRoutesForBucket(
 
 		exclude[lease.Index] = struct{}{}
 		if len(exclude) >= serviceCount {
+			if outcome.Retryable {
+				// Every service was just rate limited or temporarily unavailable.
+				// Re-enter the pool so it can either wait for the earliest cooldown
+				// or return a cooldown error to the outer bucket retry loop.
+				nextLease, nextErr := servicePool.Acquire(ctx, hint, nil)
+				if nextErr == nil {
+					exclude = make(map[int]struct{}, serviceCount)
+					lease = nextLease
+					continue
+				}
+				var cooldownErr *aiRouteCooldownError
+				if errors.As(nextErr, &cooldownErr) {
+					return nil, cooldownErr
+				}
+				if tracker != nil {
+					tracker.FailBatch(batchIndex, bucket, lease.Service.Name, attempt, nextErr.Error())
+				}
+				return nil, nextErr
+			}
 			if tracker != nil {
 				tracker.FailBatch(batchIndex, bucket, lease.Service.Name, attempt, callErr.Error())
 			}
@@ -786,7 +816,7 @@ func generateAIRoutesForBucketWithService(
 
 	normalizedRoutes := normalizeAIRouteGeneratedEntries(routeResp.Routes, strategy)
 	if len(normalizedRoutes) == 0 {
-		return nil, nil
+		return nil, errAIRouteEmptyResult()
 	}
 	for i := range normalizedRoutes {
 		normalizedRoutes[i].EndpointType = bucket.GroupEndpointType
@@ -1135,6 +1165,30 @@ func normalizeAIRouteGroupEndpointType(endpointType string) string {
 		return model.EndpointTypeChat
 	}
 	return endpointType
+}
+
+func airouteGroupKey(endpointType, name string) string {
+	return model.NormalizeEndpointType(endpointType) + "\x00" + strings.TrimSpace(name)
+}
+
+func airouteGroupLookupKey(groups map[string]model.Group, endpointType, name string) (string, bool) {
+	key := airouteGroupKey(endpointType, name)
+	if _, exists := groups[key]; exists {
+		return key, false
+	}
+	matched := ""
+	for candidate, group := range groups {
+		if model.NormalizeEndpointType(group.EndpointType) == model.NormalizeEndpointType(endpointType) && strings.EqualFold(group.Name, strings.TrimSpace(name)) {
+			if matched != "" {
+				return key, true
+			}
+			matched = candidate
+		}
+	}
+	if matched != "" {
+		return matched, false
+	}
+	return key, false
 }
 
 func orderedAIRoutePromptEndpointTypes() []string {
@@ -1601,14 +1655,14 @@ func autoCorrectAIRouteTableRoutes(
 	}
 
 	usedNames := make(map[string]struct{}, len(existingGroups)+len(corrected))
-	existingByName := make(map[string]model.Group, len(existingGroups))
+	existingByName := make(map[string][]model.Group, len(existingGroups))
 	for _, group := range existingGroups {
 		nameKey := strings.ToLower(strings.TrimSpace(group.Name))
 		if nameKey == "" {
 			continue
 		}
 		usedNames[nameKey] = struct{}{}
-		existingByName[nameKey] = group
+		existingByName[nameKey] = append(existingByName[nameKey], group)
 	}
 	for _, route := range corrected {
 		nameKey := strings.ToLower(route.RequestedModel)
@@ -1624,7 +1678,11 @@ func autoCorrectAIRouteTableRoutes(
 	corrections := make([]aiRouteTableRouteCorrection, 0)
 	for _, nameKey := range orderedConflictNames {
 		indexes := indexesByName[nameKey]
-		keepIdx := selectAIRouteTablePrimaryRoute(corrected, indexes, existingByName[nameKey])
+		var existing model.Group
+		if matches := existingByName[nameKey]; len(matches) == 1 {
+			existing = matches[0]
+		}
+		keepIdx := selectAIRouteTablePrimaryRoute(corrected, indexes, existing)
 		for _, idx := range indexes {
 			if idx == keepIdx {
 				usedNames[strings.ToLower(corrected[idx].RequestedModel)] = struct{}{}
@@ -1824,7 +1882,7 @@ func syncGroupItemsWithAIRoute(ctx context.Context, groupID int, routeEndpointTy
 	return len(itemsToAdd) + len(itemsToUpdate), nil
 }
 
-func createAIRouteGroup(ctx context.Context, groupName string, endpointType string, matchRegex string, category string, items []model.GroupItem) (*model.Group, int, error) {
+func createAIRouteGroup(ctx context.Context, groupName string, endpointType string, matchRegex string, category string, items []model.GroupItem) (created *model.Group, addedCount int, retErr error) {
 	groupName = strings.TrimSpace(groupName)
 	if groupName == "" {
 		return nil, 0, fmt.Errorf("AI返回结果缺少 requested_model")
@@ -1834,7 +1892,15 @@ func createAIRouteGroup(ctx context.Context, groupName string, endpointType stri
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
-			log.Errorf("panic recovered in createAIRouteGroup transaction: %v", r)
+			created = nil
+			addedCount = 0
+			switch value := r.(type) {
+			case error:
+				retErr = fmt.Errorf("创建 AI 路由分组发生 panic: %w", value)
+			default:
+				retErr = fmt.Errorf("创建 AI 路由分组发生 panic: %v", value)
+			}
+			log.Errorf("panic recovered in createAIRouteGroup transaction: %v", retErr)
 		}
 	}()
 

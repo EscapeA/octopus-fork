@@ -3,6 +3,7 @@ package helper
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -26,6 +27,7 @@ const (
 
 var aiRouteProgress sync.Map
 var aiRouteProgressNow = time.Now
+var aiRouteStartMu sync.Mutex
 
 type aiRouteProgressEntry struct {
 	progress  model.GenerateAIRouteProgress
@@ -67,6 +69,12 @@ func StartGenerateAIRoute(req model.GenerateAIRouteRequest) (*model.GenerateAIRo
 		cloned := cloneAIRouteProgress(progress)
 		return &cloned, nil
 	}
+
+	// Keep the active-task lookup and initial insert atomic within the single
+	// process. The task table is persisted for recovery, but it does not have a
+	// database-level unique constraint for the active scope.
+	aiRouteStartMu.Lock()
+	defer aiRouteStartMu.Unlock()
 
 	existingProgress, err := findActiveAIRouteProgress(req)
 	if err != nil {
@@ -139,12 +147,6 @@ func StartGenerateAIRoute(req model.GenerateAIRouteRequest) (*model.GenerateAIRo
 	}()
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Errorf("ai route generation panic recovered: task_id=%s panic=%v", progress.ID, r)
-				close(stopHeartbeat)
-			}
-		}()
 		ctx, cancel := context.WithTimeout(context.Background(), aiRouteTaskTimeout)
 		defer cancel()
 
@@ -162,7 +164,7 @@ func StartGenerateAIRoute(req model.GenerateAIRouteRequest) (*model.GenerateAIRo
 			}
 		}
 
-		result, err := airoute.GenerateAIRoute(ctx, req, report)
+		result, err := runAIRouteGeneration(ctx, req, report, progress.ID)
 		close(stopHeartbeat)
 		<-heartbeatDone
 
@@ -180,6 +182,28 @@ func StartGenerateAIRoute(req model.GenerateAIRouteRequest) (*model.GenerateAIRo
 
 	cloned := cloneAIRouteProgress(progress)
 	return &cloned, nil
+}
+
+func runAIRouteGeneration(
+	ctx context.Context,
+	req model.GenerateAIRouteRequest,
+	report func(model.GenerateAIRouteProgress),
+	taskID string,
+) (result *model.GenerateAIRouteResult, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			result = nil
+			switch value := recovered.(type) {
+			case error:
+				err = fmt.Errorf("AI 路由生成发生 panic: %w", value)
+			default:
+				err = fmt.Errorf("AI 路由生成发生 panic: %v", value)
+			}
+			log.Errorf("ai route generation panic recovered: task_id=%s err=%v", taskID, err)
+		}
+	}()
+
+	return airoute.GenerateAIRoute(ctx, req, report)
 }
 
 func GetGenerateAIRouteProgress(id string) (*model.GenerateAIRouteProgress, bool) {
