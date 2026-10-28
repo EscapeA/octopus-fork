@@ -188,6 +188,8 @@ func streamChunkHasVisibleContent(resp *model.InternalLLMResponse) bool {
 var hopByHopHeaders = map[string]bool{
 	"authorization":       true,
 	"x-api-key":           true,
+	"api-key":             true,
+	"chatgpt-account-id":  true,
 	"connection":          true,
 	"keep-alive":          true,
 	"proxy-authenticate":  true,
@@ -223,6 +225,8 @@ type relayRequest struct {
 	metrics           *RelayMetrics
 	apiKeyID          int
 	requestModel      string
+	modelIdentity     relayModelIdentity
+	quotaUsage        *int64
 	groupEndpointType string
 	group             *dbmodel.Group // 新增：用于读取分组级推理缓冲策略
 	iter              *balancer.Iterator
@@ -284,10 +288,12 @@ func (ra *relayAttempt) getResponseFilterConfig() responseFilterConfig {
 
 // attemptResult 封装单次尝试的结果
 type attemptResult struct {
-	Success  bool          // 是否成功
-	Written  bool          // 流式响应是否已开始写入（不可重试）
-	Err      error         // 失败时的错误
-	Decision RetryDecision // 重试决策（新增）
+	Success      bool          // 是否成功
+	Written      bool          // 流式响应是否已开始写入（不可重试）
+	Err          error         // 失败时的错误
+	Decision     RetryDecision // 重试决策（新增）
+	TTFTMillis   float64
+	OutputTokens int64
 }
 
 // RetryScope 重试范围，明确四种行为边界

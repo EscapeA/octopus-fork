@@ -33,11 +33,12 @@ const relayLogJSONFieldMaxBytes = 16384
 
 // RelayMetrics 负责最终的日志收集与持久化
 type RelayMetrics struct {
-	APIKeyID     int
-	RequestModel string
-	EndpointType string
-	ClientIP     string
-	StartTime    time.Time
+	APIKeyID      int
+	RequestModel  string
+	EndpointType  string
+	ClientIP      string
+	StartTime     time.Time
+	PhysicalUsage model.StatsMetrics
 
 	// 首 Token 时间
 	FirstTokenTime time.Time
@@ -102,6 +103,10 @@ func (m *RelayMetrics) Save(success bool, err error, attempts []model.ChannelAtt
 	defer cancel()
 
 	duration := time.Since(m.StartTime)
+	if len(attempts) > 0 {
+		m.Stats.InputCost = m.PhysicalUsage.InputCost
+		m.Stats.OutputCost = m.PhysicalUsage.OutputCost
+	}
 	totalAttempts := len(attempts)
 	forwardedAttempts := countForwardedAttempts(attempts)
 
@@ -211,8 +216,10 @@ func countForwardedAttempts(attempts []model.ChannelAttempt) int {
 }
 
 func (m *RelayMetrics) recordDailyDimensions(ctx context.Context, requestStats model.StatsMetrics, attempts []model.ChannelAttempt, channelID int, channelName, actualModel string) {
-	if err := stats.DailyDimensionChannelUpdate(ctx, channelID, channelName, requestStats); err != nil {
-		log.Warnf("failed to update daily channel stats: %v", err)
+	if channelID != 0 {
+		if err := stats.DailyDimensionChannelUpdate(ctx, channelID, channelName, requestStats); err != nil {
+			log.Warnf("failed to update daily channel stats: %v", err)
+		}
 	}
 	if err := stats.DailyDimensionModelUpdate(ctx, actualModel, requestStats); err != nil {
 		log.Warnf("failed to update daily model stats: %v", err)
