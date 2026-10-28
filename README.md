@@ -520,11 +520,11 @@ Requests with model name prefixed `zen/<model>` bypass group model mapping and r
 
 **Response ID Affinity:**
 
-For the OpenAI Responses API, follow-up requests referencing the same response ID are automatically routed to the same upstream channel to maintain conversation continuity.
+Gateway affinity for `previous_response_id` is not implemented. Passthrough preserves legitimate upstream fields, but does not guarantee the same upstream account on follow-up requests. Stateful continuation requires a route pinned to a compatible upstream.
 
 **Model Mapping:**
 
-Global model name rewriting rules are applied in the relay pipeline before group resolution. Rules support exact, wildcard (glob), and regex matching with priority ordering and optional group scope.
+Unscoped rules match once before group resolution and prefer a group named by the target. If absent, the original group may be used with an upstream-model override. Group-scoped rules match the original client model after group selection and override upstream models without selecting another group. The first matching rule wins; mappings are not recursive. Allowlists and model subquotas use the client model, while cooldown and health use the upstream model.
 
 ---
 
@@ -671,6 +671,7 @@ The `Model` route (Model Market) provides switchable toolbar views: **Market** (
 - Vendor chips inferred from the model name
 - Pricing filter: all / priced / free
 - Normalized-name dedupe: merges naming variants of the same base model (e.g. `kimi-k2.5`, `moonshotai/kimi-k2.5`, `dmxapi-kimi-k2.5-cc`). Rules come from the Settings `Normalize` card (router prefixes, functional suffixes, explicit variant→canonical mappings), and dedupe can be turned on by default via a dedicated setting
+- The market catalog is the union of the local price catalog and channel-declared model names, so channel-only models remain visible with zero local price until a price is added. The backend `dedupe=true|false` query controls canonical aggregation versus exact raw-name cards; canonical cards keep `primary_name` and `variant_names` so copy, price editing, and deletion continue to target a real model name.
 - The collapsible filter bar shows the live result count (visible / total), the number of active filters, and a one-click reset that clears search, capability, provider, pricing, and dedupe
 
 **Summary metrics:**
@@ -701,6 +702,8 @@ Aggregated from valid route groups and inverted into endpoint → model groups. 
 - Create / edit dialog with validation: name and rule value required, prices must be finite non-negative numbers, sort order must be an integer. Errors appear after the first submit attempt and clear as the input is fixed
 - Peak/Off-peak Billing section (currently for DeepSeek): off-peak multiplier, weekend off-peak switch, and two Beijing-time windows (an empty window is closed; both windows closed means all-day off-peak; overlapping windows are allowed with a hint)
 - Rule changes invalidate the market price cache; this view has no search box
+
+The Normalize settings card also exposes coverage analysis and an AI generation workflow. Offline imports and in-app AI generation load a complete replacement candidate into the editor; conflicts and high-risk merges are shown before the existing Save action writes the rules. The management endpoints are `POST /api/v1/model/normalize/rules`, `POST /api/v1/model/normalize/generate`, `GET /api/v1/model/normalize/progress/:id`, `GET /api/v1/model/normalize/stream/:id`, and `GET /api/v1/model/normalize/coverage`.
 
 **Query gating:**
 
@@ -1064,6 +1067,7 @@ internal/
 │   ├── llm/            # LLM price catalog operations
 │   ├── modelmapping/   # Model mapping rule management
 │   ├── modelnormalize/ # Model-name normalization rules
+│   ├── modelnormalizeai/ # AI normalization candidates, coverage, and task progress
 │   ├── navorder/       # Navigation order and visibility persistence
 │   ├── notification/   # Notification center (messages, SSE stream, preferences)
 │   ├── ops/            # Ops dashboard data aggregation (telemetry, quota, health)

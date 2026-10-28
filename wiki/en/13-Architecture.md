@@ -29,6 +29,7 @@ internal/
 │   ├── llm/            # LLM price catalog operations
 │   ├── modelmapping/   # Model mapping rule management
 │   ├── modelnormalize/ # Model-name normalization rules
+│   ├── modelnormalizeai/ # AI normalization candidates, coverage, and task progress
 │   ├── navorder/       # Navigation order and visibility persistence
 │   ├── notification/   # Notification center (messages, SSE stream, preferences)
 │   ├── ops/            # Ops dashboard data aggregation (telemetry, quota, health)

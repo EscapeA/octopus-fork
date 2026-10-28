@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Decrypt pool credentials only for forwarding, acquire account concurrency atomically, release leases on early exits, and isolate pool accounts from ordinary channel-key persistence.
+- Persist channel-key usage as update-only increments without restoring deleted keys or overwriting credential/configuration changes.
+- Correct request-level round-robin/weighted rotation, next-channel retry scope, half-open probe admission, no-progress termination, and media attempt budgets.
+- Restore group list editing fields, protect group member snapshots/index publication, and match AI-generated routes by endpoint and name.
+- Correct quota admission/usage settlement, stream recovery errors and authorization, Responses cache replay, shared-response isolation, and protected upstream credential headers.
+
+### Changed
+
+- API-key RPM/TPM limits now constrain the key across models as well as any model sublimits. Known token usage can create quota debt; configured Redis quota failures return 503 rather than independent memory allowances.
+- Cache/coalescing isolates output parameters and excludes tools, multimodal content, and stateful continuation references. Cache TTL remains sliding idle expiry; cache hits do not add physical upstream cost.
+- Document unscoped/scoped model mapping order, bounded stream recovery, supported pool-media credentials, and the absence of response-ID channel affinity.
+
 ## [v2.6.3-fix2] - 2026-10-09
 
 ### Fixed

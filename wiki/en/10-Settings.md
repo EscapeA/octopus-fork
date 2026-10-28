@@ -49,7 +49,9 @@ Since the program handles numerous statistics, writing to the database on every 
 
 - Applies to non-streaming and streaming OpenAI Chat and OpenAI Responses text requests
 - Streaming cache hits replay from the SSE session buffer with stable stream-session recovery
-- Namespaces cache entries by `api_key_id + endpoint_family + requested_model`
+- Only text requests without tools, multimodal content, or stateful continuation references are cacheable; model, output parameters, and routing/settings generations are isolated exactly
+- TTL expires entries after their last access; configuration changes can invalidate old entries
+- Identical non-streaming requests are coalesced only while the cache is runtime-enabled, using an exact request fingerprint; shared/cache results do not add physical upstream calls or cost
 - If the embedding client is not fully configured, or embedding lookup / store fails, Octopus bypasses the cache and relays the request normally
 - Runtime state and effectiveness are visible in both `Analytics -> Evaluation` and `Ops -> Telemetry`
 - Cache entries are preserved across unchanged runtime config refreshes
