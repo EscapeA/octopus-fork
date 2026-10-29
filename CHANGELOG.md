@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.6.4] - 2026-10-29
+
+### Added
+
+- Add category-aware AI route generation with model suggestions and a reviewable model-normalization workflow.
+- Add canonical model-market aggregation with variant details and visibility for channel-only models.
+- Add configurable regular-expression prompt cleaning for system and developer messages.
+
 ### Fixed
 
 - Decrypt pool credentials only for forwarding, acquire account concurrency atomically, release leases on early exits, and isolate pool accounts from ordinary channel-key persistence.
@@ -20,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - API-key RPM/TPM limits now constrain the key across models as well as any model sublimits. Known token usage can create quota debt; configured Redis quota failures return 503 rather than independent memory allowances.
 - Cache/coalescing isolates output parameters and excludes tools, multimodal content, and stateful continuation references. Cache TTL remains sliding idle expiry; cache hits do not add physical upstream cost.
 - Document unscoped/scoped model mapping order, bounded stream recovery, supported pool-media credentials, and the absence of response-ID channel affinity.
+- Align application, frontend package, and Docker Compose versions to v2.6.4.
 
 ## [v2.6.3-fix2] - 2026-10-09
 
