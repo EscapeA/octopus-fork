@@ -99,7 +99,8 @@
     "ariaLabel": "Main navigation",
     "apikey": "API Keys",
     "notification": "Notification Center",
-    "pool": "Account Pool"
+    "pool": "Account Pool",
+    "plugins": "Plugins"
   },
   "endpoints": {
     "title": "Available Endpoints",
@@ -4056,5 +4057,34 @@
     "proxyFallbackBadge": "Proxy fallback active",
     "proxyFallbackRestored": "Original proxy restored",
     "restoreProxy": "Restore original proxy"
+  },
+  "plugin": {
+    "title": "Plugins",
+    "description": "Run sandboxed WebAssembly extensions with explicit permissions.",
+    "install": "Install package",
+    "installSuccess": "Plugin installed",
+    "enabled": "Enable plugin",
+    "configure": "Configure",
+    "configuration": "Plugin configuration",
+    "configHint": "Edit the JSON configuration. Secrets must use the plugin secret API.",
+    "invalidConfig": "Configuration must be a JSON object",
+    "save": "Save",
+    "cancel": "Cancel",
+    "open": "Open",
+    "uninstall": "Uninstall",
+    "deleteConfirm": "Uninstall this plugin and delete its data? Plugin files are removed after restart.",
+    "readOnly": "You have read-only access to plugins.",
+    "empty": "No plugins installed",
+    "emptyHint": "Install a local .octopkg package to get started.",
+    "calls": "Calls",
+    "failures": "Failures",
+    "timeouts": "Timeouts",
+    "status": {
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "error": "Error",
+      "needs_reinstall": "Reinstall required",
+      "uninstalling": "Removal pending restart"
+    }
   }
 }

@@ -99,7 +99,8 @@
     "ariaLabel": "主導航",
     "apikey": "API 金鑰",
     "notification": "通知中心",
-    "pool": "號池"
+    "pool": "號池",
+    "plugins": "外掛"
   },
   "endpoints": {
     "title": "可用端點",
@@ -4056,5 +4057,34 @@
     "proxyFallbackBadge": "代理已回退",
     "proxyFallbackRestored": "已恢復原始代理",
     "restoreProxy": "恢復原始代理"
+  },
+  "plugin": {
+    "title": "外掛",
+    "description": "以明確權限執行沙箱化 WebAssembly 擴充。",
+    "install": "安裝外掛套件",
+    "installSuccess": "外掛已安裝",
+    "enabled": "啟用外掛",
+    "configure": "設定",
+    "configuration": "外掛設定",
+    "configHint": "編輯 JSON 設定。敏感資訊請使用外掛 Secret API。",
+    "invalidConfig": "設定必須是 JSON 物件",
+    "save": "儲存",
+    "cancel": "取消",
+    "open": "開啟",
+    "uninstall": "解除安裝",
+    "deleteConfirm": "解除安裝此外掛並刪除其資料？外掛檔案將於重新啟動後刪除。",
+    "readOnly": "你只有外掛唯讀權限。",
+    "empty": "尚未安裝外掛",
+    "emptyHint": "安裝本地 .octopkg 外掛套件開始使用。",
+    "calls": "呼叫",
+    "failures": "失敗",
+    "timeouts": "逾時",
+    "status": {
+      "enabled": "已啟用",
+      "disabled": "已停用",
+      "error": "錯誤",
+      "needs_reinstall": "需要重新安裝",
+      "uninstalling": "等待重新啟動後移除"
+    }
   }
 }
