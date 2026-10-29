@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.6.4-fix] - 2026-10-29
+
+### Fixed
+
+- Upgrade the Go toolchain and Docker build image to Go 1.27.3 to address CVE-2026-111943.
+
 ## [v2.6.4] - 2026-10-29
 
 ### Added
