@@ -15,6 +15,7 @@ import (
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op/pool"
 	"github.com/lingyuins/octopus/internal/op/setting"
+	pluginevent "github.com/lingyuins/octopus/internal/plugin/event"
 	"gorm.io/gorm"
 )
 
@@ -139,6 +140,7 @@ func ReportResult(poolID, accountID int, success bool, ttftMs float64, outputTok
 	// 入队非阻塞，队列满则丢弃当前 job（计数降级，下次请求会再累积）。
 	select {
 	case poolReportCh <- job:
+		pluginevent.Publish("pool.account.changed", map[string]any{"pool_id": poolID, "account_id": accountID, "success": success, "ttft_ms": ttftMs, "output_tokens": outputTokens})
 	default:
 		poolReportDroppedCount.Add(1)
 	}

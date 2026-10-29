@@ -186,6 +186,12 @@ var auditedManagementWriteRoutes = map[string]struct{}{
 	"POST /api/v1/pool/unsched-rules/update/:id":         {},
 	"DELETE /api/v1/pool/unsched-rules/delete/:id":       {},
 	"PUT /api/v1/plan-provider/credentials/:id":          {},
+	"POST /api/v1/plugins/install":                       {},
+	"POST /api/v1/plugins/:id/enable":                    {},
+	"POST /api/v1/plugins/:id/disable":                   {},
+	"PUT /api/v1/plugins/:id/config":                     {},
+	"DELETE /api/v1/plugins/:id":                         {},
+	"POST /api/v1/plugins/:id/rpc/*path":                 {},
 }
 
 func AuditManagementWrite() gin.HandlerFunc {

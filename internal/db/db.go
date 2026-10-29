@@ -347,6 +347,9 @@ func Migrate(conn *gorm.DB) error {
 		&model.ProxyConfiguration{},
 		&model.WSResponseAffinity{},
 		&model.WebAuthnCredential{},
+		&model.Plugin{},
+		&model.PluginKV{},
+		&model.PluginSecret{},
 		&migrate.MigrationRecord{},
 	)
 	if restoreFK != nil {

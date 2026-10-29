@@ -187,6 +187,24 @@ func Handler(endpointType string, inboundType inbound.InboundType, c *gin.Contex
 		return
 	}
 	internalRequest.Model = strings.TrimSpace(internalRequest.Model)
+	changed, err := applyBeforeRoutePlugin(c.Request.Context(), c, internalRequest)
+	if err != nil {
+		resp.Error(c, http.StatusBadGateway, "plugin request processing failed")
+		return
+	}
+	if changed {
+		inAdapter = inbound.Get(inboundType)
+		if inAdapter == nil {
+			resp.Error(c, http.StatusBadRequest, "unsupported inbound type")
+			return
+		}
+		// Stateful adapters must be initialized from the rewritten protocol body;
+		// the validated internal DTO remains authoritative for forwarding.
+		if _, convErr := inAdapter.TransformRequest(c.Request.Context(), internalRequest.RawRequest); convErr != nil {
+			resp.Error(c, http.StatusBadRequest, "plugin returned an invalid request")
+			return
+		}
+	}
 	if !apiKeyAllowsModel(c.GetString("supported_models"), internalRequest.Model) {
 		resp.Error(c, http.StatusBadRequest, "model not supported")
 		return
@@ -420,6 +438,16 @@ func (ra *relayAttempt) attempt() attemptResult {
 		}
 	}
 
+	if errors.Is(fwdErr, errPluginProcessing) {
+		span.End(dbmodel.AttemptFailed, statusCode, "plugin processing failed")
+		return attemptResult{
+			Success:  false,
+			Written:  ra.c.Writer.Written(),
+			Err:      fwdErr,
+			Decision: ra.attachEvidence(ClassifyRelayError(statusCode, fwdErr, ra.c.Writer.Written())),
+		}
+	}
+
 	// 空输出重试（issue #106）：上游返回 200 但输出为空，换 Key 重试。
 	// 不记录渠道失败统计/熔断（这不是渠道故障，只是模型偶尔返回空），
 	// 但占用一次 Key 级重试名额，用完后换下一渠道。
@@ -626,6 +654,10 @@ func (ra *relayAttempt) forward() (int, error) {
 
 	// 复制请求头
 	ra.copyHeaders(outboundRequest, effectiveRewrite)
+
+	if err := applyBeforeUpstreamPlugin(ctx, outboundRequest, ra.channel.ID, fmt.Sprintf("%s:%d", ra.c.GetString("request_id"), ra.tryIndex)); err != nil {
+		return 0, fmt.Errorf("%w: upstream request: %w", errPluginProcessing, err)
+	}
 
 	// 发送请求
 	response, err := ra.sendRequest(outboundRequest)
@@ -1416,6 +1448,10 @@ func (ra *relayAttempt) handleResponse(ctx context.Context, response *http.Respo
 		return fmt.Errorf("failed to transform inbound response: %w", err)
 	}
 
+	inResponse, err = applyBeforeSendPlugin(ctx, ra.c, inResponse, ra.c.GetString("request_id"))
+	if err != nil {
+		return fmt.Errorf("plugin response processing failed: %w", err)
+	}
 	ra.c.Data(http.StatusOK, "application/json", inResponse)
 	ra.storeCanonicalCacheResponse(internalResponse)
 	return nil
@@ -1590,6 +1626,15 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 			goto exhausted
 		}
 
+		filteredGroup, filterErr := applyRouteFilterPlugin(req.operationCtx, group, req.requestModel, req.c.GetString("request_id"))
+		if filterErr != nil {
+			if !req.c.Writer.Written() {
+				resp.Error(req.c, http.StatusBadGateway, "plugin route filtering failed")
+			}
+			req.metrics.Save(false, filterErr, allAttempts)
+			return nil, filterErr
+		}
+		group = filteredGroup
 		routeIter := balancer.NewIterator(group, req.apiKeyID, stickyRoutingKey(&group, req.requestModel), parseExcludedChannels(req.c.GetString("excluded_channels")))
 		req.iter = routeIter
 

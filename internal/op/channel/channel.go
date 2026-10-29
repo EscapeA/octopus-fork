@@ -8,6 +8,7 @@ import (
 
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
+	pluginevent "github.com/lingyuins/octopus/internal/plugin/event"
 	"github.com/lingyuins/octopus/internal/store"
 	"github.com/lingyuins/octopus/internal/utils/cache"
 	"github.com/lingyuins/octopus/internal/utils/crypto"
@@ -551,6 +552,7 @@ func Enabled(id int, enabled bool, ctx context.Context) error {
 	}
 	oldCh.Enabled = enabled
 	chCache.Set(id, oldCh)
+	pluginevent.Publish("channel.health.changed", map[string]any{"channel_id": id, "channel_name": oldCh.Name, "enabled": enabled, "passed": enabled})
 	return nil
 }
 

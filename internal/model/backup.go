@@ -75,6 +75,28 @@ type DBDump struct {
 	SiteUserGroups      []SiteUserGroup      `json:"site_user_groups,omitempty"`
 	SiteModels          []SiteModel          `json:"site_models,omitempty"`
 	SiteChannelBindings []SiteChannelBinding `json:"site_channel_bindings,omitempty"`
+
+	// Plugin metadata and data only. Executable packages stay in the local data directory.
+	Plugins       []Plugin             `json:"plugins,omitempty"`
+	PluginKV      []PluginKVBackup     `json:"plugin_kv,omitempty"`
+	PluginSecrets []PluginSecretBackup `json:"plugin_secrets,omitempty"`
+}
+
+// PluginKVBackup preserves the namespace hidden by the management API model.
+// Backup DTOs are converted explicitly rather than used as database models.
+type PluginKVBackup struct {
+	PluginID  string    `json:"plugin_id"`
+	Key       string    `json:"key"`
+	Value     string    `json:"value"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// PluginSecretBackup contains plaintext secrets and must only be used for backups.
+type PluginSecretBackup struct {
+	PluginID  string    `json:"plugin_id"`
+	Key       string    `json:"key"`
+	Value     string    `json:"value"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type DBImportResult struct {

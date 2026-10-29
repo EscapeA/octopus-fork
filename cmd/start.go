@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/lingyuins/octopus/internal/conf"
@@ -10,6 +11,7 @@ import (
 	"github.com/lingyuins/octopus/internal/op"
 	"github.com/lingyuins/octopus/internal/op/modelnormalizeai"
 	"github.com/lingyuins/octopus/internal/op/ratelimitstore"
+	"github.com/lingyuins/octopus/internal/plugin"
 	"github.com/lingyuins/octopus/internal/relay/balancer"
 	"github.com/lingyuins/octopus/internal/server"
 	"github.com/lingyuins/octopus/internal/store"
@@ -131,6 +133,12 @@ func runStart() error {
 		shutdown.Shutdown()
 		return fmt.Errorf("user init error: %w", err)
 	}
+	pluginManager, err := plugin.Init(filepath.Join(conf.DataDir(), "plugins"))
+	if err != nil {
+		shutdown.Shutdown()
+		return fmt.Errorf("plugin init error: %w", err)
+	}
+	shutdown.Register(func() error { pluginManager.Close(); return nil })
 	if err := op.EnsureDevBootstrapData(context.Background()); err != nil {
 		shutdown.Shutdown()
 		return fmt.Errorf("dev bootstrap init error: %w", err)
@@ -183,6 +191,9 @@ func runStart() error {
 
 	task.Init()
 	go task.RUN()
+	if err := pluginManager.FinalizeUninstalls(context.Background()); err != nil {
+		log.Warnf("plugin uninstall cleanup error: %v", err)
+	}
 	shutdown.Listen()
 	return nil
 }

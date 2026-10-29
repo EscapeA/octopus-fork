@@ -404,6 +404,9 @@ func isSSEDoneMarker(data string) bool {
 //
 // 返回：RetryDecision 决策结果
 func ClassifyRelayError(statusCode int, err error, written bool) RetryDecision {
+	if errors.Is(err, errPluginProcessing) {
+		return RetryDecision{Scope: ScopeAbortAll, Reason: "local plugin processing failed", Code: http.StatusBadGateway, IsError: true, SkipFailureAccounting: true}
+	}
 	// 成功：无需重试。流式成功完成即使已经写出响应，也不应视为失败。
 	if err == nil && statusCode >= 200 && statusCode < 300 {
 		return RetryDecision{

@@ -177,6 +177,7 @@ func (m *RelayMetrics) Save(success bool, err error, attempts []model.ChannelAtt
 	m.saveLog(ctx, err, duration, attempts, channelID, channelName)
 	op.StatsSiteModelHourlyRecordAttempts(attempts, actualModel)
 	telemetry.Global().RecordRequest(duration.Milliseconds(), success)
+	publishRelayCompleted(m, success, err, attempts)
 }
 
 func finalChannel(attempts []model.ChannelAttempt) (int, string) {
