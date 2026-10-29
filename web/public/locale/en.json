@@ -144,6 +144,8 @@
       "tierFiveHour": "Last 5 Hours Usage",
       "tierWeekly": "Last Week Usage",
       "tierMonthly": "Last Month Usage",
+      "poolGeneral": "General Pool",
+      "poolDedicated": "Dedicated Pool",
       "usedLabel": "Used",
       "days": "d ",
       "hours": "h ",

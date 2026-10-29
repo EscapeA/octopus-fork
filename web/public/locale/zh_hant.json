@@ -144,6 +144,8 @@
       "tierFiveHour": "近5小時用量",
       "tierWeekly": "近一週用量",
       "tierMonthly": "近一月用量",
+      "poolGeneral": "通用積分池",
+      "poolDedicated": "專用積分池",
       "usedLabel": "已使用",
       "days": "天",
       "hours": "小時",
