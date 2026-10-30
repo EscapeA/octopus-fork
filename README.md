@@ -822,9 +822,9 @@ Since the program handles numerous statistics, writing to the database on every 
 | Normalize | Model-name normalization rules: router prefixes, functional suffixes, and explicit variant→canonical mappings (runtime-configurable, with an offline AI-assisted normalization workflow) |
 | Pool | Account-pool scheduling tuning: health patrol, layered scheduling, sticky-session escape, weight reset, and related keys |
 | Proxy Pool | Opens the shared proxy-pool management dialog (no inline panel) |
-| Local Nodes | Node status, connector version, concurrency and last seen; admin-only create/enable/disable/token rotation/delete with one-time token and local configuration template |
+| Local Nodes | Node status, connector version, concurrency and last seen; admin-only models-only connection test with detailed diagnostics, lifecycle actions and one-time connection token |
 
-The standalone `octopus-to-magpie-connect` Magpie community plugin provides the local reverse client and configuration page, without rebuilding Magpie or running a separate Connector. Install that independent project into Magpie; this repository contains only the cloud node service. The Bun host is lazy: the plugin connects only after it loads, and host reloads can interrupt in-flight requests without replay.
+The standalone `octopus-to-magpie-connect` Magpie community plugin provides the local reverse client and configuration page, without rebuilding Magpie or running a separate Connector. Install that independent project into Magpie; this repository contains only the cloud node service. Configure only the local port (default 3425), confirm Request connection, then fully quit and restart Magpie. Test connection on the node card before using it in channels. The Bun host is lazy: the plugin connects only after it loads, and host reloads can interrupt in-flight requests without replay.
 
 > **Note:** The following settings have been relocated to more relevant modules (issue #87):
 > - **Retry / Circuit Breaker / Response Filter** → `Ops → Maintenance` tab
