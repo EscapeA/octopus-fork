@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.7.0] - 2026-10-30
+
+### Added
+
+- Add a sandboxed plugin runtime with relay integration, an isolated management interface, SDKs, a packaging CLI, and observer examples.
+- Add reverse node transport for local Magpie plugins, with node lifecycle management, channel binding, session handling, and relay integration.
+- Add localized node settings and one-time token setup, with permission checks, audit coverage, and safe backup restoration that clears node credentials and disables restored nodes.
+
+### Fixed
+
+- Correct SenseNova quota-pool handling and dedicated-pool presentation.
+
+### Changed
+
+- Document Magpie plugin setup and node transport limits.
+- Align application, frontend package, and Docker Compose versions to v2.7.0.
+
 ## [v2.6.4-fix] - 2026-10-29
 
 ### Fixed
