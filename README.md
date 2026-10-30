@@ -399,7 +399,7 @@ The embedded management UI currently ships with these top-level modules:
 |--------|----------------|
 | Home | Version, runtime status, high-level summaries, trend chart, activity heatmap, and ranking panel |
 | Hub | Upstream relay platform management with tabs for Sites (multi-account cards with inline balance / sync / check-in status, archive/restore, batch edit, and bulk import from AllAPIHub / MetAPI), Site Channels (projected channel bindings), Automation (auto-sync and auto-checkin intervals), Balance (plan balance charts), and TokenPlan (token plan monitoring) |
-| Channel | Upstream provider configuration, keys, headers, sync, latency probing, proxy mode, and request rewrite profiles |
+| Channel | Upstream provider configuration, keys, headers, sync, latency probing, proxy mode, local-node binding (admin only), and request rewrite profiles |
 | Account Pool | Account pools for relay scheduling: searchable pool list with create/edit (name, description, strategy, default concurrency, cooldown, enabled) and delete confirmation; detail view with account keyword / platform / status filters, OAuth account authorization, batch operations, and credential import/export |
 | Group | Model routing, load-balancing strategies, sticky sessions, group test, AI route generation, group thinking mode (auto / off / on), endpoint provider, zashboard-style collapsible group list, and CC Switch deep link |
 | Model Market | Model catalog with market / available endpoints / price categories views, custom pricing, channel coverage, enabled key counts, latency, success metrics, multi-dimension filters with normalized dedupe, and fallback pricing plus peak/off-peak billing rules |
@@ -408,7 +408,7 @@ The embedded management UI currently ships with these top-level modules:
 | Notification | Unified notification center with groups for Messages (inbox / archived), Alerts (rules / history), Delivery (channels / policies / preferences), and Reports (schedules / history). Alert rules, notification channels (webhook, Gotify, email, Telegram, Feishu, DingTalk, WeCom, ntfy), and usage report scheduling all live here |
 | Ops | Telemetry (hero metrics, P95 latency, provider health, prompt-cache analytics), Quota, Health, Maintenance (retry / circuit breaker / response filter), System, and Audit trail |
 | APIKey | API key create, edit, delete, supported-model allowlists, expiry, max-cost caps, RPM / TPM quotas, IP allowlists, and per-model quotas |
-| Setting | Version/update info, appearance and nav preferences (order + visibility), AI route services, semantic cache, log retention, system options (public API base URL, proxy, CORS), LLM/price sync cadence, database backup + live migration, Redis cache backend, WebDAV backup, WebAuthn/Passkey, model-name normalization, account pool scheduling, a proxy pool entry, and dangerous operations |
+| Setting | Version/update info, appearance and nav preferences (order + visibility), AI route services, semantic cache, log retention, system options (public API base URL, proxy, CORS), LLM/price sync cadence, database backup + live migration, Redis cache backend, WebDAV backup, WebAuthn/Passkey, model-name normalization, account pool scheduling, a proxy pool entry, local-node management, and dangerous operations |
 | User | Admin user management and roles |
 
 Additionally, the following features are accessible from the app shell toolbar or within other modules:
@@ -822,6 +822,9 @@ Since the program handles numerous statistics, writing to the database on every 
 | Normalize | Model-name normalization rules: router prefixes, functional suffixes, and explicit variant→canonical mappings (runtime-configurable, with an offline AI-assisted normalization workflow) |
 | Pool | Account-pool scheduling tuning: health patrol, layered scheduling, sticky-session escape, weight reset, and related keys |
 | Proxy Pool | Opens the shared proxy-pool management dialog (no inline panel) |
+| Local Nodes | Node status, connector version, concurrency and last seen; admin-only create/enable/disable/token rotation/delete with one-time token and local configuration template |
+
+The standalone `octopus-to-magpie-connect` Magpie community plugin provides the local reverse client and configuration page, without rebuilding Magpie or running a separate Connector. Install that independent project into Magpie; this repository contains only the cloud node service. The Bun host is lazy: the plugin connects only after it loads, and host reloads can interrupt in-flight requests without replay.
 
 > **Note:** The following settings have been relocated to more relevant modules (issue #87):
 > - **Retry / Circuit Breaker / Response Filter** → `Ops → Maintenance` tab
@@ -1069,6 +1072,7 @@ internal/
 │   ├── modelnormalize/ # Model-name normalization rules
 │   ├── modelnormalizeai/ # AI normalization candidates, coverage, and task progress
 │   ├── navorder/       # Navigation order and visibility persistence
+│   ├── node/           # Local node lifecycle, token rotation, and channel binding validation
 │   ├── notification/   # Notification center (messages, SSE stream, preferences)
 │   ├── ops/            # Ops dashboard data aggregation (telemetry, quota, health)
 │   ├── pool/           # Account pool management for relay scheduling
@@ -1080,6 +1084,7 @@ internal/
 │   ├── stats/          # Request statistics aggregation, cache, and site-model backfill
 │   ├── user/           # User management and authentication
 │   └── webauthn/       # WebAuthn / Passkey registration and authentication
+├── nodetransport/      # Cloud-side reverse node sessions, multiplexing and runtime snapshots
 ├── relay/              # Core relay pipeline
 │   ├── balancer/       # Load balancing strategies (RoundRobin, Random, Failover, Weighted, Auto)
 │   ├── condition/      # Request condition evaluation

@@ -19,7 +19,7 @@ Since the program handles numerous statistics, writing to the database on every 
 - Both are saved periodically using the same interval as statistics persistence
 - Both are also saved during graceful shutdown
 
-**Key settings cards in the current UI:**
+**Key settings cards in the current UI** (the authoritative list is `SETTING_ITEM_DEFS` in `web/src/components/modules/setting/index.tsx`):
 
 | Card | Purpose |
 |------|---------|
@@ -39,6 +39,16 @@ Since the program handles numerous statistics, writing to the database on every 
 | Normalize | Model-name normalization rules: router prefixes, functional suffixes, and explicit variant→canonical mappings (runtime-configurable, with an offline AI-assisted normalization workflow) |
 | Pool | Account-pool scheduling and health tuning: probe interval, failure threshold, minimum priority, unschedulable rules, sticky escape, weight reset / quota |
 | Proxy Pool | Not an inline panel — opens the shared proxy pool dialog |
+| Local Nodes | Online status, connector version, in-flight/limit and last seen; admin-only create, availability, token rotation and deletion |
+
+**Local node setup:**
+
+1. Open `Settings → Local Nodes` as an admin and create a node. Editors and viewers can read status, but cannot manage nodes or change channel bindings.
+2. Copy the one-time token/configuration before closing the panel. Tokens are not stored in browser storage or query caches; rotate if lost. Rotation invalidates the old credential. Disable/rotate/delete require confirmation; delete is rejected while channels reference the node.
+3. The setup reference separates `plugin_options` from `private_config`: only the former belongs in the plugin page, while the latter must stay in a local private file outside the plugin directory. Do not load the whole reference as a config file or store credentials in public plugin options. Verify the WSS endpoint and replace the model allowlist placeholders.
+4. Install the independent `octopus-to-magpie-connect` community plugin in Magpie. Configure the public WSS URL and model allowlist in its page; keep node credentials and the restricted Magpie gateway key in a private local file or environment variables. No separate Connector process is required. The plugin connects only after Magpie loads its Bun host; reloads may interrupt requests without replay.
+5. Select the node in a channel's connection selector. URL/proxy/key inputs are hidden, account-pool/proxy combinations are disallowed, and the server generates internal placeholders. Discovery and tests use `node_id`, not a Magpie credential.
+
 
 > **Note:** The following settings have been relocated to more relevant modules (issue #87):
 > - **Retry / Circuit Breaker / Response Filter** → `Ops → Maintenance` tab
