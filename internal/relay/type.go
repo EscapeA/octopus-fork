@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lingyuins/octopus/internal/conf"
 	dbmodel "github.com/lingyuins/octopus/internal/model"
+	"github.com/lingyuins/octopus/internal/nodetransport"
 	"github.com/lingyuins/octopus/internal/op/setting"
 	"github.com/lingyuins/octopus/internal/relay/balancer"
 	"github.com/lingyuins/octopus/internal/transformer/model"
@@ -404,6 +405,9 @@ func isSSEDoneMarker(data string) bool {
 //
 // 返回：RetryDecision 决策结果
 func ClassifyRelayError(statusCode int, err error, written bool) RetryDecision {
+	if nodetransport.IsExecutionUncertain(err) {
+		return RetryDecision{Scope: ScopeAbortAll, Reason: "node execution outcome is uncertain", Code: http.StatusBadGateway, IsError: true, SkipFailureAccounting: true}
+	}
 	if errors.Is(err, errPluginProcessing) {
 		return RetryDecision{Scope: ScopeAbortAll, Reason: "local plugin processing failed", Code: http.StatusBadGateway, IsError: true, SkipFailureAccounting: true}
 	}

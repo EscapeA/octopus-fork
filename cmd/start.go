@@ -8,6 +8,7 @@ import (
 
 	"github.com/lingyuins/octopus/internal/conf"
 	"github.com/lingyuins/octopus/internal/db"
+	"github.com/lingyuins/octopus/internal/nodetransport"
 	"github.com/lingyuins/octopus/internal/op"
 	"github.com/lingyuins/octopus/internal/op/modelnormalizeai"
 	"github.com/lingyuins/octopus/internal/op/ratelimitstore"
@@ -144,6 +145,7 @@ func runStart() error {
 		return fmt.Errorf("dev bootstrap init error: %w", err)
 	}
 
+	shutdown.Register(nodetransport.DefaultManager.Close)
 	if err := server.Start(); err != nil {
 		shutdown.Shutdown()
 		return fmt.Errorf("server start error: %w", err)

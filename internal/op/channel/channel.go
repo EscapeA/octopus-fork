@@ -8,6 +8,7 @@ import (
 
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
+	nodeop "github.com/lingyuins/octopus/internal/op/node"
 	pluginevent "github.com/lingyuins/octopus/internal/plugin/event"
 	"github.com/lingyuins/octopus/internal/store"
 	"github.com/lingyuins/octopus/internal/utils/cache"
@@ -77,7 +78,17 @@ func decryptChannelKeysInPlace(keys []model.ChannelKey) {
 }
 
 func Create(ch *model.Channel, ctx context.Context) error {
+	if ch != nil && ch.NodeID != 0 {
+		return nodeop.WithBindingLock(func() error { return create(ch, ctx) })
+	}
+	return create(ch, ctx)
+}
+
+func create(ch *model.Channel, ctx context.Context) error {
 	if ch != nil {
+		if err := normalizeNodeChannel(ch, ctx); err != nil {
+			return err
+		}
 		if err := ch.RequestRewrite.Validate(ch.Type); err != nil {
 			return err
 		}
@@ -260,9 +271,23 @@ func saveKeyUsageLocked(ctx context.Context) error {
 }
 
 func Update(req *model.ChannelUpdateRequest, ctx context.Context) (*model.Channel, error) {
+	var result *model.Channel
+	err := nodeop.WithBindingLock(func() error {
+		var err error
+		result, err = update(req, ctx)
+		return err
+	})
+	return result, err
+}
+
+func update(req *model.ChannelUpdateRequest, ctx context.Context) (*model.Channel, error) {
 	current, ok := chCache.Get(req.ID)
 	if !ok {
 		return nil, fmt.Errorf("channel not found")
+	}
+
+	if err := prepareNodeUpdate(req, current, ctx); err != nil {
+		return nil, err
 	}
 
 	effectiveType := current.Type
@@ -417,6 +442,10 @@ func Update(req *model.ChannelUpdateRequest, ctx context.Context) (*model.Channe
 	if req.PoolID != nil {
 		selectFields = append(selectFields, "pool_id")
 		updates.PoolID = *req.PoolID
+	}
+	if req.NodeID != nil {
+		selectFields = append(selectFields, "node_id")
+		updates.NodeID = *req.NodeID
 	}
 	if req.ParamOverride != nil {
 		selectFields = append(selectFields, "param_override")

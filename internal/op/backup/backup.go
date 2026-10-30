@@ -9,6 +9,8 @@ import (
 
 	"github.com/lingyuins/octopus/internal/db"
 	"github.com/lingyuins/octopus/internal/model"
+	channelop "github.com/lingyuins/octopus/internal/op/channel"
+	"github.com/lingyuins/octopus/internal/op/node"
 	"github.com/lingyuins/octopus/internal/utils/apikeyhash"
 	"github.com/lingyuins/octopus/internal/utils/crypto"
 	"github.com/lingyuins/octopus/internal/utils/log"
@@ -34,6 +36,13 @@ func ExportAll(ctx context.Context, includeLogs, includeStats bool) (*model.DBDu
 		ExportedAt:   time.Now().UTC(),
 		IncludeLogs:  includeLogs,
 		IncludeStats: includeStats,
+	}
+
+	// Node credentials and active sessions are never exported, even in memory.
+	if conn.Migrator().HasTable(&model.Node{}) {
+		if err := conn.Omit("token_hash").Find(&d.Nodes).Error; err != nil {
+			return nil, fmt.Errorf("export nodes: %w", err)
+		}
 	}
 
 	// Core tables
@@ -374,6 +383,33 @@ func ImportWithMode(ctx context.Context, dump *model.DBDump, mode string) (*mode
 }
 
 func ImportWithModeToDB(ctx context.Context, target *gorm.DB, dump *model.DBDump, mode string) (*model.DBImportResult, error) {
+	if target != nil && target == db.GetDB() {
+		var result *model.DBImportResult
+		err := node.WithRestoreLock(func() ([]int, error) {
+			var ids []int
+			if mode == model.ImportModeFull && target.Migrator().HasTable(&model.Node{}) {
+				if err := target.WithContext(ctx).Model(&model.Node{}).Pluck("id", &ids).Error; err != nil {
+					return nil, err
+				}
+			}
+			var err error
+			result, err = importWithModeToDB(ctx, target, dump, mode)
+			// A live restore must discard old channel→node bindings before an
+			// administrator can enable or rotate a restored numeric node ID.
+			// Use an independent context even if the importing client disconnected.
+			refreshCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if refreshErr := channelop.RefreshCache(refreshCtx); refreshErr != nil {
+				return ids, fmt.Errorf("restore channel cache: %w", refreshErr)
+			}
+			return ids, err
+		})
+		return result, err
+	}
+	return importWithModeToDB(ctx, target, dump, mode)
+}
+
+func importWithModeToDB(ctx context.Context, target *gorm.DB, dump *model.DBDump, mode string) (*model.DBImportResult, error) {
 	if dump == nil {
 		return nil, fmt.Errorf("empty dump")
 	}
@@ -415,6 +451,9 @@ func ImportWithModeToDB(ctx context.Context, target *gorm.DB, dump *model.DBDump
 
 	err := cfg.conn.Transaction(func(tx *gorm.DB) error {
 		cfg.conn = tx
+		if err := validateNodeRestore(tx, dump, isFull); err != nil {
+			return err
+		}
 
 		if isFull {
 			// Delete in reverse dependency order to avoid FK violations.
@@ -437,11 +476,11 @@ func ImportWithModeToDB(ctx context.Context, target *gorm.DB, dump *model.DBDump
 				"notification_deliveries", "notifications", "notification_preferences", "notification_policies",
 				"alert_histories", "alert_state_records", "alert_rules", "alert_notif_channels",
 				"audit_logs", "auto_strategy_states", "circuit_breaker_states",
-				"api_keys", "channel_keys", "channels",
+				"api_keys", "channel_keys", "channels", "nodes",
 				"llm_infos", "settings",
 			}
 			for i, table := range deleteOrder {
-				if (table == "plugins" || table == "plugin_kv" || table == "plugin_secrets") && !cfg.conn.Migrator().HasTable(table) {
+				if (table == "nodes" || table == "plugins" || table == "plugin_kv" || table == "plugin_secrets") && !cfg.conn.Migrator().HasTable(table) {
 					continue
 				}
 				switch table {
@@ -464,7 +503,7 @@ func ImportWithModeToDB(ctx context.Context, target *gorm.DB, dump *model.DBDump
 				}
 			}
 			for _, table := range deleteOrder {
-				if (table == "plugins" || table == "plugin_kv" || table == "plugin_secrets") && !cfg.conn.Migrator().HasTable(table) {
+				if (table == "nodes" || table == "plugins" || table == "plugin_kv" || table == "plugin_secrets") && !cfg.conn.Migrator().HasTable(table) {
 					continue
 				}
 				// relay_logs 路由到独立日志库时，由事务外的 importRelayLogsToLogDB
@@ -476,6 +515,16 @@ func ImportWithModeToDB(ctx context.Context, target *gorm.DB, dump *model.DBDump
 					return fmt.Errorf("full import: delete %s: %w", table, err)
 				}
 			}
+		}
+
+		// Restore node identity before channel references, but never credentials.
+		nodes := append([]model.Node(nil), dump.Nodes...)
+		for i := range nodes {
+			nodes[i].Enabled = false
+			nodes[i].TokenHash = ""
+		}
+		if err := cfg.doNothing("nodes", &nodes, len(nodes)); err != nil {
+			return err
 		}
 
 		// Import channels / keys / groups / items — skip existing

@@ -293,6 +293,7 @@ func Migrate(conn *gorm.DB) error {
 		&model.User{},
 		&model.ChannelGroup{},
 		&model.Channel{},
+		&model.Node{},
 		&model.ChannelKey{},
 		&model.Group{},
 		&model.GroupItem{},

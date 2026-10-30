@@ -648,6 +648,9 @@ func forwardMediaRequestJSON(
 	streamRequested bool,
 	operationCtx context.Context,
 ) (int, error) {
+	if channel != nil && channel.NodeID != 0 {
+		return http.StatusBadRequest, fmt.Errorf("media endpoints are not supported by node channels")
+	}
 	ctx := operationCtx
 
 	// Replace model name in the JSON body
@@ -764,6 +767,9 @@ func forwardMediaRequestMultipart(
 	streamRequested bool,
 	operationCtx context.Context,
 ) (int, error) {
+	if channel != nil && channel.NodeID != 0 {
+		return http.StatusBadRequest, fmt.Errorf("media endpoints are not supported by node channels")
+	}
 	ctx := operationCtx
 
 	// Build upstream URL

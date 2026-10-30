@@ -27,6 +27,7 @@ type DBDump struct {
 	IncludeLogs  bool      `json:"include_logs"`
 	IncludeStats bool      `json:"include_stats"`
 
+	Nodes         []Node         `json:"nodes,omitempty"`
 	Channels      []Channel      `json:"channels,omitempty"`
 	ChannelKeys   []ChannelKey   `json:"channel_keys,omitempty"`
 	ChannelGroups []ChannelGroup `json:"channel_groups,omitempty"`

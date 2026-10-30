@@ -121,6 +121,7 @@ type Channel struct {
 	KeyHealthAt int64 `json:"key_health_at,omitempty" gorm:"column:key_health_at;default:0"`
 	// PoolID 关联号池。0 = 使用 inline keys，>0 = 从号池调度器选账号。
 	PoolID        int                   `json:"pool_id" gorm:"default:0;index"`
+	NodeID        int                   `json:"node_id" gorm:"not null;default:0;index"`
 	Managed       bool                  `json:"managed" gorm:"-"`
 	ManagedSource *ManagedChannelSource `json:"managed_source,omitempty" gorm:"-"`
 }
@@ -206,6 +207,7 @@ type ChannelUpdateRequest struct {
 	RequestRewrite       *RequestRewriteConfig `json:"request_rewrite,omitempty"`
 	MatchRegex           *string               `json:"match_regex,omitempty"`
 	PoolID               *int                  `json:"pool_id,omitempty"`
+	NodeID               *int                  `json:"node_id,omitempty"`
 
 	KeysToAdd    []ChannelKeyAddRequest    `json:"keys_to_add,omitempty"`
 	KeysToUpdate []ChannelKeyUpdateRequest `json:"keys_to_update,omitempty"`

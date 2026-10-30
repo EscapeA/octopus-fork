@@ -15,6 +15,7 @@ import (
 	"github.com/lingyuins/octopus/internal/conf"
 	"github.com/lingyuins/octopus/internal/helper"
 	dbmodel "github.com/lingyuins/octopus/internal/model"
+	"github.com/lingyuins/octopus/internal/nodetransport"
 	ch "github.com/lingyuins/octopus/internal/op/channel"
 	"github.com/lingyuins/octopus/internal/op/pool"
 	st "github.com/lingyuins/octopus/internal/op/stats"
@@ -436,6 +437,11 @@ func (ra *relayAttempt) attempt() attemptResult {
 			Err:      fwdErr,
 			Decision: ra.attachEvidence(RetryDecision{Scope: ScopeAbortAll, Reason: "response filter blocked by keyword", Code: statusCode, SkipFailureAccounting: true}),
 		}
+	}
+
+	if nodetransport.IsExecutionUncertain(fwdErr) {
+		span.End(dbmodel.AttemptFailed, statusCode, "node execution outcome is uncertain")
+		return attemptResult{Success: false, Written: ra.c.Writer.Written(), Err: fwdErr, Decision: ra.attachEvidence(ClassifyRelayError(statusCode, fwdErr, ra.c.Writer.Written()))}
 	}
 
 	if errors.Is(fwdErr, errPluginProcessing) {
@@ -959,6 +965,16 @@ func (ra *relayAttempt) copyHeaders(outboundRequest *http.Request, effectiveRewr
 
 // sendRequest 发送 HTTP 请求
 func (ra *relayAttempt) sendRequest(req *http.Request) (*http.Response, error) {
+	if ra.channel != nil && ra.channel.NodeID != 0 {
+		if ra.poolProxyConfigID != nil {
+			return nil, errors.New("node channel cannot use a pool proxy")
+		}
+		client, err := helper.ChannelHttpClient(ra.channel)
+		if err != nil {
+			return nil, err
+		}
+		return client.Do(req)
+	}
 	// SSRF 防护（issue #219）：校验最终出站 URL 并把安全 IP 钉入 context，
 	// 杜绝 DNS rebinding。relay 主链路的渠道/号池 Base URL 在此前未经校验，
 	// editor 可借此打云元数据端点等内网地址。
