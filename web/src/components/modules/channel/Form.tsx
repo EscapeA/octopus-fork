@@ -19,6 +19,9 @@ import { ProxySelector } from '@/components/modules/proxy-pool/ProxySelector';
 import { useAlertNotifChannelList } from '@/api/endpoints/alert';
 import { useSettingList, SettingKey } from '@/api/endpoints/setting';
 import { usePoolList } from '@/api/endpoints/pool';
+import { useNodeList } from '@/api/endpoints/node';
+import { useNavStore } from '@/components/modules/navbar/nav-store';
+import { withNodeTransport } from './node-binding';
 import { channelTemplates } from './templates';
 import { CHANNEL_TYPE_OPTIONS } from './type-options';
 import { isOpenAICompatBaseUrlSuffixMode } from './base-url-suffix';
@@ -95,6 +98,7 @@ export interface ChannelFormData {
     key_selection_strategy: string;
     match_regex: string;
     pool_id: number;
+    node_id: number;
 }
 
 /**
@@ -712,6 +716,11 @@ export function ChannelForm({
     const { data: channelGroups = [] } = useChannelGroupList();
     const { data: notifChannels = [] } = useAlertNotifChannelList();
     const { data: pools = [] } = usePoolList();
+    const channelActive = useNavStore((state) => state.activeItem === 'channel');
+    const { data: nodeList } = useNodeList(channelActive);
+    const nodes = nodeList?.nodes ?? [];
+    const isNode = formData.node_id > 0;
+    const canBindNode = nodeList?.can_write === true;
     const requestRewriteSupported = isRequestRewriteSupportedChannelType(formData.type);
     const openAIChatCompatSupported = isOpenAIChatCompatRewriteSupportedChannelType(formData.type);
     const isCreateLayout = layout === 'create';
@@ -725,7 +734,7 @@ export function ChannelForm({
     const effectiveKeyStrategy = formData.key_selection_strategy || globalKeyStrategy;
     const showPriorityInput = effectiveKeyStrategy === 'priority';
     // 号池绑定渠道不在表单里编辑 key，此时不提供“回填到 key”操作（表单里没有可写的 key）
-    const canFillPerKeyModels = formData.pool_id === 0;
+    const canFillPerKeyModels = formData.pool_id === 0 && !isNode;
     const promptRules = formData.request_rewrite.prompt_rules ?? [];
     const updatePromptRule = (index: number, field: 'pattern' | 'replacement', value: string) => {
         const nextRules = promptRules.map((rule, ruleIndex) =>
@@ -928,7 +937,8 @@ export function ChannelForm({
         [formData.custom_header]
     );
 
-    const buildTestPayload = () => ({
+    const buildTestPayload = () => withNodeTransport({
+        node_id: formData.node_id,
         type: formData.type,
         base_urls: (formData.base_urls ?? []).filter((u) => u.url.trim()).map((u) => ({
             url: u.url.trim(),
@@ -995,12 +1005,13 @@ export function ChannelForm({
     };
 
     const handleRefreshModels = async () => {
-        if (!formData.base_urls?.[0]?.url || !effectiveKey) return;
+        if (!isNode && (!formData.base_urls?.[0]?.url || !effectiveKey)) return;
         setModelPickerDraft(autoModels);
         setFetchedModels([]);
         setPerKeyResults(null);
 
-        const payload = {
+        const payload = withNodeTransport({
+            node_id: formData.node_id,
             type: formData.type,
             base_urls: formData.base_urls,
             keys: formData.keys
@@ -1012,7 +1023,7 @@ export function ChannelForm({
             channel_proxy: formData.channel_proxy?.trim() || '',
             match_regex: formData.match_regex.trim() || '',
             custom_header: normalizedHeaders,
-        };
+        });
 
         const handleModels = (data: unknown) => {
             const models = normalizeFetchedModels(data);
@@ -1031,7 +1042,7 @@ export function ChannelForm({
         };
 
         const enabledKeys = formData.keys.filter((k) => k.enabled && k.channel_key.trim());
-        if (enabledKeys.length > 1) {
+        if (!isNode && enabledKeys.length > 1) {
             fetchModelsPerKey.mutate(
                 {
                     ...payload,
@@ -1251,6 +1262,30 @@ export function ChannelForm({
             </section>
 
             <section className={cn(sectionClassName, isCreateLayout && 'md:col-span-2')}>
+                <label htmlFor={`${idPrefix}-node`} className={labelClassName}>{t('nodeBinding')}</label>
+                <Select value={String(formData.node_id)} disabled={!canBindNode} onValueChange={(value) => onFormDataChange({
+                    ...formData,
+                    node_id: Number(value),
+                    pool_id: 0,
+                    proxy_mode: 'direct',
+                    proxy_config_id: null,
+                    channel_proxy: '',
+                })}>
+                    <SelectTrigger id={`${idPrefix}-node`} className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="0">{t('httpTransport')}</SelectItem>
+                        {nodes.map((node) => <SelectItem key={node.id} value={String(node.id)}>{node.name} · {t(node.online ? 'nodeOnline' : 'nodeOffline')}{!node.enabled ? ` · ${t('nodeDisabled')}` : ''}</SelectItem>)}
+                        {isNode && !nodes.some((node) => node.id === formData.node_id) && <SelectItem value={String(formData.node_id)}>{t('nodeUnavailable', { id: formData.node_id })}</SelectItem>}
+                    </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">{t(canBindNode ? 'nodeHint' : 'nodeAdminOnly')}</p>
+                {isNode && <>
+                    <Button type="button" variant="outline" disabled={testChannel.isPending} onClick={handleTestChannel}>{t('test.button')}</Button>
+                    {testSummary && <p role="status" className="text-sm">{t(testSummary.passed ? 'test.success' : 'test.partialSuccess')}</p>}
+                </>}
+            </section>
+
+            {!isNode && <section className={cn(sectionClassName, isCreateLayout && 'md:col-span-2')}>
                 <div className="flex min-w-0 items-center justify-between gap-2">
                     <SectionHeader icon={Cable} title={t('baseUrlConfig')} hint={t('baseUrlHint')} />
                     <div className="flex shrink-0 items-center gap-2">
@@ -1324,7 +1359,7 @@ export function ChannelForm({
                         </div>
                     ))}
                 </div>
-            </section>
+            </section>}
 
             <section className={cn(sectionClassName, isCreateLayout && 'md:col-span-2')}>
                 <div className="flex min-w-0 items-center justify-between gap-2">
@@ -1332,7 +1367,7 @@ export function ChannelForm({
                     <MorphingDialog onOpen={handleRefreshModels}>
                         <MorphingDialogTrigger
                             ariaLabel={t('modelRefresh')}
-                            disabled={!formData.base_urls?.[0]?.url || !effectiveKey || isFetchingModels}
+                            disabled={(!isNode && (!formData.base_urls?.[0]?.url || !effectiveKey)) || isFetchingModels}
                             className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-border px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         >
                             <RefreshCw className={`size-4 ${isFetchingModels ? 'animate-spin' : ''}`} />
@@ -1411,7 +1446,7 @@ export function ChannelForm({
                 </div>
             </section>
 
-            {formData.pool_id === 0 && (
+            {formData.pool_id === 0 && !isNode && (
             <section className={cn(sectionClassName, isCreateLayout && 'md:col-span-2')}>
                 <div className="flex min-w-0 items-center justify-between gap-2">
                     <SectionHeader icon={KeyRound} title={t('apiKeyConfig')} />
@@ -1576,7 +1611,7 @@ export function ChannelForm({
                     <AccordionContent className="pt-4">
                         <div className="space-y-4">
                         <div className="grid min-w-0 items-start gap-4 md:grid-cols-2">
-                            <ProxySelector
+                            {!isNode && <ProxySelector
                                 layout="stacked"
                                 value={{ proxy_mode: formData.proxy_mode, proxy_config_id: formData.proxy_config_id }}
                                 onChange={(next) => onFormDataChange({
@@ -1584,7 +1619,7 @@ export function ChannelForm({
                                     proxy_mode: next.proxy_mode as ChannelProxyMode,
                                     proxy_config_id: next.proxy_config_id ?? null,
                                 })}
-                            />
+                            />}
                             <div className={fieldGroupClassName}>
                                 <label htmlFor={`${idPrefix}-key-strategy`} className={labelClassName}>{t('keySelectionStrategy')}</label>
                                 <Select
@@ -1604,7 +1639,7 @@ export function ChannelForm({
                                 </Select>
                             </div>
                         </div>
-                        <div className={fieldGroupClassName}>
+                        {!isNode && <div className={fieldGroupClassName}>
                             <label htmlFor={`${idPrefix}-pool`} className={labelClassName}>
                                 {t('poolBinding')}
                                 {formData.pool_id > 0 ? <Hint text={t('poolHint')} /> : null}
@@ -1623,7 +1658,7 @@ export function ChannelForm({
                                     ))}
                                 </SelectContent>
                             </Select>
-                        </div>
+                        </div>}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className={fieldGroupClassName}>
                                 <label htmlFor={`${idPrefix}-auto-group`} className={labelClassName}>
@@ -1645,7 +1680,7 @@ export function ChannelForm({
                                 </Select>
                             </div>
 
-                            <div className={fieldGroupClassName}>
+                            {!isNode && <div className={fieldGroupClassName}>
                                 <label htmlFor={`${idPrefix}-channel-proxy`} className={labelClassName}>
                                     {t('channelProxy')}
                                 </label>
@@ -1657,7 +1692,7 @@ export function ChannelForm({
                                     placeholder={t('channelProxyPlaceholder')}
                                     className="rounded-lg"
                                 />
-                            </div>
+                            </div>}
                         </div>
 
                         <div className={fieldGroupClassName}>
@@ -1960,7 +1995,7 @@ export function ChannelForm({
                     {/* 号池渠道（pool_id !== 0）不渲染该开关：其 relay 走 poolscheduler，按
                         PoolAccount.Models 过滤，完全不消费 ChannelKey.SupportedModels，开关打开也无效。
                         门禁写法与下方 key 编辑区的 formData.pool_id === 0 / canFillPerKeyModels 保持一致。 */}
-                    {formData.pool_id === 0 && (
+                    {formData.pool_id === 0 && !isNode && (
                     <div className="flex items-center gap-1">
                         <label className={cn('flex items-center gap-2', formData.auto_sync ? 'cursor-pointer' : 'cursor-not-allowed')}>
                             <Switch
