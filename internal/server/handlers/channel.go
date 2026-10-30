@@ -363,6 +363,9 @@ func checkChannelKeys(c *gin.Context) {
 		resp.Error(c, http.StatusNotFound, err.Error())
 		return
 	}
+	if !prepareNodeChannelDiagnostic(c, channel) {
+		return
+	}
 	summary, err := helper.TestChannel(c.Request.Context(), *channel)
 	if err != nil {
 		resp.Error(c, http.StatusBadRequest, err.Error())

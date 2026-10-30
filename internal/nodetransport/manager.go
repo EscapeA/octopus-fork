@@ -239,6 +239,23 @@ func (s *serverSession) readLoop() error {
 			if len(f.data) == 0 {
 				continue
 			}
+			if st.models {
+				if len(f.data) > MaxModelsResponseBytes-len(st.modelsBody) {
+					st.modelsBody = nil
+					s.remove(f.id, ErrInvalidModels, true)
+					continue
+				}
+				// Models are finite metadata. Buffer by bytes without making the
+				// shared reader wait for this stream's consumer or frame count.
+				if size := len(st.modelsBody) + len(f.data); size > cap(st.modelsBody) {
+					capacity := min(MaxModelsResponseBytes, max(size, 2*cap(st.modelsBody)))
+					body := make([]byte, len(st.modelsBody), capacity)
+					copy(body, st.modelsBody)
+					st.modelsBody = body
+				}
+				st.modelsBody = append(st.modelsBody, f.data...)
+				continue
+			}
 			select {
 			case st.chunks <- f.data:
 			default:
@@ -248,17 +265,32 @@ func (s *serverSession) readLoop() error {
 			if !st.headers || len(f.data) != 0 {
 				return protocolError("invalid completion")
 			}
+			if st.models && len(st.modelsBody) > 0 {
+				st.chunks <- st.modelsBody
+				st.modelsBody = nil
+			}
 			// Completion ends execution, not ownership of queued body bytes.
 			// Retain registration and capacity until the consumer reaches EOF/Close.
 			st.finish(nil)
 			st.stopUpload()
 		case frameError:
-			// Peer messages are not reflected: they might contain local secrets.
-			if string(f.data) == "deadline" {
-				s.remove(f.id, context.DeadlineExceeded, false)
-			} else {
-				s.remove(f.id, errors.New("connector upstream request failed"), false)
+			// Reflect only fixed diagnostic codes, never arbitrary peer text.
+			var failure error
+			switch string(f.data) {
+			case "deadline":
+				failure = context.DeadlineExceeded
+			case "local_unavailable":
+				failure = ErrLocalUnavailable
+			case "local_authentication":
+				failure = ErrLocalAuthentication
+			case "local_http":
+				failure = ErrLocalHTTP
+			case "invalid_models":
+				failure = ErrInvalidModels
+			default:
+				failure = errors.New("connector upstream request failed")
 			}
+			s.remove(f.id, failure, false)
 		default:
 			return protocolError("unexpected frame")
 		}
@@ -271,8 +303,10 @@ type responseStream struct {
 	done       chan struct{}
 	once       sync.Once
 	sent       atomic.Bool
-	headers    bool  // readLoop owns this field
-	err        error // published by closing done
+	headers    bool   // readLoop owns this field
+	models     bool   // fixed GET /v1/models, buffered until completion
+	modelsBody []byte // readLoop owns this field
+	err        error  // published by closing done
 	stopUpload context.CancelFunc
 }
 
@@ -391,6 +425,7 @@ func (t *nodeTransport) roundTrip(req *http.Request) (*http.Response, error) {
 	}
 	s.dispatchMu.Lock()
 	st := newResponseStream()
+	st.models = req.Method == http.MethodGet && req.URL.Path == "/v1/models"
 	id := s.next.Add(1)
 	uploadCtx, stopUpload := context.WithCancel(req.Context())
 	st.stopUpload = stopUpload

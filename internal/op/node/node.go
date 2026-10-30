@@ -71,6 +71,15 @@ func WithBindingLock(fn func() error) error {
 	return fn()
 }
 
+func Get(ctx context.Context, id int) (*Record, error) {
+	var n model.Node
+	if err := secretDB(ctx).First(&n, id).Error; err != nil {
+		return nil, err
+	}
+	r := record(n)
+	return &r, nil
+}
+
 func List(ctx context.Context) ([]Record, error) {
 	var nodes []model.Node
 	if err := secretDB(ctx).Order("id").Find(&nodes).Error; err != nil {
