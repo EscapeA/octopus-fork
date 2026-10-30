@@ -38,6 +38,8 @@ test('node confirmations remain in the settings panel without nested portal or f
     assert.match(confirmation, /event.key === 'Escape'[\s\S]*?event.stopPropagation\(\);[\s\S]*?setConfirmation\(null\)/);
     assert.match(ui, /confirmationRef.current\?\.focus\(\)/);
     assert.equal((ui.match(/disabled=\{action.isPending \|\| confirmation !== null\}/g) ?? []).length, 3);
+    assert.match(ui, /onClick=\{\(\) => runTest\(node.id\)\}/);
+    assert.match(ui, /<NodeTestResult result=\{testResults\[node.id\]\}/);
 });
 
 test('one-time tokens live only in component state and never mutation/query data or persistence', () => {
@@ -48,7 +50,7 @@ test('one-time tokens live only in component state and never mutation/query data
     assert.doesNotMatch(api, /return result|setQueryData|logger\.|console\./);
     assert.match(api, /onToken\(result.node, result.token\)/);
     assert.doesNotMatch(ui + api, /localStorage|sessionStorage|persist\(/);
-    assert.match(ui, /if \(!active \|\| !authenticated \|\| !canWrite\) setSecret\(null\)/);
+    assert.match(ui, /if \(!active \|\| !authenticated \|\| !canWrite\) \{ setSecret\(null\); setTestResults\(\{\}\); \}/);
     assert.match(ui, /canWrite = data\?\.can_write === true/);
     assert.match(ui, /if \(!canWrite\) return/);
     assert.match(ui, /\{confirmation && <div[\s\S]*?role="alertdialog"/);

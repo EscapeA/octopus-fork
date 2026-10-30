@@ -22,6 +22,8 @@ import { usePoolList } from '@/api/endpoints/pool';
 import { useNodeList } from '@/api/endpoints/node';
 import { useNavStore } from '@/components/modules/navbar/nav-store';
 import { withNodeTransport } from './node-binding';
+import { ChannelTestResults } from './TestResults';
+import { channelTestOutcome } from './test-results';
 import { channelTemplates } from './templates';
 import { CHANNEL_TYPE_OPTIONS } from './type-options';
 import { isOpenAICompatBaseUrlSuffixMode } from './base-url-suffix';
@@ -809,6 +811,15 @@ export function ChannelForm({
     const isFetchingModels = fetchModel.isPending || fetchModelsPerKey.isPending;
     const testChannel = useTestChannel();
     const [testSummary, setTestSummary] = useState<TestChannelSummary | null>(null);
+    const [testError, setTestError] = useState<string | null>(null);
+    const testGeneration = useRef(0);
+    useEffect(() => {
+        const generation = testGeneration;
+        generation.current++;
+        setTestSummary(null);
+        setTestError(null);
+        return () => { generation.current++; };
+    }, [formData.node_id, formData.type]);
     const [modelPickerDraft, setModelPickerDraft] = useState<string[]>([]);
     const [perKeyResults, setPerKeyResults] = useState<KeyModelResult[] | null>(null);
 
@@ -965,13 +976,21 @@ export function ChannelForm({
 
     const handleTestChannel = () => {
         setTestSummary(null);
+        setTestError(null);
+        const generation = ++testGeneration.current;
         testChannel.mutate(buildTestPayload(), {
             onSuccess: (data) => {
+                if (testGeneration.current !== generation) return;
                 setTestSummary(data);
-                toast.success(data.passed ? t('test.success') : t('test.partialSuccess'));
+                const outcome = channelTestOutcome(data);
+                if (outcome === 'success') toast.success(t('test.success'));
+                else if (outcome === 'partialSuccess') toast.warning(t('test.partialSuccess'));
+                else toast.error(t('test.failed'));
             },
             onError: (error) => {
+                if (testGeneration.current !== generation) return;
                 const errorMessage = error instanceof Error ? error.message : String(error);
+                setTestError(errorMessage);
                 toast.error(t('test.failed'), { description: errorMessage });
             },
         });
@@ -1280,8 +1299,7 @@ export function ChannelForm({
                 </Select>
                 <p className="text-xs text-muted-foreground">{t(canBindNode ? 'nodeHint' : 'nodeAdminOnly')}</p>
                 {isNode && <>
-                    <Button type="button" variant="outline" disabled={testChannel.isPending} onClick={handleTestChannel}>{t('test.button')}</Button>
-                    {testSummary && <p role="status" className="text-sm">{t(testSummary.passed ? 'test.success' : 'test.partialSuccess')}</p>}
+                    <Button type="button" variant="outline" disabled={testChannel.isPending} onClick={handleTestChannel}>{t(testChannel.isPending ? 'test.running' : 'test.button')}</Button>
                 </>}
             </section>
 
@@ -1547,58 +1565,13 @@ export function ChannelForm({
                     ))}
                 </div>
 
-                {testSummary && (
-                    <div className="space-y-2 rounded-lg border border-border/25 bg-card p-3">
-                        <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 text-sm font-medium text-card-foreground">
-                                {testSummary.passed ? (
-                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                ) : (
-                                    <AlertTriangle className="h-4 w-4 text-orange-500" />
-                                )}
-                                <span>
-                                    {testSummary.passed ? t('test.success') : t('test.partialSuccess')}
-                                    <Hint text={t('test.hint')} />
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                {testSummary.results.some((r) => !r.passed) && (
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={handleRemoveFailedKeys}
-                                        className="h-6 px-2 text-xs text-destructive/70 hover:text-destructive hover:bg-transparent"
-                                    >
-                                        <Trash2 className="h-3 w-3 mr-1" />
-                                        {t('test.removeFailedKeys')}
-                                    </Button>
-                                )}
-                                <Badge variant="secondary">{testSummary.results.length} {t('test.results')}</Badge>
-                            </div>
-                        </div>
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                            {testSummary.results.map((result, idx) => (
-                                <div key={`${result.base_url}-${result.key_masked}-${idx}`} className="rounded-lg border border-border/30 bg-card p-2.5 text-xs space-y-1">
-                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <span className="font-mono truncate">{result.base_url}</span>
-                                        <div className="flex items-center gap-1 shrink-0">
-                                            <Badge variant="secondary">{result.key_masked || '-'}</Badge>
-                                            <Badge variant="secondary">{result.status_code}</Badge>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between gap-2 text-muted-foreground">
-                                        <span>{result.key_remark || t('test.noRemark')}</span>
-                                        <span>{result.latency_ms}ms · {result.passed ? t('test.pass') : t('test.fail')}</span>
-                                    </div>
-                                    {result.message && <p className="break-all text-muted-foreground">{result.message}</p>}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
             </section>
             )}
+
+            {(testSummary || testError) && <section className={cn(sectionClassName, isCreateLayout && 'md:col-span-2')}>
+                {testSummary && <ChannelTestResults summary={testSummary} isNode={isNode} onRemoveFailedKeys={handleRemoveFailedKeys} />}
+                {testError && <p role="alert" className="break-words text-sm text-destructive">{t('test.failed')}: {testError}</p>}
+            </section>}
 
             <Accordion type="single" collapsible className={cn('w-full min-w-0', isCreateLayout && 'md:col-span-2')}>
                 <AccordionItem value="advanced" className="border-none">
