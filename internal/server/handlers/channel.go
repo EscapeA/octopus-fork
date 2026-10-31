@@ -441,7 +441,6 @@ type channelRequestPayload struct {
 	KeySelectionStrategy string                      `json:"key_selection_strategy"`
 	CustomHeader         []model.CustomHeader        `json:"custom_header"`
 	ParamOverride        *string                     `json:"param_override"`
-	ParamOverrideForce   bool                        `json:"param_override_force"`
 	ChannelProxy         *string                     `json:"channel_proxy"`
 	RequestRewrite       *model.RequestRewriteConfig `json:"request_rewrite"`
 	MatchRegex           *string                     `json:"match_regex"`
@@ -520,7 +519,6 @@ func (p channelRequestPayload) toChannel() model.Channel {
 		AutoGroup:            p.AutoGroup,
 		CustomHeader:         p.CustomHeader,
 		ParamOverride:        p.ParamOverride,
-		ParamOverrideForce:   p.ParamOverrideForce,
 		ChannelProxy:         channelProxy,
 		RequestRewrite:       p.RequestRewrite,
 		MatchRegex:           p.MatchRegex,

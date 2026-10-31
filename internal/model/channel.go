@@ -97,22 +97,19 @@ type Channel struct {
 	// 并把结果回填到每个 key 的 SupportedModels（按 key 隔离模型权限）。
 	// 抓取失败的 key 保留旧值，绝不清空。默认关闭：关闭时同步任务只抓成本最低
 	// 的一个 key，把结果写进渠道级 Model（保持原有行为不变）。
-	AutoSyncKeyModels    bool           `json:"auto_sync_key_models" gorm:"column:auto_sync_key_models;default:false"`
-	AutoGroup            AutoGroupType  `json:"auto_group" gorm:"default:0"`
-	SkipModelTest        bool           `json:"skip_model_test" gorm:"default:false"`
-	Disposable           bool           `json:"disposable" gorm:"default:false"`
-	ExpireAt             *time.Time     `json:"expire_at,omitempty" gorm:"index"`
-	NotifChannelID       *int           `json:"notif_channel_id,omitempty" gorm:"index"`
-	KeySelectionStrategy string         `json:"key_selection_strategy" gorm:"type:varchar(16);not null;default:''"`
-	CustomHeader         []CustomHeader `json:"custom_header" gorm:"serializer:json"`
-	ParamOverride        *string        `json:"param_override"`
-	// ParamOverrideForce 参数覆盖强制开关：开启后白名单字段（见 relay.paramOverrideForceWhitelist）
-	// 无视客户端取值强制覆盖；关闭时所有字段保持客户端优先（客户端没传才填）。
-	ParamOverrideForce bool                  `json:"param_override_force" gorm:"not null;default:false"`
-	ChannelProxy       *string               `json:"channel_proxy,omitempty" gorm:"column:channel_proxy"`
-	RequestRewrite     *RequestRewriteConfig `json:"request_rewrite" gorm:"serializer:json"`
-	Stats              *StatsChannel         `json:"stats,omitempty" gorm:"foreignKey:ChannelID"`
-	MatchRegex         *string               `json:"match_regex"`
+	AutoSyncKeyModels    bool                  `json:"auto_sync_key_models" gorm:"column:auto_sync_key_models;default:false"`
+	AutoGroup            AutoGroupType         `json:"auto_group" gorm:"default:0"`
+	SkipModelTest        bool                  `json:"skip_model_test" gorm:"default:false"`
+	Disposable           bool                  `json:"disposable" gorm:"default:false"`
+	ExpireAt             *time.Time            `json:"expire_at,omitempty" gorm:"index"`
+	NotifChannelID       *int                  `json:"notif_channel_id,omitempty" gorm:"index"`
+	KeySelectionStrategy string                `json:"key_selection_strategy" gorm:"type:varchar(16);not null;default:''"`
+	CustomHeader         []CustomHeader        `json:"custom_header" gorm:"serializer:json"`
+	ParamOverride        *string               `json:"param_override"`
+	ChannelProxy         *string               `json:"channel_proxy,omitempty" gorm:"column:channel_proxy"`
+	RequestRewrite       *RequestRewriteConfig `json:"request_rewrite" gorm:"serializer:json"`
+	Stats                *StatsChannel         `json:"stats,omitempty" gorm:"foreignKey:ChannelID"`
+	MatchRegex           *string               `json:"match_regex"`
 	// KeyHealthPassed 记录最近一次定时 Key 巡检是否全部通过（issue #142）。
 	// nil = 从未巡检；true = 全部通过；false = 存在失败。前端据此对失败渠道标灰。
 	KeyHealthPassed *bool `json:"key_health_passed,omitempty" gorm:"column:key_health_passed"`
@@ -207,7 +204,6 @@ type ChannelUpdateRequest struct {
 	CustomHeader         *[]CustomHeader       `json:"custom_header,omitempty"`
 	ChannelProxy         *string               `json:"channel_proxy,omitempty"`
 	ParamOverride        *string               `json:"param_override,omitempty"`
-	ParamOverrideForce   *bool                 `json:"param_override_force,omitempty"`
 	RequestRewrite       *RequestRewriteConfig `json:"request_rewrite,omitempty"`
 	MatchRegex           *string               `json:"match_regex,omitempty"`
 	PoolID               *int                  `json:"pool_id,omitempty"`

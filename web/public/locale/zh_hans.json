@@ -3592,9 +3592,7 @@
       "keySelectionStrategyAvailability": "可用度",
       "keySelectionStrategySpeed": "速度",
       "keySelectionStrategyPriority": "优先级",
-      "keyHealthFailed": "巡检失败",
-      "paramOverrideForce": "强制覆盖",
-      "paramOverrideForceHint": "开启后白名单字段（当前仅 reasoning_effort）无视客户端取值强制覆盖；关闭时客户端优先。"
+      "keyHealthFailed": "巡检失败"
     }
   },
   "errors": {

@@ -137,7 +137,6 @@ export type Channel = {
     key_selection_strategy: string;
     custom_header: CustomHeader[];
     param_override?: string | null;
-    param_override_force?: boolean;
     channel_proxy?: string | null;
     request_rewrite?: RequestRewriteConfig | null;
     match_regex?: string | null;
@@ -182,7 +181,6 @@ export type CreateChannelRequest = {
     custom_header?: CustomHeader[];
     channel_proxy?: string | null;
     param_override?: string | null;
-    param_override_force?: boolean;
     request_rewrite?: RequestRewriteConfig;
     match_regex?: string | null;
     pool_id?: number;
@@ -215,7 +213,6 @@ export type UpdateChannelRequest = {
     custom_header?: CustomHeader[];
     channel_proxy?: string | null;
     param_override?: string | null;
-    param_override_force?: boolean;
     request_rewrite?: RequestRewriteConfig;
     match_regex?: string | null;
     pool_id?: number;

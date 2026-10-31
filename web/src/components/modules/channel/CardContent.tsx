@@ -138,7 +138,6 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
         custom_header: channel.custom_header ?? [],
         channel_proxy: channel.channel_proxy ?? '',
         param_override: channel.param_override ?? '',
-        param_override_force: channel.param_override_force ?? false,
         request_rewrite: normalizeRequestRewriteFormData(channel.request_rewrite),
         model: channel.model,
         custom_model: channel.custom_model,
@@ -238,11 +237,6 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
             // Empty string means "clear" for patch semantics; backend maps it to NULL.
             req.param_override = nextParamOverride;
         }
-
-        if (formData.param_override_force !== (channel.param_override_force ?? false)) {
-            req.param_override_force = formData.param_override_force;
-        }
-
         if (!requestRewriteEqual(effectiveRequestRewrite, channel.request_rewrite)) {
             req.request_rewrite = effectiveRequestRewrite;
         }

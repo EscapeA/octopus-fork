@@ -3592,9 +3592,7 @@
       "keySelectionStrategyAvailability": "可用度",
       "keySelectionStrategySpeed": "速度",
       "keySelectionStrategyPriority": "優先級",
-      "keyHealthFailed": "巡檢失敗",
-      "paramOverrideForce": "強制覆蓋",
-      "paramOverrideForceHint": "開啟後白名單欄位（目前僅 reasoning_effort）無視客戶端取值強制覆蓋；關閉時客戶端優先。"
+      "keyHealthFailed": "巡檢失敗"
     }
   },
   "errors": {
