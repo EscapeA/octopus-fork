@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.7.2] - 2026-10-31
+
+### Added
+
+- Expose Magpie nodes as a built-in plugin with a global feature toggle and a separately copyable cloud connection URL.
+
+### Fixed
+
+- Atomically disable bound node channels and disconnect existing tunnels when the feature is disabled; restore only previously enabled channels when re-enabled, preserving resume state across restarts and backups.
+- Enforce administrator-only access through both feature-toggle endpoints, reject pending handshakes and new requests while disabled, and prevent channel activation and diagnostics from bypassing the toggle.
+- Refresh frontend channel, node, setting, and model state after feature changes and synchronize node-channel editing state.
+
+### Changed
+
+- Update Magpie node labels and feature-state guidance in all supported locales.
+- Align application, frontend package, and Docker Compose versions to v2.7.2.
+
 ## [v2.7.1] - 2026-10-31
 
 ### Added
