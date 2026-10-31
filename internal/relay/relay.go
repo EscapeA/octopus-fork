@@ -1832,7 +1832,7 @@ func executeRelay(req *relayRequest, group dbmodel.Group, requestModel string, m
 						poolscheduler.ReleaseSlot(channel.PoolID, poolAccount.ID)
 					}
 					req.metrics.Save(true, nil, currentAttempts)
-					return newInflightRelayResult(cloneInternalResponse(req.metrics.InternalResponse), req.internalRequest.Model, currentAttempts), nil
+					return newInflightRelayResult(cloneInternalResponse(req.metrics.InternalResponse), req.internalRequest.Model, currentAttempts, "", ""), nil
 				}
 
 				// 号池模式：上报失败 + 释放槽位 + 设置冷却。

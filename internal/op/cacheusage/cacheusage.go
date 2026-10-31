@@ -9,9 +9,15 @@ type ProviderPromptCacheUsageSignals struct {
 	PromptTokens             int64
 	CachedTokens             int64
 	CacheCreationInputTokens int64
+	SemanticCacheHit         bool
 }
 
 type providerPromptCacheUsagePayload struct {
+	Octopus *struct {
+		SemanticCache *struct {
+			Hit bool `json:"hit"`
+		} `json:"semantic_cache"`
+	} `json:"octopus"`
 	Usage *struct {
 		InputTokens        int64 `json:"input_tokens"`
 		PromptTokens       int64 `json:"prompt_tokens"`
@@ -65,8 +71,11 @@ func ParseProviderPromptCacheUsageSignals(responseContent string) (ProviderPromp
 	if payload.Usage.CacheCreationInputTokens != nil {
 		usage.CacheCreationInputTokens = *payload.Usage.CacheCreationInputTokens
 	}
+	if payload.Octopus != nil && payload.Octopus.SemanticCache != nil {
+		usage.SemanticCacheHit = payload.Octopus.SemanticCache.Hit
+	}
 
-	if usage.PromptTokens <= 0 && usage.CachedTokens <= 0 && usage.CacheCreationInputTokens <= 0 {
+	if usage.PromptTokens <= 0 && usage.CachedTokens <= 0 && usage.CacheCreationInputTokens <= 0 && !usage.SemanticCacheHit {
 		return ProviderPromptCacheUsageSignals{}, false
 	}
 	return usage, true

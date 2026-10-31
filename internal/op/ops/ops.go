@@ -21,12 +21,17 @@ import (
 	"github.com/lingyuins/octopus/internal/op/relaylog"
 	"github.com/lingyuins/octopus/internal/op/setting"
 	"github.com/lingyuins/octopus/internal/op/stats"
+	"github.com/lingyuins/octopus/internal/utils/semantic_cache"
 	"github.com/lingyuins/octopus/internal/utils/telemetry"
 )
 
 const (
-	opsHealthErrorWindow = 24 * time.Hour
-	opsFailingGroupLimit = 6
+	opsHealthErrorWindow           = 24 * time.Hour
+	opsFailingGroupLimit           = 6
+	semanticCacheDefaultTTLSeconds = 3600
+	semanticCacheDefaultThreshold  = 98
+	semanticCacheDefaultMaxEntries = 1000
+	semanticCacheDefaultTimeoutSec = 10
 )
 
 var processStartTime = time.Now()
@@ -56,9 +61,40 @@ type opsProviderPromptCacheAggregate struct {
 }
 
 func OpsCacheStatusGet(ctx context.Context) (*model.OpsCacheStatus, error) {
-	status := model.OpsCacheStatus{}
+	enabled, err := setting.GetBool(model.SettingKeySemanticCacheEnabled)
+	if err != nil {
+		return nil, err
+	}
+	ttlSeconds, err := setting.GetInt(model.SettingKeySemanticCacheTTL)
+	if err != nil {
+		return nil, err
+	}
+	threshold, err := setting.GetInt(model.SettingKeySemanticCacheThreshold)
+	if err != nil {
+		return nil, err
+	}
+	maxEntries, err := setting.GetInt(model.SettingKeySemanticCacheMaxEntries)
+	if err != nil {
+		return nil, err
+	}
+
+	hits, misses, size := semantic_cache.Stats()
+	status := buildOpsCacheStatus(enabled, semantic_cache.RuntimeEnabled(), ttlSeconds, threshold, maxEntries, hits, misses, size)
 	status.ProviderPromptCache = buildOpsProviderPromptCacheSummary(ctx)
 	return &status, nil
+}
+
+func RefreshSemanticCacheRuntime() error {
+	cfg, ok, err := buildSemanticCacheRuntimeConfigFromSettings()
+	if err != nil {
+		return err
+	}
+	if !ok {
+		semantic_cache.Reset()
+		return nil
+	}
+	semantic_cache.ApplyRuntimeConfig(cfg)
+	return nil
 }
 
 func OpsQuotaSummaryGet(ctx context.Context) (*model.OpsQuotaSummary, error) {
@@ -72,6 +108,11 @@ func OpsQuotaSummaryGet(ctx context.Context) (*model.OpsQuotaSummary, error) {
 }
 
 func OpsHealthStatusGet(ctx context.Context) (*model.OpsHealthStatus, error) {
+	cacheStatus, err := OpsCacheStatusGet(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	recentErrorCount, err := loadOpsRecentErrorCount(ctx, time.Now().Add(-opsHealthErrorWindow))
 	if err != nil {
 		return nil, err
@@ -84,6 +125,7 @@ func OpsHealthStatusGet(ctx context.Context) (*model.OpsHealthStatus, error) {
 
 	status := buildOpsHealthStatus(
 		pingDatabase(ctx),
+		!cacheStatus.Enabled || cacheStatus.RuntimeEnabled,
 		opsTaskRuntimeOK(),
 		recentErrorCount,
 		groupHealth,
@@ -161,6 +203,41 @@ func OpsSystemSummaryGet(ctx context.Context) (*model.OpsSystemSummary, error) {
 	return summary, nil
 }
 
+func buildOpsCacheStatus(
+	enabled bool,
+	runtimeEnabled bool,
+	ttlSeconds int,
+	threshold int,
+	maxEntries int,
+	hits int64,
+	misses int64,
+	size int,
+) model.OpsCacheStatus {
+	totalLookups := hits + misses
+	hitRate := 0.0
+	if totalLookups > 0 {
+		hitRate = (float64(hits) / float64(totalLookups)) * 100
+	}
+
+	usageRate := 0.0
+	if maxEntries > 0 {
+		usageRate = (float64(size) / float64(maxEntries)) * 100
+	}
+
+	return model.OpsCacheStatus{
+		Enabled:        enabled,
+		RuntimeEnabled: runtimeEnabled,
+		TTLSeconds:     ttlSeconds,
+		Threshold:      threshold,
+		MaxEntries:     maxEntries,
+		CurrentEntries: size,
+		Hits:           hits,
+		Misses:         misses,
+		HitRate:        hitRate,
+		UsageRate:      usageRate,
+	}
+}
+
 // providerPromptCacheResult caches the expensive provider prompt cache summary
 // which loads relay logs including response_content. It is called from multiple
 // ops endpoints (cache, health, telemetry), so a short TTL avoids redundant DB queries.
@@ -229,6 +306,10 @@ func buildOpsProviderPromptCacheSummaryFromLogs(
 			continue
 		}
 		summary.ParsedLogCount++
+		if relayLog.SemanticCacheHit {
+			// 语义缓存命中不是上游 prompt cache，跳过以免污染指标。
+			continue
+		}
 		// Count as cached if provider returned cached_tokens (>0) or has cache_write tokens (Anthropic prompt cache)
 		isCached := usage.CachedTokens > 0 || usage.CacheCreationInputTokens > 0
 
@@ -324,13 +405,14 @@ func loadOpsProviderPromptCacheLogs(ctx context.Context, since time.Time) []mode
 		}
 		// 缓存条目可能仍带 ResponseContent；优先用落库列，避免后续路径依赖大字段。
 		logs = append(logs, model.RelayLog{
-			ID:              relayLog.ID,
-			Time:            relayLog.Time,
-			ChannelId:       relayLog.ChannelId,
-			ChannelName:     relayLog.ChannelName,
-			ActualModelName: relayLog.ActualModelName,
-			InputTokens:     relayLog.InputTokens,
-			CacheReadTokens: relayLog.CacheReadTokens,
+			ID:               relayLog.ID,
+			Time:             relayLog.Time,
+			ChannelId:        relayLog.ChannelId,
+			ChannelName:      relayLog.ChannelName,
+			ActualModelName:  relayLog.ActualModelName,
+			InputTokens:      relayLog.InputTokens,
+			CacheReadTokens:  relayLog.CacheReadTokens,
+			SemanticCacheHit: relayLog.SemanticCacheHit,
 			// ResponseContent 仅作兼容回退（旧缓存条目未填 CacheReadTokens 时）。
 			ResponseContent: relayLog.ResponseContent,
 		})
@@ -343,20 +425,21 @@ func loadOpsProviderPromptCacheLogs(ctx context.Context, since time.Time) []mode
 		return logs
 	}
 
-	// 只选轻量列 + 已落库的 cache_read_tokens，禁止 response_content。
+	// 只选轻量列 + 已落库的 cache_read_tokens / semantic_cache_hit，禁止 response_content。
 	type promptCacheLogRow struct {
-		ID              int64  `gorm:"column:id"`
-		Time            int64  `gorm:"column:time"`
-		ChannelID       int    `gorm:"column:channel_id"`
-		ChannelName     string `gorm:"column:channel_name"`
-		ActualModelName string `gorm:"column:actual_model_name"`
-		InputTokens     int    `gorm:"column:input_tokens"`
-		CacheReadTokens int    `gorm:"column:cache_read_tokens"`
+		ID               int64  `gorm:"column:id"`
+		Time             int64  `gorm:"column:time"`
+		ChannelID        int    `gorm:"column:channel_id"`
+		ChannelName      string `gorm:"column:channel_name"`
+		ActualModelName  string `gorm:"column:actual_model_name"`
+		InputTokens      int    `gorm:"column:input_tokens"`
+		CacheReadTokens  int    `gorm:"column:cache_read_tokens"`
+		SemanticCacheHit bool   `gorm:"column:semantic_cache_hit"`
 	}
 	var dbRows []promptCacheLogRow
 	if err := db.GetLogDB().WithContext(ctx).
 		Table("relay_logs").
-		Select("id", "time", "channel_id", "channel_name", "actual_model_name", "input_tokens", "cache_read_tokens").
+		Select("id", "time", "channel_id", "channel_name", "actual_model_name", "input_tokens", "cache_read_tokens", "semantic_cache_hit").
 		Where("time >= ?", since.Unix()).
 		Order("time ASC").
 		Find(&dbRows).Error; err != nil {
@@ -368,13 +451,14 @@ func loadOpsProviderPromptCacheLogs(ctx context.Context, since time.Time) []mode
 			continue
 		}
 		logs = append(logs, model.RelayLog{
-			ID:              row.ID,
-			Time:            row.Time,
-			ChannelId:       row.ChannelID,
-			ChannelName:     row.ChannelName,
-			ActualModelName: row.ActualModelName,
-			InputTokens:     row.InputTokens,
-			CacheReadTokens: row.CacheReadTokens,
+			ID:               row.ID,
+			Time:             row.Time,
+			ChannelId:        row.ChannelID,
+			ChannelName:      row.ChannelName,
+			ActualModelName:  row.ActualModelName,
+			InputTokens:      row.InputTokens,
+			CacheReadTokens:  row.CacheReadTokens,
+			SemanticCacheHit: row.SemanticCacheHit,
 		})
 	}
 	return logs
@@ -451,6 +535,66 @@ func percent(part int64, total int64) float64 {
 		return 0
 	}
 	return float64(part) / float64(total) * 100
+}
+
+func buildSemanticCacheRuntimeConfigFromSettings() (semantic_cache.RuntimeConfig, bool, error) {
+	enabled, err := setting.GetBool(model.SettingKeySemanticCacheEnabled)
+	if err != nil {
+		return semantic_cache.RuntimeConfig{}, false, err
+	}
+	if !enabled {
+		return semantic_cache.RuntimeConfig{}, false, nil
+	}
+
+	ttlSeconds, err := setting.GetInt(model.SettingKeySemanticCacheTTL)
+	if err != nil || ttlSeconds <= 0 {
+		ttlSeconds = semanticCacheDefaultTTLSeconds
+	}
+
+	thresholdRaw, err := setting.GetInt(model.SettingKeySemanticCacheThreshold)
+	if err != nil || thresholdRaw < 0 || thresholdRaw > 100 {
+		thresholdRaw = semanticCacheDefaultThreshold
+	}
+
+	maxEntries, err := setting.GetInt(model.SettingKeySemanticCacheMaxEntries)
+	if err != nil || maxEntries <= 0 {
+		maxEntries = semanticCacheDefaultMaxEntries
+	}
+
+	baseURL, err := setting.GetString(model.SettingKeySemanticCacheEmbeddingBaseURL)
+	if err != nil {
+		return semantic_cache.RuntimeConfig{}, false, err
+	}
+	modelName, err := setting.GetString(model.SettingKeySemanticCacheEmbeddingModel)
+	if err != nil {
+		return semantic_cache.RuntimeConfig{}, false, err
+	}
+	baseURL = strings.TrimSpace(baseURL)
+	modelName = strings.TrimSpace(modelName)
+	if baseURL == "" || modelName == "" {
+		return semantic_cache.RuntimeConfig{}, false, nil
+	}
+
+	apiKey, err := setting.GetString(model.SettingKeySemanticCacheEmbeddingAPIKey)
+	if err != nil {
+		return semantic_cache.RuntimeConfig{}, false, err
+	}
+
+	timeoutSeconds, err := setting.GetInt(model.SettingKeySemanticCacheEmbeddingTimeoutSeconds)
+	if err != nil || timeoutSeconds <= 0 {
+		timeoutSeconds = semanticCacheDefaultTimeoutSec
+	}
+
+	return semantic_cache.RuntimeConfig{
+		Enabled:          true,
+		MaxEntries:       maxEntries,
+		Threshold:        float64(thresholdRaw) / 100.0,
+		TTL:              time.Duration(ttlSeconds) * time.Second,
+		EmbeddingBaseURL: baseURL,
+		EmbeddingAPIKey:  strings.TrimSpace(apiKey),
+		EmbeddingModel:   modelName,
+		EmbeddingTimeout: time.Duration(timeoutSeconds) * time.Second,
+	}, true, nil
 }
 
 func buildOpsQuotaSummary(apiKeys []model.APIKey, stats []model.StatsAPIKey, now time.Time) model.OpsQuotaSummary {
@@ -574,6 +718,7 @@ func buildOpsQuotaSummary(apiKeys []model.APIKey, stats []model.StatsAPIKey, now
 
 func buildOpsHealthStatus(
 	databaseOK bool,
+	cacheOK bool,
 	taskRuntimeOK bool,
 	recentErrorCount int64,
 	groupHealth []model.AnalyticsGroupHealthItem,
@@ -581,6 +726,7 @@ func buildOpsHealthStatus(
 ) model.OpsHealthStatus {
 	status := model.OpsHealthStatus{
 		DatabaseOK:       databaseOK,
+		CacheOK:          cacheOK,
 		TaskRuntimeOK:    taskRuntimeOK,
 		RecentErrorCount: recentErrorCount,
 		CheckedAt:        now.Unix(),
@@ -1094,6 +1240,19 @@ func TelemetrySummaryGet(ctx context.Context) (*model.OpsTelemetrySummary, error
 		QuotaAlerts:         int(snap.QuotaAlerts),
 		SessionsByAPIKey:    sessionsByAPIKey,
 		QuotaMonitors:       countQuotaMonitors(apiKeys),
+	}
+
+	// ── PromptCache ──
+	cacheStatus, err := OpsCacheStatusGet(ctx)
+	if err == nil {
+		summary.PromptCache = model.OpsTelemetryPromptCache{
+			Entries:    cacheStatus.CurrentEntries,
+			HitRate:    cacheStatus.HitRate,
+			Hits:       cacheStatus.Hits,
+			Misses:     cacheStatus.Misses,
+			MaxEntries: cacheStatus.MaxEntries,
+			UsageRate:  cacheStatus.UsageRate,
+		}
 	}
 
 	// ── ProviderHealth ──

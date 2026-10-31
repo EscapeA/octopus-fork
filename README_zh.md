@@ -18,7 +18,7 @@
 - ⚡ **智能优选** - 单渠道多端点，智能选择延迟最小的端点请求
 - ⚖️ **负载均衡** - 支持轮询、随机、故障转移、加权分配、智能选择五种策略
 - 🤖 **Auto 智能策略** - 先探索样本不足的候选，再优先选择窗口内成功率更高的渠道
-- 🧠 **自动分组与条件分组** - 按规则自动归类分组，并用 JSON 条件控制分组命中
+- 🧠 **AI 路由、自动分组与条件分组** - 支持在路由页生成整张路由表，在分组编辑弹窗中补全单个分组，并用 JSON 条件控制分组命中
 - 🔄 **协议互转** - 支持 OpenAI Chat / OpenAI Responses / OpenAI Embeddings / Anthropic 四种 API 格式互相转换
 - 🌐 **多供应商支持** - 内置支持 OpenAI 兼容、Anthropic、Cloudflare、Gemini、Volcengine、MiMo、Codex 以及 Passthrough 透传渠道
 - 🛰️ **媒体与工具类中继** - 支持通过同一套分组 / 重试 / 熔断基础设施转发 OpenAI Images、音频、视频、搜索、重排和审核类端点
@@ -28,10 +28,11 @@
 - 🚨 **告警与通知中心** - 统一通知中心聚合系统事件、告警触发和套餐通知，支持 SSE 实时推送；告警规则支持错误率（含作用域 + 滑动窗口）、费用阈值、额度超限、渠道下线，通过 Webhook、Gotify、Email、Telegram、飞书、钉钉、企业微信、ntfy 八种渠道送达
 - 📦 **套餐监控** - 跟踪上游订阅套餐额度/用量（Codex、MiMo、StepFun、SenseNova，以及 DeepSeek / Kimi / OpenRouter 等余额类厂商），并自动在「Plan」渠道分组下创建专属转发渠道
 - 📅 **用量报表** - 支持按日 / 周 / 月调度用量报表，通过通知渠道送达
-- 💎 **模型广场** - 统一模型目录，展示价格、渠道覆盖、可用 Key 数、延迟和成功率等指标，支持归一化去重多维筛选、可用端点与价格分类视图，同时保留创建 / 编辑 / 删除 / 刷新价格能力
+- 💎 **模型广场** - 统一模型目录，展示价格、渠道覆盖、可用 Key 数、延迟和成功率等指标，同时保留创建 / 编辑 / 删除 / 刷新价格能力
 - 🔃 **模型同步** - 自动与渠道同步可用模型列表，省心省力
-- 📊 **Analytics 与 Evaluation** - 提供缓存概览、供应商 / 模型 / API Key 利用率、路由健康、延迟分布、供应商 Prompt Cache 分析，以及分组测试入口
+- 📊 **Analytics 与 Evaluation** - 提供缓存概览、供应商 / 模型 / API Key 利用率、路由健康、延迟分布、语义缓存评估、供应商 Prompt Cache 分析，以及分组测试 / AI 路由入口
 - 🛠️ **Ops 与审计** - 提供遥测、配额、健康、系统、审计面板，以及管理面写操作审计链路
+- 🧠 **语义缓存** - 为非流式和流式 OpenAI Chat / OpenAI Responses 文本请求提供基于 embedding 的语义缓存（流式命中可 SSE 重放），并暴露运行态和成效指标
 - 🧭 **导航与页面配置** - 支持在设置页拖拽调整一级导航顺序和页面可见性，并持久化到服务端设置中
 - 💾 **运行时状态持久化** - Auto 策略窗口和熔断器状态会持久化到数据库
 - 🔗 **站点管理** - 管理上游中继平台（New-API、One-API、One-Hub、Sub2API 等），支持多账号、投射渠道、自动同步和自动签到
@@ -47,8 +48,6 @@
 ## 🚀 快速开始
 
 ### 🐳 Docker 运行
-
-以下示例使用 `latest`。如需固定版本，请在对应镜像发布后使用 `docker-compose.yml` 中记录的镜像标签。推送标签会启动发布流水线，请等待流水线完成后再拉取固定版本镜像。
 
 直接运行
 
@@ -127,21 +126,16 @@ docker compose up -d
 # 克隆项目
 git clone https://github.com/lingyuins/octopus.git
 cd octopus
-# 任何 Go 构建前必须执行：static/static.go 的 go:embed 要求该目录存在
-#（目录被 gitignore，新克隆的仓库没有它）
-mkdir -p static/out && touch static/out/.keep
 # 可选：通过环境变量预置初始管理员账户
 export OCTOPUS_INITIAL_ADMIN_USERNAME="admin"
 export OCTOPUS_INITIAL_ADMIN_PASSWORD="change-this-password-long"
-# 必需：下面两个密钥至少设置一个。security.encryption_key 与持久化 auth.jwt_secret
-# 都为空时启动会被直接拒绝（用临时密钥派生 AES key 会导致重启后已加密数据无法解密）
+# 可选但强烈建议：设置持久化 JWT 密钥
 export OCTOPUS_AUTH_JWT_SECRET="replace-with-a-long-random-secret"
-export OCTOPUS_SECURITY_ENCRYPTION_KEY="replace-with-another-long-random-secret"
-# 启动后端服务（嵌入前端产物前为 API-only 模式）
+# 直接启动后端服务（即使还没构建前端，也可以先以 API-only 模式启动）
 go run main.go start
 ```
 
-> `static/out/` 这一步对源码构建是必需的：缺少该目录时，所有 `go build` / `go test` / `go run` 都会因 embed 指令失败。目录存在后（哪怕只有 `.keep`），后端即可编译并对外提供 API；把构建好的前端产物放到 `static/out/` 下（见下文）后，管理界面才可访问。
+如果 `static/out/` 中已经有前端构建产物，Go 二进制会直接提供管理界面；如果还没有构建产物，Octopus 仍然可以正常启动并提供 API，但必须先构建前端并在执行 `go build` / `go run` 前将导出的资源放到 `static/out/` 下，管理界面才能访问。
 
 发布构建（`bash scripts/build.sh release`）使用 `--frozen-lockfile` 安装前端依赖；任一平台构建或产物准备失败都会终止。执行 `bash scripts/build_test.sh` 可在不编译二进制的情况下验证发布失败处理。
 
@@ -149,15 +143,11 @@ go run main.go start
 
 ```bash
 cd web && pnpm install && NEXT_PUBLIC_APP_VERSION="$(git describe --tags --always 2>/dev/null || printf 'dev')" pnpm build && cd ..
-## 用新导出的产物替换之前生成的嵌入目录（static/out 是被 gitignore 的构建产物；
-## web/out 原样保留，无需为再次构建或本地调试重新导出）
-rm -rf static/out
+# 将前端构建产物移动到 Go 二进制预期的嵌入目录
 mkdir -p static/out
-cp -r web/out/. static/out/
-# go:embed 对空目录会报错；如果 Next.js 导出了空的 _not-found，补一个占位文件
-if [ -d web/out/_not-found ] && [ -z "$(ls -A web/out/_not-found)" ]; then
-  touch static/out/_not-found/.keep
-fi
+mv web/out/* static/out/
+# 如果 Next.js 导出了空的 _not-found 目录，请在构建 Go 前补一个占位文件
+printf 'placeholder for go:embed\n' > static/out/_not-found/.keep
 # 重新启动后端，此时可直接访问嵌入式管理界面
 go run main.go start
 ```
@@ -169,16 +159,13 @@ cd web && pnpm install && NEXT_PUBLIC_API_BASE_URL="http://127.0.0.1:8080" NEXT_
 ## 新建终端，可选：通过环境变量自动创建初始管理员账户
 export OCTOPUS_INITIAL_ADMIN_USERNAME="admin"
 export OCTOPUS_INITIAL_ADMIN_PASSWORD="change-this-password-long"
-## 必需：下面两个密钥至少设置一个（原因见上方快速开始说明）
+## 可选但强烈建议：设置持久化 JWT 密钥
 export OCTOPUS_AUTH_JWT_SECRET="replace-with-a-long-random-secret"
-export OCTOPUS_SECURITY_ENCRYPTION_KEY="replace-with-another-long-random-secret"
 ## 启动后端服务
 go run main.go start
 ## 访问前端地址
 http://localhost:3000
 ```
-
-> **开发模式 CORS 提示**：开发态前端（`http://localhost:3000`）跨端口访问 `8080` 后端。CORS 白名单默认为空（= 拒绝所有跨域来源），若浏览器拦截了 API 请求，请在 `设置 → 系统 → CORS` 中加入 `http://localhost:3000`（或 `*`）。
 
 ### 🔐 初始管理员设置
 
@@ -189,14 +176,14 @@ http://localhost:3000
 
 > ⚠️ **安全提示**：初始管理员密码长度必须至少为 12 个字符。
 >
-> ⚠️ **安全提示**：必须配置持久化 `auth.jwt_secret` 或 `security.encryption_key`，两者均未配置时会拒绝启动，避免加密凭据丢失。若只配置加密密钥，JWT 密钥仍为临时值，服务重启后已有登录 token 会失效。
+> ⚠️ **安全提示**：如果未配置 `OCTOPUS_AUTH_JWT_SECRET` 或 `auth.jwt_secret`，Octopus 会在启动时生成仅当前进程有效的 JWT 密钥。服务重启后，已有登录 token 会失效。
 
 ### 👥 管理员角色
 
 管理 API 和内嵌 Web 管理界面内置三种角色：
 
 - `admin`：完整权限，包括用户管理
-- `editor`：可写的运维权限，包括渠道、分组、设置、API Key、日志和告警
+- `editor`：可写的运维权限，包括渠道、分组、设置、API Key、日志、告警和 AI 路由
 - `viewer`：只读权限
 
 权限校验由服务端执行，服务端会按当前存储的角色判权，而不是只信任 JWT 中的角色声明。
@@ -229,7 +216,7 @@ http://localhost:3000
 }
 ```
 
-大多数运行时调优项不存放在 `config.json` 中。重试策略、熔断阈值、Auto 策略调优、日志保留周期、对外 API 基础地址、WebDAV 备份、代理池、模型映射规则等，都通过设置页 / 管理 API 动态写入数据库。
+大多数运行时调优项不存放在 `config.json` 中。重试策略、熔断阈值、Auto 策略调优、日志保留周期、对外 API 基础地址、AI 路由服务配置、语义缓存开关、WebDAV 备份、代理池、模型映射规则等，都通过设置页 / 管理 API 动态写入数据库。
 
 **配置项说明：**
 
@@ -243,7 +230,7 @@ http://localhost:3000
 | `database.path` | 数据库连接地址 | `data/data.db` |
 | `log.level` | 日志级别 | `info` |
 | `auth.jwt_secret` | JWT 签名密钥 | 空（未设置时启动生成临时密钥） |
-| `security.encryption_key` | 敏感数据存储加密密钥（凭证档案、站点密码等） | 空（回退到持久化 JWT 密钥；两者均未配置时拒绝启动） |
+| `security.encryption_key` | 敏感数据存储加密密钥（凭证档案、站点密码等） | 空（回退到 JWT 密钥） |
 | `relay.max_json_body_bytes` | JSON 请求体最大大小 | `67108864`（64 MB） |
 | `relay.max_multipart_body_bytes` | Multipart 请求体最大大小 | `67108864`（64 MB） |
 
@@ -307,7 +294,7 @@ http://localhost:3000
 
 ## 📸 界面预览
 
-> 截图于 2026-10-07，使用 v2.6.3-fix 隔离实例与合成演示数据。桌面视口为 1440 × 960，移动视口为 430 × 932，不含生产账号或凭据。
+> 说明：下方截图主要展示核心管理界面。当前版本仍沿用同一套 UI 风格与导航体系，其中 `Model` 已升级为 `Model Market`，侧边栏也新增了 `Analytics` 与 `Ops`。
 
 ### 🖥️ 桌面端
 
@@ -369,17 +356,16 @@ http://localhost:3000
 | 模块 | 作用 |
 |------|------|
 | Home | 版本信息、运行状态、高层摘要、趋势图、GitHub 风格活跃热力图和排行榜 |
-| Hub | 上游中继平台管理，包含站点（多账号卡片，内联余额/同步/签到状态、归档/恢复、批量编辑、AllAPIHub/MetAPI 批量导入）、站点渠道（投射渠道绑定）、自动化（自动同步与自动签到间隔）、额度（套餐余额图表）和 TokenPlan（Token 套餐监控）等页签 |
+| Hub | 上游中继平台管理，包含 5 个标签页：站点（多账号卡片，内联余额/同步/签到状态、归档/恢复、批量编辑、AllAPIHub/MetAPI 批量导入）、站点渠道（投射渠道绑定）、自动化（自动同步与自动签到间隔）、额度（套餐余额图表）和 TokenPlan（Token 套餐监控） |
 | Channel | 上游渠道、Key、Header、同步、延迟探测、代理模式和请求改写配置 |
-| 号池 | 面向 relay 调度的号池管理：号池列表支持搜索与新建/编辑（名称、描述、策略、默认并发、冷却、启用）并带删除二次确认；详情页支持按关键字 / 平台 / 状态筛选账号、OAuth 账号授权、批量操作和凭据导入导出 |
-| Group | 模型路由、负载均衡、会话保持、分组测试、分组思考模式（自动 / 关闭 / 开启）、端点供应商、Zashboard 风格可折叠分组列表和 CC Switch 深链接 |
-| Model Market | 模型目录（市场 / 可用端点 / 价格分类三视图）、自定义价格、渠道覆盖、可用 Key 数、延迟、成功率摘要、归一化去重多维筛选，以及兜底定价与峰谷计费规则 |
-| Analytics | 渠道×模型（默认）、用量拆分、路由健康、延迟分布、评估中心、缓存（供应商 Prompt Cache）和分享快照 |
-| Log | 双视图：Relay 请求历史，详情支持分组 / 请求体切换、模型与渠道候选状态和响应并排展示、展开尝试诊断，以及 Token 使用和费用记录；另有错误日志（Error Log）视图查看后端记录的错误 |
-| Notification | 统一通知中心，分组涵盖消息（收件箱 / 已归档）、告警（规则 / 历史）、送达（渠道 / 策略 / 偏好）和报表（调度 / 历史）。告警规则、通知渠道（Webhook、Gotify、Email、Telegram、飞书、钉钉、企业微信、ntfy）和用量报表调度都在这里 |
+| Group | 模型路由、负载均衡、会话保持、分组测试、AI 路由、端点供应商、Zashboard 风格可折叠分组列表和 CC Switch 深链接 |
+| Model Market | 模型目录、自定义价格、渠道覆盖、可用 Key 数、延迟、成功率摘要和能力双视图 |
+| Analytics | 渠道×模型（默认）、用量拆分、路由健康、延迟分布、评估中心、缓存（语义 + 供应商 Prompt Cache）和分享快照 |
+| Log | Relay 请求历史、错误详情、Token 使用和费用记录 |
+| Notification | 统一通知中心，含 4 个分组：消息（收件箱 / 已归档）、告警（规则 / 历史）、送达（渠道 / 策略 / 偏好）和报表（调度 / 历史）。告警规则、通知渠道（Webhook、Gotify、Email、Telegram、飞书、钉钉、企业微信、ntfy）和用量报表调度都在这里 |
 | Ops | 遥测（Hero 指标、P95 延迟、供应商健康、Prompt Cache 分析）、配额、健康、维护（重试 / 熔断 / 响应过滤）、系统和审计轨迹 |
 | APIKey | API Key 创建、编辑、删除，模型白名单、过期时间、费用上限、RPM / TPM 配额、IP 白名单和按模型配额 |
-| Setting | 版本更新信息、外观与导航偏好（排序 + 可见性）、日志保留、系统选项（Public API Base URL、代理、CORS）、LLM/价格同步节奏、数据库备份与实时迁移、Redis 缓存后端、WebDAV 备份、WebAuthn/Passkey、模型名归一化、号池调度设置、代理池入口和危险操作 |
+| Setting | 版本更新信息、外观与导航偏好（排序 + 可见性）、运行时调优、语义缓存、AI 路由服务池、API Key 默认配置、WebAuthn/Passkey、数据库迁移、WebDAV 备份、站点自动化、备份恢复、模型名归一化规则和危险操作 |
 | User | 管理员用户和角色管理 |
 
 此外，以下功能可通过应用外壳工具栏或其他模块内访问：
@@ -396,7 +382,7 @@ http://localhost:3000
 
 **渠道模板：**
 
-UI 提供内置渠道模板用于快速创建（以 `web/src/components/modules/channel/templates.ts` 为准）：OpenAI（创建的是 OpenAI Responses 类型渠道）、Anthropic、Gemini、DeepSeek、OpenRouter、SiliconFlow、Volcengine 和 MiMo。
+UI 提供 9 种内置渠道模板用于快速创建：OpenAI、OpenAI Responses、Anthropic、Gemini、DeepSeek、OpenRouter、SiliconFlow、Volcengine 和 MiMo。
 
 **Base URL 说明：**
 
@@ -482,6 +468,8 @@ Header 和消息策略：
 | Multipart 媒体类 | `/v1/images/edits`、`/v1/images/variations`、`/v1/audio/transcriptions` | 透传 multipart 上传 |
 
 当上游支持 `stream=true` 时，JSON 媒体类端点也可以直接透传 SSE 流。
+
+语义缓存当前会评估非流式和流式的 OpenAI Chat 与 OpenAI Responses 文本请求（流式缓存命中会从 SSE 会话缓冲区重放）。Anthropic、embeddings 以及媒体 / 工具类端点都会直接旁路缓存，继续走正常 relay 链路。
 
 **Zen 直连模型路由：**
 
@@ -582,7 +570,6 @@ Octopus 提供多层模型可见性：
 - **Condition (JSON)**：可选的 AND 条件规则，当前只在主 LLM relay 路径里生效；内置请求上下文目前包含 `model`、`api_key_id`、`hour`
 - **端点供应商（Endpoint Provider）**：按端点类型进行供应商感知的请求改写。对话供应商（`openai`、`deepseek`、`mimo`、`siliconflow`、`newapi`）会剥离不兼容的推理字段；音乐供应商（`newapi`、`minimax`）改写请求体和路径；视频供应商（`agnes`）改写上流路径；语音合成供应商（`mimo`）转换请求格式和路径
 - **出站格式（Outbound Format）**：控制跨格式适配器回退。`""`（自动）、`chat`、`responses` 仅调整 Chat/Responses 的尝试顺序；`chat_only` 和 `responses_only` 会完全禁用回退——适用于用 400/404 拒绝另一格式的上游（如公益站）
-- **思考模式**：在分组编辑器的高级配置中设置 `thinking_mode`。`auto`（默认）保持客户端 / 上游行为；`off` / `on` 覆盖客户端推理参数，客户端未传参时也生效。适配器按 DeepSeek/MiMo、OpenAI Chat/Responses（含 Codex）、Anthropic、Gemini、火山引擎各自协议发送控制字段。通过通用域名代理 DeepSeek/MiMo 时，请选择对应 API 分类或端点供应商。需要上游模型支持；原始透传 / 原始穿透保持请求体不变，不应用此策略。此功能不新增 FIM 或 `/v1/completions` 端点。
 - **Key 冷却**：限速冷却按 `(keyID, model)` 粒度追踪（issue #94），单个模型的 429 不再拖累同 Key 的其他模型。单渠道重试次数可设为 `0`（只试一次即换渠道）；最大总尝试次数配额只统计真实发往上游的转发，冷却/熔断跳过不占用配额
 
 **负载均衡模式：**
@@ -605,9 +592,17 @@ Octopus 提供多层模型可见性：
 - 候选都完成探索后，系统按成功率排序；成功率相同时，再按样本量、权重、优先级和延迟调优兜底
 - Auto 策略窗口会在启动时从数据库恢复，并在定时任务和优雅退出时持久化
 
+**AI 路由行为：**
+
+- 在路由页点击 **AI路由** 时，系统会把全部模型发送给 AI，批量生成整张路由表
+- 遇到同名已有分组时，只会追加缺失的路由项，不会清空或替换已有分组
+- 在分组编辑弹窗点击 **AI补全当前分组** 时，系统会把全部模型发送给 AI，并只向当前分组追加匹配到的路由项
+- 原先的 "AI路由目标分组" 设置现在只作为单分组兼容模式下的默认目标分组使用
+- AI 路由任务具有持久化能力，支持心跳、进度追踪、批次管理和中断恢复
+
 **CC Switch 集成：**
 
-分组工具栏包含 CC Switch 深链接生成器，可为下列目标应用生成供应商导入链接：Claude Code、Codex、Gemini、OpenCode 和 OpenClaw。对于 Claude Code，支持将 Haiku / Sonnet / Opus 模型映射到指定路由分组。
+分组工具栏包含 CC Switch 深链接生成器，可为 5 种目标应用生成供应商导入链接：Claude Code、Codex、Gemini、OpenCode 和 OpenClaw。对于 Claude Code，支持将 Haiku / Sonnet / Opus 模型映射到指定路由分组。
 
 > 💡 **示例**：创建分组名称为 `gpt-4o`，将多个供应商的 GPT-4o 渠道加入该分组，即可通过统一的 `model: gpt-4o` 访问所有渠道。
 
@@ -615,56 +610,26 @@ Octopus 提供多层模型可见性：
 
 ### 💎 模型广场与价格
 
-`Model` 路由（模型广场）提供可在工具栏切换的视图：**市场**（价格与覆盖卡片）、**可用端点**（端点 → 模型分组）和**价格分类**（兜底定价规则 + 峰谷计费）。
+`Model` 路由现在是模型广场视图，提供双标签页界面：**Market**（价格与覆盖）和 **Capabilities**（端点支持声明）。
 
-**市场视图每张卡片整合的数据：**
+**Market 标签页每张卡片整合的数据：**
 
-- LLM 价格目录中的自定义价格或同步价格（输入 / 输出 / 缓存读 / 缓存写）
+- LLM 价格目录中的自定义价格或同步价格
 - 渠道与模型关系中的覆盖渠道数、可用 Key 数
-- 模型统计中的平均延迟、成功率、成功次数、失败次数
-- 命中峰谷计费规则的模型会显示峰谷计费徽标（目录价为高峰价，空闲价打折）
-
-**市场视图的多维筛选：**
-
-- 与工具栏搜索框共用的名称搜索
-- 能力筛选（chat、embeddings、rerank 等）——对话族端点计入 chat 能力
-- 按模型名推断的厂商筛选
-- 价格筛选：全部 / 有价 / 免费
-- 归一化去重：合并同一基础模型的不同命名变体（如 `kimi-k2.5`、`moonshotai/kimi-k2.5`、`dmxapi-kimi-k2.5-cc`）。规则来自设置页 `Normalize` 卡片（路由前缀、功能性后缀、显式变体→基准名映射），并可通过专属设置默认开启
-- 可折叠的筛选条实时展示结果数量（可见 / 总数）、生效筛选条件数，以及一键重置（同时清空搜索、能力、厂商、价格与去重）
+- 模型统计中的平均延迟、成功次数、失败次数
 
 **顶部摘要指标：**
 
-工具栏摘要区展示四项指标以及价格更新时间与刷新价格按钮。这些数字来自 market 接口对**全量**数据计算的 summary——**不随**搜索或筛选变化（筛选只影响卡片列表）。开启默认去重设置后，market 接口本身会在服务端聚合命名变体，卡片与摘要统计已按合并后的条目计算：
-
 | 指标 | 含义 |
 |------|------|
-| 模型数 | 市场中聚合后的模型总数 |
-| 覆盖渠道数 | 全市场渠道对模型的覆盖总数 |
-| 唯一渠道数 | 全市场涉及的去重渠道数 |
-| 平均延迟 | 全市场按请求统计加权后的平均延迟 |
+| Models | 当前筛选结果里的模型卡片数 |
+| Coverage | 当前结果集中渠道对模型的覆盖总数 |
+| Unique Channels | 当前结果集中涉及的去重渠道数 |
+| Average Latency | 按请求统计加权后的平均延迟 |
 
-**卡片与对话框：**
+**Capabilities 标签页：**
 
-- 响应式虚拟化卡片（桌面 grid / list / compact 布局，移动端单列列表），支持按成功率或请求量排序
-- 卡片可展开查看价格对（输入 / 缓存读、输出 / 缓存写，支持人民币换算）、运行指标与逐渠道明细（启用状态与可用 Key 数）；渠道标签过多时折叠为 `+N`
-- 标准编辑对话框带严格价格校验（非负十进制数，非法字段内联高亮而非静默清零）与删除确认对话框
-
-**可用端点视图：**
-
-从有效路由分组聚合并反转为端点 → 模型分组。对话族端点（chat / deepseek / mimo / responses / messages / 自动）合并为单一的「对话」分组并排在最前；未声明端点的模型归入自动（`*`）分组。该视图与市场视图共用工具栏搜索框——搜索同时匹配端点名称 / 标签与模型名，并强制展开全部分组、显示所有命中芯片。每个分组卡片可折叠，带模型数量与厂商图标芯片，模型较多时可通过「展开更多」控制。
-
-**价格分类视图：**
-
-- 为没有精确价格的模型提供按规则的兜底定价；规则按优先级（sort order）顺序匹配，首个命中生效
-- 规则表格：名称、规则类型（exact / prefix / contains）、规则值、四项价格、优先级与启用徽标
-- 创建 / 编辑对话框带校验：名称与规则值必填、价格必须为非负有限数、优先级必须为整数；错误在首次提交后展示，随输入修正即时消失
-- 峰谷计费区（当前针对 DeepSeek）：空闲倍率、周末空闲开关，以及两段北京时间窗口（留空表示该窗口关闭；两窗全关 = 全天空闲；窗口重叠后端允许，仅提示不阻断）
-- 规则变更会使市场价格缓存失效；该视图不提供搜索框
-
-**查询门控：**
-
-切换页面时视图保持挂载（keep-alive），因此所有查询都做了门控：market 与能力查询只在模型模块激活且对应视图选中时才运行，切换视图即停止上一个视图的查询。
+能力面板展示每个模型的端点支持声明、对话族标记、可用状态和自动端点检测指示器。模型可按名称搜索和过滤，并带有状态徽章（Active、Down、Non-conversation）。
 
 **数据来源：**
 
@@ -686,14 +651,14 @@ Octopus 提供多层模型可见性：
 - 创建自定义模型价格
 - 编辑已有模型的输入 / 输出 / 缓存价格
 - 删除自定义模型条目
-- 在工具栏摘要区手动刷新上游价格
-- 在设置页 `LLM Sync` 卡片里继续维护定时刷新策略
+- 在页面头部手动刷新上游价格
+- 在设置页 `LLM Price` 卡片里继续维护定时刷新策略
 
 ---
 
 ### 📈 Analytics
 
-Analytics 是偏只读的分析模块，默认 Tab 为 **渠道×模型**，让最关注的数据先呈现：
+Analytics 是偏只读的分析模块，当前包含 6 个页签，默认 Tab 为 **渠道×模型**，让最关注的数据先呈现：
 
 | 页签 | 展示内容 |
 |------|----------|
@@ -701,14 +666,14 @@ Analytics 是偏只读的分析模块，默认 Tab 为 **渠道×模型**，让�
 | 用量明细 | 按供应商、模型、API Key 的用量拆分（由"利用率"重命名，金额为空时显示"无计费数据"提示） |
 | 路由健康 | 每个分组的健康分、启用 / 禁用项数量、近期失败压力 |
 | 延迟 | 请求延迟指标（Avg、P50、P95、P99）、首字延迟（FTUT）指标和延迟分布直方图 |
-| 评估 | 分组可用性、分组测试进度 |
-| 缓存 | 供应商侧 Prompt Cache 分析（缓存率、复用比、每供应商预估节省费用） |
+| 评估 | 分组可用性、AI 路由进度、分组测试进度、语义缓存成效 |
+| 缓存 | 语义缓存成效和供应商侧 Prompt Cache 分析（缓存率、复用比、每供应商预估节省费用） |
 
 **时间范围：** `1d`、`7d`、`30d`、`90d`、`ytd`、`all`
 
 `/api/v1/analytics/overview` 这个概览接口仍然保留，但当前 UI 中这些摘要指标的主要入口已经迁移到首页。首页现在额外承载独立的 `7d / 30d / 90d` 概览范围切换，以及 Hero 摘要、趋势图、GitHub 风格活跃热力图和排行榜。
 
-`Evaluation` 不会复制完整的分组页和设置页，而是作为轻量入口，把分组测试与缓存评估串起来。
+`Evaluation` 不会复制完整的分组页和设置页，而是作为轻量入口，把分组测试、AI 路由和语义缓存评估串起来。
 
 **分享快照：**
 
@@ -722,20 +687,20 @@ Ops 模块面向运行态诊断和运维视角，当前包含：
 
 | 页签 | 展示内容 |
 |------|----------|
-| 遥测 | Hero 指标（运行时间、总请求数、平均延迟、错误率、活跃连接、内存使用）、P95 延迟、吞吐量 RPS、数据库健康、会话与配额活跃度、供应商健康表（支持列排序 + 迷你条形图） |
+| 遥测 | Hero 指标（运行时间、总请求数、平均延迟、错误率、活跃连接、内存使用）、P95 延迟、吞吐量 RPS、数据库健康、会话与配额活跃度、语义缓存快照、供应商健康表（支持列排序 + 迷你条形图） |
 | 配额 | API Key 在 RPM、TPM、费用上限、按模型配额上的整体姿态，合并总 Token、成功率与"查看密钥详情"跳转 |
 | 健康 | 数据库连通性、缓存就绪状态、任务运行状态、近期错误量、异常分组（含跳转至分析中心 → 路由健康） |
 | 维护 | 可操作运行时调优：重试、熔断器、响应过滤三组设置合并至同一页签（已从设置页迁出） |
-| 系统 | 构建信息、数据库类型、Public API Base URL、代理和保留周期 |
+| 系统 | 构建信息、数据库类型、Public API Base URL、代理、保留周期、AI 路由模式和服务列表 |
 | 审计 | 管理面写操作的分页审计日志 |
 
 **供应商 Prompt Cache 分析：**
 
-Telemetry 标签页包含供应商侧 Prompt Cache 监控，追踪上游供应商的 Prompt 缓存有效性：缓存率、缓存复用比、缓存读/写 Token 数、每渠道预估节省费用和 24 小时缓存趋势图。该面板独立于供应商健康表。
+Telemetry 标签页包含供应商侧 Prompt Cache 监控，追踪上游供应商的 Prompt 缓存有效性：缓存率、缓存复用比、缓存读/写 Token 数、每渠道预估节省费用和 24 小时缓存趋势图。这与语义缓存独立。
 
 **审计范围：**
 
-- 覆盖已纳入白名单的管理面写接口，例如 channel / group / model / setting / API key / alert / user 变更、日志清理、价格刷新、导入、自更新等
+- 覆盖已纳入白名单的管理面写接口，例如 channel / group / model / setting / API key / alert / user 变更、AI 路由生成、日志清理、价格刷新、导入、自更新等
 - 不记录公共 `/v1/...` relay 流量
 
 ---
@@ -759,7 +724,7 @@ Telemetry 标签页包含供应商侧 Prompt Cache 监控，追踪上游供应�
 - 二者都会按统计保存周期定时落库
 - 二者也会在优雅退出时主动保存
 
-**当前设置页的重点卡片**（权威清单见 `web/src/components/modules/setting/index.tsx`）：
+**当前设置页的重点卡片（瘦身后共 14 张）：**
 
 | 卡片 | 作用 |
 |------|------|
@@ -767,7 +732,8 @@ Telemetry 标签页包含供应商侧 Prompt Cache 监控，追踪上游供应�
 | Appearance | 主题、语言、告警通知语言，一级导航顺序拖拽偏好，以及各页面可见性开关 |
 | AI Route | 单分组兼容默认目标、超时、并发度、服务池配置 |
 | Auto Strategy | Auto 策略调优（最小样本数、时间窗口、滑动窗口大小、延迟权重） |
-| Account | 登录会话/账户偏好和应用时区选择 |
+| Account | 登录会话/账户偏好和应用时区选择（10 个时区） |
+| Semantic Cache | 开关、TTL、相似度阈值、最大条目数、embedding Base URL / API Key / 模型 / 超时 |
 | Log | 日志保留（按时长和按数量）和日志级别 |
 | System | Public API Base URL、代理、CORS 白名单（标签式管理）和统计落库周期 |
 | LLM Sync | 上游模型同步和价格刷新节奏 |
@@ -776,13 +742,20 @@ Telemetry 标签页包含供应商侧 Prompt Cache 监控，追踪上游供应�
 | WebDAV Backup | WebDAV 云备份配置：连接设置、自动备份间隔、最大备份保留数、手动触发、远程文件列表、恢复和删除 |
 | WebAuthn / Passkey | RP ID、RP 展示名、允许的 Origin 配置 |
 | 归一化（Normalize） | 模型名归一化规则：路由前缀、功能后缀和显式变体→基准名映射（运行时可配置，支持离线 AI 辅助归一化工作流） |
-| 号池（Pool） | 号池调度调优：健康巡检、分层调度、粘性会话逃逸、权重重置等相关设置 |
-| 代理池（Proxy Pool） | 打开共享代理池管理弹窗（无内嵌面板） |
 
 > **说明：** 以下设置项已迁移到更相关的模块（issue #87）：
 > - **重试 / 熔断器 / 响应过滤** → `运维中心 → 维护` 页签
 > - **站点自动化** → `Hub → 自动化` 页签
 > - **清理不可用模型 / 删除全部路由分组** → `分组` 页"维护"下拉按钮
+
+**语义缓存的真实生效条件：**
+
+- 作用于非流式和流式 OpenAI Chat / OpenAI Responses 文本请求
+- 流式缓存命中会从 SSE 会话缓冲区重放，并支持稳定的流会话恢复
+- 缓存命名空间按 `api_key_id + endpoint_family + requested_model` 隔离
+- 即使开关打开，只要 embedding 客户端没有配完整，或查询 / 写入 embedding 失败，也会自动旁路，不阻断正常转发
+- 运行态与成效可同时在 `Analytics -> Cache` 和 `Ops -> Telemetry` 中查看
+- 运行配置未变更时，缓存条目会在刷新中保留
 
 **数据库实时迁移：**
 
@@ -798,11 +771,11 @@ Backup 设置卡片包含超越简单导出/导入的实时数据库迁移功能
 
 - 设置页新增了 **删除全部路由分组**
 - 执行前要求二次确认
-- 操作会删除全部分组和分组项，避免残留悬挂引用
+- 操作会删除全部分组和分组项，并把单分组 AI 路由默认目标分组重置为 `0`，避免残留悬挂引用
 
 **设置卡片排序：**
 
-设置页支持对卡片区域进行拖拽排序，排序结果会持久化到本地存储。提供"恢复默认"按钮。
+设置页支持对其 14 个卡片区域进行拖拽排序，排序结果会持久化到本地存储。提供"恢复默认"按钮。
 
 > ⚠️ **重要提示**：退出程序时，请使用正常的关闭方式（如 `Ctrl+C` 或发送 `SIGTERM` 信号），以确保内存中的统计数据能正确写入数据库。**请勿使用 `kill -9` 等强制终止方式**，否则可能导致统计数据丢失。
 
@@ -834,7 +807,7 @@ Hub 模块的**站点**页签将上游中继平台作为一等实体管理。站
 可从应用外壳工具栏访问的共享代理配置池：
 
 - 命名代理配置，支持 URL、协议（SOCKS5 / HTTP / HTTPS）、启用/禁用和备注
-- 代理模式：`direct`、`system`、`pool`、`inherit`
+- 4 种代理模式：`direct`、`system`、`pool`、`inherit`
 - 针对可配置测试 URL 的代理连通性测试
 - **引用树**：展示哪些站点、站点账号、托管渠道和渠道使用了每个代理
 - 引用跳转导航，可深链到引用实体
@@ -879,7 +852,7 @@ Hub 模块的**站点**页签将上游中继平台作为一等实体管理。站
 
 **CLI 配置导出：**
 
-为下列客户端工具生成即用配置片段：
+为 5 种客户端工具生成即用配置片段：
 
 | 工具 | 格式 |
 |------|------|
@@ -895,7 +868,7 @@ Hub 模块的**站点**页签将上游中继平台作为一等实体管理。站
 
 通知模块是统一中心，聚合系统事件、告警触发和套餐供应商通知，支持严重级别、已读/归档状态、过滤和 SSE 实时推送。告警规则监控系统健康并触发通知：
 
-**告警规则类型：** 错误率（支持可配置作用域——按渠道 / 按分组 / 全局——和滑动窗口评估）、费用阈值、额度超限、渠道下线，以及号池账号异常（`pool_account_error`，按账号作用域）。
+**告警规则类型：** 错误率（支持可配置作用域——按渠道 / 按分组 / 全局——和滑动窗口评估）、费用阈值、额度超限和渠道下线。
 
 **通知渠道：**
 
@@ -992,13 +965,13 @@ Octopus 采用清晰的分层 Go 架构：
 ```
 cmd/                    # 程序入口（Cobra CLI）
 internal/
-├── apperror/           # 应用错误类型（机器码 + HTTP 状态码 + i18n 参数）
 ├── conf/               # 配置加载与构建元信息
-├── client/             # 出站 HTTP 客户端池（超时分桶、代理、SSRF 防护）
+├── client/             # HTTP 客户端工具
 ├── db/                 # 数据库连接与迁移（SQLite/MySQL/PostgreSQL）
-│   └── migrate/        # 版本化 Schema 迁移（编号以该目录内文件为准）
+│   └── migrate/        # 版本化 Schema 迁移（001-033）
 ├── model/              # 领域类型（Channel、Group、APIKey、User、Site、ProxyConfiguration、ModelMapping……）
 ├── op/                 # 按领域拆分的业务逻辑操作
+│   ├── airoute/        # AI 路由生成、进度追踪、服务池和兼容辅助逻辑
 │   ├── alert/          # 告警规则评估和通知分发
 │   ├── analytics/      # 仪表盘、用量、路由健康、评估和延迟查询
 │   ├── apikey/         # API Key 增删改查和验证
@@ -1008,7 +981,6 @@ internal/
 │   ├── channel/        # 渠道 CRUD、同步、分组、密钥、托管渠道投射和 Base URL 辅助逻辑
 │   ├── credential/     # API 凭证档案管理（含加密）
 │   ├── dbmigration/    # SQLite/MySQL/PostgreSQL 之间的实时数据库迁移
-│   ├── errorlog/       # 后端错误日志持久化与保留策略
 │   ├── group/          # 路由分组 CRUD、自动分组、分组项、测试与缓存查询
 │   ├── llm/            # LLM 价格目录操作
 │   ├── modelmapping/   # 模型映射规则管理
@@ -1016,7 +988,6 @@ internal/
 │   ├── navorder/       # 导航顺序和可见性持久化
 │   ├── notification/   # 通知中心（消息、SSE 流、偏好）
 │   ├── ops/            # Ops 仪表盘数据聚合（遥测、配额、健康）
-│   ├── pool/           # 面向 relay 调度的号池管理
 │   ├── ratelimitstore/ # RPM/TPM 限流状态
 │   ├── relaylog/       # Relay 日志持久化（含异步刷写 Worker）
 │   ├── remotesite/     # 远程 Hub 站点操作（余额、签到、公告、用量、令牌、兑换）
@@ -1027,8 +998,7 @@ internal/
 │   └── webauthn/       # WebAuthn / Passkey 注册和认证
 ├── relay/              # 核心中转管线
 │   ├── balancer/       # 负载均衡策略（轮询、随机、故障转移、加权、智能）
-│   ├── condition/      # 请求条件评估
-│   └── poolscheduler/  # 号池渠道的账号调度
+│   └── condition/      # 请求条件评估
 ├── server/             # HTTP 层（Gin）
 │   ├── auth/           # JWT 认证与权限
 │   ├── handlers/       # 路由处理器（每个资源一个文件）
@@ -1043,16 +1013,11 @@ internal/
 │   └── model/          # 共享适配器类型与接口
 ├── hub/                # 远程站点适配器接口、注册表、HTTP 客户端和平台专属适配器
 ├── planprovider/       # 上游订阅套餐监控（Codex、MiMo、StepFun、SenseNova、余额类厂商）
-├── poolhealthcheck/    # 号池账号周期健康巡检
-├── pooltokenrefresh/   # 号池 OAuth Token 自动刷新（含退避）
-├── poolscheduledtest/  # 号池计划连通性测试与账号恢复
-├── store/              # 可选缓存/状态后端（KVStore、RateLimitStore、StatsStore、RuntimeStateStore、ChannelDelayStore）：内存 + Redis
-├── helper/             # 横切辅助（渠道/分组探测、价格、通知）
+├── store/              # 可选缓存/状态后端（KVStore、RateLimitStore、StatsStore、RuntimeStateStore）：内存 + Redis
+├── helper/             # 横切辅助（AI 路由、渠道/分组探测、价格、通知）
 ├── price/              # LLM 价格目录（models.dev 同步）
-├── pkg/                # 号池账号第三方 OAuth 流程辅助（Anthropic / OpenAI / Gemini CLI / xAI）
 ├── update/             # 自更新机制
-├── utils/              # 工具库（缓存、限流、分词器、加密……）
-├── site/               # 薄门面，全部转发到 sitesync
+├── utils/              # 工具库（缓存、限流、语义缓存、分词器、加密……）
 └── sitesync/           # 站点同步、投射与签到实现
 ```
 
@@ -1080,11 +1045,11 @@ inbound.TransformResponse（内部格式 → 客户端格式）
 
 **Hub 适配器：**
 
-Hub 远程站点管理采用适配器架构。各适配器包在 `init()` 中为对应站点类型注册专属处理器（当前清单以 `internal/hub/` 各子包与 `internal/hub/README.md` 为准），注册表对没有专属适配器的站点类型回退到 `common`（One API / New API 族）适配器：
+Hub 远程站点管理采用适配器架构，共 7 个适配器包，覆盖 12 种站点类型：
 
 | 适配器 | 站点类型 |
 |--------|----------|
-| `common` | 直接注册 `new-api`、`unknown`；`veloera`、`done-hub`、`one-hub`、`anyrouter` 经注册表回退由其处理（One API / New API 族） |
+| `common` | `new-api`、`veloera`、`done-hub`、`one-hub`、`anyrouter`、`unknown`（One API / New API 族回退适配器） |
 | `octopus` | `octopus`（自适应适配器） |
 | `aihubmix` | `aihubmix` |
 | `axonhub` | `axonhub` |
@@ -1094,7 +1059,7 @@ Hub 远程站点管理采用适配器架构。各适配器包在 `init()` 中为
 
 `ldoh` 包提供公开站点发现功能（非适配器）。
 
-每个适配器实现 `SiteAdapter` 接口，涵盖用户信息、签到、模型、价格、令牌、渠道、公告、状态、兑换和用量日志。
+每个适配器实现 15 个方法的 `SiteAdapter` 接口，涵盖用户信息、签到、模型、价格、令牌、渠道、公告、状态、兑换和用量日志。
 
 **前端（Next.js 16 App Router）：**
 
@@ -1103,11 +1068,10 @@ web/src/
 ├── api/               # API 客户端与端点 Hooks（TanStack Query）
 ├── app/               # Next.js App Router 页面
 ├── components/
-│   ├── modules/       # 领域模块（渠道、分组、API Key、远程站点、站点、号池、代理池、模型映射、凭证……）
+│   ├── modules/       # 领域模块（渠道、分组、API Key、远程站点、站点、代理池、模型映射、凭证……）
 │   ├── ui/            # UI 原语（基于 Radix）
 │   ├── common/        # 共享组件
-│   ├── nature/        # 动画背景与特效
-│   └── animate-ui/    # 动效 UI 组件
+│   └── nature/        # 动画背景与特效
 ├── hooks/             # 自定义 Hooks
 ├── lib/               # 工具、国际化、日志、时区辅助
 ├── provider/          # React Context 提供者
@@ -1123,7 +1087,7 @@ Octopus 涉及时区的三层独立概念：
 |----|---------|---------|
 | **容器时区** | `ENV TZ` / `-e TZ=` | 服务端日志时间戳、`time.Now()` 返回值 |
 | **统计时区** | 管理端设置 → `stats_timezone`（IANA 名，如 `Asia/Shanghai`） | 每小时/每天统计数据的日期归入 |
-| **前端展示时区** | 管理端设置 → 用户偏好 | 所有页面上的时间显示格式 |
+| **前端展示时区** | 管理端设置 → 用户偏好（10 个时区） | 所有页面上的时间显示格式 |
 
 三层独立配置：容器时区影响服务端运行时，统计时区影响数据聚合，前端展示时区只影响用户看到的时间文本。
 

@@ -17,12 +17,10 @@
 - ⚡ **Smart Selection** - Multiple endpoints per channel, smart selection of the endpoint with the shortest delay
 - ⚖️ **Load Balancing** - Support round robin, random, failover, weighted, and auto strategies
 - 🤖 **Auto Strategy** - Explore candidates first, then prefer higher in-window success rate automatically
-- 🧠 **Auto Grouping & Conditional Groups** - Batch-create groups for uncovered models and gate groups with JSON conditions
+- 🧠 **AI Routing, Auto Grouping & Conditional Groups** - Generate the full routing table from the route page, fill a single group from the edit dialog, and gate groups with JSON conditions
 - 🔄 **Protocol Conversion** - Seamless conversion between OpenAI Chat / OpenAI Responses / OpenAI Embeddings / Anthropic API formats
 - 🌐 **Multi-Provider Support** - Built-in support for OpenAI-compatible, Anthropic, Cloudflare, Gemini, Volcengine, MiMo, Codex, and passthrough channels
 - 🛰️ **Media & Utility Relay** - Relay OpenAI Images, audio, video, search, rerank, and moderation endpoints through the same group / retry / circuit-breaker infrastructure
-- 👥 **Account Pools** - Pool upstream accounts (OAuth / API key / cookie credentials) with dedicated scheduling, health probes, token auto-refresh, and scheduled connectivity tests
-- 📜 **Relay & Error Logs** - Dual log views: relay logs with per-candidate retries, and error logs collecting backend panics plus frontend exceptions
 - 🧾 **API Key Governance** - Supported-model allowlists, expiry, max-cost caps, RPM / TPM limits, per-model quotas, and IP / CIDR allowlists
 - 🔐 **Role-Based Admin Access** - Built-in `admin`, `editor`, and `viewer` roles with server-side permission enforcement
 - 🔑 **WebAuthn / Passkey Login** — Passwordless login and registration via WebAuthn/Passkey with configurable RP settings
@@ -31,8 +29,9 @@
 - 📅 **Usage Reports** - Schedule daily / weekly / monthly usage reports delivered through notification channels
 - 💎 **Model Market** - Unified model catalog with pricing, channel coverage, enabled key counts, latency, and success metrics
 - 🔃 **Model Sync** - Automatic synchronization of available model lists with channels
-- 📊 **Analytics** - Overview, provider / model / API key utilization, route health, latency distribution
+- 📊 **Analytics & Evaluation** - Overview, provider / model / API key utilization, route health, latency distribution, semantic-cache evaluation
 - 🛠️ **Ops & Audit** - Telemetry, quota, health, system, and audit dashboards for daily operations
+- 🧠 **Semantic Cache** - Embedding-backed semantic cache for non-streaming and streaming OpenAI Chat / Responses text requests
 - 🧭 **Configurable Navigation** - Persist top-level console page order and visibility in settings
 - 💾 **Runtime State Persistence** - Persist auto strategy windows and circuit breaker state to the database
 - 🔗 **Site Management** - Manage upstream relay platforms with multi-account support, projected channels, auto-sync, and auto-checkin
@@ -56,10 +55,10 @@
 | 04 | [Channels](en/04-Channels.md) | Channel templates, base URLs, proxy mode, request rewrite, param override, key strategy |
 | 05 | [Groups](en/05-Groups.md) | Group management, load balancing, model discovery & capabilities |
 | 06 | [Model Market](en/06-Model-Market.md) | Model catalog, pricing, coverage, capabilities dual-view |
-| 07 | [Relay Endpoints](en/07-Relay-Endpoints.md) | Public relay API, Zen routing, model mapping, proxy pool, account pools |
+| 07 | [Relay Endpoints](en/07-Relay-Endpoints.md) | Public relay API, Zen routing, model mapping, proxy pool |
 | 08 | [Analytics](en/08-Analytics.md) | Channel×Model, usage breakdown, route health, latency, evaluation, cache |
 | 09 | [Ops](en/09-Ops.md) | Telemetry, quota, health, maintenance, system, audit |
-| 10 | [Settings](en/10-Settings.md) | Settings cards, DB migration, dangerous ops |
+| 10 | [Settings](en/10-Settings.md) | 14 settings cards, semantic cache, DB migration, dangerous ops |
 | 11 | [Hub & Sites](en/11-Hub-Sites.md) | Site management, WebDAV backup, API credentials, CLI export, notifications |
 | 12 | [Client Integration](en/12-Client-Integration.md) | OpenAI SDK, Claude Code, Codex, CLI export |
 | 13 | [Architecture](en/13-Architecture.md) | Layered architecture, relay data flow, hub adapters, timezone, security |
@@ -68,7 +67,7 @@
 
 ## 📸 Screenshots
 
-> Captured from v2.6.3-fix on 2026-10-07 using an isolated instance with synthetic demo data. Desktop viewport: 1440 × 960; mobile viewport: 430 × 932. No production accounts or credentials are shown.
+> The screenshots below show the core console surfaces. Current builds keep the same visual system and navigation, with `Model` presented as `Model Market` and additional `Analytics` / `Ops` entries in the sidebar.
 
 ### 🖥️ Desktop
 

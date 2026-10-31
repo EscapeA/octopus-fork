@@ -10,12 +10,12 @@ internal/
 ├── conf/               # Configuration loading & build metadata
 ├── client/             # HTTP client utilities
 ├── db/                 # Database connection & migrations (SQLite/MySQL/PostgreSQL)
-│   └── migrate/        # Versioned schema migrations (numbering grows over time — see the directory for the current set)
+│   └── migrate/        # Versioned schema migrations (001-033)
 ├── model/              # Domain types (Channel, Group, APIKey, User, Site, ProxyConfiguration, ModelMapping, …)
-├── apperror/           # Application error types (machine code + HTTP status + i18n params)
 ├── op/                 # Business logic operations split by domain
+│   ├── airoute/        # AI route generation, progress tracking, service pool, and compatibility helpers
 │   ├── alert/          # Alert rule evaluation and notification dispatch
-│   ├── analytics/      # Dashboard, utilization, route-health, and latency queries
+│   ├── analytics/      # Dashboard, utilization, route-health, evaluation, and latency queries
 │   ├── apikey/         # API key CRUD and validation
 │   ├── audit/          # Audit log persistence
 │   ├── backup/         # Database export/import, WebDAV cloud backup scheduler
@@ -23,7 +23,6 @@ internal/
 │   ├── channel/        # Channel CRUD, sync, grouping, keys, managed channel projection, and base URL helpers
 │   ├── credential/     # API credential profile management with encryption
 │   ├── dbmigration/    # Live database migration between SQLite/MySQL/PostgreSQL
-│   ├── errorlog/       # Error log persistence and retention cleanup (backend panics + frontend exceptions)
 │   ├── group/          # Route-group CRUD, auto-grouping, group items, tests, and cache-backed lookups
 │   ├── llm/            # LLM price catalog operations
 │   ├── modelmapping/   # Model mapping rule management
@@ -31,7 +30,6 @@ internal/
 │   ├── navorder/       # Navigation order and visibility persistence
 │   ├── notification/   # Notification center (messages, SSE stream, preferences)
 │   ├── ops/            # Ops dashboard data aggregation (telemetry, quota, health)
-│   ├── pool/           # Account pool CRUD, credentials, quota, unschedulable rules, and account testing
 │   ├── ratelimitstore/ # RPM/TPM rate limit state
 │   ├── relaylog/       # Relay log persistence with async flush worker
 │   ├── remotesite/     # Remote Hub site operations (balance, checkin, announcements, usage, tokens, redemption)
@@ -42,8 +40,7 @@ internal/
 │   └── webauthn/       # WebAuthn / Passkey registration and authentication
 ├── relay/              # Core relay pipeline
 │   ├── balancer/       # Load balancing strategies (RoundRobin, Random, Failover, Weighted, Auto)
-│   ├── condition/      # Request condition evaluation
-│   └── poolscheduler/  # Account pool scheduling for relay requests
+│   └── condition/      # Request condition evaluation
 ├── server/             # HTTP layer (Gin)
 │   ├── auth/           # JWT auth & permissions
 │   ├── handlers/       # Route handlers (one per resource)
@@ -58,16 +55,12 @@ internal/
 │   └── model/          # Shared transformer types & interfaces
 ├── hub/                # Remote site adapter interface, registry, HTTP client, and platform-specific adapters
 ├── planprovider/       # Upstream subscription plan monitoring (Codex, MiMo, StepFun, SenseNova, balance-type providers)
-├── pkg/                # Third-party OAuth flow helpers for account pool accounts (Anthropic / OpenAI / Gemini CLI / xAI)
-├── poolhealthcheck/    # Periodic health probes for account pool accounts
-├── pooltokenrefresh/   # Automatic OAuth token refresh for account pool accounts (with backoff)
-├── poolscheduledtest/  # Scheduled connectivity tests for account pool accounts
 ├── store/              # Optional cache/state backend (KVStore, RateLimitStore, StatsStore, RuntimeStateStore): memory + Redis
-├── helper/             # Cross-cutting helpers (channel/group probes, price, notify)
+├── helper/             # Cross-cutting helpers (AI route, channel/group probes, price, notify)
 ├── price/              # LLM price catalog (models.dev sync)
 ├── update/             # Self-update mechanism
-├── utils/              # Utilities (cache, ratelimit, tokenizer, crypto, …)
-└── sitesync/           # Site sync, projection, and check-in implementation (the `site/` package is a thin facade over it)
+├── utils/              # Utilities (cache, ratelimit, semantic_cache, tokenizer, crypto, …)
+└── sitesync/           # Site sync, projection, and check-in implementation
 ```
 
 **Relay data flow:**
@@ -94,7 +87,7 @@ For streaming, the same pipeline processes each SSE event through `TransformStre
 
 **Hub adapters:**
 
-The Hub remote site management uses an adapter-based architecture. Adapter packages cover the site types below; any site type without a dedicated adapter falls back to the `common` adapter (the One API / New API family fallback):
+The Hub remote site management uses an adapter-based architecture with 7 adapter packages handling 12 site types:
 
 | Adapter | Site Type(s) |
 |---------|-----------|
@@ -108,7 +101,7 @@ The Hub remote site management uses an adapter-based architecture. Adapter packa
 
 The `ldoh` package provides public site discovery (not an adapter).
 
-Each adapter implements the [`SiteAdapter` interface](../../internal/hub/adapter.go) covering user info, check-in, models, pricing, tokens, channels, announcements, status, redemption, and usage logs.
+Each adapter implements the 15-method `SiteAdapter` interface covering user info, check-in, models, pricing, tokens, channels, announcements, status, redemption, and usage logs.
 
 **Frontend (Next.js 16 App Router):**
 
@@ -117,17 +110,15 @@ web/src/
 ├── api/               # API client & endpoint hooks (TanStack Query)
 ├── app/               # Next.js App Router pages
 ├── components/
-│   ├── modules/       # Domain modules (channel, group, apikey, pool, remote-site, site, proxy-pool, model-mapping, credential, …)
+│   ├── modules/       # Domain modules (channel, group, apikey, remote-site, site, proxy-pool, model-mapping, credential, …)
 │   ├── ui/            # UI primitives (Radix-based)
 │   ├── common/        # Shared components
-│   ├── nature/        # Animated backgrounds & effects
-│   └── animate-ui/    # Animated UI components
+│   └── nature/        # Animated backgrounds & effects
 ├── hooks/             # Custom hooks
 ├── lib/               # Utilities, i18n, logger, time zone helpers
 ├── provider/          # React context providers
 ├── route/             # Lazy-loaded route config
-├── stores/            # Zustand client state
-└── test-utils/        # Test helpers (fetch mock, query client, timers)
+└── stores/            # Zustand client state
 ```
 
 ## 🕐 Timezone Architecture
@@ -138,7 +129,7 @@ Octopus involves three independent timezone layers:
 |-------|--------------|---------|
 | **Container timezone** | `ENV TZ` / `-e TZ=` | Server log timestamps, `time.Now()` return value |
 | **Stats timezone** | Admin UI → `stats_timezone` (IANA name, e.g. `Asia/Shanghai`) | Which date hourly/daily statistics roll into |
-| **Frontend display timezone** | Admin UI → user preference (preset IANA time-zone list) | How timestamps appear on pages |
+| **Frontend display timezone** | Admin UI → user preference (10 time zones) | How all timestamps appear on pages |
 
 The three layers are independent: the container timezone affects the server runtime, the stats timezone affects data aggregation, and the frontend timezone only changes how users see time text.
 

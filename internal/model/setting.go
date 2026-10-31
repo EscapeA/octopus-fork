@@ -43,16 +43,31 @@ const (
 	SettingKeyRateLimitHoldInterval              SettingKey = "rate_limit_hold_interval"                // 429 渠道内延时重试间隔（秒）
 	SettingKeyRateLimitHoldMaxWait               SettingKey = "rate_limit_hold_max_wait"                // 429 渠道内延时重试总等待上限（秒），超时后才换下一渠道
 
-	SettingKeyPoolTokenRefreshInterval          SettingKey = "pool_token_refresh_interval"           // 号池 OAuth token 刷新检查间隔（分钟）
-	SettingKeyPoolQuotaSyncInterval             SettingKey = "pool_quota_sync_interval"              // 号池额度同步间隔（分钟）
-	SettingKeyPlanProviderRefreshInterval       SettingKey = "plan_provider_refresh_interval"        // 额度监控自动刷新默认间隔（分钟）
+	SettingKeyPoolTokenRefreshInterval             SettingKey = "pool_token_refresh_interval"    // 号池 OAuth token 刷新检查间隔（分钟）
+	SettingKeyPoolQuotaSyncInterval                SettingKey = "pool_quota_sync_interval"       // 号池额度同步间隔（分钟）
+	SettingKeyPlanProviderRefreshInterval          SettingKey = "plan_provider_refresh_interval" // 额度监控自动刷新默认间隔（分钟）
+	SettingKeySemanticCacheEnabled                 SettingKey = "semantic_cache_enabled"
+	SettingKeySemanticCacheTTL                     SettingKey = "semantic_cache_ttl"
+	SettingKeySemanticCacheThreshold               SettingKey = "semantic_cache_threshold"
+	SettingKeySemanticCacheMaxEntries              SettingKey = "semantic_cache_max_entries"
+	SettingKeySemanticCacheEmbeddingBaseURL        SettingKey = "semantic_cache_embedding_base_url"
+	SettingKeySemanticCacheEmbeddingAPIKey         SettingKey = "semantic_cache_embedding_api_key"
+	SettingKeySemanticCacheEmbeddingModel          SettingKey = "semantic_cache_embedding_model"
+	SettingKeySemanticCacheEmbeddingTimeoutSeconds SettingKey = "semantic_cache_embedding_timeout_seconds"
+	SettingKeyAIRouteBaseURL                       SettingKey = "ai_route_base_url"
+	SettingKeyAIRouteAPIKey                        SettingKey = "ai_route_api_key"
+	SettingKeyAIRouteModel                         SettingKey = "ai_route_model"
+	SettingKeyAIRouteTimeoutSeconds                SettingKey = "ai_route_timeout_seconds"
+	SettingKeyAIRouteParallelism                   SettingKey = "ai_route_parallelism"
+	SettingKeyAIRouteServices                      SettingKey = "ai_route_services"
+	SettingKeyAIRouteMaxModelsPerRequest           SettingKey = "ai_route_max_models_per_request"
 
-	SettingKeyPoolStickyEscapeEnabled              SettingKey = "pool_sticky_escape_enabled"               // Pool sticky escape switch: temporarily bypass the sticky binding when the account's EWMA stats degrade (off by default)
-	SettingKeyPoolStickyEscapeErrorRate            SettingKey = "pool_sticky_escape_error_rate"            // Pool sticky escape error-rate threshold (escape when EWMA errorRate exceeds it)
-	SettingKeyPoolStickyEscapeTTFTMs               SettingKey = "pool_sticky_escape_ttft_ms"               // Pool sticky escape TTFT threshold (ms; escape when EWMA TTFT exceeds it; 0 disables the dimension)
-	SettingKeyPoolSchedulerWeightReset             SettingKey = "pool_scheduler_weight_reset"              // Pool EWMA factor weight: reset inverse-readiness factor (default 0 = off, no behavior change)
-	SettingKeyPoolSchedulerWeightQuota             SettingKey = "pool_scheduler_weight_quota"              // Pool EWMA factor weight: quota-headroom factor (default 0 = off, no behavior change)
-	SettingKeyPoolGeminiClientSecret               SettingKey = "pool_gemini_client_secret"                // Gemini OAuth client secret override for the built-in client (empty = env -> built-in public credential)
+	SettingKeyPoolStickyEscapeEnabled           SettingKey = "pool_sticky_escape_enabled"            // Pool sticky escape switch: temporarily bypass the sticky binding when the account's EWMA stats degrade (off by default)
+	SettingKeyPoolStickyEscapeErrorRate         SettingKey = "pool_sticky_escape_error_rate"         // Pool sticky escape error-rate threshold (escape when EWMA errorRate exceeds it)
+	SettingKeyPoolStickyEscapeTTFTMs            SettingKey = "pool_sticky_escape_ttft_ms"            // Pool sticky escape TTFT threshold (ms; escape when EWMA TTFT exceeds it; 0 disables the dimension)
+	SettingKeyPoolSchedulerWeightReset          SettingKey = "pool_scheduler_weight_reset"           // Pool EWMA factor weight: reset inverse-readiness factor (default 0 = off, no behavior change)
+	SettingKeyPoolSchedulerWeightQuota          SettingKey = "pool_scheduler_weight_quota"           // Pool EWMA factor weight: quota-headroom factor (default 0 = off, no behavior change)
+	SettingKeyPoolGeminiClientSecret            SettingKey = "pool_gemini_client_secret"             // Gemini OAuth client secret override for the built-in client (empty = env -> built-in public credential)
 	SettingKeyPoolMinPriority                   SettingKey = "pool_min_priority"                     // 号池分层过滤 minPriority 阈值（默认 -9999 表示关闭）
 	SettingKeyPoolLayeredFilterEnabled          SettingKey = "pool_layered_filter_enabled"           // 号池分层过滤开关：开启后 SelectAccount 过滤掉 priority < min_priority 的候选
 	SettingKeyPoolHealthCheckEnabled            SettingKey = "pool_health_check_enabled"             // 号池账号健康巡检开关
@@ -162,7 +177,22 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyAutoStrategyTTFTWeight, Value: "0"},        // 默认0=关闭，TTFT EMA有样本后可设50切换延迟评分输入
 		{Key: SettingKeyAutoStrategyPriceWeight, Value: "0"},       // 默认0=关闭，价格目录有数据后可开启省钱降权
 		{Key: SettingKeyAutoStrategyExploreRate, Value: "0"},       // 默认0=纯贪心（保持旧行为），>0启用softmax探索
-		{Key: SettingKeyAutoStrategyBucketTolerance, Value: "5"},   // 默认5评分点容差，桶内随机打散
+		{Key: SettingKeyAutoStrategyBucketTolerance, Value: "5"},
+		{Key: SettingKeySemanticCacheEnabled, Value: "false"},
+		{Key: SettingKeySemanticCacheTTL, Value: "3600"},
+		{Key: SettingKeySemanticCacheThreshold, Value: "98"},
+		{Key: SettingKeySemanticCacheMaxEntries, Value: "1000"},
+		{Key: SettingKeySemanticCacheEmbeddingBaseURL, Value: ""},
+		{Key: SettingKeySemanticCacheEmbeddingAPIKey, Value: ""},
+		{Key: SettingKeySemanticCacheEmbeddingModel, Value: ""},
+		{Key: SettingKeySemanticCacheEmbeddingTimeoutSeconds, Value: "10"},
+		{Key: SettingKeyAIRouteBaseURL, Value: ""},
+		{Key: SettingKeyAIRouteAPIKey, Value: ""},
+		{Key: SettingKeyAIRouteModel, Value: ""},
+		{Key: SettingKeyAIRouteTimeoutSeconds, Value: "180"},
+		{Key: SettingKeyAIRouteParallelism, Value: "3"},
+		{Key: SettingKeyAIRouteServices, Value: "[]"},
+		{Key: SettingKeyAIRouteMaxModelsPerRequest, Value: "120"}, // 默认5评分点容差，桶内随机打散
 		{Key: SettingKeyNavOrder, Value: `["home","hub","channel","pool","group","model","analytics","log","notification","ops","apikey","setting","user"]`},
 		{Key: SettingKeyNavVisible, Value: `["home","hub","channel","pool","group","model","analytics","log","notification","ops","apikey","setting","user"]`},
 		{Key: SettingKeyHubTabOrder, Value: `["sites","site-channels","automation","balance","tokenplan"]`},

@@ -75,8 +75,8 @@ func balancerKeyNeedle(keyID int) string {
 	return s
 }
 
-// buildInflightKey 构建 "apiKeyID|endpointFamily|requestModel|text|false" 格式的同文并发合并键
-func buildInflightKey(apiKeyID int, endpointFamily, requestModel, text string) string {
+// buildSemanticCacheKey 构建 "apiKeyID|endpointFamily|requestModel|text|false" 格式 key
+func buildSemanticCacheKey(apiKeyID int, endpointFamily, requestModel, text string) string {
 	b := getBuilder()
 	// 预估: 数字 + "|" + family + "|" + model + "|" + text + "|false"
 	b.Grow(20 + len(endpointFamily) + len(requestModel) + len(text) + 10)

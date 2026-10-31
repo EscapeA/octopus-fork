@@ -161,6 +161,7 @@ export function resolveLogDisplayFields(
         outboundAdapterType: resolveOutboundAdapterType(mergedAttempts),
         channelId,
         channelName,
+        semanticCacheHit: detail?.semantic_cache_hit ?? log.semantic_cache_hit ?? false,
         cacheReadTokens: detail?.cache_read_tokens ?? log.cache_read_tokens ?? 0,
     };
 }

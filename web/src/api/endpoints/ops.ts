@@ -6,6 +6,16 @@ import { apiClient } from '../client';
 import { REFETCH_INTERVAL_CONFIG } from '../constants';
 
 export interface OpsCacheStatus {
+    enabled: boolean;
+    runtime_enabled: boolean;
+    ttl_seconds: number;
+    threshold: number;
+    max_entries: number;
+    current_entries: number;
+    hits: number;
+    misses: number;
+    hit_rate: number;
+    usage_rate: number;
     provider_prompt_cache: OpsProviderPromptCacheSummary;
 }
 
@@ -91,6 +101,7 @@ export interface OpsHealthGroupItem {
 
 export interface OpsHealthStatus {
     database_ok: boolean;
+    cache_ok: boolean;
     task_runtime_ok: boolean;
     recent_error_count: number;
     healthy_group_count: number;
@@ -318,6 +329,15 @@ export interface OpsTelemetrySessionQuotaActivity {
     quota_monitors: number;
 }
 
+export interface OpsTelemetryPromptCache {
+    entries: number;
+    hit_rate: number;
+    hits: number;
+    misses: number;
+    max_entries: number;
+    usage_rate: number;
+}
+
 export interface OpsTelemetryProviderItem {
     channel_id: number;
     channel_name: string;
@@ -346,6 +366,7 @@ export interface OpsTelemetrySummary {
     runtime_signals: OpsTelemetryRuntimeSignals;
     database_health: OpsTelemetryDatabaseHealth;
     session_quota_activity: OpsTelemetrySessionQuotaActivity;
+    prompt_cache: OpsTelemetryPromptCache;
     provider_health: OpsTelemetryProviderHealth;
     drilldown_shortcuts: OpsTelemetryDrilldownShortcut[];
 }

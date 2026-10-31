@@ -71,7 +71,7 @@ func TestRedactSiteProxyForViewer(t *testing.T) {
 func TestRedactSettingsURLsForViewer(t *testing.T) {
 	settings := []model.Setting{
 		{Key: model.SettingKeyPublicAPIBaseURL, Value: "https://octopus.example.com"},
-		{Key: model.SettingKeySyncLLMInterval, Value: "6"},
+		{Key: model.SettingKeySemanticCacheEmbeddingModel, Value: "text-embedding-3-small"},
 	}
 
 	redactSettingsURLsForViewer(settings)
@@ -79,7 +79,7 @@ func TestRedactSettingsURLsForViewer(t *testing.T) {
 	if settings[0].Value != "https://***" {
 		t.Fatalf("public api base url = %q, want masked", settings[0].Value)
 	}
-	if settings[1].Value != "6" {
-		t.Fatalf("unrelated setting = %q, want unchanged", settings[1].Value)
+	if settings[1].Value != "text-embedding-3-small" {
+		t.Fatalf("non-url setting = %q, want unchanged", settings[1].Value)
 	}
 }
