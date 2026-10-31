@@ -92,10 +92,16 @@ type TokenPlanResult struct {
 	FiveHourTotal   float64    `json:"five_hour_total"`
 	FiveHourUsed    float64    `json:"five_hour_used"`
 	FiveHourResetAt *time.Time `json:"five_hour_reset_at"`
+	// DedicatedPool 档：商汤日日新的专用积分池（例如 Flash-Lite 积分池）
+	DedicatedPoolName        string     `json:"dedicated_pool_name,omitempty"`
+	DedicatedWeeklyTotal     float64    `json:"dedicated_weekly_total,omitempty"`
+	DedicatedWeeklyUsed      float64    `json:"dedicated_weekly_used,omitempty"`
+	DedicatedWeeklyResetAt   *time.Time `json:"dedicated_weekly_reset_at,omitempty"`
+	DedicatedFiveHourTotal   float64    `json:"dedicated_five_hour_total,omitempty"`
+	DedicatedFiveHourUsed    float64    `json:"dedicated_five_hour_used,omitempty"`
+	DedicatedFiveHourResetAt *time.Time `json:"dedicated_five_hour_reset_at,omitempty"`
 	// 各模型明细
 	Models []TokenPlanModelUsage `json:"models,omitempty"`
-	// Pools 分池明细（仅 sensenova_plan 新版 pool-usage 接口返回）
-	Pools []model.TokenPlanPoolUsage `json:"pools,omitempty"`
 }
 
 // TokenPlanModelUsage 单个模型用量
@@ -687,28 +693,27 @@ func decodeStepFunWebID(oasisToken string) string {
 
 // --- SenseNova 套餐用量（商汤日日新 Coding Plan）---
 //
-// 新版额度面板（2026-09 起官方改版）：
-//   - 接口：GET /lite/console/v1/tokenplan/pool-usage（无查询参数）
-//   - 鉴权：标准 Bearer JWT（控制台 access_token，约 3 小时有效期）
-//   - 响应：{plan, pools[]}，每池含 window_5h / window_7d 窗口额度
-//     + grant_balance 授权余额 + nearest_grant_expiry 最近到期时间
-//   - 所有数值字段均为字符串；reset_at / nearest_grant_expiry 为 Unix 秒
+// 控制台使用 pool-usage 接口返回按积分池划分的滚动窗口：
+//   - window_5h：5 小时窗口
+//   - window_7d：7 天窗口
+//   - limit / used / remaining / reset_at 均可能以数字字符串返回
 //
-// 映射到 Octopus 三档（与官方新版面板对齐）：
-//   - five_hour ← window_5h（近 5 小时窗口）
-//   - weekly    ← window_7d（近 7 天窗口）
-//   - quota     ← grant_balance（授权余额，重置时间 = 最近授权到期）
-//
-// 多池（default 通用池 + dedicated 专用池）汇总：各窗口与授权余额求和，
-// 重置时间取最晚。
+// PlanProvider 当前只有一组窗口字段，因此优先使用 pool_type=default 的通用
+// 积分池。dedicated 池只适用于特定模型，不能与通用池简单相加。
 var senseNovaPlanURL = "https://platform.sensenova.cn/lite/console/v1/tokenplan/pool-usage"
 
-// senseNovaWindow 官方 pool-usage 响应中的窗口额度（数值均为字符串）。
-type senseNovaWindow struct {
-	Limit     string `json:"limit"`
-	Used      string `json:"used"`
-	Remaining string `json:"remaining"`
-	ResetAt   string `json:"reset_at"`
+type senseNovaPoolWindow struct {
+	Limit     json.RawMessage `json:"limit"`
+	Used      json.RawMessage `json:"used"`
+	Remaining json.RawMessage `json:"remaining"`
+	ResetAt   json.RawMessage `json:"reset_at"`
+}
+
+type senseNovaPoolUsage struct {
+	PoolType string              `json:"pool_type"`
+	Name     string              `json:"name"`
+	Window5h senseNovaPoolWindow `json:"window_5h"`
+	Window7d senseNovaPoolWindow `json:"window_7d"`
 }
 
 func querySenseNovaPlanTokenPlan(ctx context.Context, token string) (*TokenPlanResult, error) {
@@ -742,87 +747,126 @@ func querySenseNovaPlanTokenPlan(ctx context.Context, token string) (*TokenPlanR
 	}
 
 	var data struct {
-		Plan struct {
-			ID   string `json:"id"`
-			Name string `json:"name"`
-		} `json:"plan"`
-		Pools []struct {
-			ID         string           `json:"id"`
-			Name       string           `json:"name"`
-			PoolType   string           `json:"pool_type"`
-			ModelIDs   []string         `json:"model_ids"`
-			Window5H   *senseNovaWindow `json:"window_5h"`
-			Window7D   *senseNovaWindow `json:"window_7d"`
-			GrantBalance            string `json:"grant_balance"`
-			NearestGrantExpiry      string `json:"nearest_grant_expiry"`
-			NearestGrantExpiringBal string `json:"nearest_grant_expiring_balance"`
-		} `json:"pools"`
+		Pools []senseNovaPoolUsage `json:"pools"`
 	}
 	if err := json.Unmarshal(body, &data); err != nil {
 		return nil, fmt.Errorf("sensenova_plan: parse response: %w", err)
 	}
 	if len(data.Pools) == 0 {
-		return nil, fmt.Errorf("sensenova_plan: 响应中无 pools 数据")
+		return nil, fmt.Errorf("sensenova_plan: response contains no quota pools")
 	}
 
-	parseF := func(s string) float64 {
-		v, _ := strconv.ParseFloat(s, 64)
-		return v
-	}
-	parseReset := func(s string) *time.Time {
-		ts, err := strconv.ParseInt(s, 10, 64)
-		if err != nil || ts <= 0 {
-			return nil
+	pool := data.Pools[0]
+	for _, candidate := range data.Pools {
+		if candidate.PoolType == "default" {
+			pool = candidate
+			break
 		}
-		t := time.Unix(ts, 0)
-		return &t
 	}
 
-	result := &TokenPlanResult{}
-	var fiveReset, weeklyReset *time.Time
-	var nearestExpiry *time.Time
-	for _, p := range data.Pools {
-		pool := model.TokenPlanPoolUsage{
-			ID:       p.ID,
-			Name:     p.Name,
-			PoolType: p.PoolType,
-			ModelIDs: p.ModelIDs,
-		}
-		if p.Window5H != nil {
-			pool.FiveHourLimit = parseF(p.Window5H.Limit)
-			pool.FiveHourUsed = parseF(p.Window5H.Used)
-			pool.FiveHourRemain = parseF(p.Window5H.Remaining)
-			pool.FiveHourResetAt = parseReset(p.Window5H.ResetAt)
-			result.FiveHourTotal += pool.FiveHourLimit
-			result.FiveHourUsed += pool.FiveHourUsed
-			if r := pool.FiveHourResetAt; r != nil && (fiveReset == nil || r.After(*fiveReset)) {
-				fiveReset = r
-			}
-		}
-		if p.Window7D != nil {
-			pool.SevenDayLimit = parseF(p.Window7D.Limit)
-			pool.SevenDayUsed = parseF(p.Window7D.Used)
-			pool.SevenDayRemain = parseF(p.Window7D.Remaining)
-			pool.SevenDayResetAt = parseReset(p.Window7D.ResetAt)
-			result.WeeklyTotal += pool.SevenDayLimit
-			result.WeeklyUsed += pool.SevenDayUsed
-			if r := pool.SevenDayResetAt; r != nil && (weeklyReset == nil || r.After(*weeklyReset)) {
-				weeklyReset = r
-			}
-		}
-		pool.GrantBalance = parseF(p.GrantBalance)
-		pool.NearestGrantExpiry = parseReset(p.NearestGrantExpiry)
-		pool.NearestGrantExpiringBal = parseF(p.NearestGrantExpiringBal)
-		result.QuotaTotal += pool.GrantBalance
-		if r := pool.NearestGrantExpiry; r != nil && (nearestExpiry == nil || r.Before(*nearestExpiry)) {
-			nearestExpiry = r
-		}
-		result.Pools = append(result.Pools, pool)
+	fiveHourTotal, fiveHourUsed := senseNovaWindowValues(pool.Window5h)
+	weeklyTotal, weeklyUsed := senseNovaWindowValues(pool.Window7d)
+	result := &TokenPlanResult{
+		FiveHourTotal:   fiveHourTotal,
+		FiveHourUsed:    fiveHourUsed,
+		FiveHourResetAt: senseNovaResetTime(pool.Window5h.ResetAt),
+		WeeklyTotal:     weeklyTotal,
+		WeeklyUsed:      weeklyUsed,
+		WeeklyResetAt:   senseNovaResetTime(pool.Window7d.ResetAt),
 	}
-	result.FiveHourResetAt = fiveReset
-	result.WeeklyResetAt = weeklyReset
-	result.QuotaResetAt = nearestExpiry
+
+	for _, candidate := range data.Pools {
+		if candidate.PoolType != "dedicated" {
+			continue
+		}
+		dedicatedFiveHourTotal, dedicatedFiveHourUsed := senseNovaWindowValues(candidate.Window5h)
+		dedicatedWeeklyTotal, dedicatedWeeklyUsed := senseNovaWindowValues(candidate.Window7d)
+		result.DedicatedPoolName = candidate.Name
+		result.DedicatedFiveHourTotal = dedicatedFiveHourTotal
+		result.DedicatedFiveHourUsed = dedicatedFiveHourUsed
+		result.DedicatedFiveHourResetAt = senseNovaResetTime(candidate.Window5h.ResetAt)
+		result.DedicatedWeeklyTotal = dedicatedWeeklyTotal
+		result.DedicatedWeeklyUsed = dedicatedWeeklyUsed
+		result.DedicatedWeeklyResetAt = senseNovaResetTime(candidate.Window7d.ResetAt)
+		break
+	}
 	return result, nil
+}
+
+// senseNovaWindowValues 读取商汤窗口的总量和已用量。
+// used 是首选字段；部分旧响应只有 remaining，此时用 limit - remaining。
+func senseNovaWindowValues(window senseNovaPoolWindow) (total, used float64) {
+	total, _ = senseNovaNumber(window.Limit)
+	if value, ok := senseNovaNumber(window.Used); ok {
+		used = value
+	} else if remaining, ok := senseNovaNumber(window.Remaining); ok {
+		used = total - remaining
+	}
+	if used < 0 {
+		used = 0
+	}
+	return total, used
+}
+
+// senseNovaNumber 兼容数字和数字字符串两种 JSON 表示。
+func senseNovaNumber(raw json.RawMessage) (float64, bool) {
+	s := strings.TrimSpace(string(raw))
+	if s == "" || s == "null" {
+		return 0, false
+	}
+	if strings.HasPrefix(s, `"`) {
+		var value string
+		if err := json.Unmarshal(raw, &value); err != nil {
+			return 0, false
+		}
+		s = strings.TrimSpace(value)
+		if s == "" {
+			return 0, false
+		}
+	}
+	value, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, false
+	}
+	return value, true
+}
+
+// senseNovaResetTime 将 reset_at 的 Unix 秒/毫秒值转为 time.Time。
+func senseNovaResetTime(raw json.RawMessage) *time.Time {
+	value, ok := senseNovaNumber(raw)
+	if !ok || value <= 0 {
+		return nil
+	}
+	if value > 1e12 {
+		value /= 1000
+	}
+	resetAt := time.Unix(int64(value), 0)
+	return &resetAt
+}
+
+// decodeSenseNovaAccountID 从 SenseNova JWT 的 payload 中解码 ext.tenant_id。
+func decodeSenseNovaAccountID(token string) string {
+	parts := strings.Split(token, ".")
+	if len(parts) < 2 {
+		return ""
+	}
+	payload := parts[1]
+	decoded, err := base64.URLEncoding.DecodeString(payload)
+	if err != nil {
+		decoded, err = base64.RawURLEncoding.DecodeString(payload)
+		if err != nil {
+			return ""
+		}
+	}
+	var claims struct {
+		Ext struct {
+			TenantID string `json:"tenant_id"`
+		} `json:"ext"`
+	}
+	if err := json.Unmarshal(decoded, &claims); err != nil {
+		return ""
+	}
+	return claims.Ext.TenantID
 }
 
 // --- MiMo Token Plan (小米 MiMo Coding Plan) ---
@@ -1258,14 +1302,14 @@ func queryTokenRhythmBalance(ctx context.Context, cookie string) (*BalanceResult
 	var resp struct {
 		Code int `json:"code"`
 		Data struct {
-			Calls        int64            `json:"calls"`
-			SuccessCalls int64            `json:"successCalls"`
-			ErrorCalls   int64            `json:"errorCalls"`
-			InputTokens  int64            `json:"inputTokens"`
-			OutputTokens int64            `json:"outputTokens"`
-			CostCny      flexibleFloat64  `json:"costCny"`
-			BalanceCny   flexibleFloat64  `json:"balanceCny"`
-			Currency     string           `json:"currency"`
+			Calls        int64           `json:"calls"`
+			SuccessCalls int64           `json:"successCalls"`
+			ErrorCalls   int64           `json:"errorCalls"`
+			InputTokens  int64           `json:"inputTokens"`
+			OutputTokens int64           `json:"outputTokens"`
+			CostCny      flexibleFloat64 `json:"costCny"`
+			BalanceCny   flexibleFloat64 `json:"balanceCny"`
+			Currency     string          `json:"currency"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(body, &resp); err != nil {

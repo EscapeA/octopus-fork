@@ -55,12 +55,18 @@ export enum SystemMessageStrategy {
     Merge = 'merge',
 }
 
+export type PromptRewriteRule = {
+    pattern: string;
+    replacement: string;
+};
+
 export type RequestRewriteConfig = {
     enabled: boolean;
     profile?: RequestRewriteProfile | null;
     tool_role_strategy?: ToolRoleStrategy | null;
     system_message_strategy?: SystemMessageStrategy | null;
     header_profile?: RequestRewriteHeaderProfile | '' | null;
+    prompt_rules?: PromptRewriteRule[] | null;
 };
 
 export type BaseUrl = {
@@ -139,6 +145,7 @@ export type Channel = {
     key_health_all_failed?: boolean | null;
     key_health_at?: number;
     pool_id: number;
+    node_id: number;
     stats?: StatsChannel;
 };
 
@@ -179,6 +186,7 @@ export type CreateChannelRequest = {
     request_rewrite?: RequestRewriteConfig;
     match_regex?: string | null;
     pool_id?: number;
+    node_id?: number;
 };
 
 /**
@@ -211,6 +219,7 @@ export type UpdateChannelRequest = {
     request_rewrite?: RequestRewriteConfig;
     match_regex?: string | null;
     pool_id?: number;
+    node_id?: number;
     // keys diff
     keys_to_add?: Array<Pick<ChannelKey, 'enabled' | 'channel_key' | 'priority' | 'remark' | 'supported_models'>>;
     keys_to_update?: Array<{ id: number; enabled?: boolean; channel_key?: string; priority?: number; remark?: string; supported_models?: string }>;
@@ -218,6 +227,7 @@ export type UpdateChannelRequest = {
 };
 
 export type FetchModelRequest = {
+    node_id?: number;
     type: ChannelType;
     base_urls: BaseUrl[];
     // id / remark 为可选：按 key 抓取时一并上传，后端在结果的 key_id / key_remark 里原样回传，
@@ -240,6 +250,8 @@ export type TestChannelResult = {
     latency_ms: number;
     message?: string;
     response_body?: string;
+    diagnostic_code?: string;
+    model_count?: number;
 };
 
 export type TestChannelSummary = {
@@ -582,7 +594,7 @@ export function useTestChannel() {
             return apiClient.post<TestChannelSummary>('/api/v1/channel/test', data);
         },
         onSuccess: (data) => {
-            logger.log('渠道测试成功:', data);
+            logger.log('渠道测试完成:', data);
         },
         onError: (error) => {
             logger.error('渠道测试失败:', error);

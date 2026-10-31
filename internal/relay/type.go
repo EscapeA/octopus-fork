@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lingyuins/octopus/internal/conf"
 	dbmodel "github.com/lingyuins/octopus/internal/model"
+	"github.com/lingyuins/octopus/internal/nodetransport"
 	"github.com/lingyuins/octopus/internal/op/setting"
 	"github.com/lingyuins/octopus/internal/relay/balancer"
 	"github.com/lingyuins/octopus/internal/transformer/model"
@@ -188,6 +189,8 @@ func streamChunkHasVisibleContent(resp *model.InternalLLMResponse) bool {
 var hopByHopHeaders = map[string]bool{
 	"authorization":       true,
 	"x-api-key":           true,
+	"api-key":             true,
+	"chatgpt-account-id":  true,
 	"connection":          true,
 	"keep-alive":          true,
 	"proxy-authenticate":  true,
@@ -223,55 +226,13 @@ type relayRequest struct {
 	metrics           *RelayMetrics
 	apiKeyID          int
 	requestModel      string
+	modelIdentity     relayModelIdentity
+	quotaUsage        *int64
 	groupEndpointType string
 	group             *dbmodel.Group // 新增：用于读取分组级推理缓冲策略
 	iter              *balancer.Iterator
 	streamSession     *relayStreamSession
 	retryCache        *retryRequestCache
-	// counted402Keys 记录本请求内已计入「连续 402」的 Key ID。阈值语义是
-	// 「连续 N 次请求都收到 402」，同一请求内的多次 Key 重试不应把计数叠加多次
-	// （否则单渠道单 Key 的请求一次就能把阈值打满）。仅本请求 goroutine 访问。
-	counted402Keys map[int]struct{}
-	// autoDisabledKeys 记录本请求内被「402 自动禁用」的 Key ID。后续尝试/降级适配器
-	// 手里拿的是禁用前的 Key 旧副本，只要写回就会把 enabled=false 覆盖回 true
-	// （缓存立即失效，刷盘后 DB 也被改回），故写回前先查这里。仅本请求 goroutine 访问。
-	autoDisabledKeys map[int]struct{}
-}
-
-// markInsufficientBalanceCounted 标记本请求内该 Key 已计入一次 402 计数。
-// 返回 true 表示本请求此前已计过（调用方应跳过计数，避免重复累加）。
-func (r *relayRequest) markInsufficientBalanceCounted(keyID int) bool {
-	if r == nil || keyID == 0 {
-		return false
-	}
-	if r.counted402Keys == nil {
-		r.counted402Keys = make(map[int]struct{}, 2)
-	}
-	if _, ok := r.counted402Keys[keyID]; ok {
-		return true
-	}
-	r.counted402Keys[keyID] = struct{}{}
-	return false
-}
-
-// markKeyAutoDisabled 记录本请求内该 Key 已被 402 自动禁用。
-func (r *relayRequest) markKeyAutoDisabled(keyID int) {
-	if r == nil || keyID == 0 {
-		return
-	}
-	if r.autoDisabledKeys == nil {
-		r.autoDisabledKeys = make(map[int]struct{}, 1)
-	}
-	r.autoDisabledKeys[keyID] = struct{}{}
-}
-
-// keyAutoDisabledInRequest 本请求内该 Key 是否已被自动禁用。
-func (r *relayRequest) keyAutoDisabledInRequest(keyID int) bool {
-	if r == nil || keyID == 0 || r.autoDisabledKeys == nil {
-		return false
-	}
-	_, ok := r.autoDisabledKeys[keyID]
-	return ok
 }
 
 // relayAttempt 尝试级上下文
@@ -328,10 +289,12 @@ func (ra *relayAttempt) getResponseFilterConfig() responseFilterConfig {
 
 // attemptResult 封装单次尝试的结果
 type attemptResult struct {
-	Success  bool          // 是否成功
-	Written  bool          // 流式响应是否已开始写入（不可重试）
-	Err      error         // 失败时的错误
-	Decision RetryDecision // 重试决策（新增）
+	Success      bool          // 是否成功
+	Written      bool          // 流式响应是否已开始写入（不可重试）
+	Err          error         // 失败时的错误
+	Decision     RetryDecision // 重试决策（新增）
+	TTFTMillis   float64
+	OutputTokens int64
 }
 
 // RetryScope 重试范围，明确四种行为边界
@@ -442,6 +405,12 @@ func isSSEDoneMarker(data string) bool {
 //
 // 返回：RetryDecision 决策结果
 func ClassifyRelayError(statusCode int, err error, written bool) RetryDecision {
+	if nodetransport.IsExecutionUncertain(err) {
+		return RetryDecision{Scope: ScopeAbortAll, Reason: "node execution outcome is uncertain", Code: http.StatusBadGateway, IsError: true, SkipFailureAccounting: true}
+	}
+	if errors.Is(err, errPluginProcessing) {
+		return RetryDecision{Scope: ScopeAbortAll, Reason: "local plugin processing failed", Code: http.StatusBadGateway, IsError: true, SkipFailureAccounting: true}
+	}
 	// 成功：无需重试。流式成功完成即使已经写出响应，也不应视为失败。
 	if err == nil && statusCode >= 200 && statusCode < 300 {
 		return RetryDecision{

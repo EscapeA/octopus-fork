@@ -77,7 +77,6 @@ func init() {
 		balancer.RemoveChannelKeyCooldowns(channelID)
 		balancer.RemoveChannelKeyAvailability(channelID)
 		balancer.RemoveChannelKeySpeed(channelID)
-		balancer.RemoveChannelAutoDisableCounters(channelID)
 		if OnChannelDeletedKeyHealthHook != nil {
 			OnChannelDeletedKeyHealthHook(channelID)
 		}

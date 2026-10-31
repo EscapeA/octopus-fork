@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dlclark/regexp2"
 	"github.com/lingyuins/octopus/internal/transformer/outbound"
 )
 
@@ -64,12 +65,18 @@ const (
 	SystemMessageStrategyMerge SystemMessageStrategy = "merge"
 )
 
+type PromptRewriteRule struct {
+	Pattern     string `json:"pattern"`
+	Replacement string `json:"replacement"`
+}
+
 type RequestRewriteConfig struct {
 	Enabled               bool                  `json:"enabled"`
 	Profile               RequestRewriteProfile `json:"profile,omitempty"`
 	ToolRoleStrategy      ToolRoleStrategy      `json:"tool_role_strategy,omitempty"`
 	SystemMessageStrategy SystemMessageStrategy `json:"system_message_strategy,omitempty"`
 	HeaderProfile         string                `json:"header_profile,omitempty"`
+	PromptRules           []PromptRewriteRule   `json:"prompt_rules,omitempty"`
 }
 
 type Channel struct {
@@ -117,6 +124,7 @@ type Channel struct {
 	KeyHealthAt int64 `json:"key_health_at,omitempty" gorm:"column:key_health_at;default:0"`
 	// PoolID 关联号池。0 = 使用 inline keys，>0 = 从号池调度器选账号。
 	PoolID        int                   `json:"pool_id" gorm:"default:0;index"`
+	NodeID        int                   `json:"node_id" gorm:"not null;default:0;index"`
 	Managed       bool                  `json:"managed" gorm:"-"`
 	ManagedSource *ManagedChannelSource `json:"managed_source,omitempty" gorm:"-"`
 }
@@ -146,12 +154,6 @@ type ChannelKey struct {
 	// 空表示不限制（兼容存量 key）。key 选择时用 ModelMatches 过滤，
 	// 避免把不支持当前模型的 key 发给上游（如上游中转站某 token 无某模型权限）。
 	SupportedModels string `json:"supported_models,omitempty" gorm:"column:supported_models;type:text"`
-	// AutoDisabledAt / AutoDisableReason 记录系统自动禁用该 key 的时间与原因（详见
-	// relay/insufficient_balance_guard.go：上游连续返回 402 达阈值时自动禁用）。
-	// Enabled=false 才是真正生效的禁用开关，这两个字段仅用于展示（前端徽标/原因）
-	// 与「定时试活自动恢复」的判定；用户手动启用时会被清空。
-	AutoDisabledAt    *time.Time `json:"auto_disabled_at,omitempty" gorm:"column:auto_disabled_at"`
-	AutoDisableReason string     `json:"auto_disable_reason,omitempty" gorm:"column:auto_disable_reason;type:varchar(255)"`
 	// Managed 标记该 key 是否由 site 同步投影自动生成。
 	// site 同步 diff 时只删除 Managed=true 的 key，
 	// 保留用户手动添加的（Managed=false）key 不被清除。
@@ -209,6 +211,7 @@ type ChannelUpdateRequest struct {
 	RequestRewrite       *RequestRewriteConfig `json:"request_rewrite,omitempty"`
 	MatchRegex           *string               `json:"match_regex,omitempty"`
 	PoolID               *int                  `json:"pool_id,omitempty"`
+	NodeID               *int                  `json:"node_id,omitempty"`
 
 	KeysToAdd    []ChannelKeyAddRequest    `json:"keys_to_add,omitempty"`
 	KeysToUpdate []ChannelKeyUpdateRequest `json:"keys_to_update,omitempty"`
@@ -303,6 +306,15 @@ func (c *RequestRewriteConfig) Validate(channelType outbound.OutboundType) error
 	case "", SystemMessageStrategyKeep, SystemMessageStrategyMerge:
 	default:
 		return fmt.Errorf("unsupported system message strategy: %s", c.SystemMessageStrategy)
+	}
+
+	for i, rule := range c.PromptRules {
+		if strings.TrimSpace(rule.Pattern) == "" {
+			return fmt.Errorf("prompt rewrite pattern %d is empty", i+1)
+		}
+		if _, err := regexp2.Compile(rule.Pattern, regexp2.ECMAScript); err != nil {
+			return fmt.Errorf("invalid prompt rewrite pattern %d: %w", i+1, err)
+		}
 	}
 
 	return nil

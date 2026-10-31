@@ -23,6 +23,7 @@ import {
 import { channelTemplates } from './templates';
 import { DEFAULT_CHANNEL_TYPE } from './type-options';
 import { toast } from '@/components/common/Toast';
+import { withNodeTransport } from './node-binding';
 
 export function CreateDialogContent() {
     const { setIsOpen } = useMorphingDialog();
@@ -54,6 +55,7 @@ export function CreateDialogContent() {
         proxy_config_id: null,
         match_regex: '',
         pool_id: 0,
+        node_id: 0,
     });
     const t = useTranslations('channel.create');
     const tForm = useTranslations('channel.form');
@@ -93,7 +95,8 @@ export function CreateDialogContent() {
         const paramOverride = formData.param_override.trim();
         const requestRewrite = getEffectiveRequestRewriteFormData(formData.type, formData.request_rewrite);
         createChannel.mutate(
-            {
+            withNodeTransport({
+                node_id: formData.node_id,
                 name: formData.name,
                 group_id: formData.group_id || undefined,
                 type: formData.type,
@@ -122,7 +125,7 @@ export function CreateDialogContent() {
                 request_rewrite: requestRewrite.enabled ? requestRewrite : undefined,
                 match_regex: formData.match_regex.trim(),
                 pool_id: formData.pool_id || undefined,
-            },
+            }),
             {
                 onSuccess: () => {
                     setIsOpen(false);

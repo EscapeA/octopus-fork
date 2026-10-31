@@ -165,52 +165,44 @@ func TestQueryStepFunPlanTokenPlan_EmptyToken(t *testing.T) {
 // --- SenseNova Plan 测试（新版 pool-usage 接口）---
 
 func TestQuerySenseNovaPlanTokenPlan_Success(t *testing.T) {
-	var gotAuth, gotMethod string
+	var gotAuth, gotMethod, gotPath string
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotMethod = r.Method
 		gotAuth = r.Header.Get("Authorization")
+		gotPath = r.URL.Path
 
-		// 新版接口无查询参数（不再需要 account_id / model_ids）
 		if r.URL.RawQuery != "" {
-			t.Errorf("unexpected query params: %s", r.URL.RawQuery)
+			t.Errorf("unexpected query string: %s", r.URL.RawQuery)
 		}
 
 		resp := map[string]any{
-			"plan": map[string]any{
-				"id":   "free",
-				"name": "Free Plan",
-				"type": "TOKEN_PLAN_PLAN_TYPE_FREE",
-			},
-			"pools": []any{
-				map[string]any{
-					"id":        "pool_default",
-					"name":      "通用积分池",
-					"pool_type": "default",
-					"model_ids": []string{"deepseek-v4-flash", "sensenova-6.7-flash-lite"},
-					"window_5h": map[string]any{
-						"limit": "60000", "used": "0", "remaining": "60000", "reset_at": "1788523830",
-					},
-					"window_7d": map[string]any{
-						"limit": "600000", "used": "354.84768", "remaining": "599645.15232", "reset_at": "1788948630",
-					},
-					"grant_balance":                  "1908.9024",
-					"nearest_grant_expiry":           "1791025200",
-					"nearest_grant_expiring_balance": "0.602",
-				},
-				map[string]any{
-					"id":        "pool_dedicated",
-					"name":      "Flash-Lite积分池",
+			"pools": []map[string]any{
+				{
 					"pool_type": "dedicated",
-					"model_ids": []string{"sensenova-6.7-flash-lite", "sensenova-6.8-flash-lite"},
+					"name":      "Flash-Lite积分池",
 					"window_5h": map[string]any{
-						"limit": "60000", "used": "5716.0492", "remaining": "54283.9508", "reset_at": "1788523830",
+						"limit": "999",
+						"used":  "123",
 					},
 					"window_7d": map[string]any{
-						"limit": "600000", "used": "5716.6512", "remaining": "594283.3488", "reset_at": "1788948630",
+						"limit": "9999",
+						"used":  "456",
 					},
-					"grant_balance":                  "0",
-					"nearest_grant_expiry":           "0",
-					"nearest_grant_expiring_balance": "0",
+				},
+				{
+					"pool_type": "default",
+					"window_5h": map[string]any{
+						"limit":     "120000",
+						"used":      "0",
+						"remaining": "120000",
+						"reset_at":  "1793257798",
+					},
+					"window_7d": map[string]any{
+						"limit":     "1200000",
+						"used":      "0",
+						"remaining": "1200000",
+						"reset_at":  "1793844598",
+					},
 				},
 			},
 		}
@@ -220,10 +212,10 @@ func TestQuerySenseNovaPlanTokenPlan_Success(t *testing.T) {
 	defer ts.Close()
 
 	origURL := senseNovaPlanURL
-	senseNovaPlanURL = ts.URL
+	senseNovaPlanURL = ts.URL + "/lite/console/v1/tokenplan/pool-usage"
 	defer func() { senseNovaPlanURL = origURL }()
 
-	result, err := querySenseNovaPlanTokenPlan(context.Background(), "test-bearer-token")
+	result, err := querySenseNovaPlanTokenPlan(context.Background(), "test-token")
 	if err != nil {
 		t.Fatalf("querySenseNovaPlanTokenPlan() error = %v", err)
 	}
@@ -232,69 +224,37 @@ func TestQuerySenseNovaPlanTokenPlan_Success(t *testing.T) {
 	if gotMethod != http.MethodGet {
 		t.Errorf("method = %s, want GET", gotMethod)
 	}
+	if gotPath != "/lite/console/v1/tokenplan/pool-usage" {
+		t.Errorf("path = %s, want /lite/console/v1/tokenplan/pool-usage", gotPath)
+	}
 	if !strings.Contains(gotAuth, "Bearer ") {
 		t.Errorf("Authorization = %q, want Bearer", gotAuth)
 	}
 
-	// 校验解析结果：双池汇总
-	if result.FiveHourTotal != 120000 {
-		t.Errorf("FiveHourTotal = %f, want 120000 (双池求和)", result.FiveHourTotal)
+	// 校验解析结果
+	if result.QuotaTotal != 0 || result.QuotaUsed != 0 || result.QuotaResetAt != nil {
+		t.Errorf("monthly quota = %v/%v/%v, want empty", result.QuotaUsed, result.QuotaTotal, result.QuotaResetAt)
 	}
-	if result.FiveHourUsed != 5716.0492 {
-		t.Errorf("FiveHourUsed = %f, want 5716.0492", result.FiveHourUsed)
+	if result.FiveHourTotal != 120000 || result.FiveHourUsed != 0 {
+		t.Errorf("5h quota = %v/%v, want 0/120000", result.FiveHourUsed, result.FiveHourTotal)
 	}
-	if result.WeeklyTotal != 1200000 {
-		t.Errorf("WeeklyTotal = %f, want 1200000 (双池求和)", result.WeeklyTotal)
+	if result.WeeklyTotal != 1200000 || result.WeeklyUsed != 0 {
+		t.Errorf("7d quota = %v/%v, want 0/1200000", result.WeeklyUsed, result.WeeklyTotal)
 	}
-	if result.WeeklyUsed != 6071.49888 {
-		t.Errorf("WeeklyUsed = %f, want 6071.49888", result.WeeklyUsed)
+	if result.DedicatedPoolName != "Flash-Lite积分池" {
+		t.Errorf("dedicated pool name = %q, want Flash-Lite积分池", result.DedicatedPoolName)
 	}
-	if result.QuotaTotal != 1908.9024 {
-		t.Errorf("QuotaTotal = %f, want 1908.9024 (grant 求和)", result.QuotaTotal)
+	if result.DedicatedFiveHourTotal != 999 || result.DedicatedFiveHourUsed != 123 {
+		t.Errorf("dedicated 5h quota = %v/%v, want 123/999", result.DedicatedFiveHourUsed, result.DedicatedFiveHourTotal)
 	}
-	if result.QuotaUsed != 0 {
-		t.Errorf("QuotaUsed = %f, want 0", result.QuotaUsed)
+	if result.DedicatedWeeklyTotal != 9999 || result.DedicatedWeeklyUsed != 456 {
+		t.Errorf("dedicated 7d quota = %v/%v, want 456/9999", result.DedicatedWeeklyUsed, result.DedicatedWeeklyTotal)
 	}
-	// 重置时间：Unix 秒
-	if result.FiveHourResetAt == nil || result.FiveHourResetAt.Unix() != 1788523830 {
-		t.Errorf("FiveHourResetAt = %v, want 1788523830", result.FiveHourResetAt)
+	if result.FiveHourResetAt == nil || !result.FiveHourResetAt.Equal(time.Unix(1793257798, 0)) {
+		t.Errorf("5h reset_at = %v, want %v", result.FiveHourResetAt, time.Unix(1793257798, 0))
 	}
-	if result.WeeklyResetAt == nil || result.WeeklyResetAt.Unix() != 1788948630 {
-		t.Errorf("WeeklyResetAt = %v, want 1788948630", result.WeeklyResetAt)
-	}
-	// 授权到期：取最早的 grant 到期
-	if result.QuotaResetAt == nil || result.QuotaResetAt.Unix() != 1791025200 {
-		t.Errorf("QuotaResetAt = %v, want 1791025200", result.QuotaResetAt)
-	}
-	// 分池明细：2 池
-	if len(result.Pools) != 2 {
-		t.Fatalf("Pools len = %d, want 2", len(result.Pools))
-	}
-	p0 := result.Pools[0]
-	if p0.ID != "pool_default" || p0.Name != "通用积分池" || p0.PoolType != "default" {
-		t.Errorf("pool[0] = %+v, want default 通用积分池", p0)
-	}
-	if p0.SevenDayLimit != 600000 || p0.SevenDayUsed != 354.84768 || p0.SevenDayRemain != 599645.15232 {
-		t.Errorf("pool[0] SevenDay = %+v", p0)
-	}
-	if p0.FiveHourLimit != 60000 || p0.FiveHourRemain != 60000 {
-		t.Errorf("pool[0] FiveHour = %+v", p0)
-	}
-	if p0.GrantBalance != 1908.9024 || p0.NearestGrantExpiringBal != 0.602 {
-		t.Errorf("pool[0] grant = %+v", p0)
-	}
-	if p0.NearestGrantExpiry == nil || p0.NearestGrantExpiry.Unix() != 1791025200 {
-		t.Errorf("pool[0] NearestGrantExpiry = %v, want 1791025200", p0.NearestGrantExpiry)
-	}
-	if len(p0.ModelIDs) != 2 || p0.ModelIDs[0] != "deepseek-v4-flash" {
-		t.Errorf("pool[0] ModelIDs = %v", p0.ModelIDs)
-	}
-	p1 := result.Pools[1]
-	if p1.PoolType != "dedicated" || p1.Name != "Flash-Lite积分池" {
-		t.Errorf("pool[1] = %+v, want dedicated Flash-Lite积分池", p1)
-	}
-	if p1.GrantBalance != 0 || p1.NearestGrantExpiry != nil {
-		t.Errorf("pool[1] grant = %+v, want 0/nil", p1)
+	if result.WeeklyResetAt == nil || !result.WeeklyResetAt.Equal(time.Unix(1793844598, 0)) {
+		t.Errorf("7d reset_at = %v, want %v", result.WeeklyResetAt, time.Unix(1793844598, 0))
 	}
 }
 
@@ -309,25 +269,19 @@ func TestQuerySenseNovaPlanTokenPlan_EmptyToken(t *testing.T) {
 }
 
 func TestQuerySenseNovaPlanTokenPlan_NoPools(t *testing.T) {
+	// 新接口不需要从 JWT 解码 account_id，任意非空 Bearer Token 都交给上游校验。
+	// 这里覆盖空池响应，确保不会再次静默回退到 0/100。
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := map[string]any{
-			"plan":  map[string]any{"id": "free", "name": "Free Plan"},
-			"pools": []any{},
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		json.NewEncoder(w).Encode(map[string]any{"pools": []any{}})
 	}))
 	defer ts.Close()
 
 	origURL := senseNovaPlanURL
-	senseNovaPlanURL = ts.URL
+	senseNovaPlanURL = ts.URL + "/lite/console/v1/tokenplan/pool-usage"
 	defer func() { senseNovaPlanURL = origURL }()
 
-	_, err := querySenseNovaPlanTokenPlan(context.Background(), "token")
-	if err == nil {
-		t.Fatal("expected error for empty pools, got nil")
-	}
-	if !strings.Contains(err.Error(), "pools") {
-		t.Errorf("error = %q, want mention of pools", err.Error())
+	_, err := querySenseNovaPlanTokenPlan(context.Background(), "invalid.token")
+	if err == nil || !strings.Contains(err.Error(), "no quota pools") {
+		t.Fatalf("error = %v, want no quota pools error", err)
 	}
 }

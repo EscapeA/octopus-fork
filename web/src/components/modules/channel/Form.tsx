@@ -19,6 +19,11 @@ import { ProxySelector } from '@/components/modules/proxy-pool/ProxySelector';
 import { useAlertNotifChannelList } from '@/api/endpoints/alert';
 import { useSettingList, SettingKey } from '@/api/endpoints/setting';
 import { usePoolList } from '@/api/endpoints/pool';
+import { useNodeList } from '@/api/endpoints/node';
+import { useNavStore } from '@/components/modules/navbar/nav-store';
+import { withNodeTransport } from './node-binding';
+import { ChannelTestResults } from './TestResults';
+import { channelTestOutcome } from './test-results';
 import { channelTemplates } from './templates';
 import { CHANNEL_TYPE_OPTIONS } from './type-options';
 import { isOpenAICompatBaseUrlSuffixMode } from './base-url-suffix';
@@ -93,6 +98,7 @@ export interface ChannelFormData {
     key_selection_strategy: string;
     match_regex: string;
     pool_id: number;
+    node_id: number;
 }
 
 /**
@@ -114,6 +120,7 @@ export function createDefaultRequestRewriteFormData(): RequestRewriteConfig {
         tool_role_strategy: ToolRoleStrategy.Keep,
         system_message_strategy: SystemMessageStrategy.Keep,
         header_profile: RequestRewriteHeaderProfile.None,
+        prompt_rules: [],
     };
 }
 
@@ -124,22 +131,47 @@ export function normalizeRequestRewriteFormData(config?: RequestRewriteConfig | 
         tool_role_strategy: config?.tool_role_strategy ?? ToolRoleStrategy.Keep,
         system_message_strategy: config?.system_message_strategy ?? SystemMessageStrategy.Keep,
         header_profile: config?.header_profile ?? RequestRewriteHeaderProfile.None,
+        prompt_rules: (config?.prompt_rules ?? []).map((rule) => ({
+            pattern: rule.pattern ?? '',
+            replacement: rule.replacement ?? '',
+        })),
     };
 }
 
 export function isRequestRewriteSupportedChannelType(channelType: ChannelType): boolean {
-    return channelType === ChannelType.OpenAIChat || channelType === ChannelType.MiMoChat || channelType === ChannelType.OpenAIResponse;
+    switch (channelType) {
+        case ChannelType.OpenAIChat:
+        case ChannelType.OpenAIResponse:
+        case ChannelType.Anthropic:
+        case ChannelType.Gemini:
+        case ChannelType.Volcengine:
+        case ChannelType.MiMoChat:
+        case ChannelType.Cloudflare:
+            return true;
+        default:
+            return false;
+    }
+}
+
+export function isOpenAIChatCompatRewriteSupportedChannelType(channelType: ChannelType): boolean {
+    return channelType === ChannelType.OpenAIChat
+        || channelType === ChannelType.MiMoChat
+        || channelType === ChannelType.OpenAIResponse;
 }
 
 export function getEffectiveRequestRewriteFormData(channelType: ChannelType, config?: RequestRewriteConfig | null): RequestRewriteConfig {
     const normalized = normalizeRequestRewriteFormData(config);
     if (isRequestRewriteSupportedChannelType(channelType)) {
-        return normalized;
+        return {
+            ...normalized,
+            prompt_rules: normalized.prompt_rules?.filter((rule) => rule.pattern.trim() !== ''),
+        };
     }
 
     return {
         ...normalized,
         enabled: false,
+        prompt_rules: [],
     };
 }
 
@@ -740,7 +772,13 @@ export function ChannelForm({
     const { data: channelGroups = [] } = useChannelGroupList();
     const { data: notifChannels = [] } = useAlertNotifChannelList();
     const { data: pools = [] } = usePoolList();
+    const channelActive = useNavStore((state) => state.activeItem === 'channel');
+    const { data: nodeList } = useNodeList(channelActive);
+    const nodes = nodeList?.nodes ?? [];
+    const isNode = formData.node_id > 0;
+    const canBindNode = nodeList?.can_write === true;
     const requestRewriteSupported = isRequestRewriteSupportedChannelType(formData.type);
+    const openAIChatCompatSupported = isOpenAIChatCompatRewriteSupportedChannelType(formData.type);
     const isCreateLayout = layout === 'create';
     const sectionClassName = isCreateLayout
         ? 'min-w-0 space-y-3 border-b border-border pb-5'
@@ -759,6 +797,40 @@ export function ChannelForm({
     const globalKeyStrategy = settings?.find((s) => s.key === SettingKey.KeySelectionStrategy)?.value ?? 'cost';
     const effectiveKeyStrategy = formData.key_selection_strategy || globalKeyStrategy;
     const showPriorityInput = effectiveKeyStrategy === 'priority';
+
+    // 号池绑定渠道不在表单里编辑 key，此时不提供“回填到 key”操作（表单里没有可写的 key）
+    const canFillPerKeyModels = formData.pool_id === 0 && !isNode;
+    const promptRules = formData.request_rewrite.prompt_rules ?? [];
+    const updatePromptRule = (index: number, field: 'pattern' | 'replacement', value: string) => {
+        const nextRules = promptRules.map((rule, ruleIndex) =>
+            ruleIndex === index ? { ...rule, [field]: value } : rule,
+        );
+        onFormDataChange({
+            ...formData,
+            request_rewrite: {
+                ...formData.request_rewrite,
+                prompt_rules: nextRules,
+            },
+        });
+    };
+    const addPromptRule = () => {
+        onFormDataChange({
+            ...formData,
+            request_rewrite: {
+                ...formData.request_rewrite,
+                prompt_rules: [...promptRules, { pattern: '', replacement: '' }],
+            },
+        });
+    };
+    const removePromptRule = (index: number) => {
+        onFormDataChange({
+            ...formData,
+            request_rewrite: {
+                ...formData.request_rewrite,
+                prompt_rules: promptRules.filter((_, ruleIndex) => ruleIndex !== index),
+            },
+        });
+    };
 
     // Ensure the form always shows at least 1 row for base_urls / keys / custom_header.
     // This avoids "empty list" UI and also keeps URL + APIKEY layout consistent.
@@ -799,8 +871,18 @@ export function ChannelForm({
 
     const fetchModel = useFetchModel();
     const fetchModelsPerKey = useFetchModelsPerKey();
+    const isFetchingModels = fetchModel.isPending || fetchModelsPerKey.isPending;
     const testChannel = useTestChannel();
     const [testSummary, setTestSummary] = useState<TestChannelSummary | null>(null);
+    const [testError, setTestError] = useState<string | null>(null);
+    const testGeneration = useRef(0);
+    useEffect(() => {
+        const generation = testGeneration;
+        generation.current++;
+        setTestSummary(null);
+        setTestError(null);
+        return () => { generation.current++; };
+    }, [formData.node_id, formData.type]);
     const [modelPickerDraft, setModelPickerDraft] = useState<string[]>([]);
     const [perKeyResults, setPerKeyResults] = useState<KeyModelResult[] | null>(null);
     // 与 perKeyResults 同序：每个结果对应 formData.keys 的下标
@@ -852,7 +934,8 @@ export function ChannelForm({
         [formData.custom_header]
     );
 
-    const buildTestPayload = () => ({
+    const buildTestPayload = () => withNodeTransport({
+        node_id: formData.node_id,
         type: formData.type,
         base_urls: (formData.base_urls ?? []).filter((u) => u.url.trim()).map((u) => ({
             url: u.url.trim(),
@@ -880,13 +963,21 @@ export function ChannelForm({
 
     const handleTestChannel = () => {
         setTestSummary(null);
+        setTestError(null);
+        const generation = ++testGeneration.current;
         testChannel.mutate(buildTestPayload(), {
             onSuccess: (data) => {
+                if (testGeneration.current !== generation) return;
                 setTestSummary(data);
-                toast.success(data.passed ? t('test.success') : t('test.partialSuccess'));
+                const outcome = channelTestOutcome(data);
+                if (outcome === 'success') toast.success(t('test.success'));
+                else if (outcome === 'partialSuccess') toast.warning(t('test.partialSuccess'));
+                else toast.error(t('test.failed'));
             },
             onError: (error) => {
+                if (testGeneration.current !== generation) return;
                 const errorMessage = error instanceof Error ? error.message : String(error);
+                setTestError(errorMessage);
                 toast.error(t('test.failed'), { description: errorMessage });
             },
         });
@@ -962,13 +1053,14 @@ export function ChannelForm({
     };
 
     const handleRefreshModels = async () => {
-        if (!formData.base_urls?.[0]?.url || !effectiveKey) return;
+        if (!isNode && (!formData.base_urls?.[0]?.url || !effectiveKey)) return;
         setModelPickerDraft(autoModels);
         setFetchedModels([]);
         setPerKeyResults(null);
         setPerKeyKeyIndexes([]);
 
-        const payload = {
+        const payload = withNodeTransport({
+            node_id: formData.node_id,
             type: formData.type,
             base_urls: formData.base_urls,
             keys: formData.keys
@@ -980,7 +1072,7 @@ export function ChannelForm({
             channel_proxy: formData.channel_proxy?.trim() || '',
             match_regex: formData.match_regex.trim() || '',
             custom_header: normalizedHeaders,
-        };
+        });
 
         // 主模型列表（单 key）
         fetchModel.mutate(
@@ -1010,7 +1102,7 @@ export function ChannelForm({
         const enabledKeyTargets = formData.keys
             .map((k, i) => ({ k, i }))
             .filter(({ k }) => k.enabled && k.channel_key.trim());
-        if (enabledKeyTargets.length > 1) {
+        if (!isNode && enabledKeyTargets.length > 1) {
             fetchModelsPerKey.mutate(
                 {
                     ...payload,
@@ -1215,6 +1307,29 @@ export function ChannelForm({
             </section>
 
             <section className={cn(sectionClassName, isCreateLayout && 'md:col-span-2')}>
+                <label htmlFor={`${idPrefix}-node`} className={labelClassName}>{t('nodeBinding')}</label>
+                <Select value={String(formData.node_id)} disabled={!canBindNode} onValueChange={(value) => onFormDataChange({
+                    ...formData,
+                    node_id: Number(value),
+                    pool_id: 0,
+                    proxy_mode: 'direct',
+                    proxy_config_id: null,
+                    channel_proxy: '',
+                })}>
+                    <SelectTrigger id={`${idPrefix}-node`} className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="0">{t('httpTransport')}</SelectItem>
+                        {nodes.map((node) => <SelectItem key={node.id} value={String(node.id)}>{node.name} · {t(node.online ? 'nodeOnline' : 'nodeOffline')}{!node.enabled ? ` · ${t('nodeDisabled')}` : ''}</SelectItem>)}
+                        {isNode && !nodes.some((node) => node.id === formData.node_id) && <SelectItem value={String(formData.node_id)}>{t('nodeUnavailable', { id: formData.node_id })}</SelectItem>}
+                    </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">{t(canBindNode ? 'nodeHint' : 'nodeAdminOnly')}</p>
+                {isNode && <>
+                    <Button type="button" variant="outline" disabled={testChannel.isPending} onClick={handleTestChannel}>{t(testChannel.isPending ? 'test.running' : 'test.button')}</Button>
+                </>}
+            </section>
+
+            {!isNode && <section className={cn(sectionClassName, isCreateLayout && 'md:col-span-2')}>
                 <SectionHeader icon={Cable} title={t('baseUrlConfig')} hint={t('baseUrlHint')} />
                 <div className="flex items-center justify-end gap-2">
                     <Badge variant="secondary" className="rounded-full">
@@ -1286,10 +1401,121 @@ export function ChannelForm({
                         </div>
                     ))}
                 </div>
+            </section>}
+
+            <section className={cn(sectionClassName, isCreateLayout && 'md:col-span-2')}>
+                <div className="flex min-w-0 items-center justify-between gap-2">
+                    <SectionHeader icon={Layers3} title={t('modelConfig')} />
+                    <MorphingDialog onOpen={handleRefreshModels}>
+                        <MorphingDialogTrigger
+                            ariaLabel={t('modelRefresh')}
+                            disabled={(!isNode && (!formData.base_urls?.[0]?.url || !effectiveKey)) || isFetchingModels}
+                            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-border px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        >
+                            <RefreshCw className={`size-4 ${isFetchingModels ? 'animate-spin' : ''}`} />
+                            {t('modelRefresh')}
+                        </MorphingDialogTrigger>
+                        <MorphingDialogContainer>
+                            <MorphingDialogContent className="h-[calc(100dvh-2rem)] w-[min(100vw-2rem,54rem)] max-w-full rounded-xl border border-border/35 bg-card p-0 md:h-[min(44rem,calc(100dvh-3rem))]">
+                                <ModelPickerDialogPanel
+                                    models={fetchedModels}
+                                    draftSelected={modelPickerDraft}
+                                    onDraftChange={setModelPickerDraft}
+                                    isLoading={isFetchingModels}
+                                    onApply={applyFetchedModelSelection}
+                                    perKeyItems={perKeyItems}
+                                    perKeyLoading={fetchModelsPerKey.isPending}
+                                    onApplyPerKey={applyPerKeySelection}
+                                />
+                            </MorphingDialogContent>
+                        </MorphingDialogContainer>
+                    </MorphingDialog>
+                </div>
+                <input type="hidden" value={formData.model} required />
+
+                <div className="relative">
+                    <Input
+                        ref={inputRef}
+                        id={`${idPrefix}-model-custom`}
+                        type="text"
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyDown={handleInputKeyDown}
+                        placeholder={t('modelCustomPlaceholder')}
+                        className="rounded-lg pr-10"
+                    />
+                    {inputValue.trim() && !customModels.includes(inputValue.trim()) && !autoModels.includes(inputValue.trim()) && (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleAddModel(inputValue)}
+                            className="absolute rounded-lg right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                            title={t('modelAdd')}
+                        >
+                            <Plus className="size-4" />
+                        </Button>
+                    )}
+                </div>
+
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium text-card-foreground">
+                            {t('modelSelected')} {(autoModels.length + customModels.length) > 0 && `(${autoModels.length + customModels.length})`}
+                        </label>
+                        {(autoModels.length + customModels.length) > 0 && (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => updateModels([], [])}
+                                className="h-6 px-2 text-xs text-muted-foreground/50 hover:text-muted-foreground hover:bg-transparent"
+                            >
+                                {t('modelClearAll')}
+                            </Button>
+                        )}
+                    </div>
+                    <div className="max-h-40 min-h-12 overflow-y-auto rounded-lg border border-border/25 bg-card p-2.5 shadow-sm">
+                        {(autoModels.length + customModels.length) > 0 ? (
+                            <div className="flex flex-wrap gap-1.5">
+                                {autoModels.map((model) => (
+                                    <Badge key={model} variant="secondary" className="max-w-full gap-1 bg-muted hover:bg-muted/80">
+                                        <span className="min-w-0 break-all whitespace-normal">{model}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveAutoModel(model)}
+                                            className="ml-1 rounded-sm opacity-70 hover:opacity-100 focus:outline-none focus:ring-1 focus:ring-ring"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </Badge>
+                                ))}
+                                {customModels.map((model) => (
+                                    <Badge key={model} className="max-w-full gap-1 bg-primary hover:bg-primary/90">
+                                        <span className="min-w-0 break-all whitespace-normal">{model}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveCustomModel(model)}
+                                            className="ml-1 rounded-sm opacity-70 hover:opacity-100 focus:outline-none focus:ring-1 focus:ring-ring"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </Badge>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="py-2 text-center text-xs text-muted-foreground">{t('modelNoSelected')}</div>
+                        )}
+                    </div>
+                </div>
             </section>
 
+            {(testSummary || testError) && <section className={cn(sectionClassName, isCreateLayout && 'md:col-span-2')}>
+                {testSummary && <ChannelTestResults summary={testSummary} isNode={isNode} onRemoveFailedKeys={handleRemoveFailedKeys} />}
+                {testError && <p role="alert" className="break-words text-sm text-destructive">{t('test.failed')}: {testError}</p>}
+            </section>}
 
-            {formData.pool_id === 0 && (
+            {formData.pool_id === 0 && !isNode && (
             <section className={cn(sectionClassName, isCreateLayout && 'md:col-span-2')}>
                 <SectionHeader icon={KeyRound} title={t('apiKeyConfig')} />
                 <div className="flex items-center justify-end gap-2">
@@ -1410,168 +1636,9 @@ export function ChannelForm({
                     ))}
                 </div>
 
-                {testSummary && (
-                    <div className="space-y-2 rounded-lg border border-border/25 bg-card p-3">
-                        <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 text-sm font-medium text-card-foreground">
-                                {testSummary.passed ? (
-                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                ) : (
-                                    <AlertTriangle className="h-4 w-4 text-orange-500" />
-                                )}
-                                <span>
-                                    {testSummary.passed ? t('test.success') : t('test.partialSuccess')}
-                                    <Hint text={t('test.hint')} />
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                {testSummary.results.some((r) => !r.passed) && (
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={handleRemoveFailedKeys}
-                                        className="h-6 px-2 text-xs text-destructive/70 hover:text-destructive hover:bg-transparent"
-                                    >
-                                        <Trash2 className="h-3 w-3 mr-1" />
-                                        {t('test.removeFailedKeys')}
-                                    </Button>
-                                )}
-                                <Badge variant="secondary">{testSummary.results.length} {t('test.results')}</Badge>
-                            </div>
-                        </div>
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                            {testSummary.results.map((result, idx) => (
-                                <div key={`${result.base_url}-${result.key_masked}-${idx}`} className="rounded-lg border border-border/30 bg-card p-2.5 text-xs space-y-1">
-                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <span className="font-mono truncate">{result.base_url}</span>
-                                        <div className="flex items-center gap-1 shrink-0">
-                                            <Badge variant="secondary">{result.key_masked || '-'}</Badge>
-                                            <Badge variant="secondary">{result.status_code}</Badge>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between gap-2 text-muted-foreground">
-                                        <span>{result.key_remark || t('test.noRemark')}</span>
-                                        <span>{result.latency_ms}ms · {result.passed ? t('test.pass') : t('test.fail')}</span>
-                                    </div>
-                                    {result.message && <p className="break-all text-muted-foreground">{result.message}</p>}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
             </section>
             )}
 
-            <section className={sectionClassName}>
-                <SectionHeader icon={Layers3} title={t('modelConfig')} />
-                <div className="flex items-center justify-end gap-2">
-                    <MorphingDialog onOpen={handleRefreshModels}>
-                        <MorphingDialogTrigger
-                            disabled={!formData.base_urls?.[0]?.url || !effectiveKey || fetchModel.isPending}
-                            className="inline-flex h-6 items-center justify-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground/50 transition-colors hover:bg-transparent hover:text-muted-foreground"
-                        >
-                            <RefreshCw className={`h-3 w-3 ${fetchModel.isPending ? 'animate-spin' : ''}`} />
-                            {t('modelRefresh')}
-                        </MorphingDialogTrigger>
-                        <MorphingDialogContainer>
-                            <MorphingDialogContent className="h-[calc(100dvh-2rem)] w-[min(100vw-2rem,54rem)] max-w-full rounded-xl border border-border/35 bg-card p-0 md:h-[min(44rem,calc(100dvh-3rem))]">
-                                <ModelPickerDialogPanel
-                                    models={fetchedModels}
-                                    draftSelected={modelPickerDraft}
-                                    onDraftChange={setModelPickerDraft}
-                                    isLoading={fetchModel.isPending}
-                                    onApply={applyFetchedModelSelection}
-                                    perKeyItems={perKeyItems}
-                                    perKeyLoading={fetchModelsPerKey.isPending}
-                                    onApplyPerKey={applyPerKeySelection}
-                                />
-                            </MorphingDialogContent>
-                        </MorphingDialogContainer>
-                    </MorphingDialog>
-                </div>
-                <input type="hidden" value={formData.model} required />
-
-                <div className="relative">
-                    <Input
-                        ref={inputRef}
-                        id={`${idPrefix}-model-custom`}
-                        type="text"
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onKeyDown={handleInputKeyDown}
-                        placeholder={t('modelCustomPlaceholder')}
-                        className="rounded-lg pr-10"
-                    />
-                    {inputValue.trim() && !customModels.includes(inputValue.trim()) && !autoModels.includes(inputValue.trim()) && (
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleAddModel(inputValue)}
-                            className="absolute rounded-lg right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-                            title={t('modelAdd')}
-                        >
-                            <Plus className="size-4" />
-                        </Button>
-                    )}
-                </div>
-
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                        <label className="text-xs font-medium text-card-foreground">
-                            {t('modelSelected')} {(autoModels.length + customModels.length) > 0 && `(${autoModels.length + customModels.length})`}
-                        </label>
-                        {(autoModels.length + customModels.length) > 0 && (
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                    updateModels([], []);
-                                }}
-                                className="h-6 px-2 text-xs text-muted-foreground/50 hover:text-muted-foreground hover:bg-transparent"
-                            >
-                                {t('modelClearAll')}
-                            </Button>
-                        )}
-                    </div>
-                    <div className="max-h-40 min-h-12 overflow-y-auto rounded-lg border border-border/25 bg-card p-2.5 shadow-sm">
-                        {(autoModels.length + customModels.length) > 0 ? (
-                            <div className="flex flex-wrap gap-1.5">
-                                {autoModels.map((model) => (
-                                    <Badge key={model} variant="secondary" className="max-w-full gap-1 bg-muted hover:bg-muted/80">
-                                        <span className="min-w-0 break-all whitespace-normal">{model}</span>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleRemoveAutoModel(model)}
-                                            className="ml-1 rounded-sm opacity-70 hover:opacity-100 focus:outline-none focus:ring-1 focus:ring-ring"
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </button>
-                                    </Badge>
-                                ))}
-                                {customModels.map((model) => (
-                                    <Badge key={model} className="max-w-full gap-1 bg-primary hover:bg-primary/90">
-                                        <span className="min-w-0 break-all whitespace-normal">{model}</span>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleRemoveCustomModel(model)}
-                                            className="ml-1 rounded-sm opacity-70 hover:opacity-100 focus:outline-none focus:ring-1 focus:ring-ring"
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </button>
-                                    </Badge>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="flex items-center justify-center h-8 text-xs text-muted-foreground">
-                                {t('modelNoSelected')}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </section>
 
             <Accordion type="single" collapsible className={cn('w-full min-w-0', isCreateLayout && 'md:col-span-2')}>
                 <AccordionItem value="advanced" className="border-none">
@@ -1584,7 +1651,7 @@ export function ChannelForm({
                     <AccordionContent className="pt-4">
                         <div className="space-y-4">
                         <div className="grid min-w-0 items-start gap-4 md:grid-cols-2">
-                            <ProxySelector
+                            {!isNode && <ProxySelector
                                 layout="stacked"
                                 value={{ proxy_mode: formData.proxy_mode, proxy_config_id: formData.proxy_config_id }}
                                 onChange={(next) => onFormDataChange({
@@ -1592,7 +1659,7 @@ export function ChannelForm({
                                     proxy_mode: next.proxy_mode as ChannelProxyMode,
                                     proxy_config_id: next.proxy_config_id ?? null,
                                 })}
-                            />
+                            />}
                             <div className={fieldGroupClassName}>
                                 <label htmlFor={`${idPrefix}-key-strategy`} className={labelClassName}>{t('keySelectionStrategy')}</label>
                                 <Select
@@ -1612,7 +1679,7 @@ export function ChannelForm({
                                 </Select>
                             </div>
                         </div>
-                        <div className={fieldGroupClassName}>
+                        {!isNode && <div className={fieldGroupClassName}>
                             <label htmlFor={`${idPrefix}-pool`} className={labelClassName}>
                                 {t('poolBinding')}
                                 {formData.pool_id > 0 ? <Hint text={t('poolHint')} /> : null}
@@ -1631,7 +1698,7 @@ export function ChannelForm({
                                     ))}
                                 </SelectContent>
                             </Select>
-                        </div>
+                        </div>}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className={fieldGroupClassName}>
                                 <label htmlFor={`${idPrefix}-auto-group`} className={labelClassName}>
@@ -1653,7 +1720,7 @@ export function ChannelForm({
                                 </Select>
                             </div>
 
-                            <div className={fieldGroupClassName}>
+                            {!isNode && <div className={fieldGroupClassName}>
                                 <label htmlFor={`${idPrefix}-channel-proxy`} className={labelClassName}>
                                     {t('channelProxy')}
                                 </label>
@@ -1665,7 +1732,7 @@ export function ChannelForm({
                                     placeholder={t('channelProxyPlaceholder')}
                                     className="rounded-lg"
                                 />
-                            </div>
+                            </div>}
                         </div>
 
                         <div className={fieldGroupClassName}>
@@ -1799,7 +1866,9 @@ export function ChannelForm({
                                         </SelectTrigger>
                                         <SelectContent className="rounded-lg">
                                             <SelectItem className="rounded-xl" value={RequestRewriteProfile.Preserve}>保留</SelectItem>
-                                            <SelectItem className="rounded-xl" value={RequestRewriteProfile.OpenAIChatCompat}>{t('requestRewriteProfileOpenAIChatCompat')}</SelectItem>
+                                            {openAIChatCompatSupported && (
+                                                <SelectItem className="rounded-xl" value={RequestRewriteProfile.OpenAIChatCompat}>{t('requestRewriteProfileOpenAIChatCompat')}</SelectItem>
+                                            )}
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -1878,6 +1947,77 @@ export function ChannelForm({
                                         </SelectContent>
                                     </Select>
                                 </div>
+                            </div>
+
+                            <div className="space-y-3 rounded-lg border border-border/30 bg-muted/10 p-3 sm:p-4">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-medium text-card-foreground">
+                                            {t('promptRewriteRules')}
+                                            <Hint text={t('promptRewriteRulesHint')} />
+                                        </p>
+                                        <p className="mt-1 text-xs text-muted-foreground">{t('promptRewriteRulesDescription')}</p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={addPromptRule}
+                                        disabled={!requestRewriteSupported || !formData.request_rewrite.enabled}
+                                        className="shrink-0 gap-1.5 rounded-lg"
+                                    >
+                                        <Plus className="size-3.5" />
+                                        {t('promptRewriteAdd')}
+                                    </Button>
+                                </div>
+
+                                {promptRules.length === 0 ? (
+                                    <p className="text-xs text-muted-foreground">{t('promptRewriteRulesEmpty')}</p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {promptRules.map((rule, index) => (
+                                            <div key={`${idPrefix}-prompt-rule-${index}`} className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                                                <div className="min-w-0 space-y-1">
+                                                    <label htmlFor={`${idPrefix}-prompt-rule-pattern-${index}`} className="text-xs text-muted-foreground">
+                                                        {t('promptRewritePattern')}
+                                                    </label>
+                                                    <Input
+                                                        id={`${idPrefix}-prompt-rule-pattern-${index}`}
+                                                        value={rule.pattern}
+                                                        onChange={(event) => updatePromptRule(index, 'pattern', event.target.value)}
+                                                        placeholder={t('promptRewritePatternPlaceholder')}
+                                                        disabled={!requestRewriteSupported || !formData.request_rewrite.enabled}
+                                                        className="rounded-lg font-mono text-xs"
+                                                    />
+                                                </div>
+                                                <div className="min-w-0 space-y-1">
+                                                    <label htmlFor={`${idPrefix}-prompt-rule-replacement-${index}`} className="text-xs text-muted-foreground">
+                                                        {t('promptRewriteReplacement')}
+                                                    </label>
+                                                    <Input
+                                                        id={`${idPrefix}-prompt-rule-replacement-${index}`}
+                                                        value={rule.replacement}
+                                                        onChange={(event) => updatePromptRule(index, 'replacement', event.target.value)}
+                                                        placeholder={t('promptRewriteReplacementPlaceholder')}
+                                                        disabled={!requestRewriteSupported || !formData.request_rewrite.enabled}
+                                                        className="rounded-lg font-mono text-xs"
+                                                    />
+                                                </div>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => removePromptRule(index)}
+                                                    disabled={!requestRewriteSupported || !formData.request_rewrite.enabled}
+                                                    aria-label={t('promptRewriteRemove')}
+                                                    className="size-9 shrink-0 text-muted-foreground hover:text-destructive"
+                                                >
+                                                    <Trash2 className="size-4" />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                         </div>

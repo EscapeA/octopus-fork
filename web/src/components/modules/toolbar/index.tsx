@@ -101,6 +101,7 @@ export function Toolbar() {
     const { activeItem } = useNavStore();
     const toolbarItem = isToolbarPage(activeItem) ? activeItem : null;
     const modelView = useModelViewStore((s) => s.modelView);
+    const modelDedupe = useModelViewStore((s) => s.dedupe);
     const setModelView = useModelViewStore((s) => s.setModelView);
     const searchTerm = useSearchStore((s) => (toolbarItem ? s.searchTerms[toolbarItem] || '' : ''));
     const setSearchTerm = useSearchStore((s) => s.setSearchTerm);
@@ -126,13 +127,20 @@ export function Toolbar() {
     const setModelLatencyUnit = useToolbarViewOptionsStore((s) => s.setModelLatencyUnit);
     const [expandedSearchItem, setExpandedSearchItem] = useState<ToolbarPage | null>(null);
     const searchExpanded = expandedSearchItem === toolbarItem;
-    const { data: modelMarket } = useModelMarket();
+    // 市场数据只在「模型页 · 模型广场」视图激活时拉取，其余视图/页面不产生请求。
+    const isModelMarketView = toolbarItem === 'model' && modelView === 'market';
+    const { data: modelMarket } = useModelMarket(modelDedupe, isModelMarketView);
     const modelSummary = modelMarket?.summary ?? {
         model_count: 0,
         coverage_count: 0,
         unique_channel_count: 0,
         average_latency_ms: 0,
     };
+    // 真实请求总数：由 market items 的成功/失败请求汇总而来，供平均延迟指标判断口径。
+    const marketRequestCount = (modelMarket?.items ?? []).reduce(
+        (total, item) => total + item.request_success + item.request_failed,
+        0,
+    );
 
     if (!toolbarItem) return null;
     const showLayoutOptions = toolbarItem !== 'group';

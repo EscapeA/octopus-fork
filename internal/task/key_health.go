@@ -15,6 +15,7 @@ import (
 	"github.com/lingyuins/octopus/internal/op/channel"
 	"github.com/lingyuins/octopus/internal/op/notification"
 	"github.com/lingyuins/octopus/internal/op/setting"
+	pluginevent "github.com/lingyuins/octopus/internal/plugin/event"
 	"github.com/lingyuins/octopus/internal/utils/log"
 )
 
@@ -150,6 +151,7 @@ func updateChannelKeyHealth(channelID int, passed bool, allFailed bool, at int64
 			"key_health_at":         at,
 		})
 	}
+	pluginevent.Publish("channel.health.changed", map[string]any{"channel_id": channelID, "channel_name": ch.Name, "passed": passed, "all_failed": allFailed, "at": at})
 }
 
 // handleKeyHealthFailure 处理巡检失败：递增连续失败计数，达到阈值且通过冷却时发通知。
@@ -289,6 +291,16 @@ func buildKeyHealthFailureDetail(summary *helper.ChannelTestSummary) string {
 	var parts []string
 	for _, r := range summary.Results {
 		if !r.Passed {
+			if r.DiagnosticCode != "" {
+				code := r.DiagnosticCode
+				switch code {
+				case "disabled", "offline", "busy", "timeout", "cancelled", "local_unavailable", "local_authentication", "local_http", "invalid_models", "no_models", "upstream_failed":
+				default:
+					code = "upstream_failed"
+				}
+				parts = append(parts, "node: "+code)
+				continue
+			}
 			keyLabel := r.KeyRemark
 			if keyLabel == "" {
 				keyLabel = r.KeyMasked

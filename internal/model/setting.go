@@ -82,7 +82,6 @@ const (
 	SettingKeyAnalyticsTabVisible               SettingKey = "analytics_tab_visible"                 // 分析中心子标签可见性(JSON)
 	SettingKeyOpsTabOrder                       SettingKey = "ops_tab_order"                         // 运维中心子标签顺序(JSON)
 	SettingKeyOpsTabVisible                     SettingKey = "ops_tab_visible"                       // 运维中心子标签可见性(JSON)
-	SettingKeyAIRouteGroupID                    SettingKey = "ai_route_group_id"                     // AI路由目标分组 ID
 	SettingKeyAIRouteBaseURL                    SettingKey = "ai_route_base_url"                     // AI路由分析服务 Base URL
 	SettingKeyAIRouteAPIKey                     SettingKey = "ai_route_api_key"                      // AI路由分析服务 API Key
 	SettingKeyAIRouteModel                      SettingKey = "ai_route_model"                        // AI路由分析模型名称
@@ -129,9 +128,6 @@ const (
 	SettingKeyKeyHealthCheckNotifyEnabled       SettingKey = "key_health_check_notify_enabled"       // 是否发送 Key 验证失败通知
 	SettingKeyKeyHealthCheckRecoveryNotify      SettingKey = "key_health_check_recovery_notify"      // 是否发送 Key 验证恢复通知
 	SettingKeyKeyHealthCheckNotifyCooldown      SettingKey = "key_health_check_notify_cooldown"      // Key 验证通知冷却时间（秒）
-	SettingKeyKeyAutoDisableEnabled             SettingKey = "key_auto_disable_enabled"              // 上游返回 402（余额不足/欠费）达阈值时是否自动禁用该 Key
-	SettingKeyKeyAutoDisableThreshold           SettingKey = "key_auto_disable_threshold"            // 连续收到多少次 402 后自动禁用该 Key
-	SettingKeyKeyAutoDisableProbeInterval       SettingKey = "key_auto_disable_probe_interval"       // 自动禁用 Key 的定时试活间隔（分钟），0=不自动试活（仅手动恢复）
 	SettingKeyGroupUpstreamMetaDisplayEnabled   SettingKey = "group_upstream_meta_display_enabled"   // 分组编辑页展示上游价/余额/今日收入/性能指标
 )
 
@@ -202,7 +198,6 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyAnalyticsTabVisible, Value: `["cache","utilization","route-health","channel-model","evaluation","latency"]`},
 		{Key: SettingKeyOpsTabOrder, Value: `["telemetry","quota","health","maintenance","system","audit"]`},
 		{Key: SettingKeyOpsTabVisible, Value: `["telemetry","quota","health","maintenance","system","audit"]`},
-		{Key: SettingKeyAIRouteGroupID, Value: "0"},
 		{Key: SettingKeyStatsTimezone, Value: ""}, // 空=未配置，回退到 stats_timezone_offset 再回退 UTC
 		{Key: SettingKeyStatsTimezoneOffset, Value: "0"},
 		{Key: SettingKeyJWTDefaultExpiryMinutes, Value: "15"},    // 默认15分钟
@@ -242,9 +237,6 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyKeyHealthCheckNotifyEnabled, Value: "true"},     // 默认发送失败通知
 		{Key: SettingKeyKeyHealthCheckRecoveryNotify, Value: "true"},    // 默认发送恢复通知
 		{Key: SettingKeyKeyHealthCheckNotifyCooldown, Value: "300"},     // 默认通知冷却 5 分钟
-		{Key: SettingKeyKeyAutoDisableEnabled, Value: "true"},           // 默认开启：上游连续 402 达阈值自动禁用该 Key
-		{Key: SettingKeyKeyAutoDisableThreshold, Value: "3"},            // 默认连续 3 次 402 后自动禁用
-		{Key: SettingKeyKeyAutoDisableProbeInterval, Value: "30"},       // 默认 30 分钟试活一次，成功则自动恢复
 		{Key: SettingKeyGroupUpstreamMetaDisplayEnabled, Value: "true"}, // 默认开启分组上游元信息展示
 		{Key: SettingKeyPoolTokenRefreshInterval, Value: "10"},          // 默认 10 分钟检查号池 OAuth token 刷新
 		{Key: SettingKeyPoolQuotaSyncInterval, Value: "360"},            // 默认 6 小时同步号池额度
@@ -294,7 +286,7 @@ func (s *Setting) Validate() error {
 		SettingKeyAutoStrategyLatencyWeight,
 		SettingKeyAutoStrategyTTFTWeight, SettingKeyAutoStrategyPriceWeight,
 		SettingKeyAutoStrategyExploreRate, SettingKeyAutoStrategyBucketTolerance,
-		SettingKeyAIRouteGroupID, SettingKeyAIRouteTimeoutSeconds, SettingKeyAIRouteParallelism,
+		SettingKeyAIRouteTimeoutSeconds, SettingKeyAIRouteParallelism,
 		SettingKeyAIRouteMaxModelsPerRequest,
 		SettingKeyStatsTimezoneOffset,
 		SettingKeyJWTDefaultExpiryMinutes, SettingKeyJWTRememberMeExpiryDays,
@@ -306,7 +298,7 @@ func (s *Setting) Validate() error {
 		SettingKeyKeyHealthCheckInterval, SettingKeyKeyHealthCheckFailThreshold, SettingKeyKeyHealthCheckNotifyCooldown,
 		SettingKeyPoolTokenRefreshInterval, SettingKeyPoolQuotaSyncInterval, SettingKeyPlanProviderRefreshInterval,
 		SettingKeyPoolMinPriority, SettingKeyPoolHealthCheckInterval, SettingKeyPoolHealthCheckFailThreshold,
-		SettingKeyKeyAutoDisableThreshold, SettingKeyKeyAutoDisableProbeInterval, SettingKeyPoolStickyEscapeTTFTMs:
+		SettingKeyPoolStickyEscapeTTFTMs:
 		v, err := strconv.Atoi(s.Value)
 		if err != nil {
 			return fmt.Errorf("setting value must be an integer")
@@ -320,10 +312,6 @@ func (s *Setting) Validate() error {
 		}
 		if (s.Key == SettingKeyRatelimitCooldown || s.Key == SettingKeyRelayMaxTotalAttempts) && v < 0 {
 			return fmt.Errorf("setting value must be greater than or equal to 0")
-		}
-		// 允许设为 0：0 表示不自动试活，自动禁用的 Key 只能手动恢复。
-		if s.Key == SettingKeyKeyAutoDisableProbeInterval && v < 0 {
-			return fmt.Errorf("auto disable probe interval must be greater than or equal to 0")
 		}
 		// 允许设为 0：0 表示不限制流会话总数（不推荐，最坏情况会吃光内存）。
 		if s.Key == SettingKeyStreamSessionMaxSessions && v < 0 {
@@ -340,9 +328,6 @@ func (s *Setting) Validate() error {
 		}
 		if (s.Key == SettingKeyAutoStrategyTTFTWeight || s.Key == SettingKeyAutoStrategyPriceWeight || s.Key == SettingKeyAutoStrategyExploreRate || s.Key == SettingKeyAutoStrategyBucketTolerance) && (v < 0 || v > 100) {
 			return fmt.Errorf("auto strategy weight must be between 0 and 100")
-		}
-		if s.Key == SettingKeyAIRouteGroupID && v < 0 {
-			return fmt.Errorf("ai route group id must be greater than or equal to 0")
 		}
 		if s.Key == SettingKeyAIRouteTimeoutSeconds && v < 1 {
 			return fmt.Errorf("ai route timeout must be greater than 0")
@@ -364,7 +349,6 @@ func (s *Setting) Validate() error {
 			SettingKeyStatsSaveInterval, SettingKeyModelInfoUpdateInterval, SettingKeySyncLLMInterval,
 			SettingKeySiteSyncInterval, SettingKeySiteCheckinInterval,
 			SettingKeyKeyHealthCheckInterval, SettingKeyKeyHealthCheckFailThreshold, SettingKeyKeyHealthCheckNotifyCooldown,
-			SettingKeyKeyAutoDisableThreshold,
 			SettingKeyPoolTokenRefreshInterval, SettingKeyPoolQuotaSyncInterval, SettingKeyPlanProviderRefreshInterval,
 			SettingKeyPoolHealthCheckInterval, SettingKeyPoolHealthCheckFailThreshold:
 			if v < 1 {
@@ -390,7 +374,7 @@ func (s *Setting) Validate() error {
 			}
 		}
 	case SettingKeyRelayLogKeepEnabled, SettingKeyRelayLogContentEnabled, SettingKeyStreamSessionReplayEnabled, SettingKeyModelNormalizeMarketDedupeDefault, SettingKeyRetryEmptyOutput, SettingKeyRateLimitHoldEnabled, SettingKeyKeyHealthCheckEnabled, SettingKeyKeyHealthCheckNotifyEnabled, SettingKeyKeyHealthCheckRecoveryNotify,
-		SettingKeyPoolLayeredFilterEnabled, SettingKeyPoolHealthCheckEnabled, SettingKeyKeyAutoDisableEnabled, SettingKeyPoolStickyEscapeEnabled:
+		SettingKeyPoolLayeredFilterEnabled, SettingKeyPoolHealthCheckEnabled, SettingKeyPoolStickyEscapeEnabled:
 		if s.Value != "true" && s.Value != "false" {
 			return fmt.Errorf("setting value must be true or false")
 		}

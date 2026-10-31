@@ -5,7 +5,6 @@ import (
 
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -60,7 +59,8 @@ func buildSemanticCacheLookupInput(apiKeyID int, endpointFamily string, req *tra
 		return "", "", false
 	}
 
-	return semantic_cache.BuildNamespace(apiKeyID, endpointFamily, req.Model), text, true
+	namespace, safe := semanticNamespace(semantic_cache.BuildNamespace(apiKeyID, endpointFamily, req.Model), req)
+	return namespace, text, safe
 }
 
 func getSemanticCacheLookupInput(req *relayRequest, endpointFamily string) (string, string, bool, bool) {
@@ -73,7 +73,11 @@ func getSemanticCacheLookupInput(req *relayRequest, endpointFamily string) (stri
 		return namespace, text, ok, false
 	}
 	return req.retryCache.getLookupInput(cacheKey, func() (string, string, bool) {
-		return buildSemanticCacheLookupInput(req.apiKeyID, endpointFamily, req.internalRequest)
+		namespace, text, ok := buildSemanticCacheLookupInput(req.apiKeyID, endpointFamily, req.internalRequest)
+		if ok && req.c != nil && req.c.Request != nil {
+			namespace += ":h" + cacheHeaderFingerprint(req.c.Request.Header)
+		}
+		return namespace, text, ok
 	})
 }
 
@@ -108,13 +112,12 @@ func maybeServeSemanticCacheHit(c *gin.Context, req *relayRequest, endpointFamil
 		}
 		req.internalRequest.TransformerMetadata[semanticCacheHitMetadataKey] = "true"
 
-		isStream := req.internalRequest.Stream != nil && *req.internalRequest.Stream
-		if isStream {
-			if err := serveStreamingCacheHit(c, payload, req.internalRequest.Model); err != nil {
-				return false, nil, err
-			}
-		} else {
-			c.Data(http.StatusOK, "application/json", payload)
+		entry, err := decodeCanonicalCache(payload)
+		if err != nil {
+			return false, nil, nil
+		}
+		if err := req.serveCanonicalCache(entry); err != nil {
+			return false, nil, err
 		}
 		return true, payload, nil
 	}

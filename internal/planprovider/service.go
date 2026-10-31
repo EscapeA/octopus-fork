@@ -2,7 +2,6 @@ package planprovider
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -100,32 +99,6 @@ func MigrateLegacyDeepSeekChannels(ctx context.Context) (int, error) {
 	return migrated, nil
 }
 
-// marshalPlanPools 把分池明细序列化为落库 JSON 字符串（无分池数据时返回空串）。
-func marshalPlanPools(pools []model.TokenPlanPoolUsage) string {
-	if len(pools) == 0 {
-		return ""
-	}
-	b, err := json.Marshal(pools)
-	if err != nil {
-		log.Warnf("planprovider: marshal pools failed: %v", err)
-		return ""
-	}
-	return string(b)
-}
-
-// unmarshalPlanPools 反序列化 PoolsJSON 为分池明细（空串/解析失败返回 nil）。
-func unmarshalPlanPools(poolsJSON string) []model.TokenPlanPoolUsage {
-	if poolsJSON == "" {
-		return nil
-	}
-	var pools []model.TokenPlanPoolUsage
-	if err := json.Unmarshal([]byte(poolsJSON), &pools); err != nil {
-		log.Warnf("planprovider: unmarshal pools failed: %v", err)
-		return nil
-	}
-	return pools
-}
-
 // ListProviders 列出所有 Plan Provider
 func ListProviders(ctx context.Context, providerType model.PlanProviderType) ([]model.PlanProviderListItem, error) {
 	var providers []model.PlanProvider
@@ -142,14 +115,13 @@ func ListProviders(ctx context.Context, providerType model.PlanProviderType) ([]
 		item.APIKey = ""
 		item.ForwardAPIKey = ""
 		item.LoginConfigured = p.LoginUsername != "" && p.LoginPasswordEnc != ""
-		item.Pools = unmarshalPlanPools(p.PoolsJSON)
 		// 本次与上次检测之间的消费增量：
 		// balance 类 = 上次余额 − 本次余额（充值导致的负值按 0）；
 		// tokenplan 类 = 本次已用 − 上次已用（周期重置导致的负值按 0）。
 		if p.ProviderType == model.PlanProviderTypeBalance {
 			item.BalanceDelta = max(0, p.LastBalance-p.Balance)
 		} else {
-			item.QuotaUsedDelta = max(0, p.QuotaUsed-p.LastQuotaUsed)
+			item.QuotaUsedDelta = max(0, tokenPlanPrimaryUsed(p.Category, p.QuotaUsed, p.WeeklyUsed, p.DedicatedWeeklyUsed)-p.LastQuotaUsed)
 		}
 		if p.ChannelID > 0 {
 			channel, err := op.ChannelGet(p.ChannelID, ctx)
@@ -167,6 +139,15 @@ func ListProviders(ctx context.Context, providerType model.PlanProviderType) ([]
 		result = append(result, item)
 	}
 	return result, nil
+}
+
+// tokenPlanPrimaryUsed 返回用于消费增量统计的主窗口已用量。
+// SenseNova 使用通用池与专用池的 7 天已用量之和，其他 TokenPlan 厂商沿用 QuotaUsed。
+func tokenPlanPrimaryUsed(category model.PlanProviderCategory, quotaUsed, weeklyUsed, dedicatedWeeklyUsed float64) float64 {
+	if category == model.PlanProviderSenseNovaPlan {
+		return weeklyUsed + dedicatedWeeklyUsed
+	}
+	return quotaUsed
 }
 
 // queryPlanChannelStats 查询 DeepSeek 关联渠道的调用统计（累计 + 今日）。
@@ -327,11 +308,13 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 
 	// 1. 查询余额 / TokenPlan
 	var balance, balanceUsed float64
-	var totalTokens int64
 	var quotaTotal, quotaUsed, weeklyTotal, weeklyUsed float64
 	var fiveHourTotal, fiveHourUsed float64
+	var dedicatedWeeklyTotal, dedicatedWeeklyUsed float64
+	var dedicatedFiveHourTotal, dedicatedFiveHourUsed float64
+	var dedicatedPoolName string
 	var quotaResetAt, weeklyResetAt, fiveHourResetAt *string
-	var pools []model.TokenPlanPoolUsage
+	var dedicatedWeeklyResetAt, dedicatedFiveHourResetAt *string
 
 	if info.Type == model.PlanProviderTypeBalance {
 		result, err := QueryBalance(ctx, category, apiKey, info.BaseURL)
@@ -340,7 +323,6 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 		}
 		balance = result.Balance
 		balanceUsed = result.BalanceUsed
-		totalTokens = result.TotalTokens
 	} else {
 		result, err := QueryTokenPlan(ctx, category, apiKey, info.BaseURL, proxyMode, proxyConfigID, teamOrgID, teamProjectID)
 		if err != nil {
@@ -364,7 +346,19 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 			s := result.FiveHourResetAt.Format("2006-01-02 15:04:05")
 			fiveHourResetAt = &s
 		}
-		pools = result.Pools
+		dedicatedPoolName = result.DedicatedPoolName
+		dedicatedWeeklyTotal = result.DedicatedWeeklyTotal
+		dedicatedWeeklyUsed = result.DedicatedWeeklyUsed
+		if result.DedicatedWeeklyResetAt != nil {
+			s := result.DedicatedWeeklyResetAt.Format("2006-01-02 15:04:05")
+			dedicatedWeeklyResetAt = &s
+		}
+		dedicatedFiveHourTotal = result.DedicatedFiveHourTotal
+		dedicatedFiveHourUsed = result.DedicatedFiveHourUsed
+		if result.DedicatedFiveHourResetAt != nil {
+			s := result.DedicatedFiveHourResetAt.Format("2006-01-02 15:04:05")
+			dedicatedFiveHourResetAt = &s
+		}
 	}
 
 	// 2. 渠道创建/复用
@@ -449,6 +443,7 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 
 	// 3. 持久化 PlanProvider
 	now := time.Now()
+	lastQuotaUsed := tokenPlanPrimaryUsed(category, quotaUsed, weeklyUsed, dedicatedWeeklyUsed)
 	provider := &model.PlanProvider{
 		Name:               name,
 		Category:           category,
@@ -466,18 +461,21 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 		ProxyConfigID:      proxyConfigID,
 		RefreshIntervalMin: refreshIntervalMin,
 		// 首次添加即建立快照：本次与上次检测之间暂无增量（delta 为 0）
-		LastBalance:   balance,
-		LastQuotaUsed: quotaUsed,
-		Balance:       balance,
-		BalanceUsed:   balanceUsed,
-		TotalTokens:   totalTokens,
-		QuotaTotal:    quotaTotal,
-		QuotaUsed:     quotaUsed,
-		WeeklyTotal:   weeklyTotal,
-		WeeklyUsed:    weeklyUsed,
-		FiveHourTotal: fiveHourTotal,
-		FiveHourUsed:  fiveHourUsed,
-		PoolsJSON:     marshalPlanPools(pools),
+		LastBalance:            balance,
+		LastQuotaUsed:          lastQuotaUsed,
+		Balance:                balance,
+		BalanceUsed:            balanceUsed,
+		QuotaTotal:             quotaTotal,
+		QuotaUsed:              quotaUsed,
+		WeeklyTotal:            weeklyTotal,
+		WeeklyUsed:             weeklyUsed,
+		FiveHourTotal:          fiveHourTotal,
+		FiveHourUsed:           fiveHourUsed,
+		DedicatedPoolName:      dedicatedPoolName,
+		DedicatedWeeklyTotal:   dedicatedWeeklyTotal,
+		DedicatedWeeklyUsed:    dedicatedWeeklyUsed,
+		DedicatedFiveHourTotal: dedicatedFiveHourTotal,
+		DedicatedFiveHourUsed:  dedicatedFiveHourUsed,
 	}
 
 	if quotaResetAt != nil {
@@ -493,6 +491,16 @@ func AddProvider(ctx context.Context, category model.PlanProviderCategory, apiKe
 	if fiveHourResetAt != nil {
 		if t, err := time.Parse("2006-01-02 15:04:05", *fiveHourResetAt); err == nil {
 			provider.FiveHourResetAt = &t
+		}
+	}
+	if dedicatedWeeklyResetAt != nil {
+		if t, err := time.Parse("2006-01-02 15:04:05", *dedicatedWeeklyResetAt); err == nil {
+			provider.DedicatedWeeklyResetAt = &t
+		}
+	}
+	if dedicatedFiveHourResetAt != nil {
+		if t, err := time.Parse("2006-01-02 15:04:05", *dedicatedFiveHourResetAt); err == nil {
+			provider.DedicatedFiveHourResetAt = &t
 		}
 	}
 
@@ -551,7 +559,7 @@ func RefreshProvider(ctx context.Context, id int) (*model.PlanProvider, error) {
 				return nil, fmt.Errorf("refresh sensenova session: %w", err)
 			}
 		}
-		lastQuotaUsed := provider.QuotaUsed
+		lastQuotaUsed := tokenPlanPrimaryUsed(provider.Category, provider.QuotaUsed, provider.WeeklyUsed, provider.DedicatedWeeklyUsed)
 		result, err := QueryTokenPlan(ctx, provider.Category, provider.APIKey, provider.BaseURL, provider.ProxyMode, provider.ProxyConfigID, provider.TeamOrganizationID, provider.TeamProjectID)
 		if err != nil {
 			return nil, fmt.Errorf("refresh tokenplan: %w", err)
@@ -559,18 +567,20 @@ func RefreshProvider(ctx context.Context, id int) (*model.PlanProvider, error) {
 		provider.LastQuotaUsed = lastQuotaUsed
 		provider.QuotaTotal = result.QuotaTotal
 		provider.QuotaUsed = result.QuotaUsed
-		if result.QuotaResetAt != nil {
-			provider.QuotaResetAt = result.QuotaResetAt
-		}
+		provider.QuotaResetAt = result.QuotaResetAt
 		provider.WeeklyTotal = result.WeeklyTotal
 		provider.WeeklyUsed = result.WeeklyUsed
-		if result.WeeklyResetAt != nil {
-			provider.WeeklyResetAt = result.WeeklyResetAt
-		}
+		provider.WeeklyResetAt = result.WeeklyResetAt
 		provider.FiveHourTotal = result.FiveHourTotal
 		provider.FiveHourUsed = result.FiveHourUsed
 		provider.FiveHourResetAt = result.FiveHourResetAt
-		provider.PoolsJSON = marshalPlanPools(result.Pools)
+		provider.DedicatedPoolName = result.DedicatedPoolName
+		provider.DedicatedWeeklyTotal = result.DedicatedWeeklyTotal
+		provider.DedicatedWeeklyUsed = result.DedicatedWeeklyUsed
+		provider.DedicatedWeeklyResetAt = result.DedicatedWeeklyResetAt
+		provider.DedicatedFiveHourTotal = result.DedicatedFiveHourTotal
+		provider.DedicatedFiveHourUsed = result.DedicatedFiveHourUsed
+		provider.DedicatedFiveHourResetAt = result.DedicatedFiveHourResetAt
 	}
 
 	now := time.Now()
@@ -717,7 +727,7 @@ func UpdateProviderCredentials(ctx context.Context, id int, newAPIKey, newForwar
 		provider.TotalTokens = result.TotalTokens
 		provider.TotalUsed += max(0, lastBalance-provider.Balance)
 	} else {
-		lastQuotaUsed := provider.QuotaUsed
+		lastQuotaUsed := tokenPlanPrimaryUsed(provider.Category, provider.QuotaUsed, provider.WeeklyUsed, provider.DedicatedWeeklyUsed)
 		result, err := QueryTokenPlan(ctx, provider.Category, provider.APIKey, provider.BaseURL, provider.ProxyMode, provider.ProxyConfigID, provider.TeamOrganizationID, provider.TeamProjectID)
 		if err != nil {
 			return nil, fmt.Errorf("query tokenplan: %w", err)
@@ -725,18 +735,20 @@ func UpdateProviderCredentials(ctx context.Context, id int, newAPIKey, newForwar
 		provider.LastQuotaUsed = lastQuotaUsed
 		provider.QuotaTotal = result.QuotaTotal
 		provider.QuotaUsed = result.QuotaUsed
-		if result.QuotaResetAt != nil {
-			provider.QuotaResetAt = result.QuotaResetAt
-		}
+		provider.QuotaResetAt = result.QuotaResetAt
 		provider.WeeklyTotal = result.WeeklyTotal
 		provider.WeeklyUsed = result.WeeklyUsed
-		if result.WeeklyResetAt != nil {
-			provider.WeeklyResetAt = result.WeeklyResetAt
-		}
+		provider.WeeklyResetAt = result.WeeklyResetAt
 		provider.FiveHourTotal = result.FiveHourTotal
 		provider.FiveHourUsed = result.FiveHourUsed
 		provider.FiveHourResetAt = result.FiveHourResetAt
-		provider.PoolsJSON = marshalPlanPools(result.Pools)
+		provider.DedicatedPoolName = result.DedicatedPoolName
+		provider.DedicatedWeeklyTotal = result.DedicatedWeeklyTotal
+		provider.DedicatedWeeklyUsed = result.DedicatedWeeklyUsed
+		provider.DedicatedWeeklyResetAt = result.DedicatedWeeklyResetAt
+		provider.DedicatedFiveHourTotal = result.DedicatedFiveHourTotal
+		provider.DedicatedFiveHourUsed = result.DedicatedFiveHourUsed
+		provider.DedicatedFiveHourResetAt = result.DedicatedFiveHourResetAt
 	}
 
 	now := time.Now()

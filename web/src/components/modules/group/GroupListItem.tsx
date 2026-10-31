@@ -48,6 +48,7 @@ import {
     endpointTypeLabelKey,
     normalizeEndpointType,
     supportsGroupTest,
+    reasoningBufferPatch,
 } from './utils';
 import { getModelIcon } from '@/lib/model-icons';
 import {
@@ -152,6 +153,7 @@ function EditDialogContent({
                             attempt_time_out: group.attempt_time_out ?? 0,
                             session_keep_time: group.session_keep_time ?? 0,
                             thinking_mode: group.thinking_mode ?? 'auto',
+                            reasoning_buffer_strategy: group.reasoning_buffer_strategy ?? '',
                             members: editMembers,
                         }}
                         submitText={t('detail.actions.save')}
@@ -618,6 +620,7 @@ export function GroupListItem({ group }: { group: Group }) {
                 payload.session_keep_time = nextSessionKeepTime;
             if (nextThinkingMode !== (group.thinking_mode ?? 'auto'))
                 payload.thinking_mode = nextThinkingMode;
+            Object.assign(payload, reasoningBufferPatch(group.reasoning_buffer_strategy, values.reasoning_buffer_strategy));
             if (items_to_add.length) payload.items_to_add = items_to_add;
             if (items_to_update.length)
                 payload.items_to_update = items_to_update;
@@ -646,6 +649,7 @@ export function GroupListItem({ group }: { group: Group }) {
             group.attempt_time_out,
             group.session_keep_time,
             group.thinking_mode,
+            group.reasoning_buffer_strategy,
             group.id,
             group.items,
             group.match_regex,
@@ -1087,7 +1091,7 @@ export function GroupListItem({ group }: { group: Group }) {
                             {/* --- Bottom action bar --- */}
                             <div className="flex items-center gap-1 border-t border-border/25 pt-2">
                                 {/* Edit */}
-                                <MorphingDialog>
+                                <MorphingDialog disableSharedLayout>
                                     <MorphingDialogTrigger className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-card hover:text-foreground">
                                         <Tooltip
                                             side="top"
