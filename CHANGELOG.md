@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.7.1] - 2026-10-31
+
+### Added
+
+- Add bounded models-only connectivity probes for nodes, with deadline and response-size guards.
+- Show node connectivity diagnostics and test outcomes in channel forms and node settings.
+
+### Changed
+
+- Document node connection testing and plugin startup.
+- Align application, frontend package, and Docker Compose versions to v2.7.1.
+
 ## [v2.7.0] - 2026-10-30
 
 ### Added
