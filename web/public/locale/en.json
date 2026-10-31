@@ -3535,14 +3535,7 @@
         "fillUnmatched": "Skipped {count} key(s) that could not be matched to a form key: {keys}",
         "fillNothing": "No supported models were filled",
         "fillKeyFallback": "Key {index}",
-        "perKeyUnlimited": "Unlimited",
-        "perKeyLimited": "{count} limited",
-        "perKeySelectAll": "Select all",
-        "perKeyClear": "Clear (unlimited)",
-        "perKeyNotProbed": "Not returned by this probe but currently limited — keeping it checked",
-        "perKeyUnmappable": "Cannot map to a key in this form; write-back skipped. Please refresh models again.",
-        "applyPerKey": "Apply ({count} keys limited)",
-        "perKeyApplySuccess": "Updated {keys} key(s) supported models and merged {models} model(s) into the channel list"
+        "applyPerKey": "Apply ({count} keys limited)"
       },
       "template": {
         "label": "Built-in Templates",

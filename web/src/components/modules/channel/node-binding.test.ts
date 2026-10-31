@@ -92,9 +92,7 @@ test('real create/edit/discovery/test call sites apply transport guards and serv
     assert.match(form, /disabled=\{!canBindNode\}/);
     assert.match(form, /buildTestPayload = \(\) => withNodeTransport\(\{\s*node_id: formData.node_id/);
     assert.match(form, /const payload = withNodeTransport\(\{\s*node_id: formData.node_id/);
-    // fork 版按 formData.keys 下标记录探测目标（用于逐 key 写回），语义等价：
-    // 多 key 且非节点渠道才批量探测。
-    assert.match(form, /if \(!isNode && enabledKeyTargets\.length > 1\)/);
+    assert.match(form, /if \(!isNode && enabledKeys.length > 1\)/);
     assert.match(form, /!isNode && <ProxySelector/);
     assert.match(form, /formData.pool_id === 0 && !isNode &&/);
     assert.match(create, /withNodeTransport\(\{\s*node_id: formData.node_id/);

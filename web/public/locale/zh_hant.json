@@ -3491,14 +3491,7 @@
         "fillUnmatched": "略過 {count} 個無法對應到表單 key 的項目：{keys}",
         "fillNothing": "沒有可填充的支援模型",
         "fillKeyFallback": "第 {index} 個 key",
-        "perKeyUnlimited": "不限",
-        "perKeyLimited": "限定 {count} 個",
-        "perKeySelectAll": "全選",
-        "perKeyClear": "清空(不限)",
-        "perKeyNotProbed": "本次探測未返回、但目前已被限定，勾選會保留",
-        "perKeyUnmappable": "與目前表單的 key 對不上，已略過寫回；請重新點「重新整理」",
-        "applyPerKey": "套用({count} 個 key 已限定)",
-        "perKeyApplySuccess": "已更新 {keys} 個 key 的支援模型，並把 {models} 個模型併入供應源清單"
+        "applyPerKey": "套用({count} 個 key 已限定)"
       },
       "template": {
         "label": "內建供應商模板",

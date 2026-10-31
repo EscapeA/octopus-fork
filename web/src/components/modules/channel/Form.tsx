@@ -27,6 +27,12 @@ import { channelTestOutcome } from './test-results';
 import { channelTemplates } from './templates';
 import { CHANNEL_TYPE_OPTIONS } from './type-options';
 import { isOpenAICompatBaseUrlSuffixMode } from './base-url-suffix';
+import { normalizeFetchedModels, toggleModelSelection } from './model-picker';
+import {
+    applyPerKeyModelFill,
+    planPerKeyModelFill,
+    type PerKeyFillMatch,
+} from './key-model-fill';
 import {
     Select,
     SelectContent,
@@ -67,9 +73,6 @@ export interface ChannelKeyFormItem {
     total_cost?: number;
     remark?: string;
     supported_models?: string;
-    /** 系统自动禁用标记（上游连续 402 达阈值时后端写入）；有值时展示「已自动禁用」徽标 */
-    auto_disabled_at?: string | null;
-    auto_disable_reason?: string;
 }
 
 export interface ChannelFormData {
@@ -220,28 +223,18 @@ function SectionHeader({
     );
 }
 
-interface PerKeyModelItem {
-    /** formData.keys 下标（写回目标）；-1 表示探测结果与当前表单 key 对不上，不提供写回 */
-    keyIndex: number;
-    keyMasked: string;
-    keyRemark?: string;
-    passed: boolean;
-    message?: string;
-    /** 该 key 探测到的模型 */
-    models: string[];
-    /** 该 key 当前 supported_models（默认勾选；空数组 = 不限） */
-    currentModels: string[];
-}
-
 interface ModelPickerDialogPanelProps {
     models: string[];
     draftSelected: string[];
     onDraftChange: (models: string[]) => void;
     isLoading: boolean;
     onApply: () => void;
-    perKeyItems?: PerKeyModelItem[] | null;
+    perKeyResults?: KeyModelResult[] | null;
     perKeyLoading?: boolean;
-    onApplyPerKey?: (selection: Record<number, string[]>) => void;
+    /** 把单个 key 的抓取结果回填到对应表单 key 的 supported_models */
+    onFillPerKeyResult?: (result: KeyModelResult, resultIndex: number) => void;
+    /** 把所有 passed 的抓取结果批量回填 */
+    onFillAllPerKeyResults?: () => void;
 }
 
 interface ModelProviderGroup {
@@ -272,48 +265,17 @@ function groupModelsByProvider(models: string[]): ModelProviderGroup[] {
     });
 }
 
-function ModelPickerDialogPanel({ models, draftSelected, onDraftChange, isLoading, onApply, perKeyItems, perKeyLoading, onApplyPerKey }: ModelPickerDialogPanelProps) {
+function ModelPickerDialogPanel({ models, draftSelected, onDraftChange, isLoading, onApply, perKeyResults, perKeyLoading, onFillPerKeyResult, onFillAllPerKeyResults }: ModelPickerDialogPanelProps) {
     const t = useTranslations('channel.form.modelPicker');
     const { setIsOpen } = useMorphingDialog();
     const [searchTerm, setSearchTerm] = useState('');
     const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
     const [viewMode, setViewMode] = useState<'all' | 'perKey'>('all');
-    // 每 key 独立勾选（键 = formData.keys 下标，值 = 该 key 限定的模型；[] 表示不限）
-    const [perKeyDraft, setPerKeyDraft] = useState<Record<number, string[]>>({});
-    const hasPerKeyData = !!perKeyItems && perKeyItems.length > 0;
+    const hasPerKeyData = perKeyResults && perKeyResults.length > 0;
     const showPerKey = perKeyLoading || hasPerKeyData;
-
-    // 探测结果异步到达：只给「用户还没动过」的 key 做默认勾选（= 该 key 现有 supported_models）
-    useEffect(() => {
-        if (!perKeyItems || perKeyItems.length === 0) return;
-        setPerKeyDraft((prev) => {
-            let changed = false;
-            const next = { ...prev };
-            for (const item of perKeyItems) {
-                if (item.keyIndex < 0) continue;
-                if (next[item.keyIndex] === undefined) {
-                    next[item.keyIndex] = item.currentModels;
-                    changed = true;
-                }
-            }
-            return changed ? next : prev;
-        });
-    }, [perKeyItems]);
-
-    const perKeySelectionOf = (item: PerKeyModelItem): string[] => perKeyDraft[item.keyIndex] ?? item.currentModels;
-
-    const togglePerKeyModel = (item: PerKeyModelItem, model: string) => {
-        if (item.keyIndex < 0) return;
-        setPerKeyDraft((prev) => {
-            const current = prev[item.keyIndex] ?? item.currentModels;
-            const next = current.includes(model) ? current.filter((m) => m !== model) : [...current, model];
-            return { ...prev, [item.keyIndex]: next };
-        });
-    };
-
-    const limitedKeyCount = (perKeyItems ?? []).filter(
-        (item) => item.keyIndex >= 0 && perKeySelectionOf(item).length > 0
-    ).length;
+    const canFillAllPerKey =
+        typeof onFillAllPerKeyResults === 'function' &&
+        !!perKeyResults?.some((result) => result.passed && (result.models?.length ?? 0) > 0);
 
     const normalizedSearch = searchTerm.trim().toLowerCase();
     const isSearching = normalizedSearch.length > 0;
@@ -347,14 +309,7 @@ function ModelPickerDialogPanel({ models, draftSelected, onDraftChange, isLoadin
     };
 
     const toggleGroupSelection = (groupModels: string[]) => {
-        const currentSet = new Set(draftSelected);
-        const allSelected = groupModels.every((m) => currentSet.has(m));
-        if (allSelected) {
-            const removeSet = new Set(groupModels);
-            onDraftChange(draftSelected.filter((m) => !removeSet.has(m)));
-        } else {
-            onDraftChange(Array.from(new Set([...draftSelected, ...groupModels])));
-        }
+        onDraftChange(toggleModelSelection(draftSelected, groupModels));
     };
 
     const toggleGroupCollapsed = (label: string) => {
@@ -362,27 +317,11 @@ function ModelPickerDialogPanel({ models, draftSelected, onDraftChange, isLoadin
     };
 
     const handleSelectFiltered = () => {
-        if (filteredModels.length === 0) return;
-        const currentSet = new Set(draftSelected);
-        if (filteredModels.every((model) => currentSet.has(model))) {
-            onDraftChange(draftSelected.filter((model) => !filteredModels.includes(model)));
-        } else {
-            onDraftChange(Array.from(new Set([...draftSelected, ...filteredModels])));
-        }
+        onDraftChange(toggleModelSelection(draftSelected, filteredModels));
     };
 
     const handleApply = () => {
-        if (viewMode === 'perKey' && onApplyPerKey) {
-            // 「按 Key 查看」：写回每个 key 的 supported_models（[] = 不限）
-            const selection: Record<number, string[]> = {};
-            for (const item of perKeyItems ?? []) {
-                if (item.keyIndex < 0) continue;
-                selection[item.keyIndex] = perKeySelectionOf(item);
-            }
-            onApplyPerKey(selection);
-        } else {
-            onApply();
-        }
+        onApply();
         setIsOpen(false);
     };
 
@@ -556,111 +495,121 @@ function ModelPickerDialogPanel({ models, draftSelected, onDraftChange, isLoadin
                     </>
                 )}
                 {viewMode === 'perKey' && (
-                    <div className="min-h-0 flex-1 space-y-2 overflow-y-auto rounded-lg border border-border/25 bg-card p-2 shadow-sm">
+                    <>
+                    {hasPerKeyData && onFillAllPerKeyResults && (
+                        <div className="flex shrink-0 items-center justify-between gap-2">
+                            <p className="min-w-0 flex-1 text-xs leading-5 text-muted-foreground">
+                                {t('perKeyHint')}
+                            </p>
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                onClick={onFillAllPerKeyResults}
+                                disabled={!canFillAllPerKey}
+                                className="h-8 shrink-0 rounded-lg px-2 text-xs"
+                            >
+                                <Sparkles className="size-3.5" />
+                                {t('fillAll')}
+                            </Button>
+                        </div>
+                    )}
+                    <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border/25 bg-card p-2 shadow-sm">
                         {perKeyLoading ? (
                             <div className="flex h-40 items-center justify-center gap-2 text-sm text-muted-foreground">
                                 <RefreshCw className="size-4 animate-spin" />
                                 {t('loading')}
                             </div>
                         ) : hasPerKeyData ? (
-                            <>
-                                <p className="px-1 pt-1 text-[0.68rem] leading-relaxed text-muted-foreground">{t('perKeyHint')}</p>
-                                <div className="flex flex-col gap-3">
-                                    {perKeyItems!.map((item, idx) => {
-                                        const selection = perKeySelectionOf(item);
-                                        const selectionSet = new Set(selection);
-                                        // 已被限定但本次探测未返回的模型也展示，避免无声丢失
-                                        const chipModels = [...item.models, ...selection.filter((m) => !item.models.includes(m))];
-                                        const limited = selection.length > 0;
-                                        const unmappable = item.keyIndex < 0;
-                                        return (
-                                            <div
-                                                key={`${item.keyMasked}-${idx}`}
-                                                className={`rounded-lg border p-3 ${item.passed ? 'border-border/25 bg-background/40' : 'border-red-500/20 bg-red-500/5'}`}
-                                            >
-                                                <div className="mb-2 flex flex-wrap items-center gap-2">
-                                                    {item.passed ? (
-                                                        <CheckCircle2 className="size-4 shrink-0 text-green-500" />
-                                                    ) : (
-                                                        <AlertTriangle className="size-4 shrink-0 text-red-400" />
-                                                    )}
-                                                    <span className="truncate text-xs font-mono text-foreground">
-                                                        {item.keyMasked}
-                                                    </span>
-                                                    {item.keyRemark && (
-                                                        <Badge variant="secondary" className="h-4 rounded-full px-1.5 text-[0.625rem]">
-                                                            {item.keyRemark}
-                                                        </Badge>
-                                                    )}
-                                                    <Badge variant="secondary" className="h-4 rounded-full px-1.5 text-[0.625rem]">
-                                                        {limited ? t('perKeyLimited', { count: selection.length }) : t('perKeyUnlimited')}
-                                                    </Badge>
-                                                    {!unmappable && (
-                                                        <div className="ml-auto flex items-center gap-1">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setPerKeyDraft((prev) => ({ ...prev, [item.keyIndex]: chipModels }))}
-                                                                className="rounded px-2 py-0.5 text-[0.625rem] font-medium text-muted-foreground/60 transition-colors hover:text-foreground"
-                                                            >
-                                                                {t('perKeySelectAll')}
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setPerKeyDraft((prev) => ({ ...prev, [item.keyIndex]: [] }))}
-                                                                className="rounded px-2 py-0.5 text-[0.625rem] font-medium text-muted-foreground/60 transition-colors hover:text-foreground"
-                                                            >
-                                                                {t('perKeyClear')}
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                {chipModels.length > 0 ? (
-                                                    <div className="flex flex-wrap gap-1.5">
-                                                        {chipModels.map((model) => {
-                                                            const selected = selectionSet.has(model);
-                                                            const extra = !item.models.includes(model);
-                                                            return (
-                                                                <button
-                                                                    key={model}
-                                                                    type="button"
-                                                                    disabled={unmappable}
-                                                                    title={extra ? t('perKeyNotProbed') : model}
-                                                                    onClick={() => togglePerKeyModel(item, model)}
-                                                                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-mono transition-colors ${
-                                                                        selected
-                                                                            ? 'border-primary/30 bg-primary/10 text-foreground'
-                                                                            : 'border-border/25 bg-background/40 text-muted-foreground hover:border-border/60 hover:text-foreground'
-                                                                    } ${extra ? 'border-dashed' : ''} ${unmappable ? 'cursor-not-allowed opacity-60' : ''}`}
-                                                                >
-                                                                    <span className={`flex size-3.5 shrink-0 items-center justify-center rounded-full ${
-                                                                        selected ? 'bg-primary text-primary-foreground' : 'border border-border'
-                                                                    }`}>
-                                                                        {selected ? <Check className="size-2.5" /> : null}
-                                                                    </span>
-                                                                    {model}
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                ) : !item.passed && item.message ? (
-                                                    <p className="text-xs text-red-400">{item.message}</p>
-                                                ) : (
-                                                    <p className="text-xs text-muted-foreground">{t('noModels')}</p>
-                                                )}
-                                                {unmappable && (
-                                                    <p className="mt-2 text-xs text-orange-400">{t('perKeyUnmappable')}</p>
-                                                )}
+                            <div className="flex flex-col gap-3">
+                                {perKeyResults!.map((result, idx) => (
+                                    <div
+                                        key={`${result.key_id ?? 0}-${result.key_masked ?? ''}-${idx}`}
+                                        className={`rounded-lg border p-3 ${result.passed ? 'border-border/25 bg-background/40' : 'border-red-500/20 bg-red-500/5'}`}
+                                    >
+                                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                                            {result.passed ? (
+                                                <CheckCircle2 className="size-4 shrink-0 text-green-500" />
+                                            ) : (
+                                                <AlertTriangle className="size-4 shrink-0 text-red-400" />
+                                            )}
+                                            <span className="truncate text-xs font-mono text-foreground">
+                                                {result.key_masked}
+                                            </span>
+                                            {result.key_remark && (
+                                                <Badge variant="secondary" className="h-4 rounded-full px-1.5 text-[0.625rem]">
+                                                    {result.key_remark}
+                                                </Badge>
+                                            )}
+                                            {result.passed && result.models.length > 0 && (
+                                                <Button
+                                                    type="button"
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    onClick={() => toggleGroupSelection(result.models)}
+                                                    className="ml-auto h-7 shrink-0 rounded-md px-2 text-xs"
+                                                >
+                                                    <ListFilter className="size-3" />
+                                                    {result.models.every((model) => selectedSet.has(model))
+                                                        ? t('unselectKeyModels')
+                                                        : t('selectKeyModels')}
+                                                </Button>
+                                            )}
+                                            {onFillPerKeyResult && (
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => onFillPerKeyResult(result, idx)}
+                                                    disabled={!result.passed || (result.models?.length ?? 0) === 0}
+                                                    aria-label={t('fillOne')}
+                                                    className="h-7 shrink-0 rounded-md px-2 text-xs text-muted-foreground/70 hover:bg-transparent hover:text-foreground disabled:opacity-40"
+                                                >
+                                                    <Check className="size-3" />
+                                                    {t('fillOne')}
+                                                </Button>
+                                            )}
+                                        </div>
+                                        {result.passed && result.models.length > 0 ? (
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {result.models.map((model) => {
+                                                    const selected = selectedSet.has(model);
+                                                    return (
+                                                        <button
+                                                            key={model}
+                                                            type="button"
+                                                            onClick={() => toggleModel(model)}
+                                                            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-mono transition-colors ${
+                                                                selected
+                                                                    ? 'border-primary/30 bg-primary/10 text-foreground'
+                                                                    : 'border-border/25 bg-background/40 text-muted-foreground hover:border-border/60 hover:text-foreground'
+                                                            }`}
+                                                        >
+                                                            <span className={`flex size-3.5 shrink-0 items-center justify-center rounded-full ${
+                                                                selected ? 'bg-primary text-primary-foreground' : 'border border-border'
+                                                            }`}>
+                                                                {selected ? <Check className="size-2.5" /> : null}
+                                                            </span>
+                                                            {model}
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                            </>
+                                        ) : !result.passed && result.message ? (
+                                            <p className="text-xs text-red-400">{result.message}</p>
+                                        ) : (
+                                            <p className="text-xs text-muted-foreground">{t('noModels')}</p>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
                         ) : (
                             <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
                                 {t('empty')}
                             </div>
                         )}
                     </div>
+                    </>
                 )}
 
                 <div className="flex shrink-0 flex-col gap-2 border-t border-border/20 pt-4 sm:flex-row">
@@ -677,9 +626,7 @@ function ModelPickerDialogPanel({ models, draftSelected, onDraftChange, isLoadin
                         onClick={handleApply}
                         className="h-11 rounded-lg sm:flex-1"
                     >
-                        {viewMode === 'perKey'
-                            ? t('applyPerKey', { count: limitedKeyCount })
-                            : t('apply', { count: draftSelected.length })}
+                        {t('apply', { count: draftSelected.length })}
                     </Button>
                 </div>
             </MorphingDialogDescription>
@@ -785,19 +732,10 @@ export function ChannelForm({
         : 'space-y-4 rounded-lg bg-card/70 p-4 md:p-5';
     const labelClassName = 'text-sm font-medium text-card-foreground';
     const fieldGroupClassName = 'space-y-2';
-    // ⚠️ overscroll-contain 只能挂在「自身真的会滚动」的容器上。
-    // 创建弹窗里本 div 受弹窗高度约束、自身即滚动容器，属性有效；
-    // 编辑弹窗（卡片详情内的编辑页签）中它位于 MorphingDialogDescription 之内、
-    // 高度等于内容高度（不可滚动），此时 overscroll-behavior: contain 会吞掉滚轮/触摸
-    // 滚动并阻止冒泡给外层容器 → 表现为整页无法滑动。故编辑分支不得带该属性。
-    const scrollContainerClassName = isCreateLayout
-        ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain grid content-start gap-5 px-4 py-5 sm:px-6 md:grid-cols-2 md:gap-x-6 [&_input]:h-11 [&_[data-slot=select-trigger]]:h-11 [&_[data-slot=select-trigger]]:min-w-0'
-        : 'min-h-0 flex-1 overflow-y-auto space-y-4 pb-2';
 
     const globalKeyStrategy = settings?.find((s) => s.key === SettingKey.KeySelectionStrategy)?.value ?? 'cost';
     const effectiveKeyStrategy = formData.key_selection_strategy || globalKeyStrategy;
     const showPriorityInput = effectiveKeyStrategy === 'priority';
-
     // 号池绑定渠道不在表单里编辑 key，此时不提供“回填到 key”操作（表单里没有可写的 key）
     const canFillPerKeyModels = formData.pool_id === 0 && !isNode;
     const promptRules = formData.request_rewrite.prompt_rules ?? [];
@@ -885,8 +823,6 @@ export function ChannelForm({
     }, [formData.node_id, formData.type]);
     const [modelPickerDraft, setModelPickerDraft] = useState<string[]>([]);
     const [perKeyResults, setPerKeyResults] = useState<KeyModelResult[] | null>(null);
-    // 与 perKeyResults 同序：每个结果对应 formData.keys 的下标
-    const [perKeyKeyIndexes, setPerKeyKeyIndexes] = useState<number[]>([]);
 
     const effectiveKey =
         formData.keys.find((k) => k.enabled && k.channel_key.trim())?.channel_key.trim() || '';
@@ -905,26 +841,105 @@ export function ChannelForm({
         toast.success(t('modelPicker.applySuccess', { count: nextAutoModels.length }));
     };
 
-    const normalizeFetchedModels = (data: unknown): string[] => {
-        if (!Array.isArray(data)) return [];
+    /**
+     * 描述一个按 key 抓取结果（用于 toast 文案）：优先备注，其次脱敏 key，最后回退到序号。
+     */
+    const describePerKeyResult = (result: KeyModelResult, index: number) =>
+        result.key_remark?.trim() || result.key_masked?.trim() || t('modelPicker.fillKeyFallback', { index: index + 1 });
 
-        return Array.from(new Set(
-            data
-                .map((item) => {
-                    if (typeof item === 'string') return item.trim();
-                    if (!item || typeof item !== 'object') return '';
+    /**
+     * 将回填计划落到表单 keys 状态（只改状态，不调后端），
+     * 并把“成功 / 抓取失败跳过 / 上游返回空列表跳过 / 匹配不上”汇总成一条 toast。
+     */
+    const applyPerKeyFillPlan = (results: KeyModelResult[]) => {
+        const plan = planPerKeyModelFill(results, formData.keys);
 
-                    const candidate =
-                        ('id' in item && typeof item.id === 'string' && item.id) ||
-                        ('name' in item && typeof item.name === 'string' && item.name) ||
-                        ('display_name' in item && typeof item.display_name === 'string' && item.display_name) ||
-                        ('displayName' in item && typeof item.displayName === 'string' && item.displayName) ||
-                        '';
+        if (plan.fills.length > 0) {
+            onFormDataChange({
+                ...formData,
+                keys: applyPerKeyModelFill(formData.keys, plan.fills),
+            });
+        }
 
-                    return candidate.trim();
-                })
-                .filter(Boolean)
-        ));
+        const skippedLabels = plan.skippedFailed.map((match: PerKeyFillMatch) =>
+            describePerKeyResult(match.result, match.resultIndex),
+        );
+        const emptyLabels = plan.skippedEmpty.map((match: PerKeyFillMatch) =>
+            describePerKeyResult(match.result, match.resultIndex),
+        );
+        const unmatchedLabels = plan.unmatched.map((match: PerKeyFillMatch) =>
+            describePerKeyResult(match.result, match.resultIndex),
+        );
+
+        // sonner 的 description 默认不保留换行，用分隔符拼接保证多段提示都能完整渲染
+        const description = [
+            skippedLabels.length > 0 ? t('modelPicker.fillSkippedFailed', { count: skippedLabels.length, keys: skippedLabels.join(', ') }) : '',
+            emptyLabels.length > 0 ? t('modelPicker.fillSkippedEmpty', { count: emptyLabels.length, keys: emptyLabels.join(', ') }) : '',
+            unmatchedLabels.length > 0 ? t('modelPicker.fillUnmatched', { count: unmatchedLabels.length, keys: unmatchedLabels.join(', ') }) : '',
+        ].filter(Boolean).join(' · ');
+
+        if (plan.fills.length === 0) {
+            toast.warning(description || t('modelPicker.fillNothing'));
+            return;
+        }
+
+        toast.success(t('modelPicker.fillAllSuccess', { count: plan.fills.length }), description ? { description } : undefined);
+    };
+
+    const handleFillAllPerKeyResults = () => {
+        if (!perKeyResults || perKeyResults.length === 0) {
+            toast.warning(t('modelPicker.fillNothing'));
+            return;
+        }
+        applyPerKeyFillPlan(perKeyResults);
+    };
+
+    const handleFillPerKeyResult = (result: KeyModelResult, resultIndex: number) => {
+        const plan = planPerKeyModelFill([result], formData.keys);
+
+        if (plan.unmatched.length > 0) {
+            toast.warning(t('modelPicker.fillUnmatched', {
+                count: 1,
+                keys: describePerKeyResult(result, resultIndex),
+            }));
+            return;
+        }
+
+        if (plan.fills.length === 0) {
+            // 按钮对 passed=false / models 为空的结果已禁用，这里是防御分支：
+            // 优先把“为何没填”的具体原因告知用户，而不是一句笼统的“无可填充”。
+            const failedMatch = plan.skippedFailed[0];
+            if (failedMatch) {
+                toast.warning(t('modelPicker.fillSkippedFailed', {
+                    count: 1,
+                    keys: describePerKeyResult(failedMatch.result, failedMatch.resultIndex),
+                }));
+                return;
+            }
+
+            const emptyMatch = plan.skippedEmpty[0];
+            if (emptyMatch) {
+                toast.warning(t('modelPicker.fillSkippedEmpty', {
+                    count: 1,
+                    keys: describePerKeyResult(emptyMatch.result, emptyMatch.resultIndex),
+                }));
+                return;
+            }
+
+            toast.warning(t('modelPicker.fillNothing'));
+            return;
+        }
+
+        onFormDataChange({
+            ...formData,
+            keys: applyPerKeyModelFill(formData.keys, plan.fills),
+        });
+        // 计数以“实际写入的非空模型数”为准，而不是原始 result.models.length（后者可能含空白项）
+        const filledCount = plan.fills[0].supportedModels ? plan.fills[0].supportedModels.split(',').filter(Boolean).length : 0;
+        toast.success(t('modelPicker.fillOneSuccess', {
+            count: filledCount,
+            key: describePerKeyResult(result, resultIndex),
+        }));
     };
 
     const normalizedHeaders = useMemo(() =>
@@ -990,48 +1005,6 @@ export function ChannelForm({
         return trimmed.slice(0, 4) + '...' + trimmed.slice(-4);
     };
 
-    // 「按 Key 查看」的可写回项：把探测结果与表单里的 key 行对应起来。
-    // 后端 helper.FetchModelsPerKey 按请求顺序返回，请求 keys 与 perKeyKeyIndexes 同序，
-    // 这里再用脱敏值复核一次，对不上（key 变动/顺序错位）就标 -1，不提供写回。
-    const perKeyItems = useMemo<PerKeyModelItem[] | null>(() => {
-        if (!perKeyResults || perKeyResults.length === 0) return null;
-        return perKeyResults.map((result, idx) => {
-            const keyIndex = perKeyKeyIndexes[idx] ?? -1;
-            const key = keyIndex >= 0 ? formData.keys[keyIndex] : undefined;
-            const matched = !!key && maskKey(key.channel_key) === (result.key_masked ?? '');
-            return {
-                keyIndex: matched ? keyIndex : -1,
-                keyMasked: result.key_masked ?? '',
-                keyRemark: result.key_remark,
-                passed: result.passed,
-                message: result.message,
-                models: result.models ?? [],
-                currentModels: key?.supported_models
-                    ? key.supported_models.split(',').map((m) => m.trim()).filter(Boolean)
-                    : [],
-            };
-        });
-    }, [perKeyResults, perKeyKeyIndexes, formData.keys]);
-
-    // 写回：每个 key 的 supported_models = 该 key 卡片上勾选的模型（空 = 不限）；
-    // 并把各 key 限定模型的并集并入渠道模型列表（否则这些模型不会被路由到该渠道）。
-    const applyPerKeySelection = (selection: Record<number, string[]>) => {
-        const nextKeys = formData.keys.map((k, i) =>
-            selection[i] === undefined ? k : { ...k, supported_models: selection[i].join(',') }
-        );
-        const union = Array.from(new Set(Object.values(selection).flat()));
-        const customSet = new Set(customModels);
-        const nextAutoModels = Array.from(new Set([...autoModels, ...union])).filter((m) => !customSet.has(m));
-        onFormDataChange({
-            ...formData,
-            keys: nextKeys,
-            model: nextAutoModels.join(','),
-            custom_model: formData.custom_model,
-        });
-        const limited = Object.values(selection).filter((models) => models.length > 0).length;
-        toast.success(t('modelPicker.perKeyApplySuccess', { keys: limited, models: union.length }));
-    };
-
     const handleRemoveFailedKeys = () => {
         if (!testSummary) return;
         const failedIds = new Set<string>();
@@ -1057,7 +1030,6 @@ export function ChannelForm({
         setModelPickerDraft(autoModels);
         setFetchedModels([]);
         setPerKeyResults(null);
-        setPerKeyKeyIndexes([]);
 
         const payload = withNodeTransport({
             node_id: formData.node_id,
@@ -1074,41 +1046,29 @@ export function ChannelForm({
             custom_header: normalizedHeaders,
         });
 
-        // 主模型列表（单 key）
-        fetchModel.mutate(
-            payload,
-            {
-                onSuccess: (data) => {
-                    const normalizedModels = normalizeFetchedModels(data);
-                    if (normalizedModels.length > 0) {
-                        setFetchedModels(normalizedModels);
-                        toast.success(t('modelRefreshSuccess', { count: normalizedModels.length }));
-                    } else {
-                        setFetchedModels([]);
-                        toast.warning(t('modelRefreshEmpty'));
-                    }
-                },
-                onError: (error) => {
-                    setFetchedModels([]);
-                    const errorMessage = error instanceof Error ? error.message : String(error);
-                    toast.error(t('modelRefreshFailed'), { description: errorMessage });
-                },
+        const handleModels = (data: unknown) => {
+            const models = normalizeFetchedModels(data);
+            setFetchedModels(models);
+            if (models.length > 0) {
+                toast.success(t('modelRefreshSuccess', { count: models.length }));
+            } else {
+                toast.warning(t('modelRefreshEmpty'));
             }
-        );
+        };
+        const handleError = (error: unknown) => {
+            setFetchedModels([]);
+            setPerKeyResults(null);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            toast.error(t('modelRefreshFailed'), { description: errorMessage });
+        };
 
-        // 如果有多个 key，同时拉取每个 key 的模型列表。
-        // 结果与请求 keys 同序返回；这里记下每个结果对应 formData.keys 的下标，
-        // 「按 Key 查看」写回 supported_models 时按该下标定位 key 行。
-        const enabledKeyTargets = formData.keys
-            .map((k, i) => ({ k, i }))
-            .filter(({ k }) => k.enabled && k.channel_key.trim());
-        if (!isNode && enabledKeyTargets.length > 1) {
+        const enabledKeys = formData.keys.filter((k) => k.enabled && k.channel_key.trim());
+        if (!isNode && enabledKeys.length > 1) {
             fetchModelsPerKey.mutate(
                 {
                     ...payload,
-                    // 带上 id / remark：后端在结果的 key_id / key_remark 里原样回传（上游 v2.6.1 起），
-                    // 便于「按 Key 查看」写回时精确定位到具体的 key 行。
-                    keys: enabledKeyTargets.map(({ k }) => ({
+                    // 保留 id / remark，供逐 key 回填精确定位。
+                    keys: enabledKeys.map((k) => ({
                         id: k.id,
                         enabled: true,
                         channel_key: k.channel_key.trim(),
@@ -1117,16 +1077,27 @@ export function ChannelForm({
                 },
                 {
                     onSuccess: (data) => {
-                        setPerKeyResults(data.results);
-                        setPerKeyKeyIndexes(enabledKeyTargets.map(({ i }) => i));
+                        setPerKeyResults(data.results.map((result) => ({
+                            ...result,
+                            models: normalizeFetchedModels(result.models),
+                        })));
+                        if (!data.results.some((result) => result.passed)) {
+                            setFetchedModels([]);
+                            toast.error(t('modelRefreshFailed'));
+                            return;
+                        }
+                        handleModels(data.all_models);
                     },
-                    onError: () => {
-                        setPerKeyResults(null);
-                        setPerKeyKeyIndexes([]);
-                    },
+                    onError: handleError,
                 }
             );
+            return;
         }
+
+        fetchModel.mutate(payload, {
+            onSuccess: handleModels,
+            onError: handleError,
+        });
     };
 
     const handleAddModel = (model: string) => {
@@ -1216,7 +1187,12 @@ export function ChannelForm({
 
     return (
         <form onSubmit={onSubmit} className="flex h-full min-h-0 flex-col">
-            <div className={scrollContainerClassName}>
+            <div className={cn(
+                'min-h-0 flex-1 overflow-y-auto overscroll-contain',
+                isCreateLayout
+                    ? 'grid content-start gap-5 px-4 py-5 sm:px-6 md:grid-cols-2 md:gap-x-6 [&_input]:h-11 [&_[data-slot=select-trigger]]:h-11 [&_[data-slot=select-trigger]]:min-w-0'
+                    : 'space-y-4 pb-2',
+            )}>
             {showTemplatePicker ? (
                 <section className={sectionClassName}>
                     <SectionHeader icon={Sparkles} title={t('template.label')} hint={t('template.hint')} />
@@ -1330,21 +1306,23 @@ export function ChannelForm({
             </section>
 
             {!isNode && <section className={cn(sectionClassName, isCreateLayout && 'md:col-span-2')}>
-                <SectionHeader icon={Cable} title={t('baseUrlConfig')} hint={t('baseUrlHint')} />
-                <div className="flex items-center justify-end gap-2">
-                    <Badge variant="secondary" className="rounded-full">
-                        {formData.base_urls.length}
-                    </Badge>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleAddBaseUrl}
-                        className="h-10 rounded-lg px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-                    >
-                        <Plus className="h-3 w-3 mr-1" />
-                        {t('add')}
-                    </Button>
+                <div className="flex min-w-0 items-center justify-between gap-2">
+                    <SectionHeader icon={Cable} title={t('baseUrlConfig')} hint={t('baseUrlHint')} />
+                    <div className="flex shrink-0 items-center gap-2">
+                        <Badge variant="secondary" className="rounded-full">
+                            {formData.base_urls.length}
+                        </Badge>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleAddBaseUrl}
+                            className="h-10 rounded-lg px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                        >
+                            <Plus className="h-3 w-3 mr-1" />
+                            {t('add')}
+                        </Button>
+                    </div>
                 </div>
                 <div className="space-y-2">
                     {(formData.base_urls ?? []).map((u, idx) => (
@@ -1423,17 +1401,17 @@ export function ChannelForm({
                                     onDraftChange={setModelPickerDraft}
                                     isLoading={isFetchingModels}
                                     onApply={applyFetchedModelSelection}
-                                    perKeyItems={perKeyItems}
+                                    perKeyResults={perKeyResults}
                                     perKeyLoading={fetchModelsPerKey.isPending}
-                                    onApplyPerKey={applyPerKeySelection}
+                                    onFillPerKeyResult={canFillPerKeyModels ? handleFillPerKeyResult : undefined}
+                                    onFillAllPerKeyResults={canFillPerKeyModels ? handleFillAllPerKeyResults : undefined}
                                 />
                             </MorphingDialogContent>
                         </MorphingDialogContainer>
                     </MorphingDialog>
                 </div>
                 <input type="hidden" value={formData.model} required />
-
-                <div className="relative">
+                <div className="flex min-w-0 items-center gap-2">
                     <Input
                         ref={inputRef}
                         id={`${idPrefix}-model-custom`}
@@ -1442,111 +1420,86 @@ export function ChannelForm({
                         onChange={(e) => setInputValue(e.target.value)}
                         onKeyDown={handleInputKeyDown}
                         placeholder={t('modelCustomPlaceholder')}
-                        className="rounded-lg pr-10"
+                        aria-label={t('modelCustomPlaceholder')}
+                        className="min-w-0 flex-1 rounded-lg"
                     />
-                    {inputValue.trim() && !customModels.includes(inputValue.trim()) && !autoModels.includes(inputValue.trim()) && (
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleAddModel(inputValue)}
-                            className="absolute rounded-lg right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-                            title={t('modelAdd')}
-                        >
-                            <Plus className="size-4" />
-                        </Button>
-                    )}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleAddModel(inputValue)}
+                        disabled={!inputValue.trim() || customModels.includes(inputValue.trim()) || autoModels.includes(inputValue.trim())}
+                        className="size-11 shrink-0 rounded-lg"
+                        aria-label={t('modelAdd')}
+                        title={t('modelAdd')}
+                    >
+                        <Plus className="size-4" />
+                    </Button>
                 </div>
-
                 <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                        <label className="text-xs font-medium text-card-foreground">
-                            {t('modelSelected')} {(autoModels.length + customModels.length) > 0 && `(${autoModels.length + customModels.length})`}
-                        </label>
+                    <div className="flex items-center justify-between gap-2">
+                        <label className="text-xs font-medium">{t('modelSelected')} ({autoModels.length + customModels.length})</label>
                         {(autoModels.length + customModels.length) > 0 && (
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => updateModels([], [])}
-                                className="h-6 px-2 text-xs text-muted-foreground/50 hover:text-muted-foreground hover:bg-transparent"
-                            >
+                            <Button type="button" variant="ghost" size="sm" onClick={() => updateModels([], [])} className="h-9 px-2 text-xs">
                                 {t('modelClearAll')}
                             </Button>
                         )}
                     </div>
-                    <div className="max-h-40 min-h-12 overflow-y-auto rounded-lg border border-border/25 bg-card p-2.5 shadow-sm">
+                    <div className="max-h-40 min-h-12 overflow-y-auto rounded-lg border border-border p-2.5">
                         {(autoModels.length + customModels.length) > 0 ? (
-                            <div className="flex flex-wrap gap-1.5">
-                                {autoModels.map((model) => (
-                                    <Badge key={model} variant="secondary" className="max-w-full gap-1 bg-muted hover:bg-muted/80">
+                            <div className="flex flex-wrap gap-2">
+                                {[...autoModels, ...customModels].map((model) => (
+                                    <Badge key={model} variant="secondary" className="max-w-full gap-1">
                                         <span className="min-w-0 break-all whitespace-normal">{model}</span>
                                         <button
                                             type="button"
-                                            onClick={() => handleRemoveAutoModel(model)}
-                                            className="ml-1 rounded-sm opacity-70 hover:opacity-100 focus:outline-none focus:ring-1 focus:ring-ring"
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </button>
-                                    </Badge>
-                                ))}
-                                {customModels.map((model) => (
-                                    <Badge key={model} className="max-w-full gap-1 bg-primary hover:bg-primary/90">
-                                        <span className="min-w-0 break-all whitespace-normal">{model}</span>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleRemoveCustomModel(model)}
-                                            className="ml-1 rounded-sm opacity-70 hover:opacity-100 focus:outline-none focus:ring-1 focus:ring-ring"
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </button>
+                                            onClick={() => customModels.includes(model) ? handleRemoveCustomModel(model) : handleRemoveAutoModel(model)}
+                                            className="grid size-7 shrink-0 place-items-center rounded-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                            aria-label={`${t('remove')} ${model}`}
+                                            title={t('remove')}
+                                        ><X className="size-3.5" /></button>
                                     </Badge>
                                 ))}
                             </div>
-                        ) : (
-                            <div className="py-2 text-center text-xs text-muted-foreground">{t('modelNoSelected')}</div>
-                        )}
+                        ) : <div className="py-2 text-center text-xs text-muted-foreground">{t('modelNoSelected')}</div>}
                     </div>
                 </div>
             </section>
 
-            {(testSummary || testError) && <section className={cn(sectionClassName, isCreateLayout && 'md:col-span-2')}>
-                {testSummary && <ChannelTestResults summary={testSummary} isNode={isNode} onRemoveFailedKeys={handleRemoveFailedKeys} />}
-                {testError && <p role="alert" className="break-words text-sm text-destructive">{t('test.failed')}: {testError}</p>}
-            </section>}
-
             {formData.pool_id === 0 && !isNode && (
             <section className={cn(sectionClassName, isCreateLayout && 'md:col-span-2')}>
-                <SectionHeader icon={KeyRound} title={t('apiKeyConfig')} />
-                <div className="flex items-center justify-end gap-2">
-                    <Badge variant="secondary" className="rounded-full">
-                        {formData.keys.length}
-                    </Badge>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleTestChannel}
-                        disabled={testChannel.isPending || !(formData.base_urls?.some((u) => u.url.trim()) && formData.keys?.some((k) => k.channel_key.trim()))}
-                        className="h-10 rounded-lg px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-                    >
-                        {testChannel.isPending ? (
-                            <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                        ) : (
-                            <FlaskConical className="h-3 w-3 mr-1" />
-                        )}
-                        {t('test.button')}
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleAddKey}
-                        className="h-10 rounded-lg px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-                    >
-                        <Plus className="h-3 w-3 mr-1" />
-                        {t('add')}
-                    </Button>
+                <div className="flex min-w-0 items-center justify-between gap-2">
+                    <SectionHeader icon={KeyRound} title={t('apiKeyConfig')} />
+                    <div className="flex shrink-0 items-center gap-2">
+                        <Badge variant="secondary" className="rounded-full">
+                            {formData.keys.length}
+                        </Badge>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleTestChannel}
+                            disabled={testChannel.isPending || !(formData.base_urls?.some((u) => u.url.trim()) && formData.keys?.some((k) => k.channel_key.trim()))}
+                            className="h-10 rounded-lg px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                        >
+                            {testChannel.isPending ? (
+                                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                            ) : (
+                                <FlaskConical className="h-3 w-3 mr-1" />
+                            )}
+                            {t('test.button')}
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleAddKey}
+                            className="h-10 rounded-lg px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                        >
+                            <Plus className="h-3 w-3 mr-1" />
+                            {t('add')}
+                        </Button>
+                    </div>
                 </div>
                 <div className="space-y-2">
                     {(formData.keys ?? []).map((k, idx) => (
@@ -1601,37 +1554,15 @@ export function ChannelForm({
                                 <X className="h-4 w-4" />
                             </Button>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <div className="min-w-0 flex-1">
-                                <Hint text={t('supportedModelsHint')} side="top">
-                                    <Input
-                                        type="text"
-                                        value={k.supported_models ?? ''}
-                                        onChange={(e) => handleUpdateKey(idx, { supported_models: e.target.value })}
-                                        placeholder={t('supportedModels')}
-                                        className="rounded-lg text-xs text-muted-foreground"
-                                    />
-                                </Hint>
-                            </div>
-                            {k.auto_disabled_at ? (
-                                <div className="flex shrink-0 items-center gap-1.5">
-                                    <Hint text={k.auto_disable_reason || t('autoDisabledHint')} side="top">
-                                        <Badge variant="destructive" className="whitespace-nowrap rounded-full text-[10px] font-normal">
-                                            {t('autoDisabled')}
-                                        </Badge>
-                                    </Hint>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-6 px-2 text-xs"
-                                        onClick={() => handleUpdateKey(idx, { enabled: true, auto_disabled_at: null, auto_disable_reason: '' })}
-                                    >
-                                        {t('autoDisabledEnable')}
-                                    </Button>
-                                </div>
-                            ) : null}
-                        </div>
+                        <Hint text={t('supportedModelsHint')} side="top">
+                            <Input
+                                type="text"
+                                value={k.supported_models ?? ''}
+                                onChange={(e) => handleUpdateKey(idx, { supported_models: e.target.value })}
+                                placeholder={t('supportedModels')}
+                                className="rounded-lg text-xs text-muted-foreground"
+                            />
+                        </Hint>
                         </div>
                     ))}
                 </div>
@@ -1639,6 +1570,10 @@ export function ChannelForm({
             </section>
             )}
 
+            {(testSummary || testError) && <section className={cn(sectionClassName, isCreateLayout && 'md:col-span-2')}>
+                {testSummary && <ChannelTestResults summary={testSummary} isNode={isNode} onRemoveFailedKeys={handleRemoveFailedKeys} />}
+                {testError && <p role="alert" className="break-words text-sm text-destructive">{t('test.failed')}: {testError}</p>}
+            </section>}
 
             <Accordion type="single" collapsible className={cn('w-full min-w-0', isCreateLayout && 'md:col-span-2')}>
                 <AccordionItem value="advanced" className="border-none">
@@ -2044,8 +1979,8 @@ export function ChannelForm({
                         Hint 放在 label 外侧，避免在 label 内嵌可交互控件导致点击图标误触发开关 */}
                     {/* 号池渠道（pool_id !== 0）不渲染该开关：其 relay 走 poolscheduler，按
                         PoolAccount.Models 过滤，完全不消费 ChannelKey.SupportedModels，开关打开也无效。
-                        门禁写法与下方 key 编辑区的 formData.pool_id === 0 保持一致。 */}
-                    {formData.pool_id === 0 && (
+                        门禁写法与下方 key 编辑区的 formData.pool_id === 0 / canFillPerKeyModels 保持一致。 */}
+                    {formData.pool_id === 0 && !isNode && (
                     <div className="flex items-center gap-1">
                         <label className={cn('flex items-center gap-2', formData.auto_sync ? 'cursor-pointer' : 'cursor-not-allowed')}>
                             <Switch
