@@ -1329,7 +1329,7 @@
     }
   },
   "node": {
-    "title": "本地节点",
+    "title": "Magpie 节点",
     "restartHint": "插件配置完成后，请完全退出并重启 Magpie，再到此处测试连接。仅刷新插件页面不够。",
     "test": {
       "button": "测试连接",
@@ -1365,11 +1365,14 @@
     "tokenTitle": "{name} 的连接令牌",
     "tokenWarning": "令牌仅显示一次，请立即复制并妥善保管。关闭此面板后即丢弃；需要时请轮换生成新令牌。",
     "copyToken": "复制令牌",
+    "cloudURLTitle": "云端地址",
+    "cloudURLHint": "Magpie 插件连接 Octopus 云端使用的 WebSocket 地址，独立可复制。",
+    "copyCloudURL": "复制云端地址",
     "configTitle": "Magpie 插件配置参考",
     "configHint": "安装 octopus-to-magpie-connect 后，在插件页填写云端地址、模型、节点令牌、Magpie API 密钥和本机端口（默认 3425）。页面凭据以明文保存在本机，也可改用环境变量或外部 private_config 文件。下方仅为分区参考，不可整体加载。确认“请求连接”后，完全退出并重启 Magpie，再到此处“测试连接”。无需独立 Connector，须先加载插件宿主。",
     "copyConfig": "复制配置",
     "dismissToken": "已保存，隐藏令牌",
-    "empty": "暂无本地节点",
+    "empty": "暂无 Magpie 节点",
     "enabled": "已启用",
     "disabled": "已禁用",
     "online": "在线",
@@ -1384,7 +1387,7 @@
     "rotate": "轮换令牌",
     "delete": "删除",
     "confirmTitle": "确认节点操作",
-    "confirmCreate": "确定创建此本地节点？连接令牌仅显示一次，请在关闭面板前安全保存。",
+    "confirmCreate": "确定创建此 Magpie 节点？连接令牌仅显示一次，请在关闭面板前安全保存。",
     "confirmDelete": "确定删除此节点？请先解除渠道绑定。此操作不可撤销。",
     "confirmRotate": "确定轮换连接令牌？旧令牌将失效。请更新插件的本地凭据并保存，然后完全退出并重启 Magpie。",
     "confirmToggle": "确定更改可用状态？禁用后渠道将无法使用此节点。",
@@ -1392,14 +1395,15 @@
     "confirm": "确认",
     "errors": {
       "operationFailed": "节点操作失败，请检查权限及渠道绑定后重试。",
-      "loadFailed": "无法加载本地节点。",
+      "loadFailed": "无法加载 Magpie 节点。",
       "copyFailed": "复制失败，请手动选中文本并复制。",
       "referenced": "此节点仍被渠道引用，请先解除绑定再删除。",
-      "notFound": "本地节点不存在。"
+      "notFound": "Magpie 节点不存在。",
+      "featureDisabled": "Magpie 节点功能已关闭，请在插件页启用后再试。"
     }
   },
   "setting": {
-    "nodes": { "title": "本地节点" },
+    "nodes": { "title": "Magpie 节点" },
     "appearance": "外观",
     "system": "系统",
     "theme": {
@@ -3286,10 +3290,11 @@
       "group": "渠道分组",
       "groupLoading": "正在加载分组...",
       "type": "渠道类型",
-      "nodeBinding": "连接方式 / 本地节点",
+      "nodeBinding": "连接方式 / Magpie 节点",
       "httpTransport": "普通 HTTP",
-      "nodeHint": "选择本地节点后将隐藏地址、代理及密钥输入，凭据仅保留在连接器上。节点不能同时绑定号池或代理。",
-      "nodeAdminOnly": "仅管理员可更改本地节点绑定。",
+      "nodeHint": "选择 Magpie 节点后将隐藏地址、代理及密钥输入，凭据仅保留在连接器上。节点不能同时绑定号池或代理。",
+      "nodeAdminOnly": "仅管理员可更改 Magpie 节点绑定。",
+      "nodeFeatureDisabled": "Magpie 节点功能已关闭，绑定渠道已自动禁用；重新开启功能时恢复此前启用的渠道。",
       "nodeOnline": "在线",
       "nodeOffline": "离线",
       "nodeDisabled": "已禁用",
@@ -4165,6 +4170,14 @@
       "error": "错误",
       "needs_reinstall": "需要重新安装",
       "uninstalling": "等待重启后移除"
+    },
+    "builtinMagpieNode": {
+      "name": "Magpie 节点",
+      "badge": "内置",
+      "description": "通过 Magpie 插件建立反向连接，将本机 Magpie 暴露为可路由的模型渠道。",
+      "hint": "在「设置 → Magpie 节点」中创建节点、生成令牌并测试连通性。",
+      "disabledHint": "已关闭：节点连接已断开，绑定渠道已禁用。重新开启时恢复此前启用的渠道，原本禁用的渠道保持禁用。",
+      "openSettings": "打开节点设置"
     }
   }
 }

@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/components/common/Toast';
 import { formatDateTime } from '@/lib/time';
 import { writeClipboardText } from '@/lib/clipboard';
-import { buildNodeConfig } from './node-config';
+import { buildNodeCloudURL, buildNodeConfig } from './node-config';
 
 function NodeTestResult({ result }: { result: NodeProbeResult | { error: string } }) {
     const t = useTranslations('node.test');
@@ -96,6 +96,9 @@ export function SettingNodes() {
     const config = secret && canWrite
         ? buildNodeConfig(secret.token, new URL(API_BASE_URL.replace(/\/?$/, '/'), window.location.href).href.replace(/\/$/, ''))
         : '';
+    const cloudURL = secret && canWrite
+        ? buildNodeCloudURL(new URL(API_BASE_URL.replace(/\/?$/, '/'), window.location.href).href.replace(/\/$/, ''))
+        : '';
 
     return <section className="space-y-4 p-4 sm:p-6">
         <div className="flex items-center justify-between gap-2">
@@ -116,6 +119,10 @@ export function SettingNodes() {
             <p className="text-sm">{t('tokenWarning')}</p>
             <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded bg-muted p-3 select-all">{secret.token}</pre>
             <Button variant="outline" onClick={() => void copy(secret.token)}>{t('copyToken')}</Button>
+            <h4 className="font-medium">{t('cloudURLTitle')}</h4>
+            <p className="text-sm text-muted-foreground">{t('cloudURLHint')}</p>
+            <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded bg-muted p-3 select-all">{cloudURL}</pre>
+            <Button variant="outline" onClick={() => void copy(cloudURL)}>{t('copyCloudURL')}</Button>
             <h4 className="font-medium">{t('configTitle')}</h4>
             <p className="text-sm text-muted-foreground">{t('configHint')}</p>
             <pre className="max-h-80 overflow-auto rounded bg-muted p-3 text-xs">{config}</pre>

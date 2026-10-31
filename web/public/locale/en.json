@@ -1373,7 +1373,7 @@
     }
   },
   "node": {
-    "title": "Local Nodes",
+    "title": "Magpie Nodes",
     "restartHint": "After configuring the plugin, fully quit and restart Magpie, then test the connection here. Refreshing the plugin page is not enough.",
     "test": {
       "button": "Test connection",
@@ -1409,11 +1409,14 @@
     "tokenTitle": "Connection token for {name}",
     "tokenWarning": "Shown only once. Copy it now and keep it private. Closing this panel discards it; rotate to issue a new token.",
     "copyToken": "Copy token",
+    "cloudURLTitle": "Cloud URL",
+    "cloudURLHint": "WebSocket URL the Magpie plugin uses to reach this Octopus cloud. Copied independently.",
+    "copyCloudURL": "Copy cloud URL",
     "configTitle": "Magpie plugin setup reference",
     "configHint": "Install octopus-to-magpie-connect, then fill in its cloud URL, models, node token, Magpie API key and local port (default 3425). Page credentials are stored locally in plain text; environment variables or an external private_config file are optional alternatives. This reference is not a directly loadable config. Confirm Request connection, fully quit and restart Magpie, then Test connection here. No separate Connector is needed; the plugin host must load first.",
     "copyConfig": "Copy configuration",
     "dismissToken": "I saved it; hide token",
-    "empty": "No local nodes yet",
+    "empty": "No Magpie nodes yet",
     "enabled": "Enabled",
     "disabled": "Disabled",
     "online": "Online",
@@ -1428,7 +1431,7 @@
     "rotate": "Rotate token",
     "delete": "Delete",
     "confirmTitle": "Confirm node operation",
-    "confirmCreate": "Create this local node? A connection token will be shown only once; save it securely before closing the panel.",
+    "confirmCreate": "Create this Magpie node? A connection token will be shown only once; save it securely before closing the panel.",
     "confirmDelete": "Delete this node? Remove channel bindings first. This operation cannot be undone.",
     "confirmRotate": "Rotate the connection token? The old token stops working. Update the plugin's local credentials, save, then fully quit and restart Magpie.",
     "confirmToggle": "Change availability? Disabling a node prevents channels from using it.",
@@ -1436,14 +1439,15 @@
     "confirm": "Confirm",
     "errors": {
       "operationFailed": "Node operation failed. Check permissions and channel bindings, then retry.",
-      "loadFailed": "Unable to load local nodes.",
+      "loadFailed": "Unable to load Magpie nodes.",
       "copyFailed": "Copy failed. Select and copy the text manually.",
       "referenced": "This node is referenced by channels. Remove their bindings before deleting it.",
-      "notFound": "Local node not found."
+      "notFound": "Magpie node not found.",
+      "featureDisabled": "The Magpie nodes feature is disabled. Enable it from the Plugins page first."
     }
   },
   "setting": {
-    "nodes": { "title": "Local Nodes" },
+    "nodes": { "title": "Magpie Nodes" },
     "appearance": "Appearance",
     "system": "System",
     "theme": {
@@ -3330,10 +3334,11 @@
       "group": "Channel Group",
       "groupLoading": "Loading groups...",
       "type": "Channel Type",
-      "nodeBinding": "Connection / local node",
+      "nodeBinding": "Connection / Magpie node",
       "httpTransport": "Standard HTTP",
-      "nodeHint": "Choose a local node to hide URL, proxy and key inputs. Credentials stay on the connector. Account pools and proxies cannot be combined with nodes.",
-      "nodeAdminOnly": "Only administrators can change local node bindings.",
+      "nodeHint": "Choose a Magpie node to hide URL, proxy and key inputs. Credentials stay on the connector. Account pools and proxies cannot be combined with nodes.",
+      "nodeAdminOnly": "Only administrators can change Magpie node bindings.",
+      "nodeFeatureDisabled": "Magpie nodes are disabled. Bound channels are disabled automatically; previously enabled channels resume when the feature is enabled again.",
       "nodeOnline": "Online",
       "nodeOffline": "Offline",
       "nodeDisabled": "Disabled",
@@ -4165,6 +4170,14 @@
       "error": "Error",
       "needs_reinstall": "Reinstall required",
       "uninstalling": "Removal pending restart"
+    },
+    "builtinMagpieNode": {
+      "name": "Magpie Nodes",
+      "badge": "Built-in",
+      "description": "Expose local Magpie as routable model channels through the Magpie plugin's reverse tunnel.",
+      "hint": "Create nodes, issue tokens and test connectivity in Settings → Magpie Nodes.",
+      "disabledHint": "Disabled: node connections are closed and bound channels are disabled. Enabling this feature restores previously enabled channels; originally disabled channels stay disabled.",
+      "openSettings": "Open node settings"
     }
   }
 }

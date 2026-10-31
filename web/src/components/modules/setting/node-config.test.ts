@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { buildNodeConfig } from './node-config.ts';
+import { buildNodeCloudURL, buildNodeConfig } from './node-config.ts';
+
+test('buildNodeCloudURL derives a wss connect URL preserving any deployment prefix', () => {
+    assert.equal(buildNodeCloudURL('https://cloud.example.com/octopus/'), 'wss://cloud.example.com/octopus/node/v1/connect');
+    assert.equal(buildNodeCloudURL('http://cloud.example.com'), 'wss://cloud.example.com/node/v1/connect');
+    assert.equal(buildNodeCloudURL('https://cloud.example.com/path?x=1#y'), 'wss://cloud.example.com/path/node/v1/connect');
+});
 
 test('plugin setup separates public options from private credentials and preserves deployment prefix', () => {
     const config = JSON.parse(buildNodeConfig('once-only-token', 'https://cloud.example.com/octopus/'));
