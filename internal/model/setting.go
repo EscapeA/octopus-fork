@@ -43,24 +43,17 @@ const (
 	SettingKeyRateLimitHoldInterval              SettingKey = "rate_limit_hold_interval"                // 429 渠道内延时重试间隔（秒）
 	SettingKeyRateLimitHoldMaxWait               SettingKey = "rate_limit_hold_max_wait"                // 429 渠道内延时重试总等待上限（秒），超时后才换下一渠道
 
-	SettingKeyPoolTokenRefreshInterval             SettingKey = "pool_token_refresh_interval"    // 号池 OAuth token 刷新检查间隔（分钟）
-	SettingKeyPoolQuotaSyncInterval                SettingKey = "pool_quota_sync_interval"       // 号池额度同步间隔（分钟）
-	SettingKeyPlanProviderRefreshInterval          SettingKey = "plan_provider_refresh_interval" // 额度监控自动刷新默认间隔（分钟）
-	SettingKeySemanticCacheEnabled                 SettingKey = "semantic_cache_enabled"
-	SettingKeySemanticCacheTTL                     SettingKey = "semantic_cache_ttl"
-	SettingKeySemanticCacheThreshold               SettingKey = "semantic_cache_threshold"
-	SettingKeySemanticCacheMaxEntries              SettingKey = "semantic_cache_max_entries"
-	SettingKeySemanticCacheEmbeddingBaseURL        SettingKey = "semantic_cache_embedding_base_url"
-	SettingKeySemanticCacheEmbeddingAPIKey         SettingKey = "semantic_cache_embedding_api_key"
-	SettingKeySemanticCacheEmbeddingModel          SettingKey = "semantic_cache_embedding_model"
-	SettingKeySemanticCacheEmbeddingTimeoutSeconds SettingKey = "semantic_cache_embedding_timeout_seconds"
-	SettingKeyAIRouteBaseURL                       SettingKey = "ai_route_base_url"
-	SettingKeyAIRouteAPIKey                        SettingKey = "ai_route_api_key"
-	SettingKeyAIRouteModel                         SettingKey = "ai_route_model"
-	SettingKeyAIRouteTimeoutSeconds                SettingKey = "ai_route_timeout_seconds"
-	SettingKeyAIRouteParallelism                   SettingKey = "ai_route_parallelism"
-	SettingKeyAIRouteServices                      SettingKey = "ai_route_services"
-	SettingKeyAIRouteMaxModelsPerRequest           SettingKey = "ai_route_max_models_per_request"
+	SettingKeyPoolTokenRefreshInterval             SettingKey = "pool_token_refresh_interval"              // 号池 OAuth token 刷新检查间隔（分钟）
+	SettingKeyPoolQuotaSyncInterval                SettingKey = "pool_quota_sync_interval"                 // 号池额度同步间隔（分钟）
+	SettingKeyPlanProviderRefreshInterval          SettingKey = "plan_provider_refresh_interval"           // 额度监控自动刷新默认间隔（分钟）
+	SettingKeySemanticCacheEnabled                 SettingKey = "semantic_cache_enabled"                   // 语义缓存开关
+	SettingKeySemanticCacheTTL                     SettingKey = "semantic_cache_ttl"                       // 语义缓存 TTL（秒）
+	SettingKeySemanticCacheThreshold               SettingKey = "semantic_cache_threshold"                 // 语义缓存相似度阈值（0-100）
+	SettingKeySemanticCacheMaxEntries              SettingKey = "semantic_cache_max_entries"               // 语义缓存最大条目数
+	SettingKeySemanticCacheEmbeddingBaseURL        SettingKey = "semantic_cache_embedding_base_url"        // Embedding Base URL
+	SettingKeySemanticCacheEmbeddingAPIKey         SettingKey = "semantic_cache_embedding_api_key"         // Embedding API Key
+	SettingKeySemanticCacheEmbeddingModel          SettingKey = "semantic_cache_embedding_model"           // Embedding 模型
+	SettingKeySemanticCacheEmbeddingTimeoutSeconds SettingKey = "semantic_cache_embedding_timeout_seconds" // Embedding 超时（秒）
 
 	SettingKeyPoolStickyEscapeEnabled           SettingKey = "pool_sticky_escape_enabled"            // Pool sticky escape switch: temporarily bypass the sticky binding when the account's EWMA stats degrade (off by default)
 	SettingKeyPoolStickyEscapeErrorRate         SettingKey = "pool_sticky_escape_error_rate"         // Pool sticky escape error-rate threshold (escape when EWMA errorRate exceeds it)
@@ -89,6 +82,14 @@ const (
 	SettingKeyAnalyticsTabVisible               SettingKey = "analytics_tab_visible"                 // 分析中心子标签可见性(JSON)
 	SettingKeyOpsTabOrder                       SettingKey = "ops_tab_order"                         // 运维中心子标签顺序(JSON)
 	SettingKeyOpsTabVisible                     SettingKey = "ops_tab_visible"                       // 运维中心子标签可见性(JSON)
+	SettingKeyAIRouteGroupID                    SettingKey = "ai_route_group_id"                     // AI路由目标分组 ID
+	SettingKeyAIRouteBaseURL                    SettingKey = "ai_route_base_url"                     // AI路由分析服务 Base URL
+	SettingKeyAIRouteAPIKey                     SettingKey = "ai_route_api_key"                      // AI路由分析服务 API Key
+	SettingKeyAIRouteModel                      SettingKey = "ai_route_model"                        // AI路由分析模型名称
+	SettingKeyAIRouteTimeoutSeconds             SettingKey = "ai_route_timeout_seconds"              // AI路由分析单次请求超时（秒）
+	SettingKeyAIRouteParallelism                SettingKey = "ai_route_parallelism"                  // AI路由分析批次最大并发数
+	SettingKeyAIRouteServices                   SettingKey = "ai_route_services"                     // AI路由分析服务池(JSON)
+	SettingKeyAIRouteMaxModelsPerRequest        SettingKey = "ai_route_max_models_per_request"       // AI路由分析单批次最大模型数，超过按模型家族切分批次
 	SettingKeyStatsTimezone                     SettingKey = "stats_timezone"                        // 统计时区（IANA 名，如 Asia/Shanghai）；空串回退到 stats_timezone_offset
 	SettingKeyStatsTimezoneOffset               SettingKey = "stats_timezone_offset"                 // [已弃用] 统计时区偏移（小时），整型；stats_timezone 为空时回退使用
 	SettingKeyJWTDefaultExpiryMinutes           SettingKey = "jwt_default_expiry_minutes"            // 默认JWT过期时间（分钟）
@@ -201,6 +202,14 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyAnalyticsTabVisible, Value: `["cache","utilization","route-health","channel-model","evaluation","latency"]`},
 		{Key: SettingKeyOpsTabOrder, Value: `["telemetry","quota","health","maintenance","system","audit"]`},
 		{Key: SettingKeyOpsTabVisible, Value: `["telemetry","quota","health","maintenance","system","audit"]`},
+		{Key: SettingKeyAIRouteGroupID, Value: "0"},
+		{Key: SettingKeyAIRouteBaseURL, Value: ""},
+		{Key: SettingKeyAIRouteAPIKey, Value: ""},
+		{Key: SettingKeyAIRouteModel, Value: ""},
+		{Key: SettingKeyAIRouteTimeoutSeconds, Value: "180"},
+		{Key: SettingKeyAIRouteParallelism, Value: "3"},
+		{Key: SettingKeyAIRouteServices, Value: "[]"},
+		{Key: SettingKeyAIRouteMaxModelsPerRequest, Value: "120"},
 		{Key: SettingKeyStatsTimezone, Value: ""}, // 空=未配置，回退到 stats_timezone_offset 再回退 UTC
 		{Key: SettingKeyStatsTimezoneOffset, Value: "0"},
 		{Key: SettingKeyJWTDefaultExpiryMinutes, Value: "15"},    // 默认15分钟
@@ -292,6 +301,8 @@ func (s *Setting) Validate() error {
 		SettingKeyAutoStrategyLatencyWeight,
 		SettingKeyAutoStrategyTTFTWeight, SettingKeyAutoStrategyPriceWeight,
 		SettingKeyAutoStrategyExploreRate, SettingKeyAutoStrategyBucketTolerance,
+		SettingKeyAIRouteGroupID, SettingKeyAIRouteTimeoutSeconds, SettingKeyAIRouteParallelism,
+		SettingKeyAIRouteMaxModelsPerRequest,
 		SettingKeyStatsTimezoneOffset,
 		SettingKeyJWTDefaultExpiryMinutes, SettingKeyJWTRememberMeExpiryDays,
 		SettingKeyLoginRateLimitWindow, SettingKeyLoginRateLimitMaxFailed,
@@ -336,6 +347,18 @@ func (s *Setting) Validate() error {
 		}
 		if (s.Key == SettingKeyAutoStrategyTTFTWeight || s.Key == SettingKeyAutoStrategyPriceWeight || s.Key == SettingKeyAutoStrategyExploreRate || s.Key == SettingKeyAutoStrategyBucketTolerance) && (v < 0 || v > 100) {
 			return fmt.Errorf("auto strategy weight must be between 0 and 100")
+		}
+		if s.Key == SettingKeyAIRouteGroupID && v < 0 {
+			return fmt.Errorf("ai route group id must be greater than or equal to 0")
+		}
+		if s.Key == SettingKeyAIRouteTimeoutSeconds && v < 1 {
+			return fmt.Errorf("ai route timeout must be greater than 0")
+		}
+		if s.Key == SettingKeyAIRouteParallelism && v < 1 {
+			return fmt.Errorf("ai route parallelism must be greater than 0")
+		}
+		if s.Key == SettingKeyAIRouteMaxModelsPerRequest && v < 1 {
+			return fmt.Errorf("ai route max models per request must be greater than 0")
 		}
 		if s.Key == SettingKeyStatsTimezoneOffset && (v < -12 || v > 14) {
 			return fmt.Errorf("stats timezone offset must be between -12 and 14")
@@ -405,13 +428,34 @@ func (s *Setting) Validate() error {
 			return fmt.Errorf("relay log queue drop policy must be disabled, oldest or newest")
 		}
 		return nil
-	case SettingKeyProxyURL:
+	case SettingKeyProxyURL, SettingKeyAIRouteBaseURL:
 		if s.Value == "" {
 			return nil
 		}
 		parsedURL, err := url.Parse(s.Value)
 		if err != nil {
+			if s.Key == SettingKeyAIRouteBaseURL {
+				return fmt.Errorf("ai route base URL is invalid: %w", err)
+			}
 			return fmt.Errorf("proxy URL is invalid: %w", err)
+		}
+		if s.Key == SettingKeyAIRouteBaseURL {
+			if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+				return fmt.Errorf("ai route base URL scheme must be http or https")
+			}
+			if parsedURL.Host == "" {
+				return fmt.Errorf("ai route base URL must have a host")
+			}
+			return nil
+		}
+		if s.Key == SettingKeyAIRouteBaseURL {
+			if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+				return fmt.Errorf("ai route base URL scheme must be http or https")
+			}
+			if parsedURL.Host == "" {
+				return fmt.Errorf("ai route base URL must have a host")
+			}
+			return nil
 		}
 
 		validSchemes := map[string]bool{
@@ -462,6 +506,8 @@ func (s *Setting) Validate() error {
 			return fmt.Errorf("nav setting must be a valid JSON array of strings")
 		}
 		return nil
+	case SettingKeyAIRouteServices:
+		return ValidateAIRouteServiceConfigs(s.Value)
 	case SettingKeyWebDAVConfig:
 		// 与专用保存端点（POST /api/v1/backup/webdav/config）对齐：interval_hours
 		// 必须是 1..168 的整数，max_backups >= 1（专用端点把 <1 归一化为 10），
