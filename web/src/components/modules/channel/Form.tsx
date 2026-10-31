@@ -20,6 +20,7 @@ import { useAlertNotifChannelList } from '@/api/endpoints/alert';
 import { useSettingList, SettingKey } from '@/api/endpoints/setting';
 import { usePoolList } from '@/api/endpoints/pool';
 import { useNodeList } from '@/api/endpoints/node';
+import { usePlugins } from '@/api/endpoints/plugin';
 import { useNavStore } from '@/components/modules/navbar/nav-store';
 import { withNodeTransport } from './node-binding';
 import { ChannelTestResults } from './TestResults';
@@ -719,10 +720,12 @@ export function ChannelForm({
     const { data: notifChannels = [] } = useAlertNotifChannelList();
     const { data: pools = [] } = usePoolList();
     const channelActive = useNavStore((state) => state.activeItem === 'channel');
-    const { data: nodeList } = useNodeList(channelActive);
+    const { data: pluginData } = usePlugins();
+    const magpieNodeFeatureEnabled = pluginData?.plugins.find((p) => p.id === 'octopus.magpie-node')?.enabled ?? true;
+    const { data: nodeList } = useNodeList(channelActive && magpieNodeFeatureEnabled);
     const nodes = nodeList?.nodes ?? [];
     const isNode = formData.node_id > 0;
-    const canBindNode = nodeList?.can_write === true;
+    const canBindNode = nodeList?.can_write === true && magpieNodeFeatureEnabled;
     const requestRewriteSupported = isRequestRewriteSupportedChannelType(formData.type);
     const openAIChatCompatSupported = isOpenAIChatCompatRewriteSupportedChannelType(formData.type);
     const isCreateLayout = layout === 'create';
@@ -1280,7 +1283,7 @@ export function ChannelForm({
                 </div>
             </section>
 
-            <section className={cn(sectionClassName, isCreateLayout && 'md:col-span-2')}>
+            {(magpieNodeFeatureEnabled || isNode) && <section className={cn(sectionClassName, isCreateLayout && 'md:col-span-2')}>
                 <label htmlFor={`${idPrefix}-node`} className={labelClassName}>{t('nodeBinding')}</label>
                 <Select value={String(formData.node_id)} disabled={!canBindNode} onValueChange={(value) => onFormDataChange({
                     ...formData,
@@ -1297,11 +1300,11 @@ export function ChannelForm({
                         {isNode && !nodes.some((node) => node.id === formData.node_id) && <SelectItem value={String(formData.node_id)}>{t('nodeUnavailable', { id: formData.node_id })}</SelectItem>}
                     </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">{t(canBindNode ? 'nodeHint' : 'nodeAdminOnly')}</p>
+                <p className="text-xs text-muted-foreground">{t(!magpieNodeFeatureEnabled ? 'nodeFeatureDisabled' : canBindNode ? 'nodeHint' : 'nodeAdminOnly')}</p>
                 {isNode && <>
-                    <Button type="button" variant="outline" disabled={testChannel.isPending} onClick={handleTestChannel}>{t(testChannel.isPending ? 'test.running' : 'test.button')}</Button>
+                    <Button type="button" variant="outline" disabled={testChannel.isPending || !magpieNodeFeatureEnabled} onClick={handleTestChannel}>{t(testChannel.isPending ? 'test.running' : 'test.button')}</Button>
                 </>}
-            </section>
+            </section>}
 
             {!isNode && <section className={cn(sectionClassName, isCreateLayout && 'md:col-span-2')}>
                 <div className="flex min-w-0 items-center justify-between gap-2">
@@ -1385,7 +1388,7 @@ export function ChannelForm({
                     <MorphingDialog onOpen={handleRefreshModels}>
                         <MorphingDialogTrigger
                             ariaLabel={t('modelRefresh')}
-                            disabled={(!isNode && (!formData.base_urls?.[0]?.url || !effectiveKey)) || isFetchingModels}
+                            disabled={(isNode && !magpieNodeFeatureEnabled) || (!isNode && (!formData.base_urls?.[0]?.url || !effectiveKey)) || isFetchingModels}
                             className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-border px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         >
                             <RefreshCw className={`size-4 ${isFetchingModels ? 'animate-spin' : ''}`} />
@@ -1950,7 +1953,8 @@ export function ChannelForm({
             <section className={cn(sectionClassName, 'flex flex-col gap-4', isCreateLayout && 'md:col-span-2')}>
                 <label className="flex items-center gap-2 cursor-pointer">
                     <Switch
-                        checked={formData.enabled}
+                        checked={formData.enabled && (!isNode || magpieNodeFeatureEnabled)}
+                        disabled={isNode && !magpieNodeFeatureEnabled}
                         onCheckedChange={(checked) => onFormDataChange({ ...formData, enabled: checked })}
                     />
                     <span className="text-sm font-medium text-card-foreground">{t('enabled')}</span>

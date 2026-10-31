@@ -23,6 +23,8 @@ func init() {
 	registerNodeRoutes(router.NewGroupRouter("/api/v1/nodes"))
 	router.NewGroupRouter("/node/v1").AddRoute(router.NewRoute("/connect", http.MethodGet).Handle(connectNode))
 	node.NodeRevokedFunc = func(id int) { nodetransport.DefaultManager.Disconnect(id) }
+	node.DisconnectAllFunc = func() { nodetransport.DefaultManager.DisconnectAll() }
+	nodetransport.FeatureEnabledFunc = node.FeatureEnabled
 	node.RuntimeSnapshotFunc = func(id int) node.RuntimeState {
 		s := nodetransport.DefaultManager.Snapshot(id)
 		return node.RuntimeState{Online: s.Online, InFlight: s.InFlight, MaxConcurrency: s.MaxConcurrency, LastSeenAt: s.LastSeenAt, ConnectorVersion: s.ConnectorVersion, LastError: s.LastError}
@@ -30,13 +32,24 @@ func init() {
 }
 
 func registerNodeRoutes(group *router.GroupRouter) {
-	group.Use(middleware.Auth()).
+	group.Use(middleware.Auth()).Use(requireNodesFeature).
 		AddRoute(router.NewRoute("", http.MethodGet).Use(middleware.RequirePermission(auth.PermNodesRead)).Handle(listNodes)).
 		AddRoute(router.NewRoute("", http.MethodPost).Use(middleware.RequirePermission(auth.PermNodesWrite), middleware.RequireJSON()).Handle(createNode)).
 		AddRoute(router.NewRoute("/:id", http.MethodPut).Use(middleware.RequirePermission(auth.PermNodesWrite), middleware.RequireJSON()).Handle(updateNode)).
 		AddRoute(router.NewRoute("/:id/rotate-token", http.MethodPost).Use(middleware.RequirePermission(auth.PermNodesWrite), middleware.RequireJSON()).Handle(rotateNodeToken)).
 		AddRoute(router.NewRoute("/:id/test", http.MethodPost).Use(middleware.RequirePermission(auth.PermNodesWrite), middleware.RequireJSON()).Handle(testNode)).
 		AddRoute(router.NewRoute("/:id", http.MethodDelete).Use(middleware.RequirePermission(auth.PermNodesWrite)).Handle(deleteNode))
+}
+
+// requireNodesFeature rejects management traffic when the Magpie nodes feature is
+// globally disabled. Keep the JSON envelope; the tunnel endpoint uses plain status.
+func requireNodesFeature(c *gin.Context) {
+	if !node.FeatureEnabled() {
+		resp.ErrorWithKey(c, http.StatusForbidden, "magpie nodes feature is disabled", "node.errors.featureDisabled", nil)
+		c.Abort()
+		return
+	}
+	c.Next()
 }
 
 func nodeError(c *gin.Context, err error) {
@@ -47,6 +60,8 @@ func nodeError(c *gin.Context, err error) {
 		resp.InvalidParam(c)
 	case errors.Is(err, node.ErrReferenced):
 		resp.ErrorWithKey(c, http.StatusConflict, "node is referenced by channels", "node.errors.referenced", nil)
+	case errors.Is(err, node.ErrFeatureDisabled):
+		resp.ErrorWithKey(c, http.StatusForbidden, "magpie nodes feature is disabled", "node.errors.featureDisabled", nil)
 	default:
 		resp.InternalError(c)
 	}
@@ -150,6 +165,10 @@ func (w nodeUpgradeWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 // connectNode uses the tunnel protocol, not the management envelope.
 // Only a node credential is accepted; JWT and relay keys are unrelated.
 func connectNode(c *gin.Context) {
+	if !node.FeatureEnabled() {
+		c.Status(http.StatusForbidden)
+		return
+	}
 	parts := strings.Fields(c.GetHeader("Authorization"))
 	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
 		c.Status(http.StatusUnauthorized)

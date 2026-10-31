@@ -15,6 +15,13 @@ import (
 
 var DefaultManager = NewManager()
 
+var ErrFeatureDisabled = errors.New("magpie nodes feature is disabled")
+
+// FeatureEnabledFunc is wired at startup; standalone transport tests leave it nil.
+var FeatureEnabledFunc func() bool
+
+func featureEnabled() bool { return FeatureEnabledFunc == nil || FeatureEnabledFunc() }
+
 type AcceptOptions struct {
 	MaxConcurrency int
 	// Validate runs under the registration mutex AFTER the WebSocket handshake.
@@ -69,6 +76,10 @@ func clampConcurrency(n int) int {
 	return n
 }
 func (m *Manager) Accept(ctx context.Context, nodeID int, w http.ResponseWriter, r *http.Request, opts AcceptOptions) error {
+	if !featureEnabled() {
+		http.Error(w, ErrFeatureDisabled.Error(), http.StatusForbidden)
+		return ErrFeatureDisabled
+	}
 	if nodeID <= 0 || opts.Validate == nil {
 		http.Error(w, "node authorization required", http.StatusForbidden)
 		return errors.New("missing node validation")
@@ -96,7 +107,7 @@ func (m *Manager) Accept(ctx context.Context, nodeID int, w http.ResponseWriter,
 		limit = h.MaxConcurrency
 	}
 	m.mu.Lock()
-	if m.closed || !opts.Validate() {
+	if m.closed || !featureEnabled() || !opts.Validate() {
 		m.mu.Unlock()
 		_ = c.CloseNow()
 		return errors.New("node registration revoked")
@@ -132,6 +143,21 @@ func (m *Manager) Disconnect(nodeID int) {
 		s.close()
 	}
 }
+
+// DisconnectAll revokes current sessions but permits new connections after re-enabling.
+func (m *Manager) DisconnectAll() {
+	m.mu.Lock()
+	ss := m.sessions
+	m.sessions = make(map[int]*serverSession)
+	for id, s := range ss {
+		m.rememberOffline(id, s, "node feature disabled")
+	}
+	m.mu.Unlock()
+	for _, s := range ss {
+		s.close()
+	}
+}
+
 func (m *Manager) Revoke(nodeID int) { m.Disconnect(nodeID) }
 func (m *Manager) Close() error {
 	m.mu.Lock()
@@ -365,6 +391,12 @@ func (b *deadlineBody) Read(p []byte) (int, error) {
 }
 func (b *deadlineBody) Close() error { err := b.ReadCloser.Close(); b.cancel(); return err }
 func (t *nodeTransport) roundTrip(req *http.Request) (*http.Response, error) {
+	if !featureEnabled() {
+		if req.Body != nil {
+			_ = req.Body.Close()
+		}
+		return nil, ErrFeatureDisabled
+	}
 	if !safeRequestURL(req.URL, req.Method) {
 		if req.Body != nil {
 			_ = req.Body.Close()
@@ -424,6 +456,10 @@ func (t *nodeTransport) roundTrip(req *http.Request) (*http.Response, error) {
 		return nil, ErrNodeOffline
 	}
 	s.dispatchMu.Lock()
+	if !featureEnabled() {
+		s.dispatchMu.Unlock()
+		return nil, ErrFeatureDisabled
+	}
 	st := newResponseStream()
 	st.models = req.Method == http.MethodGet && req.URL.Path == "/v1/models"
 	id := s.next.Add(1)

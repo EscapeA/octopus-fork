@@ -145,6 +145,7 @@ export type Channel = {
     key_health_at?: number;
     pool_id: number;
     node_id: number;
+    node_feature_paused?: boolean;
     stats?: StatsChannel;
 };
 
