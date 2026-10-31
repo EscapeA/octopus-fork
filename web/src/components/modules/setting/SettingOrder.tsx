@@ -16,10 +16,8 @@ import { toast } from '@/components/common/Toast';
 
 export type SettingItemId =
     | 'appearance'
-    | 'ai-route'
     | 'auto-strategy'
     | 'account'
-    | 'semantic-cache'
     | 'log'
     | 'info'
     | 'system'
@@ -36,10 +34,8 @@ export type SettingItemId =
 export const DEFAULT_SETTING_ORDER: SettingItemId[] = [
     'info',
     'appearance',
-    'ai-route',
     'auto-strategy',
     'account',
-    'semantic-cache',
     'log',
     'system',
     'llmsync',
@@ -112,10 +108,8 @@ export function SettingOrder() {
     const titleByKey = useMemo(() => {
         const map: Record<SettingItemId, string> = {
             appearance: settingT('appearance'),
-            'ai-route': settingT('aiRoute.title'),
             'auto-strategy': settingT('autoStrategy.title'),
             account: settingT('account.title'),
-            'semantic-cache': settingT('semanticCache.title'),
             log: settingT('log.title'),
             info: settingT('info.title'),
             system: settingT('system'),

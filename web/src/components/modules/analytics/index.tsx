@@ -9,7 +9,6 @@ import {
     type AnalyticsRange,
     type AnalyticsCacheTtl,
     useAnalyticsOverview,
-    useAnalyticsEvaluationSummary,
     useAnalyticsUtilization,
     useAnalyticsLatencyDistribution,
     useAnalyticsGroupHealth,
@@ -17,7 +16,6 @@ import {
 import { Utilization } from './Utilization';
 import { GroupHealth } from './GroupHealth';
 import { ChannelModel } from './ChannelModel';
-import { Evaluation } from './Evaluation';
 import { LatencyDistribution } from './LatencyDistribution';
 import { ShareSnapshot, type SnapshotSection } from './ShareSnapshot';
 import { Cache } from '@/components/modules/ops/Cache';
@@ -33,7 +31,6 @@ const TAB_LABEL: Record<AnalyticsTab, { ns: 'analytics' | 'ops'; key: string }> 
     utilization: { ns: 'analytics', key: 'cards.utilization.title' },
     'route-health': { ns: 'analytics', key: 'cards.routeHealth.title' },
     'channel-model': { ns: 'analytics', key: 'cards.channelModel.title' },
-    evaluation: { ns: 'analytics', key: 'evaluation.title' },
     latency: { ns: 'analytics', key: 'latency.title' },
 };
 
@@ -62,7 +59,6 @@ export function Analytics() {
     const [range, setRange] = useState<AnalyticsRange>('7d');
     const [cacheTtl, setCacheTtl] = useState<AnalyticsCacheTtl>('30s');
     const { data: overview } = useAnalyticsOverview(range, cacheTtl);
-    const { data: evaluationData } = useAnalyticsEvaluationSummary();
     const { data: utilizationData } = useAnalyticsUtilization(range, cacheTtl);
     const { data: latencyData } = useAnalyticsLatencyDistribution(range, cacheTtl);
     const { data: groupHealthData } = useAnalyticsGroupHealth(cacheTtl);
@@ -111,23 +107,6 @@ export function Analytics() {
                     { id: 'ftutP50', label: `${t('latency.ftut')} P50`, value: `${latencyData.ftut_p50_ms}ms` },
                     { id: 'ftutP95', label: `${t('latency.ftut')} P95`, value: `${latencyData.ftut_p95_ms}ms` },
                     { id: 'ftutP99', label: `${t('latency.ftut')} P99`, value: `${latencyData.ftut_p99_ms}ms` },
-                ],
-            });
-        }
-
-        // Semantic cache metrics
-        if (evaluationData?.semantic_cache.enabled) {
-            const sc = evaluationData.semantic_cache;
-            sections.push({
-                id: 'cache',
-                label: t('share.section.cache'),
-                type: 'metrics',
-                defaultSelected: true,
-                items: [
-                    { id: 'cacheHitRate', label: t('cache.metrics.hitRate'), value: `${formatPercent(sc.hit_rate).formatted.value}%` },
-                    { id: 'cacheEntries', label: t('cache.metrics.entries'), value: `${sc.current_entries}` },
-                    { id: 'cacheHits', label: t('share.metric.cacheHits'), value: `${sc.hits}` },
-                    { id: 'cacheMisses', label: t('share.metric.cacheMisses'), value: `${sc.misses}` },
                 ],
             });
         }
@@ -208,7 +187,7 @@ export function Analytics() {
         }
 
         return sections;
-    }, [overview, latencyData, evaluationData, utilizationData, groupHealthData, t]);
+    }, [overview, latencyData, utilizationData, groupHealthData, t]);
 
     return (
         <PageWrapper className="h-full min-h-0 overflow-y-auto overscroll-contain space-y-6 rounded-t-xl pb-3 md:pb-4">
@@ -294,9 +273,6 @@ export function Analytics() {
                         </TabsContent>
                         <TabsContent value="channel-model">
                             <ChannelModel range={range} />
-                        </TabsContent>
-                        <TabsContent value="evaluation">
-                            <Evaluation />
                         </TabsContent>
                         <TabsContent value="latency">
                             <LatencyDistribution range={range} />

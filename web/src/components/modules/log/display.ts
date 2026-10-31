@@ -161,8 +161,9 @@ export function resolveLogDisplayFields(
         outboundAdapterType: resolveOutboundAdapterType(mergedAttempts),
         channelId,
         channelName,
-        semanticCacheHit: detail?.semantic_cache_hit ?? log.semantic_cache_hit ?? false,
         cacheReadTokens: detail?.cache_read_tokens ?? log.cache_read_tokens ?? 0,
+        // 语义缓存命中标记：入口已在本 fork 隐藏，字段仍解析以与上游保持同构。
+        semanticCacheHit: detail?.semantic_cache_hit ?? log.semantic_cache_hit ?? false,
     };
 }
 

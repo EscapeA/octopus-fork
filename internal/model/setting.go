@@ -203,13 +203,6 @@ func DefaultSettings() []Setting {
 		{Key: SettingKeyOpsTabOrder, Value: `["telemetry","quota","health","maintenance","system","audit"]`},
 		{Key: SettingKeyOpsTabVisible, Value: `["telemetry","quota","health","maintenance","system","audit"]`},
 		{Key: SettingKeyAIRouteGroupID, Value: "0"},
-		{Key: SettingKeyAIRouteBaseURL, Value: ""},
-		{Key: SettingKeyAIRouteAPIKey, Value: ""},
-		{Key: SettingKeyAIRouteModel, Value: ""},
-		{Key: SettingKeyAIRouteTimeoutSeconds, Value: "180"},
-		{Key: SettingKeyAIRouteParallelism, Value: "3"},
-		{Key: SettingKeyAIRouteServices, Value: "[]"},
-		{Key: SettingKeyAIRouteMaxModelsPerRequest, Value: "120"},
 		{Key: SettingKeyStatsTimezone, Value: ""}, // 空=未配置，回退到 stats_timezone_offset 再回退 UTC
 		{Key: SettingKeyStatsTimezoneOffset, Value: "0"},
 		{Key: SettingKeyJWTDefaultExpiryMinutes, Value: "15"},    // 默认15分钟

@@ -33,6 +33,8 @@ type AIRouteTaskStep =
 interface GenerateAIRouteProgress {
     id: string;
     status?: AIRouteTaskStatus;
+    done?: boolean;
+    result_ready?: boolean;
     current_step?: AIRouteTaskStep;
     channels: { channel_id: number; status?: string; total_models?: number }[];
     event_sequence?: number;
@@ -41,7 +43,9 @@ interface GenerateAIRouteProgress {
 /**
  * 与 group.ts:296 语义一致
  */
-function isGenerateAIRouteTerminal(progress: GenerateAIRouteProgress | null | undefined): boolean {
+function isGenerateAIRouteTerminal(
+    progress: Partial<GenerateAIRouteProgress> | null | undefined,
+): boolean {
     if (!progress) return false;
     switch (progress.status) {
         case 'completed':
@@ -125,7 +129,7 @@ function watchProgressStream(params: {
     onProgress: (progress: GenerateAIRouteProgress) => void;
     onError: (err: Error) => void;
     getLatestProgress: () => GenerateAIRouteProgress | undefined;
-    isTerminal: (p: GenerateAIRouteProgress | undefined) => boolean;
+    isTerminal: (p: Partial<GenerateAIRouteProgress> | undefined) => boolean;
 }): { abort: () => void } {
     let cancelled = false;
     let retryTimer: number | null = null;
@@ -413,8 +417,9 @@ test('progress stream: error surfaced on non-404 failure', async () => {
     });
 
     await timers.advanceTimersByTime(100);
-    assert.ok(receivedError, 'expected error callback');
-    assert.ok(receivedError!.message.includes('500'), `expected 500 code, got '${receivedError!.message}'`);
+    const err0 = receivedError as Error | null;
+    assert.ok(err0, 'expected error callback');
+    assert.ok(err0.message.includes('500'), `expected 500 code, got '${err0.message}'`);
 
     abort();
     timers.uninstall();

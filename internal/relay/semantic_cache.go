@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lingyuins/octopus/internal/featureflags"
 	dbmodel "github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/op/setting"
 	"github.com/lingyuins/octopus/internal/transformer/inbound"
@@ -423,6 +424,11 @@ func semanticCacheRuntimeConfig() (semantic_cache.RuntimeConfig, bool) {
 }
 
 func loadSemanticCacheRuntimeConfig() (semantic_cache.RuntimeConfig, bool) {
+	// 本 fork 强制关闭语义缓存（settings 里的开关不生效），原因见
+	// internal/featureflags：保留代码以便跟随上游，但不对外提供能力。
+	if !featureflags.SemanticCacheEnabled {
+		return semantic_cache.RuntimeConfig{}, false
+	}
 	enabled, err := setting.GetBool(dbmodel.SettingKeySemanticCacheEnabled)
 	if err != nil || !enabled {
 		return semantic_cache.RuntimeConfig{}, false

@@ -1,19 +1,15 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
-import { Activity, Coins, Database, Gauge, HardDrive, Layers3, SlidersHorizontal } from 'lucide-react';
+import { useMemo } from 'react';
+import { Coins, Database, Gauge, HardDrive, Layers3 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import type { OpsCacheStatus, OpsProviderPromptCacheProviderItem, OpsProviderPromptCacheSummary } from '@/api/endpoints/ops';
+import type { OpsProviderPromptCacheProviderItem, OpsProviderPromptCacheSummary } from '@/api/endpoints/ops';
 import { useOpsCacheStatus } from '@/api/endpoints/ops';
-import { useNavStore } from '@/components/modules/navbar';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { MetricCard, QueryState, StatusBadge, formatPercent, formatUnixTime } from '@/components/modules/analytics/shared';
+import { MetricCard, QueryState, formatPercent, formatUnixTime } from '@/components/modules/analytics/shared';
 import { formatProviderPromptCacheCount, getProviderPromptCacheTrendTokens } from './cache-format';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 
-type CacheView = 'semantic' | 'providerPrompt';
 type CacheTranslations = (key: string) => string;
 
 function formatCount(n: number | undefined) {
@@ -25,120 +21,6 @@ function formatCount(n: number | undefined) {
 
 function formatCurrency(value: number | undefined) {
     return (value ?? 0).toFixed(4);
-}
-
-function ViewSwitcher({
-    value,
-    onChange,
-    semanticLabel,
-    providerLabel,
-}: {
-    value: CacheView;
-    onChange: (value: CacheView) => void;
-    semanticLabel: string;
-    providerLabel: string;
-}) {
-    const items: Array<{ key: CacheView; label: string }> = [
-        { key: 'providerPrompt', label: providerLabel },
-        { key: 'semantic', label: semanticLabel },
-    ];
-
-    return (
-        <div className="inline-flex rounded-xl border border-border/50 bg-muted/30 p-1">
-            {items.map((item) => (
-                <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => onChange(item.key)}
-                    className={cn(
-                        'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
-                        value === item.key
-                            ? 'bg-card text-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground',
-                    )}
-                >
-                    {item.label}
-                </button>
-            ))}
-        </div>
-    );
-}
-
-function SemanticCacheView({ data, t }: { data: OpsCacheStatus; t: CacheTranslations }) {
-    return (
-        <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
-                <MetricCard
-                    title={t('cache.metrics.hitRate')}
-                    value={formatPercent(data.hit_rate).formatted.value}
-                    unit={formatPercent(data.hit_rate).formatted.unit}
-                    icon={Gauge}
-                    accentClassName="bg-emerald-500/10 text-emerald-600"
-                />
-                <MetricCard
-                    title={t('cache.metrics.currentEntries')}
-                    value={data.current_entries}
-                    helper={`${data.current_entries} / ${data.max_entries}`}
-                    icon={Database}
-                />
-                <MetricCard
-                    title={t('cache.metrics.ttlSeconds')}
-                    value={data.ttl_seconds}
-                    unit="s"
-                    icon={Activity}
-                />
-                <MetricCard
-                    title={t('cache.metrics.threshold')}
-                    value={data.threshold}
-                    unit="%"
-                    icon={SlidersHorizontal}
-                    accentClassName="bg-chart-4/10 text-chart-4"
-                />
-            </div>
-
-            <article className="rounded-xl border border-border/60 bg-card p-4">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="space-y-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <StatusBadge
-                                label={data.enabled ? t('cache.status.configuredOn') : t('cache.status.configuredOff')}
-                                tone={data.enabled ? 'success' : 'neutral'}
-                            />
-                            <StatusBadge
-                                label={data.runtime_enabled ? t('cache.status.runtimeOn') : t('cache.status.runtimeOff')}
-                                tone={data.runtime_enabled ? 'success' : (data.enabled ? 'warning' : 'neutral')}
-                            />
-                        </div>
-                        <p className="text-sm leading-6 text-muted-foreground">
-                            {data.runtime_enabled ? t('cache.status.runtimeHint') : t('cache.status.runtimeMissing')}
-                        </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 lg:min-w-[320px]">
-                        <div className="rounded-lg border border-border/40 bg-card p-3">
-                            <div className="text-xs text-muted-foreground">{t('cache.detail.hits')}</div>
-                            <div className="mt-2 text-xl font-semibold">{data.hits}</div>
-                        </div>
-                        <div className="rounded-lg border border-border/40 bg-card p-3">
-                            <div className="text-xs text-muted-foreground">{t('cache.detail.misses')}</div>
-                            <div className="mt-2 text-xl font-semibold">{data.misses}</div>
-                        </div>
-                        <div className="rounded-lg border border-border/40 bg-card p-3">
-                            <div className="text-xs text-muted-foreground">{t('cache.detail.maxEntries')}</div>
-                            <div className="mt-2 text-sm font-semibold">{data.max_entries}</div>
-                        </div>
-                        <div className="rounded-lg border border-border/40 bg-card p-3">
-                            <div className="text-xs text-muted-foreground">{t('cache.detail.usageRate')}</div>
-                            <div className="mt-2 text-sm font-semibold">
-                                {formatPercent(data.usage_rate).formatted.value}
-                                {formatPercent(data.usage_rate).formatted.unit}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </article>
-        </div>
-    );
 }
 
 function ProviderPromptCacheRow({
@@ -377,35 +259,15 @@ function ProviderPromptCacheView({
 
 export function Cache() {
     const t = useTranslations('ops');
-    const { setActiveItem } = useNavStore();
     const { data, isLoading, error } = useOpsCacheStatus();
-    const [view, setView] = useState<CacheView>('providerPrompt');
 
     return (
         <section className="rounded-xl border border-border/35 bg-card p-5 text-card-foreground">
-            <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div className="space-y-1">
-                    <h3 className="text-base font-semibold">{t('tabs.cache')}</h3>
-                    <p className="text-sm leading-6 text-muted-foreground">
-                        {view === 'semantic' ? t('cache.description') : t('cache.providerPrompt.description')}
-                    </p>
-                </div>
-                <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                    <ViewSwitcher
-                        value={view}
-                        onChange={setView}
-                        semanticLabel={t('cache.views.semantic')}
-                        providerLabel={t('cache.views.providerPrompt')}
-                    />
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="rounded-xl"
-                        onClick={() => setActiveItem('setting')}
-                    >
-                        {t('actions.openSettings')}
-                    </Button>
-                </div>
+            <div className="mb-4 space-y-1">
+                <h3 className="text-base font-semibold">{t('tabs.cache')}</h3>
+                <p className="text-sm leading-6 text-muted-foreground">
+                    {t('cache.providerPrompt.description')}
+                </p>
             </div>
 
             <QueryState
@@ -414,13 +276,7 @@ export function Cache() {
                 empty={!data}
                 emptyLabel={t('states.loading')}
             >
-                {data ? (
-                    view === 'semantic' ? (
-                        <SemanticCacheView data={data} t={t} />
-                    ) : (
-                        <ProviderPromptCacheView data={data.provider_prompt_cache} t={t} />
-                    )
-                ) : null}
+                {data ? <ProviderPromptCacheView data={data.provider_prompt_cache} t={t} /> : null}
             </QueryState>
         </section>
     );

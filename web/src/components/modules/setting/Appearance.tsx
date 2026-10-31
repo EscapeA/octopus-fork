@@ -268,7 +268,6 @@ const ANALYTICS_TAB_LABEL: Record<AnalyticsTab, { ns: 'analytics' | 'ops'; key: 
     utilization: { ns: 'analytics', key: 'cards.utilization.title' },
     'route-health': { ns: 'analytics', key: 'cards.routeHealth.title' },
     'channel-model': { ns: 'analytics', key: 'cards.channelModel.title' },
-    evaluation: { ns: 'analytics', key: 'evaluation.title' },
     latency: { ns: 'analytics', key: 'latency.title' },
 };
 

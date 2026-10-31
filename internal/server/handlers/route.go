@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lingyuins/octopus/internal/conf"
+	"github.com/lingyuins/octopus/internal/featureflags"
 	"github.com/lingyuins/octopus/internal/helper"
 	"github.com/lingyuins/octopus/internal/model"
 	"github.com/lingyuins/octopus/internal/server/auth"
@@ -16,6 +17,21 @@ import (
 	"github.com/lingyuins/octopus/internal/server/router"
 )
 
+// requireAIRouteEnabled 在本 fork 关闭「AI 自动路由」时拒绝一切相关请求。
+// 关闭原因见 internal/featureflags：只保留代码，避免跟上游合并时反复产生
+// delete/modify 冲突，同时确保「把模型清单与 API Key 发给外部分析服务」的能力
+// 不会被误触发。
+func requireAIRouteEnabled() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !featureflags.AIRouteEnabled {
+			resp.Error(c, http.StatusForbidden, "AI route is disabled in this deployment")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
 func init() {
 	router.NewGroupRouter("/api/v1/route").
 		Use(middleware.Auth()).
@@ -23,23 +39,28 @@ func init() {
 		Use(middleware.RequireJSON()).
 		AddRoute(
 			router.NewRoute("/ai-generate", http.MethodPost).
+				Use(requireAIRouteEnabled()).
 				Use(middleware.RequirePermission(auth.PermGroupsWrite)).
 				Handle(generateAIRoute),
 		).
 		AddRoute(
 			router.NewRoute("/ai-generate/status/:id", http.MethodGet).
+				Use(requireAIRouteEnabled()).
 				Handle(getGenerateAIRouteStatus),
 		).
 		AddRoute(
 			router.NewRoute("/ai-generate/progress/:id", http.MethodGet).
+				Use(requireAIRouteEnabled()).
 				Handle(getGenerateAIRouteProgress),
 		).
 		AddRoute(
 			router.NewRoute("/ai-generate/result/:id", http.MethodGet).
+				Use(requireAIRouteEnabled()).
 				Handle(getGenerateAIRouteResult),
 		).
 		AddRoute(
 			router.NewRoute("/ai-generate/stream/:id", http.MethodGet).
+				Use(requireAIRouteEnabled()).
 				Handle(streamGenerateAIRouteProgress),
 		)
 }

@@ -322,7 +322,10 @@ export interface PurgeUnavailableItemsResult {
     scanned_items: number;
 }
 
-export function isGenerateAIRouteTerminal(progress: GenerateAIRouteProgress | null | undefined) {
+/** 只需 status 即可判定终态；channels 等重字段对判定无关，放宽入参便于调用方与测试构造。 */
+export function isGenerateAIRouteTerminal(
+    progress: Pick<GenerateAIRouteProgress, 'status' | 'done' | 'result_ready'> | null | undefined,
+) {
     if (!progress) {
         return false;
     }
