@@ -3164,7 +3164,9 @@
       "tps": "TPS",
       "cacheHitRate": "缓存命中率",
       "reasoningEffort": "思考强度",
-      "reasoningTokens": "思考量"
+      "reasoningTokens": "思考量",
+      "compactOn": "无字模式已开启：指标只显示图标与数值，点击恢复文字",
+      "compactOff": "无字模式：指标只显示图标与数值，一屏显示更多日志"
     },
     "card": {
       "error": "错误",

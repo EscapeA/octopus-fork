@@ -11,7 +11,7 @@ Object.defineProperty(globalThis, 'localStorage', {
         removeItem: (key: string) => { storage.delete(key); },
     },
 });
-const { DEFAULT_LOG_FIELD_VISIBILITY, normalizeLogFieldVisibility, shouldAutoRefreshLogs, useLogFieldVisibilityStore } = await import('./ui-store.ts');
+const { DEFAULT_LOG_FIELD_VISIBILITY, normalizeLogFieldVisibility, shouldAutoRefreshLogs, useLogFieldVisibilityStore, useLogCompactMetricsStore } = await import('./ui-store.ts');
 after(() => {
     if (storageDescriptor) Object.defineProperty(globalThis, 'localStorage', storageDescriptor);
     else Reflect.deleteProperty(globalThis, 'localStorage');
@@ -46,4 +46,21 @@ test('automatic log refresh only runs for the visible relay log view', () => {
     assert.equal(shouldAutoRefreshLogs(5, 'home', 'relay', 'visible'), false);
     assert.equal(shouldAutoRefreshLogs(5, 'log', 'error', 'visible'), false);
     assert.equal(shouldAutoRefreshLogs(5, 'log', 'relay', 'hidden'), false);
+});
+
+test('compact metrics toggle defaults to off and flips both ways', () => {
+    const store = useLogCompactMetricsStore;
+    store.getState().setEnabled(false);
+    assert.equal(store.getState().enabled, false);
+    store.getState().toggle();
+    assert.equal(store.getState().enabled, true);
+    store.getState().toggle();
+    assert.equal(store.getState().enabled, false);
+    store.getState().setEnabled(true);
+    assert.equal(store.getState().enabled, true);
+});
+
+test('compact metrics preference persists only the enabled flag', () => {
+    const partialize = useLogCompactMetricsStore.persist.getOptions().partialize!;
+    assert.deepEqual(partialize(useLogCompactMetricsStore.getState()), { enabled: true });
 });

@@ -89,6 +89,32 @@ export function useLogFieldVisibility() {
 }
 
 /**
+ * 无字模式：指标区只显示图标 + 数值，去掉文字标签，并把指标压成一行多项，
+ * 用于移动端一屏显示更多日志。属于浏览器本地偏好，持久化到 localStorage。
+ */
+export const useLogCompactMetricsStore = create<{
+    enabled: boolean;
+    setEnabled: (value: boolean) => void;
+    toggle: () => void;
+}>()(
+    persist(
+        (set) => ({
+            enabled: false,
+            setEnabled: (value) => set({ enabled: value }),
+            toggle: () => set((state) => ({ enabled: !state.enabled })),
+        }),
+        {
+            name: 'log-compact-metrics-storage',
+            partialize: (state) => ({ enabled: state.enabled }),
+        },
+    ),
+);
+
+export function useLogCompactMetrics() {
+    return useLogCompactMetricsStore((s) => s.enabled);
+}
+
+/**
  * 日志模型搜索文本，在标题栏搜索框与 Log 组件筛选逻辑之间共享。
  */
 export const useLogModelSearchStore = create<{

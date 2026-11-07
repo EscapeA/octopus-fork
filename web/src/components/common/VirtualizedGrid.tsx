@@ -173,6 +173,14 @@ export function VirtualizedGrid<T>({
         overscan: effectiveOverscan,
     });
 
+    // 行高估算值随显示密度切换（如日志无字模式）而变时，清掉已缓存的行高并重新测量，
+    // 否则选项变化后旧测量值会继续生效，列表高度与滚动位置都会对不上。
+    const rowVirtualizerRef = useRef(rowVirtualizer);
+    rowVirtualizerRef.current = rowVirtualizer;
+    useEffect(() => {
+        rowVirtualizerRef.current.measure();
+    }, [estimateItemHeight]);
+
     const virtualRows = rowVirtualizer.getVirtualItems();
 
     useEffect(() => {

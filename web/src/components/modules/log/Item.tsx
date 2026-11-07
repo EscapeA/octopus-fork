@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useMemo, useState, useEffect } from 'react';
+import { memo, useMemo, useState, useEffect, type ComponentType, type CSSProperties, type ReactNode } from 'react';
 import { Clock, Cpu, Gauge, Zap, AlertCircle, ArrowDownToLine, ArrowUpFromLine, JapaneseYen, ArrowRight, ArrowDown, Send, MessageSquare, Loader2, Percent, RotateCw, ChevronDown, ChevronUp, Pin, KeyRound, Globe, ChevronsDownUp, ChevronsUpDown, TestTube2, Sigma, Brain, Type } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'motion/react';
@@ -15,7 +15,7 @@ import { cn, formatCount, formatMoney, prefersChineseUnits } from '@/lib/utils';
 import { formatUnixSeconds } from '@/lib/time';
 import { endpointTypeLabelKey } from '@/components/modules/group/utils';
 import { resolveLogDisplayFields, formatJsonForCopy } from './display';
-import { useLogFieldVisibility } from './ui-store';
+import { useLogFieldVisibility, useLogCompactMetrics } from './ui-store';
 import { LogCandidatesPanel } from './LogCandidatesPanel';
 import { useSettingStore } from '@/stores/setting';
 import { CopyIconButton } from '@/components/common/CopyButton';
@@ -261,6 +261,72 @@ function DeferredJsonContent({ content, fallbackText, collapsed }: { content: st
     );
 }
 
+type LogMetricIcon = ComponentType<{ className?: string; style?: CSSProperties }>;
+
+type LogMetric = {
+    key: string;
+    icon: LogMetricIcon;
+    /** CSS color for the icon; undefined → 使用模型品牌色 */
+    color?: string;
+    label?: string;
+    value: string;
+    tone?: 'rose' | 'emerald';
+    truncate?: boolean;
+    title?: string;
+    badges?: ReactNode;
+};
+
+function MetricItems({ metrics, compact }: { metrics: LogMetric[]; compact: boolean }) {
+    if (compact) {
+        return (
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] tabular-nums text-muted-foreground">
+                {metrics.map((m) => {
+                    const Icon = m.icon;
+                    return (
+                        <span
+                            key={m.key}
+                            className={cn(
+                                'inline-flex min-w-0 items-center gap-1',
+                                m.tone === 'rose' && 'font-medium text-rose-600 dark:text-rose-400',
+                                m.tone === 'emerald' && 'font-medium text-emerald-600 dark:text-emerald-400',
+                            )}
+                            title={m.title ?? (m.label ? `${m.label} ${m.value}` : m.value)}
+                        >
+                            <Icon className="size-3 shrink-0" style={m.color ? { color: m.color } : undefined} />
+                            <span className={cn('truncate', m.truncate && 'max-w-[10rem]')}>{m.value}</span>
+                            {m.badges}
+                        </span>
+                    );
+                })}
+            </div>
+        );
+    }
+
+    return (
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-x-4 gap-y-1.5 text-xs tabular-nums text-muted-foreground">
+            {metrics.map((m) => {
+                const Icon = m.icon;
+                return (
+                    <div key={m.key} className="flex items-center gap-1.5">
+                        <Icon className="size-3.5 shrink-0" style={m.color ? { color: m.color } : undefined} />
+                        <span
+                            className={cn(
+                                m.tone === 'rose' && 'font-medium text-rose-600 dark:text-rose-400',
+                                m.tone === 'emerald' && 'font-medium text-emerald-600 dark:text-emerald-400',
+                                m.truncate && 'truncate',
+                            )}
+                            title={m.title}
+                        >
+                            {m.label ? `${m.label} ${m.value}` : m.value}
+                        </span>
+                        {m.badges}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 export const LogCard = memo(function LogCard({ log, channelNameById }: { log: RelayLog; channelNameById?: ReadonlyMap<number, string> }) {
     const t = useTranslations('log.card');
     const tCommon = useTranslations('common');
@@ -273,6 +339,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
     const [responseJsonCollapsed, setResponseJsonCollapsed] = useState(false);
     const displayFields = useMemo(() => resolveLogDisplayFields(log, detail, channelNameById), [channelNameById, detail, log]);
     const vis = useLogFieldVisibility();
+    const compactMetrics = useLogCompactMetrics();
     const chinaUnits = prefersChineseUnits();
     const { Avatar: ModelAvatar, color: brandColor } = useMemo(
         () => getModelIcon(displayFields.actualModelName),
@@ -349,6 +416,145 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
             : formatMoney(Number(log.cost)).raw.toFixed(2))
         : tCommon('unknown');
 
+    // 指标集合：普通模式渲染为 7 列网格（图标+标签+值），无字模式压成一行多项（图标+值）。
+    const metrics = useMemo<LogMetric[]>(() => {
+        const items: LogMetric[] = [];
+
+        items.push({ key: 'time', icon: Clock, color: badgeColor, value: formatTime(log.time) });
+        if (vis.apiKeyName && requestAPIKeyName) {
+            items.push({
+                key: 'apiKey',
+                icon: KeyRound,
+                color: '#f97316',
+                value: requestAPIKeyName,
+                truncate: true,
+                title: requestAPIKeyName,
+            });
+        }
+        if (vis.clientIP && clientIP) {
+            items.push({ key: 'clientIP', icon: Globe, color: '#0ea5e9', value: clientIP, truncate: true, title: clientIP });
+        }
+        items.push({ key: 'ftut', icon: Zap, color: '#f59e0b', label: t('firstToken'), value: formatDuration(log.ftut) });
+        items.push({ key: 'useTime', icon: Cpu, color: '#3b82f6', label: t('totalTime'), value: formatDuration(log.use_time) });
+        if (vis.tps) {
+            items.push({
+                key: 'tps',
+                icon: Gauge,
+                color: '#84cc16',
+                label: t('tps'),
+                value: formatTPS(log.output_tokens, log.use_time - log.ftut),
+            });
+        }
+        if (vis.cacheHitRate && cacheReadTokens > 0) {
+            items.push({
+                key: 'cacheHitRate',
+                icon: Percent,
+                color: '#14b8a6',
+                label: t('cacheHitRate'),
+                value: formatCacheHitRate(cacheReadTokens, totalTokens),
+            });
+        }
+        items.push({
+            key: 'input',
+            icon: ArrowDownToLine,
+            color: '#22c55e',
+            label: inputLabel,
+            value: inputTokenDisplay,
+        });
+        if (cacheReadTokens > 0) {
+            items.push({
+                key: 'cacheHit',
+                icon: ArrowDownToLine,
+                color: '#14b8a6',
+                label: t('cacheHit'),
+                value: fmt(formatCount(cacheReadTokens).formatted),
+            });
+        }
+        items.push({ key: 'output', icon: ArrowUpFromLine, color: '#a855f7', label: t('output'), value: outputTokenDisplay });
+        items.push({ key: 'totalTokens', icon: Sigma, color: '#f43f5e', label: t('totalTokens'), value: totalTokenDisplay, tone: 'rose' });
+        if (vis.cost) {
+            items.push({
+                key: 'cost',
+                icon: JapaneseYen,
+                color: '#10b981',
+                label: t('cost'),
+                value: costDisplay,
+                tone: 'emerald',
+                badges: (
+                    <>
+                        {log.billing_window === 'peak' && (
+                            <Badge
+                                variant="outline"
+                                className="shrink-0 text-xs px-1.5 py-0 border-amber-400/50 text-amber-500 dark:text-amber-400"
+                                title={t('billingWindowHint')}
+                            >
+                                {t('billingWindowPeak')}
+                            </Badge>
+                        )}
+                        {log.billing_window === 'offpeak' && (
+                            <Badge
+                                variant="outline"
+                                className="shrink-0 text-xs px-1.5 py-0 border-sky-400/50 text-sky-500 dark:text-sky-400"
+                                title={t('billingWindowHint')}
+                            >
+                                {t('billingWindowOffPeak')}
+                            </Badge>
+                        )}
+                    </>
+                ),
+            });
+        }
+        if (vis.reasoningEffort && !!log.reasoning_effort) {
+            items.push({
+                key: 'reasoningEffort',
+                icon: Brain,
+                color: '#8b5cf6',
+                label: t('reasoningEffort'),
+                value: log.reasoning_effort,
+            });
+        }
+        if (vis.reasoningTokens && (log.reasoning_tokens ?? 0) > 0) {
+            items.push({
+                key: 'reasoningTokens',
+                icon: Brain,
+                color: '#6366f1',
+                label: t('reasoningTokens'),
+                value: `${fmt(formatCount(log.reasoning_tokens ?? 0).formatted)}${t('reasoningTokensUnit')}`,
+            });
+        } else if (vis.reasoningTokens && (log.reasoning_chars ?? 0) > 0) {
+            items.push({
+                key: 'reasoningChars',
+                icon: Type,
+                color: '#6366f1',
+                label: t('reasoningChars'),
+                value: `${fmt(formatCount(log.reasoning_chars ?? 0).formatted)}${t('reasoningCharsUnit')}`,
+            });
+        }
+
+        return items;
+    }, [
+        badgeColor,
+        cacheReadTokens,
+        clientIP,
+        costDisplay,
+        inputLabel,
+        inputTokenDisplay,
+        log.ftut,
+        log.output_tokens,
+        log.reasoning_chars,
+        log.reasoning_effort,
+        log.reasoning_tokens,
+        log.time,
+        log.use_time,
+        log.billing_window,
+        outputTokenDisplay,
+        requestAPIKeyName,
+        t,
+        totalTokenDisplay,
+        totalTokens,
+        vis,
+    ]);
+
     return (
         // Root layout already provides the single global TooltipProvider (shared
         // GlobalTooltipProvider + one TooltipOverlay) used by every other module
@@ -371,11 +577,22 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                         hasError ? "border-destructive/40" : "border-border",
                     )}
                 >
-                    <div className={cn("p-2.5 sm:p-4 grid grid-cols-[auto_1fr] gap-2.5 sm:gap-4", hasError ? "items-start" : "items-center")}>
-                        <div className="sm:hidden"><ModelAvatar size={36} /></div>
-                        <div className="hidden sm:block"><ModelAvatar size={40} /></div>
-                        <div className="min-w-0 flex flex-col gap-2">
-                            <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm md:flex-nowrap">
+                    <div
+                        className={cn(
+                            "grid grid-cols-[auto_1fr]",
+                            compactMetrics ? "p-1.5 sm:p-3 gap-2 sm:gap-3" : "p-2.5 sm:p-4 gap-2.5 sm:gap-4",
+                            hasError ? "items-start" : "items-center",
+                        )}
+                    >
+                        <div className="sm:hidden"><ModelAvatar size={compactMetrics ? 28 : 36} /></div>
+                        <div className="hidden sm:block"><ModelAvatar size={compactMetrics ? 32 : 40} /></div>
+                        <div className={cn("min-w-0 flex flex-col", compactMetrics ? "gap-1" : "gap-2")}>
+                            <div
+                                className={cn(
+                                    "flex min-w-0 flex-wrap items-center md:flex-nowrap",
+                                    compactMetrics ? "gap-1.5 text-xs" : "gap-2 text-sm",
+                                )}
+                            >
                                 <span className="min-w-0 max-w-full font-semibold text-card-foreground truncate md:max-w-[32%]" title={displayRequestModelName}>
                                     {displayRequestModelName}
                                 </span>
@@ -431,108 +648,7 @@ export const LogCard = memo(function LogCard({ log, channelNameById }: { log: Re
                                     <Pin className="size-3.5 shrink-0 text-amber-500" />
                                 )}
                             </div>
-                            <div className="grid grid-cols-2 md:grid-cols-7 gap-x-4 gap-y-1.5 text-xs tabular-nums text-muted-foreground">
-                                <div className="flex items-center gap-1.5">
-                                    <Clock className="size-3.5 shrink-0" style={{ color: badgeColor }} />
-                                    <span>{formatTime(log.time)}</span>
-                                </div>
-                                {vis.apiKeyName && requestAPIKeyName && (
-                                    <div className="flex items-center gap-1.5">
-                                        <KeyRound className="size-3.5 shrink-0 text-orange-500" />
-                                        <span className="truncate" title={requestAPIKeyName}>
-                                            {requestAPIKeyName}
-                                        </span>
-                                    </div>
-                                )}
-                                {vis.clientIP && clientIP && (
-                                    <div className="flex items-center gap-1.5">
-                                        <Globe className="size-3.5 shrink-0 text-sky-500" />
-                                        <span className="truncate" title={clientIP}>{clientIP}</span>
-                                    </div>
-                                )}
-                                <div className="flex items-center gap-1.5">
-                                    <Zap className="size-3.5 shrink-0 text-amber-500" />
-                                    <span>{t('firstToken')} {formatDuration(log.ftut)}</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <Cpu className="size-3.5 shrink-0 text-blue-500" />
-                                    <span>{t('totalTime')} {formatDuration(log.use_time)}</span>
-                                </div>
-                                {vis.tps && (
-                                    <div className="flex items-center gap-1.5">
-                                        <Gauge className="size-3.5 shrink-0 text-lime-500" />
-                                        <span>{t('tps')} {formatTPS(log.output_tokens, log.use_time - log.ftut)}</span>
-                                    </div>
-                                )}
-                                {vis.cacheHitRate && cacheReadTokens > 0 && (
-                                    <div className="flex items-center gap-1.5">
-                                        <Percent className="size-3.5 shrink-0 text-teal-500" />
-                                        <span>{t('cacheHitRate')} {formatCacheHitRate(cacheReadTokens, totalTokens)}</span>
-                                    </div>
-                                )}
-                                <div className="flex items-center gap-1.5">
-                                    <ArrowDownToLine className="size-3.5 shrink-0 text-green-500" />
-                                    <span>{inputLabel} {inputTokenDisplay}</span>
-                                </div>
-                                {cacheReadTokens > 0 && (
-                                    <div className="flex items-center gap-1.5">
-                                        <ArrowDownToLine className="size-3.5 shrink-0 text-teal-500" />
-                                        <span>{t('cacheHit')} {fmt(formatCount(cacheReadTokens).formatted)}</span>
-                                    </div>
-                                )}
-                                <div className="flex items-center gap-1.5">
-                                    <ArrowUpFromLine className="size-3.5 shrink-0 text-purple-500" />
-                                    <span>{t('output')} {outputTokenDisplay}</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <Sigma className="size-3.5 shrink-0 text-rose-500" />
-                                    <span className="font-medium text-rose-600 dark:text-rose-400">{t('totalTokens')} {totalTokenDisplay}</span>
-                                </div>
-                                {vis.cost && (
-                                    <div className="flex items-center gap-1.5">
-                                        <JapaneseYen className="size-3.5 shrink-0 text-emerald-500" />
-                                        <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                                            {t('cost')} {costDisplay}
-                                        </span>
-                                        {log.billing_window === 'peak' && (
-                                            <Badge
-                                                variant="outline"
-                                                className="shrink-0 text-xs px-1.5 py-0 border-amber-400/50 text-amber-500 dark:text-amber-400"
-                                                title={t('billingWindowHint')}
-                                            >
-                                                {t('billingWindowPeak')}
-                                            </Badge>
-                                        )}
-                                        {log.billing_window === 'offpeak' && (
-                                            <Badge
-                                                variant="outline"
-                                                className="shrink-0 text-xs px-1.5 py-0 border-sky-400/50 text-sky-500 dark:text-sky-400"
-                                                title={t('billingWindowHint')}
-                                            >
-                                                {t('billingWindowOffPeak')}
-                                            </Badge>
-                                        )}
-                                    </div>
-                                )}
-                                {vis.reasoningEffort && !!log.reasoning_effort && (
-                                    <div className="flex items-center gap-1.5">
-                                        <Brain className="size-3.5 shrink-0 text-violet-500" />
-                                        <span>{t('reasoningEffort')} {log.reasoning_effort}</span>
-                                    </div>
-                                )}
-                                {vis.reasoningTokens && (log.reasoning_tokens ?? 0) > 0 && (
-                                    <div className="flex items-center gap-1.5">
-                                        <Brain className="size-3.5 shrink-0 text-indigo-500" />
-                                        <span>{t('reasoningTokens')} {fmt(formatCount(log.reasoning_tokens ?? 0).formatted)}{t('reasoningTokensUnit')}</span>
-                                    </div>
-                                )}
-                                {vis.reasoningTokens && (log.reasoning_tokens ?? 0) <= 0 && (log.reasoning_chars ?? 0) > 0 && (
-                                    <div className="flex items-center gap-1.5">
-                                        <Type className="size-3.5 shrink-0 text-indigo-500" />
-                                        <span>{t('reasoningChars')} {fmt(formatCount(log.reasoning_chars ?? 0).formatted)}{t('reasoningCharsUnit')}</span>
-                                    </div>
-                                )}
-                            </div>
+                            <MetricItems metrics={metrics} compact={compactMetrics} />
                             {hasError && (
                                 <div className="p-2.5 rounded-xl bg-destructive/10 border border-destructive/20 overflow-hidden">
                                     <p className="text-xs text-destructive line-clamp-2">{log.error}</p>

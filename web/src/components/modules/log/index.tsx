@@ -7,9 +7,9 @@ import { useLogs, type LogFilter } from '@/api/endpoints/log';
 import { useModelList } from '@/api/endpoints/model';
 import { LogCard } from './Item';
 import { ErrorLogView } from './ErrorLogView';
-import { Loader2, X, Columns3, Check, ChevronsUpDown, Search } from 'lucide-react';
+import { Loader2, X, Columns3, Check, ChevronsUpDown, Search, Rows3 } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { useLogFieldVisibilityStore, useLogModelSearchStore, useLogAutoRefreshStore, shouldAutoRefreshLogs, type LogFieldName } from './ui-store';
+import { useLogFieldVisibilityStore, useLogModelSearchStore, useLogAutoRefreshStore, useLogCompactMetricsStore, shouldAutoRefreshLogs, type LogFieldName } from './ui-store';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { VirtualizedGrid } from '@/components/common/VirtualizedGrid';
@@ -43,6 +43,8 @@ function LogFilterBar({
     const { data: apiKeys = [] } = useAPIKeyList();
     const { data: models = [] } = useModelList();
     const visibility = useLogFieldVisibilityStore((s) => s.visibility);
+    const compactMetrics = useLogCompactMetricsStore((s) => s.enabled);
+    const toggleCompactMetrics = useLogCompactMetricsStore((s) => s.toggle);
 
     const hasFilter = !!(
         filter.channel_id != null ||
@@ -289,6 +291,22 @@ function LogFilterBar({
                 </button>
             )}
 
+            <button
+                type="button"
+                onClick={toggleCompactMetrics}
+                aria-pressed={compactMetrics}
+                className={cn(
+                    'flex items-center rounded-md p-1.5 transition-colors',
+                    compactMetrics
+                        ? 'bg-foreground text-background'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+                )}
+                title={compactMetrics ? tView('compactOn') : tView('compactOff')}
+                aria-label={compactMetrics ? tView('compactOn') : tView('compactOff')}
+            >
+                <Rows3 className="size-3.5" />
+            </button>
+
             <Popover>
                 <PopoverTrigger asChild>
                     <button
@@ -340,6 +358,7 @@ export function Log() {
     const [filter, setFilter] = useState<LogFilter>(EMPTY_FILTER);
     const modelSearch = useLogModelSearchStore((s) => s.modelSearch);
     const setModelSearch = useLogModelSearchStore((s) => s.setModelSearch);
+    const compactMetrics = useLogCompactMetricsStore((s) => s.enabled);
     const combinedFilter = useMemo<LogFilter>(
         () => (modelSearch ? { ...filter, model: modelSearch } : filter),
         [filter, modelSearch],
@@ -445,7 +464,7 @@ export function Log() {
                                 items={logs}
                                 layout="list"
                                 columns={{ default: 1 }}
-                                estimateItemHeight={180}
+                                estimateItemHeight={compactMetrics ? 92 : 180}
                                 overscan={8}
                                 getItemKey={(log) => `log-${log.id}`}
                                 renderItem={(log) => <LogCard log={log} channelNameById={channelNameById} />}

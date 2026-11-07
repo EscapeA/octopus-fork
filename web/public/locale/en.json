@@ -3208,7 +3208,9 @@
       "tps": "TPS",
       "cacheHitRate": "Cache Hit Rate",
       "reasoningEffort": "Reasoning Effort",
-      "reasoningTokens": "Reasoning Size"
+      "reasoningTokens": "Reasoning Size",
+      "compactOn": "Compact metrics on: icons and values only. Click to show labels",
+      "compactOff": "Compact metrics: icons and values only, more logs per screen"
     },
     "card": {
       "error": "Error",
